@@ -35,8 +35,8 @@ npm install @dimforge/rapier2d-compat framer-motion zustand @supabase/supabase-j
 2. **인증 설정**: `Authentication` -> `Providers`에서 **Email** 공급자를 활성화하고, 기획에 따라 'username' 등 추가 메타데이터를 받을 수 있도록 세팅합니다.
 3. **환경 변수 등록**: 프로젝트 루트에 `.env.local` 파일을 생성하고 키를 입력합니다.
    ```env
-   NEXT_PUBLIC_SUPABASE_URL=당신의_프로젝트_URL
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=당신의_ANON_KEY
+   NEXT_PUBLIC_SUPABASE_URL=https://meiqecigjicnstjukhlz.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1laXFlY2lnamljbnN0anVraGx6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNDQ3MTUsImV4cCI6MjA5NzcyMDcxNX0.cHu8kYBiy2XvXowi4Xt5qi5yyu2XUlwPz2RlO2QiATY
    ```
 4. **SQL 마이그레이션**: `PRD_Architecture.md`의 데이터베이스 스키마(profiles, sessions, participants 등)를 기반으로 Supabase의 SQL Editor를 이용해 테이블을 생성합니다.
 
