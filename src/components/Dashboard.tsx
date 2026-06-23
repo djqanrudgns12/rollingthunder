@@ -4,8 +4,8 @@ import { useGameStore } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
 import { useState } from 'react'
 import { createSession } from '@/actions/db'
-import { supabase } from '@/lib/supabase'
-import { Tv, Shield, ShieldOff, Video } from 'lucide-react'
+import MapLoadModal from './MapLoadModal'
+import { Tv, Shield, ShieldOff, Video, Map } from 'lucide-react'
 
 // Simple Anonymizer Helper
 const ANIMAL_NAMES = ['사자', '호랑이', '토끼', '고양이', '강아지', '독수리', '돌고래', '상어', '거북이', '알파카', '기린', '코끼리']
@@ -14,14 +14,14 @@ function getRandomAnimal() {
 }
 
 export default function Dashboard() {
-  const { participants, addParticipant, removeParticipant, clearParticipants, setGimmickDensity, gimmickDensity, setSurvivors, setTargetSurvivalCount, setSessionId } = useGameStore()
-  const { setGameStage, setCustomMapData, customMapData, isBroadcasterMode, setBroadcasterMode, isAnonymized, setAnonymized } = useUIStore()
+  const { participants, addParticipant, removeParticipant, clearParticipants, setGimmickDensity, gimmickDensity, setSurvivors, setTargetSurvivalCount, setSessionId, winningRule, setWinningRule, customWinningRank, setCustomWinningRank } = useGameStore()
+  const { setGameStage, customMapData, isBroadcasterMode, setBroadcasterMode, isAnonymized, setAnonymized } = useUIStore()
   
   const [nameInput, setNameInput] = useState('')
   const [skinInput, setSkinInput] = useState('')
-  const [mapCode, setMapCode] = useState('')
   const [survivalCount, setLocalSurvivalCount] = useState(1)
   const [title, setTitle] = useState('새로운 추첨')
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false)
 
   const handleAdd = () => {
     if (!nameInput.trim()) return
@@ -109,28 +109,12 @@ export default function Dashboard() {
           </div>
           
           <div className="flex gap-2">
-            <input 
-              type="text" 
-              placeholder="커스텀 맵 공유 코드 (선택)" 
-              className="flex-1 bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-[var(--accent-primary)] font-bold focus:outline-none focus:border-[var(--accent-primary)] transition-colors uppercase"
-              value={mapCode}
-              onChange={(e) => setMapCode(e.target.value)}
-              maxLength={6}
-            />
             <button 
-              onClick={async () => {
-                if(!mapCode.trim()) return;
-                const { data, error } = await supabase.from('map_presets').select('map_data, title').eq('share_code', mapCode.toUpperCase()).single()
-                if(error || !data) {
-                  alert('유효하지 않은 맵 코드입니다.')
-                  return
-                }
-                setCustomMapData(data.map_data)
-                alert(`[${data.title}] 맵을 성공적으로 적용했습니다!`)
-              }} 
-              className="bg-purple-600/30 text-purple-300 border border-purple-500/50 font-bold px-6 py-3 rounded-xl hover:bg-purple-600/50 transition-colors shrink-0"
+              onClick={() => setIsMapModalOpen(true)} 
+              className="w-full bg-black/50 border border-white/10 hover:border-[var(--accent-primary)] text-white/80 font-bold px-6 py-4 rounded-xl transition-all flex items-center justify-center gap-2 group shadow-inner"
             >
-              {customMapData ? '맵 적용됨' : '맵 로드'}
+              <Map className="w-5 h-5 group-hover:text-[var(--accent-primary)] transition-colors" />
+              {customMapData ? '커스텀/기본 맵 적용됨 (클릭하여 변경)' : '맵 로드 (기본/커스텀)'}
             </button>
           </div>
 
@@ -169,28 +153,75 @@ export default function Dashboard() {
             ))}
           </div>
 
-          <div className="grid grid-cols-2 gap-6 mt-2 bg-black/20 p-4 rounded-xl border border-white/5">
-            <div className="flex flex-col gap-2">
-              <label className="text-xs text-[var(--accent-primary)] font-bold tracking-widest uppercase">Target Survivors</label>
-              <input 
-                type="number" 
-                min={1} 
-                max={Math.max(1, participants.length - 1)}
-                value={survivalCount}
-                onChange={(e) => setLocalSurvivalCount(Number(e.target.value))}
-                className="bg-black/50 border border-white/10 rounded-xl px-4 py-2 text-[var(--text-primary)] font-mono text-xl focus:outline-none"
-              />
+          <div className="flex flex-col gap-4 mt-2 bg-black/20 p-4 rounded-xl border border-white/5">
+            {/* 우승 기준 설정 */}
+            <div className="flex flex-col gap-3 border-b border-white/5 pb-4">
+              <label className="text-xs text-white/50 font-bold tracking-widest uppercase">우승 기준 (Winning Rule)</label>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setWinningRule('first')}
+                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${winningRule === 'first' ? 'bg-[var(--accent-primary)] text-black shadow-[0_0_10px_var(--accent-primary)]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                >
+                  1등 우승
+                </button>
+                <button 
+                  onClick={() => setWinningRule('last')}
+                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${winningRule === 'last' ? 'bg-[var(--accent-secondary)] text-black shadow-[0_0_10px_var(--accent-secondary)]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                >
+                  꼴등 우승
+                </button>
+                <button 
+                  onClick={() => setWinningRule('custom')}
+                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${winningRule === 'custom' ? 'bg-purple-500 text-white shadow-[0_0_10px_#a855f7]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                >
+                  N등 우승
+                </button>
+              </div>
+              
+              {winningRule === 'custom' && (
+                <div className="flex items-center gap-3 bg-black/40 p-3 rounded-lg border border-purple-500/30 animate-in fade-in slide-in-from-top-2">
+                  <span className="text-sm text-purple-300 font-bold">몇 등을 우승으로 할까요?</span>
+                  <div className="flex items-center bg-black rounded-lg overflow-hidden border border-white/10 ml-auto">
+                    <button onClick={() => setCustomWinningRank(Math.max(1, customWinningRank - 1))} className="px-3 py-1 hover:bg-white/10 text-white/70">-</button>
+                    <input 
+                      type="number" 
+                      value={customWinningRank}
+                      onChange={(e) => setCustomWinningRank(Math.max(1, Number(e.target.value)))}
+                      className="w-12 bg-transparent text-center text-white font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <button onClick={() => setCustomWinningRank(customWinningRank + 1)} className="px-3 py-1 hover:bg-white/10 text-white/70">+</button>
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-xs text-[var(--accent-secondary)] font-bold tracking-widest uppercase">Gimmick Density</label>
-              <input 
-                type="range" 
-                min={10} 
-                max={90}
-                value={gimmickDensity}
-                onChange={(e) => setGimmickDensity(Number(e.target.value))}
-                className="accent-[var(--accent-secondary)] mt-3"
-              />
+
+            <div className="grid grid-cols-2 gap-6 pt-2">
+              <div className="flex flex-col gap-2">
+                <label className="text-xs text-[var(--accent-primary)] font-bold tracking-widest uppercase">Target Survivors (최종 생존자 수)</label>
+                <div className="flex items-center bg-black/50 rounded-xl overflow-hidden border border-white/10 mt-1">
+                  <button onClick={() => setLocalSurvivalCount(Math.max(1, survivalCount - 1))} className="flex-1 py-3 hover:bg-white/10 text-white/70 text-xl font-bold transition-colors">-</button>
+                  <input 
+                    type="number" 
+                    min={1} 
+                    max={Math.max(1, participants.length - 1)}
+                    value={survivalCount}
+                    onChange={(e) => setLocalSurvivalCount(Number(e.target.value))}
+                    className="w-16 bg-transparent text-center text-[var(--text-primary)] font-mono text-xl focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <button onClick={() => setLocalSurvivalCount(Math.min(Math.max(1, participants.length - 1), survivalCount + 1))} className="flex-1 py-3 hover:bg-white/10 text-white/70 text-xl font-bold transition-colors">+</button>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs text-[var(--accent-secondary)] font-bold tracking-widest uppercase">Gimmick Density (기믹 밀도)</label>
+                <input 
+                  type="range" 
+                  min={10} 
+                  max={90}
+                  value={gimmickDensity}
+                  onChange={(e) => setGimmickDensity(Number(e.target.value))}
+                  className="accent-[var(--accent-secondary)] mt-4 cursor-pointer"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -205,6 +236,7 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+      <MapLoadModal isOpen={isMapModalOpen} onClose={() => setIsMapModalOpen(false)} />
     </div>
   )
 }

@@ -25,6 +25,11 @@ interface GameState {
   setTargetSurvivalCount: (count: number) => void
   sessionId: string | null
   setSessionId: (id: string | null) => void
+
+  winningRule: 'first' | 'last' | 'custom'
+  setWinningRule: (rule: 'first' | 'last' | 'custom') => void
+  customWinningRank: number
+  setCustomWinningRank: (rank: number) => void
 }
 
 export const useGameStore = create<GameState>()(
@@ -45,6 +50,11 @@ export const useGameStore = create<GameState>()(
       setTargetSurvivalCount: (targetSurvivalCount) => set({ targetSurvivalCount }),
       sessionId: null,
       setSessionId: (sessionId) => set({ sessionId }),
+      
+      winningRule: 'first',
+      setWinningRule: (winningRule) => set({ winningRule }),
+      customWinningRank: 1,
+      setCustomWinningRank: (customWinningRank) => set({ customWinningRank }),
     }),
     {
       name: 'rt-game-storage',

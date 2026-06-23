@@ -204,7 +204,7 @@ self.onmessage = async (e) => {
       frameCount++;
       
       const frameData = new Float32Array(positionsBuffer);
-      self.postMessage({ type: 'FRAME', payload: frameData }, [frameData.buffer]);
+      (self.postMessage as any)({ type: 'FRAME', payload: frameData }, [frameData.buffer]);
       
     }, 1000 / 60);
     
