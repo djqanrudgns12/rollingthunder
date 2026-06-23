@@ -130,7 +130,7 @@ export default function PhysicsCanvas() {
         engine.step(eventQueue)
 
         // 센서 교차 이벤트 처리 (포탈, 부스터)
-        eventQueue.drainIntersectionEvents((handle1, handle2, intersecting) => {
+        eventQueue.drainCollisionEvents((handle1, handle2, intersecting) => {
           if (!intersecting) return
           const b1 = world.getCollider(handle1).parent()
           const b2 = world.getCollider(handle2).parent()

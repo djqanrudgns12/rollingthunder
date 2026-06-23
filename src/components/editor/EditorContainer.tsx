@@ -26,7 +26,7 @@ export default function EditorContainer() {
 
   const handleDragStart = (event: { active: { id: string; data: { current?: { type?: EditorItemType } } } }) => {
     setActiveId(event.active.id)
-    setActiveType(event.active.data.current?.type)
+    setActiveType(event.active.data.current?.type || null)
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
