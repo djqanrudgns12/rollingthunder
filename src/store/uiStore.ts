@@ -14,6 +14,11 @@ interface UIState {
   
   customMapData: EditorItem[] | null
   setCustomMapData: (data: EditorItem[] | null) => void
+
+  isBroadcasterMode: boolean
+  setBroadcasterMode: (isMode: boolean) => void
+  isAnonymized: boolean
+  setAnonymized: (isAnon: boolean) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -29,4 +34,10 @@ export const useUIStore = create<UIState>((set) => ({
 
   customMapData: null,
   setCustomMapData: (customMapData) => set({ customMapData }),
+
+  isBroadcasterMode: false,
+  setBroadcasterMode: (isBroadcasterMode) => set({ isBroadcasterMode }),
+  
+  isAnonymized: false,
+  setAnonymized: (isAnonymized) => set({ isAnonymized })
 }))
