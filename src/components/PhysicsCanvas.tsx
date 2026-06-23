@@ -284,7 +284,10 @@ export default function PhysicsCanvas() {
         workerRef.current.postMessage({ type: 'STOP' });
         workerRef.current.terminate();
       }
-      if (app) app.destroy(true, { children: true, texture: false });
+      if (app) {
+        // removeView를 false로 주어 React가 관리하는 DOM canvas 노드가 삭제되지 않도록 합니다.
+        app.destroy(false, { children: true, texture: true, baseTexture: true });
+      }
     }
   }, [survivors, targetSurvivalCount, gimmickDensity, setSurvivors, setGameStage, customMapData])
 
