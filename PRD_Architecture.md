@@ -297,6 +297,9 @@ c:\Users\rudgn\Downloads\Rollingthunder\
 
 ### Wireframe 1: 메인 대시보드 & 셋업 화면
 
+> **🎨 프리미엄 UI 디자인 시안**
+> ![Dashboard Design](./images/dashboard.png)
+
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  🎳 Rolling Thunder                              [프로필] [로그아웃] │
@@ -341,6 +344,9 @@ c:\Users\rudgn\Downloads\Rollingthunder\
 ---
 
 ### Wireframe 2: 라이브 게임 플레이 화면 (🆕 프리미엄 개편)
+
+> **🎨 프리미엄 UI 디자인 시안**
+> ![Gameplay Design](./images/gameplay.png)
 
 > [!IMPORTANT]
 > **캔버스 우선 원칙**: 게임 화면은 캔버스가 화면의 **90% 이상**을 차지해야 합니다. UI 요소는 캔버스 위에 반투명 오버레이로 배치하여 맵의 몰입감을 극대화합니다.
@@ -401,6 +407,9 @@ c:\Users\rudgn\Downloads\Rollingthunder\
 ---
 
 ### Wireframe 3: 결과 화면 (🆕 한줄 출력 보장)
+
+> **🎨 프리미엄 UI 디자인 시안**
+> ![Results Design](./images/results.png)
 
 > [!WARNING]
 > **한줄 출력 규칙**: 플레이어명이 절대 두 줄로 출력되지 않아야 합니다. 긴 이름은 `text-overflow: ellipsis`로 말줄임 처리하고, 시상대 및 테이블 셀 모두 `white-space: nowrap; overflow: hidden;`을 적용합니다.
