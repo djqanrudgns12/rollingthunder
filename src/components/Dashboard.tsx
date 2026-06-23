@@ -91,14 +91,16 @@ export default function Dashboard() {
         </button>
       </div>
 
-      <div className={`p-5 md:p-8 rounded-3xl w-full max-w-2xl flex flex-col gap-5 shadow-2xl transition-all duration-500 max-h-[calc(100vh-2rem)] overflow-y-auto scrollbar-hide ${isBroadcasterMode ? 'bg-black border-2 border-green-500' : 'glass-panel-heavy'}`}>
+      <div className={`p-5 md:p-8 rounded-3xl w-full max-w-2xl flex flex-col gap-4 shadow-2xl transition-all duration-500 max-h-[calc(100vh-2rem)] overflow-hidden ${isBroadcasterMode ? 'bg-black border-2 border-green-500' : 'glass-panel-heavy'}`}>
+        {/* Header (Logo) - 항상 고정 */}
         <div className="text-center flex flex-col items-center shrink-0">
-          <img src="/images/assets/brand_logo_masterpiece.png" alt="Rolling Thunder" className="w-56 mb-2 filter drop-shadow-[0_0_20px_rgba(0,255,204,0.3)] animate-pulse" />
+          <img src="/images/assets/brand_logo_masterpiece.png" alt="Rolling Thunder" className="w-48 mb-2 filter drop-shadow-[0_0_20px_rgba(0,255,204,0.3)] animate-pulse" />
           <p className="text-[var(--text-secondary)] text-sm">무작위 생존 추첨 시뮬레이션 - 마스터피스 에디션</p>
         </div>
 
-        <div className="flex flex-col gap-3 shrink-0">
-          <div className="flex gap-2">
+        {/* Body (Forms) - 화면이 작을 때 스크롤 됨 */}
+        <div className="flex flex-col gap-3 overflow-y-auto scrollbar-hide flex-1 pb-2">
+          <div className="flex gap-2 shrink-0">
             <input 
               type="text" 
               placeholder="추첨 방 제목" 
@@ -108,7 +110,7 @@ export default function Dashboard() {
             />
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 shrink-0">
             <button 
               onClick={() => setIsMapModalOpen(true)} 
               className="w-full bg-black/50 border border-white/10 hover:border-[var(--accent-primary)] text-white/80 font-bold px-6 py-3 rounded-xl transition-all flex items-center justify-center gap-2 group shadow-inner"
@@ -118,7 +120,7 @@ export default function Dashboard() {
             </button>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 shrink-0">
             <input 
               type="text" 
               placeholder="참가자 이름 (쉼표/공백 다중입력)" 
@@ -141,7 +143,7 @@ export default function Dashboard() {
             </button>
           </div>
 
-          <div className="bg-black/40 rounded-xl border border-white/5 p-3 min-h-[80px] max-h-[140px] overflow-y-auto flex flex-wrap gap-2 shadow-inner">
+          <div className="bg-black/40 rounded-xl border border-white/5 p-3 min-h-[80px] shrink-0 overflow-y-auto flex flex-wrap gap-2 shadow-inner">
             {participants.length === 0 && <p className="text-white/30 text-sm m-auto">참가자가 없습니다.</p>}
             {participants.map(p => (
               <div key={p.id} className="bg-white/10 border border-white/10 rounded-lg px-3 py-1.5 flex items-center gap-2 group relative backdrop-blur-sm">
@@ -153,7 +155,7 @@ export default function Dashboard() {
             ))}
           </div>
 
-          <div className="flex flex-col gap-4 mt-2 bg-black/20 p-4 rounded-xl border border-white/5">
+          <div className="flex flex-col gap-4 mt-2 bg-black/20 p-4 rounded-xl border border-white/5 shrink-0">
             {/* 우승 기준 설정 */}
             <div className="flex flex-col gap-3 border-b border-white/5 pb-4">
               <label className="text-xs text-white/50 font-bold tracking-widest uppercase">우승 기준 (Winning Rule)</label>
@@ -226,7 +228,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="flex gap-4 mt-2">
+        {/* Footer (Buttons) - 항상 고정 */}
+        <div className="flex gap-4 shrink-0 pt-2 border-t border-white/10">
           <button onClick={clearParticipants} className="flex-1 bg-white/5 hover:bg-white/10 text-white/50 font-bold py-4 rounded-xl transition-colors border border-white/10">
             초기화
           </button>

@@ -5,7 +5,6 @@ import * as PIXI from 'pixi.js'
 import { useUIStore } from '@/store/uiStore'
 import Dashboard from './Dashboard'
 import PhysicsCanvas from './PhysicsCanvas'
-import ResultScreen from './ResultScreen'
 
 export default function GameManager() {
   const gameStage = useUIStore(state => state.gameStage)
@@ -49,7 +48,6 @@ export default function GameManager() {
     <>
       {gameStage === 'dashboard' && <Dashboard />}
       {gameStage === 'playing' && <PhysicsCanvas />}
-      {gameStage === 'results' && <ResultScreen />}
     </>
   )
 }

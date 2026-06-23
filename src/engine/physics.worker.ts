@@ -59,15 +59,33 @@ self.onmessage = async (e) => {
       MapBuilder.buildRandomMap(world, width, height, gimmickDensity);
     }
 
+    const mapData: any[] = [];
+    world.forEachRigidBody((body) => {
+      const userData = body.userData as any;
+      if (userData && userData.type && userData.type !== 'chip') {
+        const t = body.translation();
+        mapData.push({
+          type: userData.type,
+          x: t.x,
+          y: t.y,
+          w: userData.w,
+          h: userData.h,
+          radius: userData.radius,
+          rotation: body.rotation()
+        });
+      }
+    });
+
     activeChips = [];
     survivors.forEach((s: any) => {
-      const chip = ChipFactory.createChip(world!, width / 2 + (Math.random() * 80 - 40), Math.random() * -300, 12, s.id);
+      const spawnX = width * 0.1 + Math.random() * (width * 0.8);
+      const chip = ChipFactory.createChip(world!, spawnX, Math.random() * -300, 12, s.id);
       activeChips.push(chip);
     });
 
     positionsBuffer = new Float32Array(activeChips.length * 5);
     
-    self.postMessage({ type: 'INIT_DONE', payload: { activeChipsCount: activeChips.length } });
+    self.postMessage({ type: 'INIT_DONE', payload: { activeChipsCount: activeChips.length, mapData } });
     
   } else if (type === 'START') {
     isRunning = true;
@@ -186,15 +204,18 @@ self.onmessage = async (e) => {
           finishedChips.add(data.id);
           finishOrder.push(data.id);
           self.postMessage({ type: 'SOUND_EFFECT', payload: { type: 'finish' }});
+          
+          const survivor = survivorsData.find((s:any) => s.id === data.id);
+          if (survivor) {
+            self.postMessage({ 
+              type: 'CHIP_FINISHED', 
+              payload: { 
+                rank: finishOrder.length, 
+                survivor 
+              }
+            });
+          }
         }
-      }
-      
-      if (finishedChips.size >= targetSurvivalCount) {
-        isRunning = false;
-        clearInterval(stepInterval);
-        const finalSurvivors = finishOrder.slice(0, targetSurvivalCount).map(id => survivorsData.find((s:any) => s.id === id));
-        self.postMessage({ type: 'GAME_OVER', payload: { survivors: finalSurvivors }});
-        return;
       }
       
       if (frameCount % 10 === 0) {

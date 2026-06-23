@@ -27,7 +27,7 @@ export default function PhysicsCanvas() {
   const [rankings, setRankings] = useState<ParticipantRank[]>([])
   const [activeSkill, setActiveSkill] = useState<{ chipId: string; skill: string } | null>(null)
   const [isMuted, setIsMuted] = useState(false)
-  const [isPiP, setIsPiP] = useState(false)
+  const [finishedFeed, setFinishedFeed] = useState<{ rank: number, survivor: any }[]>([])
   
   const { survivors, setSurvivors, targetSurvivalCount, gimmickDensity } = useGameStore()
   const { setGameStage, customMapData } = useUIStore()
@@ -81,7 +81,9 @@ export default function PhysicsCanvas() {
       });
 
       app.stage.addChild(viewport);
-      viewport.drag().pinch().wheel().decelerate();
+      viewport.drag().pinch().wheel().decelerate()
+        .clamp({ left: -200, right: 1000, top: -500, bottom: 2000, underflow: 'center' }); // clamp bounds
+      
       // Clamp zoom
       viewport.clampZoom({ minWidth: 400, maxWidth: 1600 });
       viewport.moveCenter(400, 200);
@@ -119,6 +121,40 @@ export default function PhysicsCanvas() {
         
         if (type === 'INIT_DONE') {
           activeChipsCount = payload.activeChipsCount;
+          
+          if (payload.mapData) {
+            const staticContainer = new PIXI.Container();
+            viewport.addChildAt(staticContainer, 0);
+
+            payload.mapData.forEach((item: any) => {
+              const g = new PIXI.Graphics();
+              if (item.type === 'wall') {
+                g.rect(-item.w / 2, -item.h / 2, item.w, item.h);
+                g.fill({ color: 0x00ffcc, alpha: 0.15 });
+                g.stroke({ width: 2, color: 0x00ffcc, alpha: 0.6 });
+              } else if (item.type === 'pin') {
+                g.circle(0, 0, item.radius);
+                g.fill({ color: 0xff00ff, alpha: 0.9 });
+                const glow = new PIXI.Graphics();
+                glow.circle(0, 0, item.radius * 2.5);
+                glow.fill({ color: 0xff00ff, alpha: 0.3 });
+                glow.blendMode = 'add';
+                g.addChild(glow);
+              } else if (item.type === 'bumper') {
+                g.circle(0, 0, item.radius);
+                g.fill({ color: 0xffff00, alpha: 0.9 });
+                const glow = new PIXI.Graphics();
+                glow.circle(0, 0, item.radius * 2);
+                glow.fill({ color: 0xffff00, alpha: 0.4 });
+                glow.blendMode = 'add';
+                g.addChild(glow);
+              }
+              g.position.set(item.x, item.y);
+              g.rotation = item.rotation || 0;
+              staticContainer.addChild(g);
+            });
+          }
+          
           workerRef.current?.postMessage({ type: 'START' });
         } else if (type === 'FRAME') {
           const buffer = new Float32Array(payload);
@@ -170,10 +206,18 @@ export default function PhysicsCanvas() {
                 container.addChild(glow);
                 
                 container.addChild(sprite);
+                
+                const survivor = survivors[Math.floor(i / 5)];
+                if (survivor) {
+                  const text = new PIXI.Text({ 
+                    text: survivor.name, 
+                    style: { fill: 0xffffff, fontSize: 14, fontWeight: 'bold', dropShadow: { alpha: 0.8, color: 0x000000, blur: 3, distance: 0 } } 
+                  });
+                  text.anchor.set(0.5);
+                  text.y = -25;
+                  container.addChild(text);
+                }
               } else {
-                // Draw obstacles (walls, pins)
-                // This is a simplification. We should ideally pass type in the buffer.
-                // For this demo, we just draw a small dot if we don't know the type.
                 const g = new PIXI.Graphics();
                 g.circle(0,0, 10);
                 g.fill(0xffffff);
@@ -186,9 +230,9 @@ export default function PhysicsCanvas() {
             container.position.set(x, y);
             container.rotation = rot;
 
-            // Camera calculations
-            if (y > firstY) { firstY = y; firstX = x; } // Since down is positive Y
-            if (y < lastY) { lastY = y; lastX = x; }
+            // Camera calculations (only track active chips not finished)
+            if (y > firstY && y < 1200) { firstY = y; firstX = x; } 
+            if (y < lastY && y < 1200) { lastY = y; lastX = x; }
           }
           
           // AI Camera Director
@@ -214,10 +258,8 @@ export default function PhysicsCanvas() {
           if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         } else if (type === 'RANKINGS_UPDATE') {
           setRankings(payload);
-        } else if (type === 'GAME_OVER') {
-          setSurvivors(payload.survivors);
-          setGameStage('results');
-          isMounted = false;
+        } else if (type === 'CHIP_FINISHED') {
+          setFinishedFeed(prev => [...prev, payload]);
         }
       };
 
@@ -252,8 +294,22 @@ export default function PhysicsCanvas() {
       <SkillEventOverlay activeSkill={activeSkill} />
       
       {/* Broadcaster / Streamer UI Layout */}
-      <div className="absolute top-6 left-6 z-50 flex gap-4">
-         {/* Additional streamer buttons can go here */}
+      <div className="absolute top-6 right-6 z-50 flex flex-col gap-2 pointer-events-none items-end">
+        {finishedFeed.map((feed, idx) => (
+          <div key={idx} className="bg-black/60 backdrop-blur-md border border-white/20 rounded-xl px-4 py-3 flex items-center gap-3 animate-in slide-in-from-right fade-in duration-500 shadow-[0_0_20px_rgba(0,255,204,0.3)]">
+            <span className="text-xl font-black text-[#00ffcc]">🎉 {feed.rank}등</span>
+            <span className="text-white font-bold">{feed.survivor.name}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="absolute bottom-6 left-6 z-50 flex gap-4">
+        <button 
+          onClick={() => setGameStage('dashboard')}
+          className="glass-panel-heavy hover:bg-white/10 text-white font-bold px-6 py-4 rounded-2xl transition-all shadow-lg flex items-center gap-2 group"
+        >
+          <span className="group-hover:-translate-x-1 transition-transform">🚪</span> 새로운 추첨으로 돌아가기
+        </button>
       </div>
 
       <div className="absolute bottom-6 right-6 z-50 flex gap-4">
