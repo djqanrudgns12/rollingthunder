@@ -837,56 +837,50 @@ erDiagram
 
 ---
 
-## 🔧 Phase별 실행 계획
+## 📅 종합 개발 계획 (Comprehensive Phased Roadmap)
 
-### Phase 1: 프로젝트 초기화 & Vercel + Supabase 연동
+본 계획은 프로젝트의 성공적인 런칭을 위해 기획 및 구조 설계를 바탕으로 세분화된 단계별(Phase) 실행 로드맵입니다. 각 단계는 독립적으로 테스트 가능(Testable)하며 점진적으로 가치를 배포(Incremental Delivery)할 수 있도록 설계되었습니다.
 
-1. Next.js 15 프로젝트 생성 (App Router, TypeScript, **Tailwind CSS v4**)
-2. **Vercel 프로젝트 연동** (초기 배포 파이프라인 구축)
-3. **Supabase 프로젝트 생성** + 환경변수 연동
-4. 필수 패키지 설치 (`@dimforge/rapier2d-compat`, `framer-motion`, `zustand`, `@supabase/supabase-js`, `@supabase/ssr`)
-5. 프리미엄 디자인 시스템 구축 (CSS 변수, 폰트, 다크/라이트 테마)
-6. TypeScript 타입 정의 (`types/`)
+### 🏗️ Phase 1: 기반 인프라 구축 및 뼈대 세팅 (Foundation)
+**목표**: 프로젝트 보일러플레이트를 세팅하고 클라우드 인프라(Vercel, Supabase)와의 완벽한 연동을 확인합니다.
+- **[1.1] Next.js & Tailwind v4 세팅**: `create-next-app` 기반 앱 라우터 설정, 절대 경로(`@/*`) 및 린트 설정.
+- **[1.2] 디자인 토큰 및 테마 적용**: `index.css`에 다크/라이트 테마의 HSL CSS 변수 등록, 글래스모피즘 유틸리티 클래스화.
+- **[1.3] Supabase 초기화**: `supabase-js` 및 `@supabase/ssr` 클라이언트 모듈화(`lib/supabase/`), 환경변수 연동.
+- **[1.4] Vercel CI/CD 연결**: GitHub 저장소 Vercel 연결, 환경변수 주입, 빈 페이지 프로덕션 빌드 테스트.
+- **체크포인트**: `https://rollingthunder-*.vercel.app`에 접속하여 Vercel 배포 확인 및 디자인 토큰 적용 확인.
 
-### Phase 2: 인증 & API 레이어
+### 🔐 Phase 2: 인증 시스템 및 데이터베이스 스키마 구성 (Auth & Data Layer)
+**목표**: 사용자 관리 체계를 만들고 게임 세션 및 결과를 저장할 데이터베이스 뼈대를 완성합니다.
+- **[2.1] Auth 라우트 및 UI**: 로그인/회원가입/로그아웃 처리를 위한 미들웨어(`middleware.ts`) 및 UI 컴포넌트 개발. (username 기반).
+- **[2.2] DB 마이그레이션**: `profiles`, `sessions`, `participants`, `results`, `presets` 5개 핵심 테이블 SQL 작성 및 Supabase 적용.
+- **[2.3] API 라우트/서버 액션**: 세션 생성, 칩 데이터 로드, 게임 결과 저장용 Next.js 서버 액션(Server Actions) 구현.
+- **[2.4] 상태 관리 (Zustand)**: `gameStore.ts`(세션/플레이어 상태), `uiStore.ts`(모달/테마 상태) 초기화.
+- **체크포인트**: 로그인 후 DB에 `profiles` 레코드가 정상적으로 트리거되어 생성되는지, 상태 관리가 로컬스토리지에 영속화(Persist)되는지 확인.
 
-1. `middleware.ts` — 인증 가드 구현
-2. **아이디(username) + 비밀번호 인증 구현** (Supabase Auth 커스텀)
-3. Supabase 클라이언트 설정 (`lib/supabase/`)
-4. Route Handlers 보일러플레이트 (`api/sessions/`, `api/participants/` 등)
-5. DB 마이그레이션 SQL 작성 + 트리거 설정
+### ⚙️ Phase 3: Rapier.js 2D 물리 엔진 코어 개발 (Physics Engine)
+**목표**: 게임의 가장 핵심인 "떨어지는 구슬과 튕기는 장애물" 물리 환경을 구성합니다.
+- **[3.1] Rapier World 초기화**: `RapierWorld.ts` 작성, WASM 비동기 로딩 이슈 해결 (`useEffect` 내 동적 임포트). 기본 중력 및 Step 루프 구성.
+- **[3.2] 맵 빌더 시스템**: `MapBuilder.ts` 구현. 핀볼형 정적 핀, 범퍼, 양옆 벽돌 생성 로직 작성.
+- **[3.3] 칩 생성 및 물리 속성 적용**: `ChipFactory.ts`를 통해 질량/마찰력/탄성이 세팅된 동적(Dynamic) 칩 엔티티 생성.
+- **[3.4] 충돌 이벤트 (Collision)**: 칩과 칩, 칩과 장애물 간의 `collisionStart` 핸들러 연결. 터널링 방지를 위한 CCD 강제 활성화.
+- **체크포인트**: 캔버스 렌더링 루프 확인. 100개의 칩을 떨어뜨려 60fps가 유지되는지 퍼포먼스 및 물리 충돌 판정 테스트.
 
-### Phase 3: 물리 엔진 코어
+### 🌀 Phase 4: 프리미엄 게임 UI 및 기믹/스킬 시스템 연동 (Game Logic & UI)
+**목표**: 사용자가 실제로 조작하는 화려한 게임 화면과 장애물, 고유 스킬들을 완성합니다.
+- **[4.1] 게임 플레이 UI**: 90% 점유율의 `PhysicsCanvas`, 상단 `LiveLeaderboard`, 우하단 `SmartMinimap` 렌더링.
+- **[4.2] 실시간 순위 산정 알고리즘**: `RankingTracker.ts` 적용. 각 칩의 Y좌표와 통과한 장애물 가중치를 실시간으로 계산해 UI에 반영.
+- **[4.3] 카테고리 기믹 추가 (A/B/C)**: 퍼널, 웜홀, 시소, 스피너 등 영상 레퍼런스 기반 핵심 장애물 클래스 구현.
+- **[4.4] 6종 스킬 시스템 연동**: 탱크/슬라임/유령화/자석/텔레포트/부스터 로직(`SkillSystem.ts`).
+- **[4.5] Nudge & 스킬 팝업 애니메이션**: 판 흔들기(`NudgeSystem.ts`)와 스킬 발동 시 슬로모션(`timeScale = 0.15`) 및 팝업 이펙트.
+- **체크포인트**: 스킬이 발동될 때 정상적으로 물리적 속성이 변하는지(예: 텔레포트로 1, 2등 위치 교체) 확인.
 
-1. `engine/RapierWorld.ts` — Rapier.js WASM 월드 초기화
-2. `engine/ChipFactory.ts` — 참가자 칩 생성
-3. `engine/MapBuilder.ts` — 맵 구조물 빌드
-4. `engine/GimmickManager.ts` — Ice/Mud/Wormhole/BlackHole
-5. `engine/SkillSystem.ts` — **6종 스킬** (탱크/슬라임/유령화/자석/텔레포트/부스터) + 랜덤 배정 + 슬로모션
-6. `engine/NudgeSystem.ts` — Nudge 로직 + 게이지
-7. `engine/RankingTracker.ts` — 실시간 순위 산정
-8. `engine/CollisionHandler.ts` — 충돌 이벤트 + CCD
-
-### Phase 4: UI 컴포넌트 & 페이지
-
-1. 대시보드 페이지 + 3패널 레이아웃 + 스킬 배정 모드 UI
-2. Smart Input + Chip 시스템
-3. **PhysicsCanvas** 컴포넌트 (캔버스 90% 점유)
-4. **확대형 SmartMinimap** (클릭 네비게이션)
-5. LiveLeaderboard (반투명 오버레이)
-6. **SkillEventOverlay** (스킬 발동 슬로모션 + 팝업)
-7. NudgeButton + 게이지 UI
-8. 결과 화면 (시상대 + 한줄 출력 테이블)
-
-### Phase 5: 멀티 스테이지 & 폴리싱
-
-1. `engine/StageManager.ts` — 스테이지 전환 로직
-2. 스테이지 트랜지션 애니메이션
-3. 탈락 이펙트
-4. 스킬 밸런스 테스트 & 미세 조정
-5. OpenTelemetry 설정
-6. 반응형 디자인 + 라이트 모드 최적화
-7. Vercel 프로덕션 배포
+### 🏁 Phase 5: 멀티 스테이지 서바이벌 및 결과/대시보드 폴리싱 (Polishing)
+**목표**: 단판 승부를 넘어 다중 스테이지 플로우를 구축하고, 입력부터 결과 확인까지의 UX를 극상으로 끌어올립니다.
+- **[5.1] 서바이벌 스테이지 매니저**: `StageManager.ts`. 하단 출구를 닫아 탈락자를 걸러내고 다음 스테이지 테마 맵으로 자연스럽게 넘어가는 트랜지션 효과.
+- **[5.2] 스마트 인풋 & 대시보드 UI**: 메인 대시보드에서 `이름*N` 구문을 파싱하는 지능형 입력 컴포넌트(`SmartInput.tsx`), 기믹 밀집도 슬라이더 완성.
+- **[5.3] 최종 결과 화면**: 1~3위 시상대(Podium) 애니메이션, 탈락 스테이지와 보유 스킬이 모두 표시된 깔끔한 데이터 테이블 (한줄 출력 말줄임 완벽 적용).
+- **[5.4] 퍼포먼스 및 SEO 최적화**: OpenTelemetry 모니터링 적용, 모바일 뷰어 최적화.
+- **체크포인트**: 전체 유저 여정(User Journey) 시뮬레이션(로그인 → 설정 → 게임 3스테이지 → 결과 화면). 프로덕션 환경(Vercel) 배포 후 최종 확인.
 
 ---
 
