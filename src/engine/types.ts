@@ -11,9 +11,14 @@ export interface PhysicComponent {
 }
 
 export interface UserData {
-  type: 'chip' | 'wall' | 'pin' | 'bumper';
+  type: 'chip' | 'wall' | 'pin' | 'bumper' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole';
   id?: string;
   radius?: number;
   w?: number;
   h?: number;
+  rotation?: number;
+  power?: number;
+  speed?: number;
+  force?: number;
+  color?: string;
 }

@@ -83,6 +83,10 @@ export default function PhysicsCanvas() {
             MapBuilder.createPin(world, item.x, item.y, item.radius || 15, true, item.restitution, item.friction)
           } else if (item.type === 'wall') {
             MapBuilder.createRect(world, item.x, item.y, item.w || 100, item.h || 20, 'wall', item.rotation || 0, item.restitution, item.friction)
+          } else if (item.type === 'windmill') {
+            MapBuilder.createKinematic(world, item)
+          } else if (item.type === 'portal' || item.type === 'booster' || item.type === 'blackhole' || item.type === 'whitehole') {
+            MapBuilder.createSensor(world, item)
           }
         })
       } else {
@@ -116,6 +120,7 @@ export default function PhysicsCanvas() {
       }, 8000)
 
       let frameCounter = 0;
+      const lastWarpTime = new Map<string, number>()
 
       // PixiJS Game Loop (GPU 렌더링 파이프라인)
       app.ticker.add(() => {
@@ -123,6 +128,89 @@ export default function PhysicsCanvas() {
 
         world.integrationParameters.dt = (1 / 60) * dtMultiplier;
         engine.step(eventQueue)
+
+        // 센서 교차 이벤트 처리 (포탈, 부스터)
+        eventQueue.drainIntersectionEvents((handle1, handle2, intersecting) => {
+          if (!intersecting) return
+          const b1 = world.getCollider(handle1).parent()
+          const b2 = world.getCollider(handle2).parent()
+          if (!b1 || !b2) return
+          
+          const d1 = b1.userData as UserData
+          const d2 = b2.userData as UserData
+          
+          let chipBody: RAPIER.RigidBody | null = null
+          let sensorBody: RAPIER.RigidBody | null = null
+          
+          if (d1?.type === 'chip' && ['portal', 'booster'].includes(d2?.type)) { chipBody = b1; sensorBody = b2; }
+          if (d2?.type === 'chip' && ['portal', 'booster'].includes(d1?.type)) { chipBody = b2; sensorBody = b1; }
+          
+          if (chipBody && sensorBody) {
+            const chipData = chipBody.userData as UserData
+            const sensorData = sensorBody.userData as UserData
+            
+            if (sensorData.type === 'portal') {
+              const now = Date.now()
+              const lastWarp = lastWarpTime.get(chipData.id!) || 0
+              if (now - lastWarp > 1000) { // 쿨다운 1초 (무한 루프 방지)
+                // 같은 색상의 다른 포탈 찾기
+                let targetPortal: RAPIER.RigidBody | null = null
+                world.forEachRigidBody(b => {
+                  const d = b.userData as UserData
+                  if (d?.type === 'portal' && d.color === sensorData.color && b.handle !== sensorBody!.handle) {
+                    targetPortal = b
+                  }
+                })
+                
+                if (targetPortal) {
+                  const tPos = targetPortal.translation()
+                  // 칩 이동 (Rapier 속도는 유지되어 물리적 벡터 보존됨)
+                  chipBody.setTranslation({ x: tPos.x, y: tPos.y }, true)
+                  lastWarpTime.set(chipData.id!, now)
+                  soundManager.playFinish() // warp 효과음 대체
+                }
+              }
+            } else if (sensorData.type === 'booster') {
+              // 지향성 Impulse 적용
+              const angle = (sensorData.rotation || 0) * (Math.PI / 180)
+              const power = (sensorData.power || 3) * 500
+              const impulse = {
+                x: Math.sin(angle) * power,
+                y: -Math.cos(angle) * power
+              }
+              chipBody.applyImpulse(impulse, true)
+            }
+          }
+        })
+
+        // 블랙홀 중력장 (Continuous Force)
+        const blackholes: RAPIER.RigidBody[] = []
+        const chips: RAPIER.RigidBody[] = []
+        world.forEachRigidBody(b => {
+          const d = b.userData as UserData
+          if (d?.type === 'blackhole') blackholes.push(b)
+          if (d?.type === 'chip') chips.push(b)
+        })
+        
+        blackholes.forEach(bh => {
+          const bhData = bh.userData as UserData
+          const bhPos = bh.translation()
+          const radius = bhData.radius || 150
+          const forceMult = bhData.force || 5
+          
+          chips.forEach(chip => {
+            const cPos = chip.translation()
+            const dx = bhPos.x - cPos.x
+            const dy = bhPos.y - cPos.y
+            const dist = Math.sqrt(dx * dx + dy * dy)
+            
+            if (dist < radius && dist > 10) {
+              // 거리가 가까울수록 더 강한 인력
+              const pull = (1 - dist / radius) * forceMult * 10
+              chip.applyImpulse({ x: (dx/dist) * pull, y: (dy/dist) * pull }, true)
+            }
+          })
+        })
         
         frameCounter++;
         if (frameCounter % 5 === 0) {
@@ -216,6 +304,30 @@ export default function PhysicsCanvas() {
               g.rect(-data.w!/2, -data.h!/2, data.w!, data.h!)
               g.fill({ color: 0xffffff, alpha: 0.1 })
               g.stroke({ width: 1, color: 0xffffff, alpha: 0.3 })
+            } else if (data.type === 'booster') {
+              g.rect(-25, -25, 50, 50)
+              g.fill({ color: 0x00ffcc, alpha: 0.2 })
+              g.stroke({ width: 2, color: 0x00ffcc, alpha: 0.8 })
+            } else if (data.type === 'windmill') {
+              g.rect(-50, -2.5, 100, 5)
+              g.rect(-2.5, -50, 5, 100)
+              g.fill({ color: 0xef4444, alpha: 0.8 })
+            } else if (data.type === 'portal') {
+              g.circle(0, 0, 20)
+              g.stroke({ width: 4, color: data.color || '#c084fc' })
+              const core = new PIXI.Graphics()
+              core.circle(0, 0, 10)
+              core.fill(data.color || '#c084fc')
+              container.addChild(core)
+            } else if (data.type === 'blackhole') {
+              g.circle(0, 0, data.radius || 150)
+              g.fill({ color: 0x000000, alpha: 0.5 })
+              g.stroke({ width: 1, color: 0xffffff, alpha: 0.2 })
+              const core = new PIXI.Graphics()
+              core.circle(0, 0, 10)
+              core.fill('#000000')
+              core.stroke({ width: 2, color: '#ffffff' })
+              container.addChild(core)
             }
           }
           

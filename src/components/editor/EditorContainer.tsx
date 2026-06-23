@@ -6,6 +6,7 @@ import { useEditorStore, EditorItemType } from '@/store/editorStore'
 import ToolPalette from './ToolPalette'
 import EditorCanvas from './EditorCanvas'
 import PhysicsPreviewCanvas from './PhysicsPreviewCanvas'
+import PropertiesInspector from './PropertiesInspector'
 import { Play, X, Share2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
@@ -58,12 +59,16 @@ export default function EditorContainer() {
         type,
         x: newX,
         y: newY,
-        radius: type === 'pin' || type === 'bumper' ? 15 : undefined,
+        radius: type === 'pin' || type === 'bumper' ? 15 : type === 'blackhole' ? 150 : undefined,
         w: type === 'wall' ? 100 : undefined,
         h: type === 'wall' ? 20 : undefined,
         restitution: type === 'bumper' ? 1.5 : undefined,
         friction: 0.1,
-        rotation: 0
+        rotation: 0,
+        power: type === 'booster' ? 3 : undefined,
+        speed: type === 'windmill' ? 3 : undefined,
+        color: type === 'portal' ? '#c084fc' : undefined,
+        force: type === 'blackhole' ? 5 : undefined
       })
     }
   }
@@ -101,9 +106,10 @@ export default function EditorContainer() {
         </button>
       </div>
 
-      <div className="flex w-full h-full max-w-7xl mx-auto gap-2 md:gap-4 p-2 md:p-4 z-10">
+      <div className="flex w-full h-full max-w-[1600px] mx-auto gap-2 md:gap-4 p-2 md:p-4 z-10">
         <ToolPalette />
         <EditorCanvas />
+        <PropertiesInspector />
       </div>
       
       {/* 마우스를 따라다니는 고스트 이미지 (Ghosting) */}
@@ -113,6 +119,10 @@ export default function EditorContainer() {
             {activeType === 'pin' && <div className="w-[30px] h-[30px] bg-slate-500 rounded-full border-2 border-white shadow-lg"></div>}
             {activeType === 'bumper' && <div className="w-[30px] h-[30px] bg-orange-500 rounded-full border-2 border-white shadow-[0_0_20px_rgba(255,165,0,0.8)]"></div>}
             {activeType === 'wall' && <div className="w-[100px] h-[20px] bg-white/40 border-2 border-white backdrop-blur-md rounded-md shadow-lg"></div>}
+            {activeType === 'booster' && <div className="w-[50px] h-[50px] bg-gradient-to-t from-[var(--accent-primary)] to-transparent opacity-80 border-2 border-[var(--accent-primary)] rounded-md shadow-lg"></div>}
+            {activeType === 'windmill' && <div className="w-[100px] h-[100px] border-2 border-red-500 rounded-full bg-red-500/10"></div>}
+            {activeType === 'portal' && <div className="w-[40px] h-[40px] rounded-full border-4 border-purple-500"></div>}
+            {activeType === 'blackhole' && <div className="w-[60px] h-[60px] rounded-full border-2 border-white border-dashed bg-black shadow-[0_0_30px_rgba(0,0,0,1)]"></div>}
           </div>
         ) : null}
       </DragOverlay>

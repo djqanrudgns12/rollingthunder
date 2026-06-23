@@ -41,6 +41,57 @@ export class MapBuilder {
     return rigidBody;
   }
 
+  static createKinematic(world: RAPIER.World, item: any) {
+    // 동적(Kinematic) 장애물: 외부 힘에 밀리지 않고 프로그래밍된 속도(Speed)로만 움직입니다.
+    const desc = RAPIER.RigidBodyDesc.kinematicVelocityBased()
+      .setTranslation(item.x, item.y)
+      .setRotation(item.rotation ? item.rotation * (Math.PI / 180) : 0);
+    const body = world.createRigidBody(desc);
+    
+    if (item.type === 'windmill') {
+      // 십자가 모양 렌더링을 위해 두 개의 직사각형 Collider 교차 연결
+      const c1 = RAPIER.ColliderDesc.cuboid(50, 5).setRestitution(1.2);
+      const c2 = RAPIER.ColliderDesc.cuboid(5, 50).setRestitution(1.2);
+      world.createCollider(c1, body);
+      world.createCollider(c2, body);
+      body.setAngvel(item.speed || 3, true);
+    }
+    
+    body.userData = { type: item.type, speed: item.speed, id: item.id } as UserData;
+    return body;
+  }
+
+  static createSensor(world: RAPIER.World, item: any) {
+    // 센서(Sensor): 충돌하지 않고 통과할 때 이벤트를 발생시킵니다 (포탈, 부스터, 중력장)
+    const desc = RAPIER.RigidBodyDesc.fixed().setTranslation(item.x, item.y);
+    const body = world.createRigidBody(desc);
+    let colliderDesc;
+    
+    if (item.type === 'portal') {
+      colliderDesc = RAPIER.ColliderDesc.ball(20).setSensor(true);
+    } else if (item.type === 'booster') {
+      colliderDesc = RAPIER.ColliderDesc.cuboid(25, 25).setSensor(true);
+    } else if (item.type === 'blackhole' || item.type === 'whitehole') {
+      colliderDesc = RAPIER.ColliderDesc.ball(item.radius || 150).setSensor(true);
+    }
+
+    if (colliderDesc) {
+      colliderDesc.setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+      world.createCollider(colliderDesc, body);
+    }
+    
+    body.userData = {
+      type: item.type,
+      id: item.id,
+      color: item.color,
+      power: item.power,
+      rotation: item.rotation,
+      force: item.force,
+      radius: item.radius
+    } as UserData;
+    return body;
+  }
+
   static buildRandomMap(world: RAPIER.World, width: number, height: number, density: number) {
     // 그리드 시스템 기반으로 무작위 장애물 핀/범퍼 생성
     const cols = Math.floor(width / 50);

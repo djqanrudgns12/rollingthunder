@@ -7,6 +7,10 @@ const tools: { id: string; type: EditorItemType; label: string; color: string }[
   { id: 'tool-pin', type: 'pin', label: '일반 핀', color: 'bg-slate-500' },
   { id: 'tool-bumper', type: 'bumper', label: '고탄성 범퍼', color: 'bg-orange-500' },
   { id: 'tool-wall', type: 'wall', label: '가변형 벽돌', color: 'bg-white/20' },
+  { id: 'tool-booster', type: 'booster', label: '부스터 패드', color: 'bg-gradient-to-t from-[var(--accent-primary)] to-transparent border-[var(--accent-primary)]' },
+  { id: 'tool-windmill', type: 'windmill', label: '회전 풍차', color: 'bg-red-500/20 border-red-500' },
+  { id: 'tool-portal', type: 'portal', label: '워프 포탈', color: 'bg-purple-500/50 border-purple-500' },
+  { id: 'tool-blackhole', type: 'blackhole', label: '블랙홀 (인력)', color: 'bg-black border-white' },
 ]
 
 function PaletteItem({ tool }: { tool: typeof tools[0] }) {
