@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
+import { useGameStore } from '@/store/gameStore'
 
 interface SkillEventOverlayProps {
   activeSkill: { chipId: string; skill: string } | null;
@@ -22,6 +23,7 @@ export default function SkillEventOverlay({ activeSkill }: SkillEventOverlayProp
   const topBarRef = useRef<HTMLDivElement>(null)
   const bottomBarRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
+  const survivors = useGameStore(state => state.survivors)
 
   useEffect(() => {
     if (activeSkill && activeSkill.skill !== 'none') {
@@ -93,7 +95,7 @@ export default function SkillEventOverlay({ activeSkill }: SkillEventOverlayProp
           />
           <div className="mt-8 flex flex-col items-center">
             <span className="text-white/70 font-mono text-sm md:text-lg tracking-widest uppercase bg-black/50 px-4 py-1 rounded-full backdrop-blur-sm border border-white/10 mb-2">
-              {activeSkill.chipId}
+              {survivors.find(s => s.id === activeSkill.chipId)?.name || activeSkill.chipId}
             </span>
             <span 
               className="text-5xl md:text-7xl font-black italic tracking-tighter uppercase text-transparent bg-clip-text"

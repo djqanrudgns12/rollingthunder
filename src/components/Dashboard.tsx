@@ -34,7 +34,7 @@ export default function Dashboard() {
     // Support parsing multiple inputs separated by comma, newline, or spaces
     const names = nameInput.split(/[,\s]+/).map(n => n.trim()).filter(n => n !== '')
     names.forEach(name => {
-      const newId = `chip-${Date.now()}-${Math.floor(Math.random()*1000)}`
+      const newId = `chip-${crypto.randomUUID()}`
       const finalName = isAnonymized ? getRandomAnimal() : name
       addParticipant({ id: newId, name: finalName, color: `hsl(${Math.random() * 360}, 80%, 50%)`, skinId: skinInput || undefined })
     })
