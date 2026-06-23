@@ -2,10 +2,11 @@
 
 import { useGameStore } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createSession } from '@/actions/db'
 import MapLoadModal from './MapLoadModal'
 import { Tv, Shield, ShieldOff, Video, Map } from 'lucide-react'
+import { toast } from 'sonner'
 
 // Simple Anonymizer Helper
 const ANIMAL_NAMES = ['사자', '호랑이', '토끼', '고양이', '강아지', '독수리', '돌고래', '상어', '거북이', '알파카', '기린', '코끼리']
@@ -23,10 +24,15 @@ export default function Dashboard() {
   const [title, setTitle] = useState('새로운 추첨')
   const [isMapModalOpen, setIsMapModalOpen] = useState(false)
 
+  // Sync local state when Zustand store hydrates from localStorage
+  useEffect(() => {
+    setLocalWinnerCount(targetWinnerCount || 1)
+  }, [targetWinnerCount])
+
   const handleAdd = () => {
     if (!nameInput.trim()) return
-    // Support parsing multiple inputs separated by comma or newline
-    const names = nameInput.split(/[,\n]+/).map(n => n.trim()).filter(n => n !== '')
+    // Support parsing multiple inputs separated by comma, newline, or spaces
+    const names = nameInput.split(/[,\s]+/).map(n => n.trim()).filter(n => n !== '')
     names.forEach(name => {
       const newId = `chip-${Date.now()}-${Math.floor(Math.random()*1000)}`
       const finalName = isAnonymized ? getRandomAnimal() : name
@@ -37,11 +43,11 @@ export default function Dashboard() {
 
   const handleStart = async () => {
     if (participants.length < 2) {
-      alert('최소 2명 이상의 참가자가 필요합니다.')
+      toast.error('최소 2명 이상의 참가자가 필요합니다.')
       return
     }
     if (gameMode !== 'lucky' && localWinnerCount >= participants.length) {
-      alert('당첨/생존자 수는 참가자 수보다 적어야 합니다.')
+      toast.error('당첨/생존자 수는 참가자 수보다 적어야 합니다.')
       return
     }
 

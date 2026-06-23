@@ -64,7 +64,6 @@ export const useGameStore = create<GameState>()(
     }),
     {
       name: 'rt-game-storage',
-      storage: createJSONStorage(() => localStorage),
     }
   )
 )

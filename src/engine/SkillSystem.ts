@@ -30,17 +30,29 @@ export class SkillSystem {
     // 여기서는 순수 물리 엔진 속성 변경만 다룸
     switch (skill) {
       case 'tank':
-        // 질량 무한대 및 크기 증폭 (추가 질량 부여)
-        // Rapier2D 규격에 맞춰 mass와 principal_angular_inertia 전달
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (targetBody as any).setAdditionalMassProps(100, 0, true);
+        // 질량 무한대 대신 중력 스케일을 대폭 늘려 무겁고 빠르게 떨어지게 만듦 (다른 마블을 밀어냄)
+        targetBody.setGravityScale(5.0, true);
+        // 2초 후 원래 중력으로 복구 (워커 내부 타이머)
+        setTimeout(() => {
+          if (targetBody && targetBody.isAlive()) {
+            targetBody.setGravityScale(1.0, true);
+          }
+        }, 2000);
         break;
       case 'booster':
-        // 강한 하방 추진력
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (targetBody as any).applyImpulse({ x: 0, y: 300 }, true);
+        // 강한 하방 추진력 (Impulse)
+        targetBody.applyImpulse({ x: 0, y: 50000 }, true);
         break;
-      // 추가 스킬들은 MapBuilder 및 추가 컴포넌트와 연계하여 구현
+      case 'ghost':
+        // 투명화: 다른 마블과 충돌하지 않도록 처리하고 싶으나,
+        // Rapier2D에서 콜라이더 그룹 변경은 복잡할 수 있으므로 강한 튕김 방지용 damping 적용
+        targetBody.setLinearDamping(0.5);
+        setTimeout(() => {
+          if (targetBody && targetBody.isAlive()) {
+            targetBody.setLinearDamping(0);
+          }
+        }, 2000);
+        break;
       default:
         break;
     }

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, useSensor, useSensors, PointerSensor } from '@dnd-kit/core'
+import { toast } from 'sonner'
 import { useEditorStore, EditorItemType } from '@/store/editorStore'
 import ToolPalette from './ToolPalette'
 import EditorCanvas from './EditorCanvas'
@@ -79,8 +80,8 @@ export default function EditorContainer() {
       <div className="absolute top-6 right-6 z-50 flex gap-3">
         <button 
           onClick={async () => {
-            if (items.length === 0) {
-              alert('맵에 배치된 요소가 없습니다.'); return;
+            if(items.length === 0) {
+              toast.error('맵에 배치된 요소가 없습니다.'); return;
             }
             const code = Math.random().toString(36).substring(2, 8).toUpperCase();
             const { error } = await supabase.from('map_presets').insert({
@@ -89,8 +90,11 @@ export default function EditorContainer() {
               map_data: items,
               share_code: code
             });
-            if(error) alert('DB 저장 실패: ' + error.message)
-            else alert('맵 데이터가 서버에 배포되었습니다!\n\n공유 코드: ' + code + '\n\n대시보드 화면에서 이 코드를 입력하면 맵을 불러올 수 있습니다.');
+            if(error) toast.error('DB 저장 실패: ' + error.message)
+            else {
+              toast.success('맵 데이터가 서버에 배포되었습니다!');
+              toast('대시보드 화면에서 다음 코드를 입력하세요: ' + code, { duration: 10000 });
+            }
           }}
           className="flex items-center gap-2 bg-white/10 text-white px-5 py-2.5 rounded-full font-bold hover:bg-white/20 transition-colors border border-white/20 backdrop-blur-md"
         >

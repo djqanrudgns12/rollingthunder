@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Outfit, JetBrains_Mono } from "next/font/google";
+import { Toaster } from 'sonner';
 import "./globals.css";
 
 const outfit = Outfit({
@@ -43,6 +44,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased min-h-[100dvh] w-full flex flex-col overflow-hidden bg-[var(--bg-primary)]">
         {children}
+        <Toaster theme="dark" position="bottom-right" />
       </body>
     </html>
   );

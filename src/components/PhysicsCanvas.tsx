@@ -130,14 +130,26 @@ export default function PhysicsCanvas() {
         const layer1 = new PIXI.Sprite(bgTex1);
         layer1.anchor.set(0.5);
         layer1.x = 400; layer1.y = 600;
-        layer1.scale.set(2.0);
         layer1.alpha = 0.3;
         
         const layer2 = new PIXI.Sprite(bgTex2);
         layer2.anchor.set(0.5);
         layer2.x = 400; layer2.y = 600;
-        layer2.scale.set(1.5);
         layer2.alpha = 0.5;
+
+        const updateBgScale = () => {
+          const w = window.innerWidth;
+          const h = window.innerHeight;
+          const s1 = Math.max(w / (bgTex1.width || 1920), (h + 1000) / (bgTex1.height || 1080));
+          const s2 = Math.max(w / (bgTex2.width || 1920), (h + 600) / (bgTex2.height || 1080));
+          layer1.scale.set(s1);
+          layer2.scale.set(s2);
+        };
+        updateBgScale();
+        window.addEventListener('resize', updateBgScale);
+        
+        // Save cleanup func
+        (app as any)._bgResizeHandler = updateBgScale;
         // Depth of field blur for far background
         const blurFilter = new PIXI.BlurFilter();
         blurFilter.blur = 4;
@@ -264,12 +276,27 @@ export default function PhysicsCanvas() {
                   sprite.height = item.h;
                   g.addChild(sprite);
                 } else {
+                  // Solid metallic wall fallback
                   const fallback = new PIXI.Graphics();
                   fallback.rect(-item.w / 2, -item.h / 2, item.w, item.h);
-                  fallback.fill({ color: 0x00ffcc, alpha: 0.15 });
-                  fallback.stroke({ width: 2, color: 0x00ffcc, alpha: 0.6 });
+                  fallback.fill({ color: 0x22222a, alpha: 1.0 });
+                  fallback.stroke({ width: 3, color: 0x555566, alpha: 1.0 });
+                  
+                  // Add inner detail (pipe look)
+                  const detail = new PIXI.Graphics();
+                  detail.rect(-item.w / 2 + 5, -item.h / 2 + 5, item.w - 10, item.h - 10);
+                  detail.stroke({ width: 1, color: 0x888899, alpha: 0.5 });
+                  fallback.addChild(detail);
+                  
                   g.addChild(fallback);
                 }
+                
+                // Add drop shadow
+                const shadow = new PIXI.Graphics();
+                shadow.rect(-item.w / 2, -item.h / 2, item.w, item.h);
+                shadow.fill({ color: 0x000000, alpha: 0.6 });
+                shadow.position.set(8, 10);
+                g.addChildAt(shadow, 0);
               } else if (item.type === 'pin') {
                 const tex = PIXI.Assets.get('/images/assets/obstacles/pin_neon.png');
                 if (tex) {
@@ -281,14 +308,16 @@ export default function PhysicsCanvas() {
                 } else {
                   const fallback = new PIXI.Graphics();
                   fallback.circle(0, 0, item.radius);
-                  fallback.fill({ color: 0xff00ff, alpha: 0.9 });
+                  fallback.fill({ color: 0x333344, alpha: 1.0 });
+                  fallback.stroke({ width: 2, color: 0x888899, alpha: 1.0 });
                   g.addChild(fallback);
                 }
-                const glow = new PIXI.Graphics();
-                glow.circle(0, 0, item.radius * 2.5);
-                glow.fill({ color: 0xff00ff, alpha: 0.3 });
-                glow.blendMode = 'add';
-                g.addChild(glow);
+                // Solid shadow instead of glow
+                const shadow = new PIXI.Graphics();
+                shadow.circle(0, 0, item.radius);
+                shadow.fill({ color: 0x000000, alpha: 0.7 });
+                shadow.position.set(4, 6);
+                g.addChildAt(shadow, 0);
               } else if (item.type === 'bumper') {
                 const tex = PIXI.Assets.get('/images/assets/obstacles/bumper_plasma.png');
                 if (tex) {
@@ -300,14 +329,15 @@ export default function PhysicsCanvas() {
                 } else {
                   const fallback = new PIXI.Graphics();
                   fallback.circle(0, 0, item.radius);
-                  fallback.fill({ color: 0xffff00, alpha: 0.9 });
+                  fallback.fill({ color: 0x442222, alpha: 1.0 });
+                  fallback.stroke({ width: 3, color: 0xffaa55, alpha: 1.0 });
                   g.addChild(fallback);
                 }
-                const glow = new PIXI.Graphics();
-                glow.circle(0, 0, item.radius * 2);
-                glow.fill({ color: 0xffff00, alpha: 0.4 });
-                glow.blendMode = 'add';
-                g.addChild(glow);
+                const shadow = new PIXI.Graphics();
+                shadow.circle(0, 0, item.radius * 1.25);
+                shadow.fill({ color: 0x000000, alpha: 0.8 });
+                shadow.position.set(5, 8);
+                g.addChildAt(shadow, 0);
               } else if (item.type === 'booster') {
                 const tex = PIXI.Assets.get('/images/assets/obstacles/booster_pad.png');
                 if (tex) {
@@ -317,6 +347,25 @@ export default function PhysicsCanvas() {
                   sprite.height = 50;
                   g.addChild(sprite);
                 }
+              } else if (item.type === 'windmill') {
+                const tex = PIXI.Assets.get('/images/assets/obstacles/windmill_rotor.png');
+                if (tex) {
+                  const sprite = new PIXI.Sprite(tex);
+                  sprite.anchor.set(0.5);
+                  sprite.width = 100;
+                  sprite.height = 100;
+                  g.addChild(sprite);
+                } else {
+                  const fallback = new PIXI.Graphics();
+                  fallback.rect(-50, -5, 100, 10);
+                  fallback.rect(-5, -50, 10, 100);
+                  fallback.fill({ color: 0x00ffff, alpha: 0.8 });
+                  g.addChild(fallback);
+                }
+                const speed = item.speed || 3;
+                app.ticker.add((ticker) => {
+                  g.rotation += speed * (ticker.deltaMS / 1000);
+                });
               } else if (item.type === 'blackhole' || item.type === 'whitehole') {
                 const tex = PIXI.Assets.get('/images/assets/obstacles/blackhole.png');
                 if (tex) {
@@ -351,6 +400,10 @@ export default function PhysicsCanvas() {
               }
               g.position.set(item.x, item.y);
               g.rotation = item.rotation || 0;
+              // Provide an ID to the graphic object for animations
+              if (item.id) {
+                g.label = item.id;
+              }
               staticContainer.addChild(g);
             });
           }
@@ -360,26 +413,31 @@ export default function PhysicsCanvas() {
           const buffer = new Float32Array(payload);
           
           let firstY = -Infinity;
+          let secondY = -Infinity;
           let firstX = 400;
 
-          // Buffer format: [id, x, y, rotation, speed]
+          // Buffer format: [id, x, y, vx, vy]
           for (let i = 0; i < buffer.length; i += 5) {
-            const handle = buffer[i];
+            const rawId = buffer[i];
+            const dataIndex = Math.floor(i / 5);
             const x = buffer[i + 1];
             const y = buffer[i + 2];
-            const rot = buffer[i + 3];
-            const speed = buffer[i + 4];
+            const vx = buffer[i + 3];
+            const vy = buffer[i + 4];
 
-            const bodyId = handle.toString();
+            const isChip = dataIndex < survivors.length;
+            const survivor = isChip ? survivors[dataIndex] : null;
+            
+            // 절대적으로 고유한 식별자 부여: 칩인 경우 survivor.id 사용, 그 외의 경우 고유 entity ID 사용
+            const bodyId = survivor ? survivor.id : `entity_${rawId}_${dataIndex}`;
+            
             let container = graphicsMap.get(bodyId);
             
             if (!container) {
               container = new PIXI.Container();
               viewport.addChild(container);
               
-              const isChip = (i / 5) < survivors.length; 
-              
-              if (isChip) {
+              if (isChip && survivor) {
                 const texName = CHIP_TEXTURES[Math.floor(Math.random() * CHIP_TEXTURES.length)];
                 const texUrl = `/images/assets/${texName}`;
                 const tex = PIXI.Assets.get(texUrl) || PIXI.Texture.WHITE;
@@ -401,16 +459,13 @@ export default function PhysicsCanvas() {
                 
                 container.addChild(sprite);
                 
-                const survivor = survivors[Math.floor(i / 5)];
-                if (survivor) {
-                  const text = new PIXI.Text({ 
-                    text: survivor.name, 
-                    style: { fill: 0xffffff, fontSize: 14, fontWeight: 'bold', dropShadow: { alpha: 0.8, color: 0x000000, blur: 3, distance: 0 } } 
-                  });
-                  text.anchor.set(0.5);
-                  text.y = -25;
-                  container.addChild(text);
-                }
+                const text = new PIXI.Text({ 
+                  text: survivor.name, 
+                  style: { fill: 0xffffff, fontSize: 14, fontWeight: 'bold', dropShadow: { alpha: 0.8, color: 0x000000, blur: 3, distance: 0 } } 
+                });
+                text.anchor.set(0.5);
+                text.y = -25;
+                container.addChild(text);
               } else {
                 // Dynamic kinematics like windmill rotor
                 const tex = PIXI.Assets.get('/images/assets/obstacles/windmill_rotor.png');
@@ -441,7 +496,13 @@ export default function PhysicsCanvas() {
                (container as any).mBlur.velocity.y = speed > 50 ? Math.min(speed / 5, 40) : 0;
             }
 
-            if (y > firstY && y < 1200) { firstY = y; firstX = x; } 
+            if (y > firstY && y < 1200) { 
+              secondY = firstY;
+              firstY = y; 
+              firstX = x; 
+            } else if (y > secondY && y < 1200) {
+              secondY = y;
+            }
           }
           
           // AI Camera Director
@@ -449,27 +510,57 @@ export default function PhysicsCanvas() {
           if (firstY !== -Infinity) {
             const currentCenter = viewport.center;
             const targetY = firstY + 150; // Look ahead
+            let targetZoom = 1;
+            
+            // Juiciness: Zoom in when 1st and 2nd are very close!
+            if (secondY !== -Infinity && firstY - secondY < 40) {
+              targetZoom = 1.4; // 박빙 줌인
+            }
+            
             setIsAutoFollow(prev => {
               if (prev) {
                 viewport.moveCenter(
                   currentCenter.x + (firstX - currentCenter.x) * 0.05,
                   currentCenter.y + (targetY - currentCenter.y) * 0.05
                 );
+                viewport.scale.x += (targetZoom - viewport.scale.x) * 0.05;
+                viewport.scale.y += (targetZoom - viewport.scale.y) * 0.05;
               }
               return prev;
             });
           }
           
-          // Background Parallax
+          // Background Parallax & Theme Zone Color
           if (typeof bgSprites !== 'undefined') {
             bgSprites[0].y = 600 - (viewport.center.y - 600) * 0.1; // Slowest (far)
             bgSprites[1].y = 600 - (viewport.center.y - 600) * 0.3; // Faster (mid)
+            
+            // Theme Tint
+            if (viewport.center.y > 900) {
+              bgSprites[0].tint = 0xff7777; // Reddish Void
+            } else if (viewport.center.y > 500) {
+              bgSprites[0].tint = 0x77ff77; // Greenish Factory
+            } else {
+              bgSprites[0].tint = 0xffffff; // Neon
+            }
           }
 
         } else if (type === 'SOUND_EFFECT') {
           if (payload.type === 'warp') soundManager.playFinish();
           else if (payload.type === 'finish') soundManager.playFinish();
-          else if (payload.type === 'bumperHit') soundManager.playBumperHit(payload.impulse, payload.x);
+          else if (payload.type === 'bumperHit') {
+            soundManager.playBumperHit(payload.impulse, payload.x);
+            // Visual Shake on Bumper Hit
+            if (payload.targetId) {
+              const target = viewport.getChildAt(0).children.find(c => c.label === payload.targetId);
+              if (target) {
+                import('gsap').then(({ gsap }) => {
+                  gsap.fromTo(target.scale, { x: 1.3, y: 1.3 }, { x: 1, y: 1, duration: 0.3, ease: 'elastic.out(1, 0.3)' });
+                  gsap.fromTo(target, { alpha: 2 }, { alpha: 1, duration: 0.2 });
+                });
+              }
+            }
+          }
           else if (payload.type === 'wallHit') soundManager.playWallHit(payload.impulse, payload.x);
         } else if (type === 'SKILL_FIRED') {
           setActiveSkill(payload);
@@ -508,7 +599,7 @@ export default function PhysicsCanvas() {
             customMapData,
             gimmickDensity,
             survivors,
-            targetSurvival: targetWinnerCount,
+            targetCount: targetWinnerCount,
             mode: gameMode,
             customRank: customWinningRank
           }
@@ -520,6 +611,9 @@ export default function PhysicsCanvas() {
 
     return () => {
       isMounted = false;
+      if (typeof window !== 'undefined' && app && (app as any)._bgResizeHandler) {
+        window.removeEventListener('resize', (app as any)._bgResizeHandler);
+      }
       if (workerRef.current) {
         workerRef.current.postMessage({ type: 'STOP' });
         workerRef.current.terminate();

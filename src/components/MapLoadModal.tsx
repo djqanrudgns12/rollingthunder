@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useUIStore } from '@/store/uiStore'
+import { toast } from 'sonner'
 import { X, Search, Map } from 'lucide-react'
 
 interface MapLoadModalProps {
@@ -36,19 +37,19 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
     setIsLoading(false)
     
     if (error || !data) {
-      alert('유효하지 않은 맵 코드이거나 찾을 수 없습니다.')
+      toast.error('유효하지 않은 맵 코드이거나 찾을 수 없습니다.')
       return
     }
     
     setCustomMapData(data.map_data)
-    alert(`[${data.title}] 맵을 성공적으로 불러왔습니다!`)
+    toast.success(`[${data.title}] 맵을 성공적으로 불러왔습니다!`)
     onClose()
   }
 
   const handleLoadDefaultMap = (mapId: string) => {
     // 임시: 기본 맵 선택 시 커스텀 맵 데이터를 null로 초기화하여 기본 로직이 작동하게 함
     setCustomMapData(null)
-    alert('기본 맵이 선택되었습니다.')
+    toast.info('기본 맵이 선택되었습니다.')
     onClose()
   }
 

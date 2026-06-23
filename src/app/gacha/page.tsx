@@ -1,6 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import Header from '@/components/Header'
+import { toast } from 'sonner'
 import { ArrowLeft, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -41,7 +43,7 @@ export default function GachaPage() {
           }
         }, 1500)
       } else {
-        alert('가챠 실패: ' + data.error)
+        toast.error('가챠 실패: ' + data.error)
         setIsShaking(false)
         setLoading(false)
       }

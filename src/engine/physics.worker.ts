@@ -32,13 +32,12 @@ function broadcastFrame() {
     const t = body.translation();
     const r = body.rotation();
     const v = body.linvel();
-    const speed = Math.sqrt(v.x * v.x + v.y * v.y);
     
-    positionsBuffer[i * 5 + 0] = body.handle;
+    positionsBuffer[i * 5 + 0] = i; // Use index instead of handle
     positionsBuffer[i * 5 + 1] = t.x;
     positionsBuffer[i * 5 + 2] = t.y;
-    positionsBuffer[i * 5 + 3] = r;
-    positionsBuffer[i * 5 + 4] = speed;
+    positionsBuffer[i * 5 + 3] = v.x; // Send vx
+    positionsBuffer[i * 5 + 4] = v.y; // Send vy
   }
   
   const frameData = new Float32Array(positionsBuffer);
@@ -50,6 +49,13 @@ self.onmessage = async (e) => {
 
   if (type === 'INIT') {
     await RAPIER.init();
+    
+    // 무결성 보장: 브라우저 캐시로 인해 예전 스킬 코드가 실행되어 물리 엔진에 존재하지 않는 함수를 호출하더라도 워커가 크래시되지 않도록 방어(Polyfill) 주입
+    if (RAPIER.RigidBody && !(RAPIER.RigidBody.prototype as any).setAdditionalMassProps) {
+      (RAPIER.RigidBody.prototype as any).setAdditionalMassProps = function() {
+        console.warn("Ignored legacy physics call to setAdditionalMassProps");
+      };
+    }
     
     if (world) {
       world.free();
@@ -100,7 +106,9 @@ self.onmessage = async (e) => {
           w: userData.w,
           h: userData.h,
           radius: userData.radius,
-          rotation: body.rotation()
+          rotation: body.rotation(),
+          speed: userData.speed,
+          color: userData.color
         });
       }
     });
@@ -157,6 +165,7 @@ self.onmessage = async (e) => {
     }, 8000);
 
     let frameCount = 0;
+    let lowSpeedFrames = 0;
     stepInterval = setInterval(() => {
       if (!world || !eventQueue) return;
       
@@ -254,18 +263,20 @@ self.onmessage = async (e) => {
         })
       });
 
+      let totalSpeed = 0;
       for (let i = 0; i < activeChips.length; i++) {
         const body = activeChips[i];
         const t = body.translation();
         const r = body.rotation();
         const v = body.linvel();
         const speed = Math.sqrt(v.x * v.x + v.y * v.y);
+        totalSpeed += speed;
         
-        positionsBuffer[i * 5 + 0] = body.handle;
+        positionsBuffer[i * 5 + 0] = i; // Use index instead of handle
         positionsBuffer[i * 5 + 1] = t.x;
         positionsBuffer[i * 5 + 2] = t.y;
-        positionsBuffer[i * 5 + 3] = r;
-        positionsBuffer[i * 5 + 4] = speed;
+        positionsBuffer[i * 5 + 3] = v.x;
+        positionsBuffer[i * 5 + 4] = v.y;
         
         const data = body.userData as any;
         if (data?.type === 'chip' && t.y > 1220 && !finishedChips.has(data.id)) {
@@ -315,6 +326,26 @@ self.onmessage = async (e) => {
               payload: { winners, mode: gameMode } 
             });
           }
+      
+      if (activeChips.length > 0) {
+        const avgSpeed = totalSpeed / activeChips.length;
+        // Gravity Storm: If the average speed of all chips is very low (stuck) for 5 seconds (300 frames)
+        if (avgSpeed < 10) {
+          lowSpeedFrames++;
+          if (lowSpeedFrames > 300) {
+            self.postMessage({ type: 'GRAVITY_STORM' });
+            NudgeSystem.applyNudge(world!, 3000); // Massive nudge to break the deadlock
+            
+            // Randomly reverse gravity or apply huge impulses
+            activeChips.forEach(chip => {
+              chip.applyImpulse({ x: (Math.random() - 0.5) * 50000, y: -Math.random() * 50000 }, true);
+            });
+            lowSpeedFrames = 0;
+          }
+        } else {
+          lowSpeedFrames = 0;
+        }
+      }
         }
       }
       
