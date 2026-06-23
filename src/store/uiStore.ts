@@ -7,6 +7,9 @@ interface UIState {
   
   activeModal: 'none' | 'login' | 'settings' | 'preset'
   setActiveModal: (modal: 'none' | 'login' | 'settings' | 'preset') => void
+
+  gameStage: 'dashboard' | 'playing' | 'results'
+  setGameStage: (stage: 'dashboard' | 'playing' | 'results') => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -16,4 +19,7 @@ export const useUIStore = create<UIState>((set) => ({
   
   activeModal: 'none',
   setActiveModal: (activeModal) => set({ activeModal }),
+
+  gameStage: 'dashboard',
+  setGameStage: (gameStage) => set({ gameStage }),
 }))

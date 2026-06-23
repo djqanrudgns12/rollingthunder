@@ -10,6 +10,7 @@ import { SkillSystem, SkillType } from '@/engine/SkillSystem'
 import { NudgeSystem } from '@/engine/NudgeSystem'
 import { UserData } from '@/engine/types'
 import { useGameStore } from '@/store/gameStore'
+import { useUIStore } from '@/store/uiStore'
 import LiveLeaderboard from './LiveLeaderboard'
 import SkillEventOverlay from './SkillEventOverlay'
 import { Hand } from 'lucide-react'
@@ -20,7 +21,8 @@ export default function PhysicsCanvas() {
   const [rankings, setRankings] = useState<ParticipantRank[]>([])
   const [activeSkill, setActiveSkill] = useState<{ chipId: string; skill: SkillType } | null>(null)
   
-  const gimmickDensity = useGameStore(state => state.gimmickDensity)
+  const { survivors, setSurvivors, targetSurvivalCount, gimmickDensity } = useGameStore()
+  const { setGameStage } = useUIStore()
   
   const handleNudge = useCallback(() => {
     RapierEngine.getInstance().then(engine => {
@@ -36,7 +38,6 @@ export default function PhysicsCanvas() {
     let eventQueue: RAPIER.EventQueue;
     let isMounted = true;
     
-    // 타임스케일(슬로모션) 구현용 배율기
     let dtMultiplier = 1.0;
 
     const initPhysics = async () => {
@@ -59,41 +60,43 @@ export default function PhysicsCanvas() {
       MapBuilder.createWalls(world, width, height)
       MapBuilder.buildRandomMap(world, width, height, gimmickDensity)
 
-      for(let i = 1; i <= 20; i++) {
-        ChipFactory.createChip(world, width/2 + (Math.random() * 80 - 40), Math.random() * -300, 12, `chip-${i}`)
-      }
+      // 실제 서바이벌 생존자들을 물리 칩으로 생성
+      survivors.forEach((s) => {
+        ChipFactory.createChip(world, width/2 + (Math.random() * 80 - 40), Math.random() * -300, 12, s.id)
+      })
 
-      // 테스트용 6초마다 랜덤 스킬 발동 사이클
+      const finishedChips = new Set<string>()
+      const finishOrder: string[] = []
+
+      // 랜덤 스킬 발동 사이클
       const skillTimer = setInterval(() => {
-        if (!isMounted) return
-        const randomChip = `chip-${Math.floor(Math.random() * 20) + 1}`
+        if (!isMounted || survivors.length === 0) return
+        const randomSurvivor = survivors[Math.floor(Math.random() * survivors.length)]
+        const randomChip = randomSurvivor.id
         const skills: SkillType[] = ['tank', 'booster']
         const randomSkill = skills[Math.floor(Math.random() * skills.length)]
         
         setActiveSkill({ chipId: randomChip, skill: randomSkill })
-        dtMultiplier = 0.15 // 물리 엔진 연산 속도를 극도로 늦춰 슬로모션 구현
+        dtMultiplier = 0.15 
         SkillSystem.triggerSkill(world, randomChip, randomSkill)
         
-        // 1.5초 후 원상복구
         setTimeout(() => {
           if (isMounted) {
             dtMultiplier = 1.0
             setActiveSkill(null)
           }
         }, 1500)
-      }, 6000)
+      }, 8000)
 
       let frameCounter = 0;
 
       const loop = () => {
         if (!isMounted) return;
 
-        // Custom time scale simulation (60fps 기준에 배율 적용)
         world.integrationParameters.dt = (1 / 60) * dtMultiplier;
         engine.step(eventQueue)
         
         frameCounter++;
-        // 퍼포먼스를 위해 매 프레임이 아닌 5프레임마다 랭킹 산정 알고리즘 실행
         if (frameCounter % 5 === 0) {
           const newRanks = RankingTracker.updateRankings(world)
           setRankings(newRanks)
@@ -106,32 +109,55 @@ export default function PhysicsCanvas() {
           const data = body.userData as UserData
           if (!data) return
           
-          ctx.beginPath()
           if (data.type === 'chip') {
-            ctx.fillStyle = 'hsl(170, 100%, 50%)'
-            ctx.shadowColor = 'hsla(170, 100%, 50%, 0.6)'
-            ctx.shadowBlur = 15
-            ctx.arc(t.x, t.y, data.radius!, 0, Math.PI * 2)
-            ctx.fill()
-            ctx.shadowBlur = 0
-          } else if (data.type === 'pin') {
-            ctx.fillStyle = 'hsl(225, 10%, 30%)'
-            ctx.arc(t.x, t.y, data.radius!, 0, Math.PI * 2)
-            ctx.fill()
-          } else if (data.type === 'bumper') {
-            ctx.fillStyle = 'hsl(35, 100%, 55%)'
-            ctx.shadowColor = 'hsla(35, 100%, 55%, 0.8)'
+            // Finish Line 로직 (바닥을 뚫고 지나가면 골인 처리)
+            if (t.y > height + 20) {
+              if (!finishedChips.has(data.id!)) {
+                finishedChips.add(data.id!)
+                finishOrder.push(data.id!)
+              }
+            }
+
+            const participantInfo = survivors.find(s => s.id === data.id)
+            ctx.beginPath()
+            ctx.fillStyle = participantInfo ? participantInfo.color : 'hsl(170, 100%, 50%)'
+            ctx.shadowColor = participantInfo ? participantInfo.color : 'hsla(170, 100%, 50%, 0.6)'
             ctx.shadowBlur = 10
             ctx.arc(t.x, t.y, data.radius!, 0, Math.PI * 2)
             ctx.fill()
             ctx.shadowBlur = 0
-          } else if (data.type === 'wall') {
-            ctx.fillStyle = 'hsla(0,0%,100%,0.03)'
-            ctx.fillRect(t.x - data.w!/2, t.y - data.h!/2, data.w!, data.h!)
+            ctx.closePath()
+          } else {
+            ctx.beginPath()
+            if (data.type === 'pin') {
+              ctx.fillStyle = 'hsl(225, 10%, 30%)'
+              ctx.arc(t.x, t.y, data.radius!, 0, Math.PI * 2)
+              ctx.fill()
+            } else if (data.type === 'bumper') {
+              ctx.fillStyle = 'hsl(35, 100%, 55%)'
+              ctx.shadowColor = 'hsla(35, 100%, 55%, 0.8)'
+              ctx.shadowBlur = 10
+              ctx.arc(t.x, t.y, data.radius!, 0, Math.PI * 2)
+              ctx.fill()
+              ctx.shadowBlur = 0
+            } else if (data.type === 'wall') {
+              ctx.fillStyle = 'hsla(0,0%,100%,0.03)'
+              ctx.fillRect(t.x - data.w!/2, t.y - data.h!/2, data.w!, data.h!)
+            }
+            ctx.closePath()
           }
-          ctx.closePath()
         })
         
+        // 서바이벌 스테이지 종료 판정
+        // 선착순으로 목표 인원이 들어오면 바로 스테이지가 종료되며 결과 화면으로 이동
+        if (finishedChips.size >= targetSurvivalCount) {
+          const nextSurvivors = finishOrder.slice(0, targetSurvivalCount).map(id => survivors.find(s => s.id === id)!)
+          setSurvivors(nextSurvivors)
+          setGameStage('results')
+          isMounted = false; // 물리 루프 즉시 종료
+          return;
+        }
+
         animationId = requestAnimationFrame(loop)
       }
       
@@ -147,17 +173,13 @@ export default function PhysicsCanvas() {
       cancelAnimationFrame(animationId)
       cleanup.then(clean => clean && clean())
     }
-  }, [gimmickDensity])
+  }, [survivors, targetSurvivalCount, gimmickDensity, setSurvivors, setGameStage])
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden bg-[var(--bg-primary)]">
-      {/* 랭킹보드 (좌측 상단) */}
       <LiveLeaderboard rankings={rankings} />
-      
-      {/* 스킬 슬로모션 팝업 (중앙 오버레이) */}
       <SkillEventOverlay activeSkill={activeSkill} />
       
-      {/* Nudge 판 흔들기 버튼 (우측 하단) */}
       <button 
         onClick={handleNudge}
         className="absolute bottom-6 right-6 z-50 glass-panel-heavy p-4 hover:bg-white/10 transition-colors flex items-center justify-center group active:scale-95"
@@ -165,7 +187,6 @@ export default function PhysicsCanvas() {
         <Hand className="w-8 h-8 text-[var(--text-primary)] group-hover:scale-110 transition-transform" />
       </button>
 
-      {/* Physics Canvas (화면 전체 90% 이상을 차지하도록 object-contain 및 비율 조정) */}
       <div className="w-full h-full p-2 md:p-4 flex items-center justify-center pointer-events-none">
         <canvas 
           ref={canvasRef} 

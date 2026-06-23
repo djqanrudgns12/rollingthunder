@@ -1,5 +1,6 @@
 'use client'
 
+import { useGameStore } from '@/store/gameStore'
 import { ParticipantRank } from '@/engine/RankingTracker'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -9,6 +10,7 @@ interface LiveLeaderboardProps {
 }
 
 export default function LiveLeaderboard({ rankings }: LiveLeaderboardProps) {
+  const survivors = useGameStore(state => state.survivors)
   // 상위 5명만 표출하여 시야 확보 (화면 비율 원칙)
   const topRankings = rankings.slice(0, 5)
 
@@ -34,7 +36,7 @@ export default function LiveLeaderboard({ rankings }: LiveLeaderboardProps) {
               {p.rank}
             </span>
             <span className="text-[var(--text-primary)] font-medium text-sm truncate-1-line flex-1">
-              {p.id.replace('chip-', '참가자 ')}
+              {survivors.find(s => s.id === p.id)?.name || p.id}
             </span>
           </motion.div>
         ))}

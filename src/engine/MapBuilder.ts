@@ -22,8 +22,7 @@ export class MapBuilder {
     this.createRect(world, -thickness / 2, height / 2, thickness, height * 2, 'wall');
     // 우측 벽
     this.createRect(world, width + thickness / 2, height / 2, thickness, height * 2, 'wall');
-    // 바닥 (현재는 테스트를 위해 막아둠. 멀티 스테이지에서는 뚫을 예정)
-    this.createRect(world, width / 2, height + thickness / 2, width, thickness, 'wall');
+    // 바닥 (현재는 칩들이 결승선(화면 아래)을 통과해야 하므로 바닥을 생성하지 않음)
   }
 
   static createPin(world: RAPIER.World, x: number, y: number, radius: number, isBumper = false) {
