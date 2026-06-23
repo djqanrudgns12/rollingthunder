@@ -1,9 +1,9 @@
-import PhysicsTestHarness from '@/components/PhysicsTestHarness'
+import PhysicsCanvas from '@/components/PhysicsCanvas'
 
 export default function Home() {
   return (
-    <main className="flex-1 flex flex-col items-center justify-center relative w-full h-full p-4 overflow-hidden">
-      <PhysicsTestHarness />
+    <main className="flex-1 w-full h-[100dvh] overflow-hidden">
+      <PhysicsCanvas />
     </main>
   );
 }
