@@ -59,6 +59,7 @@ export default function GameManager() {
         {loadError && (
           <div className="flex flex-col items-center gap-4 mt-8 animate-in fade-in slide-in-from-bottom">
             <p className="text-red-400 font-bold">⚠️ 에셋을 불러오는데 시간이 너무 오래 걸리거나 오류가 발생했습니다.</p>
+            <p className="text-red-300 text-sm mt-1 mb-2">강제 시작 시 일부 텍스쳐가 깨지거나 투명하게 보일 수 있습니다.</p>
             <div className="flex gap-4">
               <button onClick={() => window.location.reload()} className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors font-bold border border-white/20">새로고침</button>
               <button onClick={() => setAssetsLoaded(true)} className="px-6 py-2 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded-xl transition-colors font-bold border border-red-500/50">강제 시작</button>

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import type { EditorItem } from './editorStore'
 
 interface UIState {
@@ -21,23 +22,36 @@ interface UIState {
   setAnonymized: (isAnon: boolean) => void
 }
 
-export const useUIStore = create<UIState>((set) => ({
-  isSidebarOpen: false,
-  setSidebarOpen: (isSidebarOpen) => set({ isSidebarOpen }),
-  toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
-  
-  activeModal: 'none',
-  setActiveModal: (activeModal) => set({ activeModal }),
+export const useUIStore = create<UIState>()(
+  persist(
+    (set) => ({
+      isSidebarOpen: false,
+      setSidebarOpen: (isSidebarOpen) => set({ isSidebarOpen }),
+      toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+      
+      activeModal: 'none',
+      setActiveModal: (activeModal) => set({ activeModal }),
 
-  gameStage: 'dashboard',
-  setGameStage: (gameStage) => set({ gameStage }),
+      gameStage: 'dashboard',
+      setGameStage: (gameStage) => set({ gameStage }),
 
-  customMapData: null,
-  setCustomMapData: (customMapData) => set({ customMapData }),
+      customMapData: null,
+      setCustomMapData: (customMapData) => set({ customMapData }),
 
-  isBroadcasterMode: false,
-  setBroadcasterMode: (isBroadcasterMode) => set({ isBroadcasterMode }),
-  
-  isAnonymized: false,
-  setAnonymized: (isAnonymized) => set({ isAnonymized })
-}))
+      isBroadcasterMode: false,
+      setBroadcasterMode: (isBroadcasterMode) => set({ isBroadcasterMode }),
+      
+      isAnonymized: false,
+      setAnonymized: (isAnonymized) => set({ isAnonymized })
+    }),
+    {
+      name: 'rt-ui-storage',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ 
+        isBroadcasterMode: state.isBroadcasterMode, 
+        isAnonymized: state.isAnonymized,
+        customMapData: state.customMapData
+      }),
+    }
+  )
+)

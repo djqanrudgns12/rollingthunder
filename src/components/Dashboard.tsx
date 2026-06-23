@@ -25,8 +25,8 @@ export default function Dashboard() {
 
   const handleAdd = () => {
     if (!nameInput.trim()) return
-    // Support parsing multiple inputs separated by comma or space
-    const names = nameInput.split(/[, \n]+/).filter(n => n.trim() !== '')
+    // Support parsing multiple inputs separated by comma or newline
+    const names = nameInput.split(/[,\n]+/).map(n => n.trim()).filter(n => n !== '')
     names.forEach(name => {
       const newId = `chip-${Date.now()}-${Math.floor(Math.random()*1000)}`
       const finalName = isAnonymized ? getRandomAnimal() : name
