@@ -21,6 +21,27 @@ const finishOrder: string[] = [];
 
 const lastWarpTime = new Map<string, number>();
 
+function broadcastFrame() {
+  if (!activeChips || activeChips.length === 0) return;
+  
+  for (let i = 0; i < activeChips.length; i++) {
+    const body = activeChips[i];
+    const t = body.translation();
+    const r = body.rotation();
+    const v = body.linvel();
+    const speed = Math.sqrt(v.x * v.x + v.y * v.y);
+    
+    positionsBuffer[i * 5 + 0] = body.handle;
+    positionsBuffer[i * 5 + 1] = t.x;
+    positionsBuffer[i * 5 + 2] = t.y;
+    positionsBuffer[i * 5 + 3] = r;
+    positionsBuffer[i * 5 + 4] = speed;
+  }
+  
+  const frameData = new Float32Array(positionsBuffer);
+  (self.postMessage as any)({ type: 'FRAME', payload: frameData }, [frameData.buffer]);
+}
+
 self.onmessage = async (e) => {
   const { type, payload } = e.data;
 
@@ -79,13 +100,30 @@ self.onmessage = async (e) => {
     activeChips = [];
     survivors.forEach((s: any) => {
       const spawnX = width * 0.1 + Math.random() * (width * 0.8);
-      const chip = ChipFactory.createChip(world!, spawnX, Math.random() * -300, 12, s.id);
+      // Spawn chips at the start line (y = 50) and make them dynamic but we won't step the world yet
+      const chip = ChipFactory.createChip(world!, spawnX, 50, 12, s.id);
+      // Optional: zero velocity just in case
+      chip.setLinvel({ x: 0, y: 0 }, true);
       activeChips.push(chip);
     });
 
     positionsBuffer = new Float32Array(activeChips.length * 5);
     
     self.postMessage({ type: 'INIT_DONE', payload: { activeChipsCount: activeChips.length, mapData } });
+    
+    // Broadcast initial frame so they are rendered at the start line
+    broadcastFrame();
+    
+  } else if (type === 'SHUFFLE') {
+    if (!world || isRunning) return;
+    const { width } = payload;
+    // Spread them randomly across the start line
+    activeChips.forEach(chip => {
+      const spawnX = width * 0.1 + Math.random() * (width * 0.8);
+      chip.setTranslation({ x: spawnX, y: 50 }, true);
+      chip.setLinvel({ x: 0, y: 0 }, true);
+    });
+    broadcastFrame();
     
   } else if (type === 'START') {
     isRunning = true;
@@ -224,8 +262,7 @@ self.onmessage = async (e) => {
       }
       frameCount++;
       
-      const frameData = new Float32Array(positionsBuffer);
-      (self.postMessage as any)({ type: 'FRAME', payload: frameData }, [frameData.buffer]);
+      broadcastFrame();
       
     }, 1000 / 60);
     

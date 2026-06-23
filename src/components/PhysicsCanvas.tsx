@@ -28,17 +28,31 @@ export default function PhysicsCanvas() {
   const [activeSkill, setActiveSkill] = useState<{ chipId: string; skill: string } | null>(null)
   const [isMuted, setIsMuted] = useState(false)
   const [finishedFeed, setFinishedFeed] = useState<{ rank: number, survivor: any }[]>([])
+  const [gameState, setGameState] = useState<'idle' | 'playing' | 'finished'>('idle')
   
   const { survivors, setSurvivors, targetSurvivalCount, gimmickDensity } = useGameStore()
   const { setGameStage, customMapData } = useUIStore()
   const workerRef = useRef<Worker | null>(null)
 
   const handleNudge = useCallback(() => {
-    if (workerRef.current) {
+    if (workerRef.current && gameState === 'playing') {
       workerRef.current.postMessage({ type: 'NUDGE', payload: { force: 200 } });
       if (navigator.vibrate) navigator.vibrate(50);
     }
-  }, [])
+  }, [gameState])
+
+  const handleStart = useCallback(() => {
+    if (workerRef.current && gameState === 'idle') {
+      workerRef.current.postMessage({ type: 'START' });
+      setGameState('playing');
+    }
+  }, [gameState])
+
+  const handleShuffle = useCallback(() => {
+    if (workerRef.current && gameState === 'idle') {
+      workerRef.current.postMessage({ type: 'SHUFFLE', payload: { width: 800 } });
+    }
+  }, [gameState])
 
   useEffect(() => {
     let isMounted = true;
@@ -155,7 +169,8 @@ export default function PhysicsCanvas() {
             });
           }
           
-          workerRef.current?.postMessage({ type: 'START' });
+          // No longer starting automatically
+          // workerRef.current?.postMessage({ type: 'START' });
         } else if (type === 'FRAME') {
           const buffer = new Float32Array(payload);
           
@@ -286,7 +301,11 @@ export default function PhysicsCanvas() {
       }
       if (app) {
         // removeView를 false로 주어 React가 관리하는 DOM canvas 노드가 삭제되지 않도록 합니다.
-        app.destroy(false, { children: true, texture: true, baseTexture: true });
+        try {
+          app.destroy({ removeView: false });
+        } catch (e) {
+          console.error("PIXI destroy error:", e);
+        }
       }
     }
   }, [survivors, targetSurvivalCount, gimmickDensity, setSurvivors, setGameStage, customMapData])
@@ -309,11 +328,28 @@ export default function PhysicsCanvas() {
       <div className="absolute bottom-6 left-6 z-50 flex gap-4">
         <button 
           onClick={() => setGameStage('dashboard')}
-          className="glass-panel-heavy hover:bg-white/10 text-white font-bold px-6 py-4 rounded-2xl transition-all shadow-lg flex items-center gap-2 group"
+          className="glass-panel-heavy hover:bg-white/10 text-white font-bold px-6 py-4 rounded-2xl transition-all shadow-lg flex items-center gap-2 group border border-white/10"
         >
           <span className="group-hover:-translate-x-1 transition-transform">🚪</span> 새로운 추첨으로 돌아가기
         </button>
       </div>
+
+      {gameState === 'idle' && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex gap-4 animate-in slide-in-from-bottom fade-in duration-500">
+          <button 
+            onClick={handleShuffle}
+            className="bg-black/50 border border-white/20 hover:border-purple-400 text-purple-300 font-bold px-6 py-4 rounded-2xl transition-all shadow-[0_0_15px_rgba(168,85,247,0.2)] hover:shadow-[0_0_25px_rgba(168,85,247,0.4)] flex items-center gap-2 group backdrop-blur-md"
+          >
+            <span className="group-hover:rotate-180 transition-transform duration-500">🎲</span> 자리 섞기
+          </button>
+          <button 
+            onClick={handleStart}
+            className="bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-black font-extrabold text-xl tracking-widest px-10 py-4 rounded-2xl hover:opacity-90 transition-all shadow-[0_0_30px_var(--accent-primary)] hover:scale-105 flex items-center gap-3 animate-pulse hover:animate-none"
+          >
+            🚀 게임 시작
+          </button>
+        </div>
+      )}
 
       <div className="absolute bottom-6 right-6 z-50 flex gap-4">
         <button 
