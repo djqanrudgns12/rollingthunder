@@ -2,14 +2,15 @@ import RAPIER from '@dimforge/rapier2d-compat';
 import { UserData } from './types';
 
 export class MapBuilder {
-  static createRect(world: RAPIER.World, x: number, y: number, w: number, h: number, type: 'wall') {
-    const rigidBodyDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(x, y);
+  static createRect(world: RAPIER.World, x: number, y: number, w: number, h: number, type: 'wall', rotation: number = 0, restitution: number = 0.2, friction: number = 0.5) {
+    // rotation(각도) 지원 추가. Rapier는 라디안 단위를 사용하므로 변환.
+    const rigidBodyDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(x, y).setRotation(rotation * (Math.PI / 180));
     const rigidBody = world.createRigidBody(rigidBodyDesc);
     
     // Rapier의 cuboid는 half-extents (폭/높이의 절반) 값을 인자로 받음
     const colliderDesc = RAPIER.ColliderDesc.cuboid(w / 2, h / 2)
-      .setRestitution(0.2)
-      .setFriction(0.5);
+      .setRestitution(restitution)
+      .setFriction(friction);
 
     world.createCollider(colliderDesc, rigidBody);
     const userData: UserData = { type, w, h };
@@ -25,13 +26,14 @@ export class MapBuilder {
     // 바닥 (현재는 칩들이 결승선(화면 아래)을 통과해야 하므로 바닥을 생성하지 않음)
   }
 
-  static createPin(world: RAPIER.World, x: number, y: number, radius: number, isBumper = false) {
+  static createPin(world: RAPIER.World, x: number, y: number, radius: number, isBumper = false, restitution?: number, friction?: number) {
     const rigidBodyDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(x, y);
     const rigidBody = world.createRigidBody(rigidBodyDesc);
     
+    const defaultRestitution = isBumper ? 1.8 : 0.4;
     const colliderDesc = RAPIER.ColliderDesc.ball(radius)
-      .setRestitution(isBumper ? 1.8 : 0.4) // 범퍼는 맞으면 강하게 튕겨나감
-      .setFriction(0.1);
+      .setRestitution(restitution ?? defaultRestitution) // 범퍼는 맞으면 강하게 튕겨나감 (유저 커스텀 허용)
+      .setFriction(friction ?? 0.1);
 
     world.createCollider(colliderDesc, rigidBody);
     const userData: UserData = { type: isBumper ? 'bumper' : 'pin', radius };

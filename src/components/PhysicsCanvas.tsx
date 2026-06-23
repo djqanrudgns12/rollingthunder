@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import RAPIER from '@dimforge/rapier2d-compat'
+import * as PIXI from 'pixi.js'
 import { RapierEngine } from '@/engine/RapierWorld'
 import { MapBuilder } from '@/engine/MapBuilder'
 import { ChipFactory } from '@/engine/ChipFactory'
@@ -9,20 +10,23 @@ import { RankingTracker, ParticipantRank } from '@/engine/RankingTracker'
 import { SkillSystem, SkillType } from '@/engine/SkillSystem'
 import { NudgeSystem } from '@/engine/NudgeSystem'
 import { UserData } from '@/engine/types'
+import { soundManager } from '@/engine/AudioEngine'
 import { useGameStore } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
+import type { EditorItem } from '@/store/editorStore'
 import LiveLeaderboard from './LiveLeaderboard'
 import SkillEventOverlay from './SkillEventOverlay'
-import { Hand } from 'lucide-react'
+import { Hand, Volume2, VolumeX } from 'lucide-react'
 
 export default function PhysicsCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   
   const [rankings, setRankings] = useState<ParticipantRank[]>([])
   const [activeSkill, setActiveSkill] = useState<{ chipId: string; skill: SkillType } | null>(null)
+  const [isMuted, setIsMuted] = useState(false)
   
   const { survivors, setSurvivors, targetSurvivalCount, gimmickDensity } = useGameStore()
-  const { setGameStage } = useUIStore()
+  const { setGameStage, customMapData } = useUIStore()
   
   const handleNudge = useCallback(() => {
     RapierEngine.getInstance().then(engine => {
@@ -33,12 +37,14 @@ export default function PhysicsCanvas() {
   }, [])
 
   useEffect(() => {
-    let animationId: number;
     let engine: RapierEngine;
     let eventQueue: RAPIER.EventQueue;
     let isMounted = true;
-    
     let dtMultiplier = 1.0;
+    
+    const app = new PIXI.Application();
+    const graphicsMap = new Map<string, PIXI.Container>();
+    let skillTimer: NodeJS.Timeout;
 
     const initPhysics = async () => {
       engine = await RapierEngine.getInstance()
@@ -51,16 +57,38 @@ export default function PhysicsCanvas() {
       
       const canvas = canvasRef.current
       if (!canvas) return
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
       
-      const width = canvas.width
-      const height = canvas.height
+      // Phase 8.2: PixiJS v8 WebGL 엔진 초기화
+      await app.init({
+        canvas: canvas,
+        width: 800,
+        height: 1200,
+        backgroundAlpha: 0,
+        antialias: true,
+        resolution: window.devicePixelRatio || 1,
+        autoDensity: true
+      })
+      
+      const width = app.canvas.width
+      const height = app.canvas.height
       
       MapBuilder.createWalls(world, width, height)
-      MapBuilder.buildRandomMap(world, width, height, gimmickDensity)
+      
+      // Phase 7.6 통합 맵 로드
+      if (customMapData && customMapData.length > 0) {
+        customMapData.forEach((item: EditorItem) => {
+          if (item.type === 'pin') {
+            MapBuilder.createPin(world, item.x, item.y, item.radius || 15, false, item.restitution, item.friction)
+          } else if (item.type === 'bumper') {
+            MapBuilder.createPin(world, item.x, item.y, item.radius || 15, true, item.restitution, item.friction)
+          } else if (item.type === 'wall') {
+            MapBuilder.createRect(world, item.x, item.y, item.w || 100, item.h || 20, 'wall', item.rotation || 0, item.restitution, item.friction)
+          }
+        })
+      } else {
+        MapBuilder.buildRandomMap(world, width, height, gimmickDensity)
+      }
 
-      // 실제 서바이벌 생존자들을 물리 칩으로 생성
       survivors.forEach((s) => {
         ChipFactory.createChip(world, width/2 + (Math.random() * 80 - 40), Math.random() * -300, 12, s.id)
       })
@@ -68,8 +96,7 @@ export default function PhysicsCanvas() {
       const finishedChips = new Set<string>()
       const finishOrder: string[] = []
 
-      // 랜덤 스킬 발동 사이클
-      const skillTimer = setInterval(() => {
+      skillTimer = setInterval(() => {
         if (!isMounted || survivors.length === 0) return
         const randomSurvivor = survivors[Math.floor(Math.random() * survivors.length)]
         const randomChip = randomSurvivor.id
@@ -90,7 +117,8 @@ export default function PhysicsCanvas() {
 
       let frameCounter = 0;
 
-      const loop = () => {
+      // PixiJS Game Loop (GPU 렌더링 파이프라인)
+      app.ticker.add(() => {
         if (!isMounted) return;
 
         world.integrationParameters.dt = (1 / 60) * dtMultiplier;
@@ -102,92 +130,174 @@ export default function PhysicsCanvas() {
           setRankings(newRanks)
         }
 
-        ctx.clearRect(0, 0, width, height)
-        
+        // Scene Graph 객체 풀링 동기화
         world.forEachRigidBody((body) => {
           const t = body.translation()
           const data = body.userData as UserData
           if (!data) return
           
-          if (data.type === 'chip') {
-            // Finish Line 로직 (바닥을 뚫고 지나가면 골인 처리)
-            if (t.y > height + 20) {
-              if (!finishedChips.has(data.id!)) {
-                finishedChips.add(data.id!)
-                finishOrder.push(data.id!)
-              }
-            }
+          // 고유 Handle ID를 기반으로 렌더링 객체 탐색
+          const bodyId = body.handle.toString()
+          let container = graphicsMap.get(bodyId)
+          
+          // [초기화] 렌더링 노드가 없다면 단 1회만 생성하여 메모리에 올림
+          if (!container) {
+            container = new PIXI.Container()
+            app.stage.addChild(container)
+            graphicsMap.set(bodyId, container)
+            
+            const g = new PIXI.Graphics()
+            container.addChild(g)
+            
+            if (data.type === 'chip') {
+              const participantInfo = survivors.find(s => s.id === data.id)
+              const color = participantInfo ? participantInfo.color : 'hsl(170, 100%, 50%)'
+              const skinId = participantInfo?.skinId
 
-            const participantInfo = survivors.find(s => s.id === data.id)
-            ctx.beginPath()
-            ctx.fillStyle = participantInfo ? participantInfo.color : 'hsl(170, 100%, 50%)'
-            ctx.shadowColor = participantInfo ? participantInfo.color : 'hsla(170, 100%, 50%, 0.6)'
-            ctx.shadowBlur = 10
-            ctx.arc(t.x, t.y, data.radius!, 0, Math.PI * 2)
-            ctx.fill()
-            ctx.shadowBlur = 0
-            ctx.closePath()
-          } else {
-            ctx.beginPath()
-            if (data.type === 'pin') {
-              ctx.fillStyle = 'hsl(225, 10%, 30%)'
-              ctx.arc(t.x, t.y, data.radius!, 0, Math.PI * 2)
-              ctx.fill()
+              if (skinId === 'UR_blackhole') {
+                // [UR 등급 스킨] 자체 발광 블룸(Bloom) 및 셰이더 대체 효과
+                g.circle(0, 0, data.radius!)
+                g.fill(color)
+                
+                const glow = new PIXI.Graphics()
+                glow.circle(0, 0, data.radius! * 2.5)
+                glow.fill({ color: 0xd946ef, alpha: 0.4 })
+                glow.blendMode = 'add'
+                container.addChild(glow)
+                
+                // 회전하는 입자 궤도 링
+                const ring = new PIXI.Graphics()
+                ring.circle(0, 0, data.radius! * 1.5)
+                ring.stroke({ width: 2, color: 0xffffff, alpha: 0.8 })
+                container.addChild(ring)
+                
+                // 추후 Ticker에서 회전시키기 위해 참조 할당
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (container as any).ring = ring;
+                
+              } else if (skinId === 'SR_cat') {
+                // [SR 등급 스킨] 고양이 모양 벡터 렌더링
+                g.circle(0, 0, data.radius!)
+                g.fill(color)
+                
+                const ear1 = new PIXI.Graphics()
+                ear1.moveTo(-8, -5).lineTo(-12, -15).lineTo(-2, -10)
+                ear1.fill('#b45309')
+                const ear2 = new PIXI.Graphics()
+                ear2.moveTo(8, -5).lineTo(12, -15).lineTo(2, -10)
+                ear2.fill('#b45309')
+                container.addChild(ear1, ear2)
+              } else {
+                // [기본 스킨]
+                g.circle(0, 0, data.radius!)
+                g.fill(color)
+                
+                if (skinId?.startsWith('R_')) {
+                  const glow = new PIXI.Graphics()
+                  glow.circle(0, 0, data.radius! * 1.5)
+                  glow.fill({ color, alpha: 0.3 })
+                  glow.blendMode = 'add'
+                  container.addChild(glow)
+                }
+              }
+            } else if (data.type === 'pin') {
+              g.circle(0, 0, data.radius!)
+              g.fill('hsl(225, 10%, 30%)')
             } else if (data.type === 'bumper') {
-              ctx.fillStyle = 'hsl(35, 100%, 55%)'
-              ctx.shadowColor = 'hsla(35, 100%, 55%, 0.8)'
-              ctx.shadowBlur = 10
-              ctx.arc(t.x, t.y, data.radius!, 0, Math.PI * 2)
-              ctx.fill()
-              ctx.shadowBlur = 0
+              g.circle(0, 0, data.radius!)
+              g.fill('hsl(35, 100%, 55%)')
+              
+              const glow = new PIXI.Graphics()
+              glow.circle(0, 0, data.radius! * 1.5)
+              glow.fill({ color: 0xffa500, alpha: 0.3 })
+              glow.blendMode = 'add'
+              container.addChild(glow)
             } else if (data.type === 'wall') {
-              ctx.fillStyle = 'hsla(0,0%,100%,0.03)'
-              ctx.fillRect(t.x - data.w!/2, t.y - data.h!/2, data.w!, data.h!)
+              g.rect(-data.w!/2, -data.h!/2, data.w!, data.h!)
+              g.fill({ color: 0xffffff, alpha: 0.1 })
+              g.stroke({ width: 1, color: 0xffffff, alpha: 0.3 })
             }
-            ctx.closePath()
+          }
+          
+          // [동기화] 프레임마다 GPU 메모리에 위치/회전값만 주입
+          container.position.set(t.x, t.y)
+          container.rotation = body.rotation()
+          
+          // UR 커스텀 애니메이션 구동
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if ((container as any).ring) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (container as any).ring.rotation += 0.1
+          }
+
+          // 물리적 충돌 사운드 (속도 변화량 Pseudo-Impulse 감지)
+          if (data.type === 'chip') {
+            const vel = body.linvel()
+            const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const lastSpeed = (body as any).lastSpeed || speed
+            const delta = Math.abs(lastSpeed - speed)
+            
+            if (delta > 250) {
+              soundManager.playBumperHit(delta) // 강한 충격 (범퍼 튕김 등)
+            } else if (delta > 100) {
+              soundManager.playWallHit(delta)   // 약한 충격 (벽/핀 부딪힘)
+            }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (body as any).lastSpeed = speed
+          }
+
+          // 피니시 라인 판별 (결승선)
+          if (data.type === 'chip' && t.y > height + 20) {
+            if (!finishedChips.has(data.id!)) {
+              finishedChips.add(data.id!)
+              finishOrder.push(data.id!)
+              soundManager.playFinish()
+            }
           }
         })
         
-        // 서바이벌 스테이지 종료 판정
-        // 선착순으로 목표 인원이 들어오면 바로 스테이지가 종료되며 결과 화면으로 이동
         if (finishedChips.size >= targetSurvivalCount) {
           const nextSurvivors = finishOrder.slice(0, targetSurvivalCount).map(id => survivors.find(s => s.id === id)!)
           setSurvivors(nextSurvivors)
           setGameStage('results')
-          isMounted = false; // 물리 루프 즉시 종료
-          return;
+          isMounted = false;
         }
-
-        animationId = requestAnimationFrame(loop)
-      }
-      
-      animationId = requestAnimationFrame(loop)
-
-      return () => clearInterval(skillTimer)
+      })
     }
 
-    const cleanup = initPhysics()
+    const cleanupPromise = initPhysics()
 
     return () => {
       isMounted = false;
-      cancelAnimationFrame(animationId)
-      cleanup.then(clean => clean && clean())
-      // 화면 전환 시 WASM 물리 메모리를 즉각 해제하여 메모리 누수 완벽 방지
-      RapierEngine.getInstance().then(engine => engine.clear())
+      clearInterval(skillTimer);
+      cleanupPromise.then(() => {
+        // Ticker 자동 종료 및 WebGL 메모리(VRAM) 즉각 강제 해제
+        app.destroy(true, { children: true, texture: true, baseTexture: true })
+        RapierEngine.getInstance().then(engine => engine.clear())
+      })
     }
-  }, [survivors, targetSurvivalCount, gimmickDensity, setSurvivors, setGameStage])
+  }, [survivors, targetSurvivalCount, gimmickDensity, setSurvivors, setGameStage, customMapData])
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden bg-[var(--bg-primary)]">
       <LiveLeaderboard rankings={rankings} />
       <SkillEventOverlay activeSkill={activeSkill} />
       
-      <button 
-        onClick={handleNudge}
-        className="absolute bottom-6 right-6 z-50 glass-panel-heavy p-4 hover:bg-white/10 transition-colors flex items-center justify-center group active:scale-95"
-      >
-        <Hand className="w-8 h-8 text-[var(--text-primary)] group-hover:scale-110 transition-transform" />
-      </button>
+      <div className="absolute bottom-6 right-6 z-50 flex gap-4">
+        <button 
+          onClick={() => setIsMuted(soundManager.toggleMute())}
+          className="glass-panel-heavy p-4 hover:bg-white/10 transition-colors flex items-center justify-center group active:scale-95"
+        >
+          {isMuted ? <VolumeX className="w-8 h-8 text-red-400 group-hover:scale-110 transition-transform" /> : <Volume2 className="w-8 h-8 text-[var(--text-primary)] group-hover:scale-110 transition-transform" />}
+        </button>
+        <button 
+          onClick={handleNudge}
+          className="glass-panel-heavy p-4 hover:bg-white/10 transition-colors flex items-center justify-center group active:scale-95"
+        >
+          <Hand className="w-8 h-8 text-[var(--text-primary)] group-hover:scale-110 transition-transform" />
+        </button>
+      </div>
 
       <div className="w-full h-full p-2 md:p-4 flex items-center justify-center pointer-events-none">
         <canvas 

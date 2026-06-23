@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { EditorItem } from './editorStore'
 
 interface UIState {
   isSidebarOpen: boolean
@@ -10,6 +11,9 @@ interface UIState {
 
   gameStage: 'dashboard' | 'playing' | 'results'
   setGameStage: (stage: 'dashboard' | 'playing' | 'results') => void
+  
+  customMapData: EditorItem[] | null
+  setCustomMapData: (data: EditorItem[] | null) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -22,4 +26,7 @@ export const useUIStore = create<UIState>((set) => ({
 
   gameStage: 'dashboard',
   setGameStage: (gameStage) => set({ gameStage }),
+
+  customMapData: null,
+  setCustomMapData: (customMapData) => set({ customMapData }),
 }))

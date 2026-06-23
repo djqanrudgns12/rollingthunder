@@ -6,6 +6,7 @@ export interface Participant {
   name: string
   color: string
   iconUrl?: string
+  skinId?: string // 가챠로 획득한 커스텀 스킨 (예: 'UR_blackhole', 'SR_cat')
 }
 
 interface GameState {

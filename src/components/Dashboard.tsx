@@ -4,19 +4,22 @@ import { useGameStore } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
 import { useState } from 'react'
 import { createSession } from '@/actions/db'
+import { supabase } from '@/lib/supabase'
 
 export default function Dashboard() {
   const { participants, addParticipant, removeParticipant, clearParticipants, setGimmickDensity, gimmickDensity, setSurvivors, setTargetSurvivalCount, setSessionId } = useGameStore()
-  const setGameStage = useUIStore(state => state.setGameStage)
+  const { setGameStage, setCustomMapData, customMapData } = useUIStore()
   
   const [nameInput, setNameInput] = useState('')
+  const [skinInput, setSkinInput] = useState('')
+  const [mapCode, setMapCode] = useState('')
   const [survivalCount, setLocalSurvivalCount] = useState(1)
   const [title, setTitle] = useState('새로운 추첨')
 
   const handleAdd = () => {
     if (!nameInput.trim()) return
     const newId = `chip-${Date.now()}`
-    addParticipant({ id: newId, name: nameInput.trim(), color: `hsl(${Math.random() * 360}, 80%, 50%)` })
+    addParticipant({ id: newId, name: nameInput.trim(), color: `hsl(${Math.random() * 360}, 80%, 50%)`, skinId: skinInput || undefined })
     setNameInput('')
   }
 
@@ -36,7 +39,7 @@ export default function Dashboard() {
       try {
         const session = await createSession(title)
         if (session) sid = session.id
-      } catch (err) {
+      } catch {
         console.log("Guest mode. Skipping DB session creation.")
       }
       
@@ -68,6 +71,33 @@ export default function Dashboard() {
             />
           </div>
           
+          {/* 맵 공유 코드 불러오기 영역 */}
+          <div className="flex gap-2">
+            <input 
+              type="text" 
+              placeholder="커스텀 맵 공유 코드 (선택)" 
+              className="flex-1 bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-[var(--accent-primary)] font-bold focus:outline-none focus:border-[var(--accent-primary)] transition-colors truncate-1-line uppercase"
+              value={mapCode}
+              onChange={(e) => setMapCode(e.target.value)}
+              maxLength={6}
+            />
+            <button 
+              onClick={async () => {
+                if(!mapCode.trim()) return;
+                const { data, error } = await supabase.from('map_presets').select('map_data, title').eq('share_code', mapCode.toUpperCase()).single()
+                if(error || !data) {
+                  alert('유효하지 않은 맵 코드입니다.')
+                  return
+                }
+                setCustomMapData(data.map_data)
+                alert(`[${data.title}] 맵을 성공적으로 적용했습니다!`)
+              }} 
+              className="bg-purple-600/30 text-purple-300 border border-purple-500/50 font-bold px-6 py-3 rounded-xl hover:bg-purple-600/50 transition-colors truncate-1-line shrink-0"
+            >
+              {customMapData ? '맵 적용됨' : '맵 로드'}
+            </button>
+          </div>
+
           <div className="flex gap-2">
             <input 
               type="text" 
@@ -77,6 +107,15 @@ export default function Dashboard() {
               onChange={(e) => setNameInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
             />
+            <select 
+              className="bg-black/30 border border-white/10 rounded-xl px-2 py-3 text-[var(--text-primary)] focus:outline-none"
+              value={skinInput}
+              onChange={(e) => setSkinInput(e.target.value)}
+            >
+              <option value="">기본 스킨</option>
+              <option value="UR_blackhole">[UR] 블랙홀</option>
+              <option value="SR_cat">[SR] 야옹이</option>
+            </select>
             <button onClick={handleAdd} className="bg-[var(--accent-secondary)] text-black font-bold px-6 py-3 rounded-xl hover:opacity-90 transition-opacity truncate-1-line shrink-0">
               추가
             </button>
@@ -85,9 +124,10 @@ export default function Dashboard() {
           <div className="bg-black/20 rounded-xl border border-white/5 p-4 min-h-[120px] max-h-[200px] overflow-y-auto flex flex-wrap gap-2">
             {participants.length === 0 && <p className="text-white/30 text-sm m-auto">참가자가 없습니다.</p>}
             {participants.map(p => (
-              <div key={p.id} className="bg-white/10 border border-white/10 rounded-lg px-3 py-1.5 flex items-center gap-2 group">
+              <div key={p.id} className="bg-white/10 border border-white/10 rounded-lg px-3 py-1.5 flex items-center gap-2 group relative">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: p.color }}></div>
                 <span className="text-sm font-medium text-[var(--text-primary)] truncate-1-line max-w-[100px]">{p.name}</span>
+                {p.skinId && <span className="text-[10px] text-yellow-400 font-bold ml-1">{p.skinId.split('_')[0]}</span>}
                 <button onClick={() => removeParticipant(p.id)} className="text-white/30 hover:text-red-400 opacity-0 md:opacity-100 transition-opacity shrink-0">×</button>
               </div>
             ))}

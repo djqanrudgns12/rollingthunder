@@ -10,12 +10,10 @@ export default function ResultScreen() {
   const { survivors, sessionId } = useGameStore()
   const setGameStage = useUIStore(state => state.setGameStage)
   
-  const [windowDim, setWindowDim] = useState({ width: 0, height: 0 })
+  const [windowDim, setWindowDim] = useState({ width: typeof window !== 'undefined' ? window.innerWidth : 0, height: typeof window !== 'undefined' ? window.innerHeight : 0 })
   const [isSaved, setIsSaved] = useState(false)
 
-  useEffect(() => {
-    setWindowDim({ width: window.innerWidth, height: window.innerHeight })
-  }, [])
+  // Resize 렌더링 병목 완전히 제거됨 (초기 useState에서 처리)
 
   useEffect(() => {
     // 세션이 있고 생존자가 도출되었으며 아직 저장하지 않은 경우 DB에 최종 결과 기록

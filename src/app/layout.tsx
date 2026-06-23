@@ -23,6 +23,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Rolling Thunder | Physics Marble Race",
   description: "Premium dynamic marble race and physics simulation game.",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
