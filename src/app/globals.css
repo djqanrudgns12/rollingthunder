@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
+  --font-outfit: var(--font-outfit);
+  --font-pretendard: var(--font-pretendard);
+  --font-mono: var(--font-mono);
+}
+
+@layer base {
+  :root {
+    /* Dark Theme (Default) */
+    --bg-primary: hsl(225, 25%, 8%);
+    --bg-secondary: hsl(225, 20%, 12%);
+    --bg-glass: hsla(225, 20%, 15%, 0.7);
+    --accent-primary: hsl(170, 100%, 50%); /* Cyan */
+    --accent-secondary: hsl(280, 80%, 65%); /* Purple */
+    --accent-warning: hsl(35, 100%, 55%); /* Amber */
+    --text-primary: hsl(0, 0%, 95%);
+    --text-secondary: hsl(225, 10%, 55%);
+    
+    --font-outfit: "Outfit", sans-serif;
+    --font-pretendard: "Pretendard Variable", Pretendard, -apple-system, sans-serif;
+    --font-mono: "JetBrains Mono", monospace;
+  }
+
+  [data-theme="light"] {
+    /* Light Theme */
+    --bg-primary: hsl(220, 20%, 97%);
+    --bg-secondary: hsl(220, 15%, 92%);
+    --bg-glass: hsla(220, 15%, 100%, 0.8);
+    --accent-primary: hsl(200, 90%, 45%);
+    --accent-secondary: hsl(260, 70%, 55%);
+    --text-primary: hsl(220, 25%, 15%);
+    --text-secondary: hsl(220, 10%, 45%);
+  }
+
+  * {
+    @apply border-white/10;
+  }
+  
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-pretendard);
+    /* For smooth scrolling and native overscroll behavior on mobile/iOS */
+    overscroll-behavior-y: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Remove default scrollbar for aesthetics */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    background: var(--bg-glass);
+    backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid hsla(0, 0%, 100%, 0.08);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px hsla(0, 0%, 0%, 0.3);
+  }
+  
+  .glass-panel-heavy {
+    background: var(--bg-glass);
+    backdrop-filter: blur(24px) saturate(200%);
+    border: 1px solid hsla(0, 0%, 100%, 0.15);
+    border-radius: 16px;
+    box-shadow: 0 12px 40px hsla(0, 0%, 0%, 0.4);
+  }
+
+  .text-glow-primary {
+    text-shadow: 0 0 10px hsla(170, 100%, 50%, 0.5);
+  }
+
+  /* One-line text truncation utility */
+  .truncate-1-line {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
