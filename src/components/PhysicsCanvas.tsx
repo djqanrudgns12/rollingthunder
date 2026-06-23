@@ -257,7 +257,7 @@ export default function PhysicsCanvas() {
                 const ring = new PIXI.Graphics()
                 ring.circle(0, 0, data.radius! * 1.5)
                 ring.stroke({ width: 2, color: 0xffffff, alpha: 0.8 })
-                container.addChild(ring)
+                container.addChild(ring);
                 
                 // 추후 Ticker에서 회전시키기 위해 참조 할당
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
