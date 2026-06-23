@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { DndContext, DragEndEvent, DragOverlay, useSensor, useSensors, PointerSensor } from '@dnd-kit/core'
+import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, useSensor, useSensors, PointerSensor } from '@dnd-kit/core'
 import { useEditorStore, EditorItemType } from '@/store/editorStore'
 import ToolPalette from './ToolPalette'
 import EditorCanvas from './EditorCanvas'
@@ -24,8 +24,8 @@ export default function EditorContainer() {
     })
   )
 
-  const handleDragStart = (event: { active: { id: string; data: { current?: { type?: EditorItemType } } } }) => {
-    setActiveId(event.active.id)
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(String(event.active.id))
     setActiveType(event.active.data.current?.type || null)
   }
 

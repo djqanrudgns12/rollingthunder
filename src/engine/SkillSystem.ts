@@ -19,7 +19,7 @@ export class SkillSystem {
         if (activeSkills.includes(skill)) return // 이미 발동 중이면 무시
 
         (data as {activeSkills?: string[]}).activeSkills = [...activeSkills, skill]
-        body.setUserData(data);
+        body.userData = data;
         targetBody = body;
       }
     });
