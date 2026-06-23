@@ -114,8 +114,10 @@ export class MapBuilder {
     // Zone 4: Final Void (Funnels) - y: 950 ~ 1150
     
     // --- Zone 1: Ramps ---
-    this.createRect(world, width * 0.3, 200, width * 0.5, 20, 'wall', 15);
-    this.createRect(world, width * 0.7, 300, width * 0.5, 20, 'wall', -15);
+    // Center at 0.25, width 0.4 => covers 0.05 to 0.45
+    this.createRect(world, width * 0.25, 200, width * 0.4, 20, 'wall', 15);
+    // Center at 0.75, width 0.4 => covers 0.55 to 0.95
+    this.createRect(world, width * 0.75, 300, width * 0.4, 20, 'wall', -15);
     
     // --- Zone 2 & 3: Pins ---
     const cols = Math.floor(width / 50);
@@ -149,11 +151,13 @@ export class MapBuilder {
     this.createSensor(world, { type: 'blackhole', x: width * 0.5, y: 800, radius: 100, force: 3, id: 'bh1' });
     
     // --- Zone 4: Final Funnel ---
-    // A huge funnel leading to the center
-    this.createRect(world, width * 0.25, 1050, width * 0.5, 20, 'wall', 30);
-    this.createRect(world, width * 0.75, 1050, width * 0.5, 20, 'wall', -30);
+    // A huge funnel leading to the center. MUST HAVE A GAP!
+    // Layer 1: Gap is 0.2 of width
+    this.createRect(world, width * 0.2, 1050, width * 0.4, 20, 'wall', 30); // 0 to 0.4
+    this.createRect(world, width * 0.8, 1050, width * 0.4, 20, 'wall', -30); // 0.6 to 1.0
     
-    this.createRect(world, width * 0.35, 1150, width * 0.4, 20, 'wall', 15);
-    this.createRect(world, width * 0.65, 1150, width * 0.4, 20, 'wall', -15);
+    // Layer 2: Gap is 0.1 of width
+    this.createRect(world, width * 0.225, 1150, width * 0.45, 20, 'wall', 15); // 0 to 0.45
+    this.createRect(world, width * 0.775, 1150, width * 0.45, 20, 'wall', -15); // 0.55 to 1.0
   }
 }

@@ -11,6 +11,8 @@ let eventQueue: RAPIER.EventQueue | null = null;
 
 let isRunning = false;
 let stepInterval: any = null;
+let skillInterval: any = null;
+let hasDispatchedGameOver = false;
 
 let positionsBuffer: Float32Array;
 let activeChips: RAPIER.RigidBody[] = [];
@@ -56,6 +58,12 @@ self.onmessage = async (e) => {
         console.warn("Ignored legacy physics call to setAdditionalMassProps");
       };
     }
+    
+    if (skillInterval) clearInterval(skillInterval);
+    if (stepInterval) clearInterval(stepInterval);
+    hasDispatchedGameOver = false;
+    finishedChips.clear();
+    finishOrder.length = 0;
     
     if (world) {
       world.free();
@@ -145,12 +153,16 @@ self.onmessage = async (e) => {
     isRunning = true;
     let dtMultiplier = 1.0;
     
-    setInterval(() => {
-      if (!isRunning || !world || activeChips.length === 0) return;
-      const randomChip = activeChips[Math.floor(Math.random() * activeChips.length)];
-      if (!randomChip) return;
+    if (skillInterval) clearInterval(skillInterval);
+    skillInterval = setInterval(() => {
+      if (!world || activeChips.length === 0) return;
+      const aliveChips = activeChips.filter(c => {
+        const d = c.userData as any;
+        return d && d.type === 'chip' && !finishedChips.has(d.id);
+      });
+      if (aliveChips.length === 0) return;
+      const randomChip = aliveChips[Math.floor(Math.random() * aliveChips.length)];
       const chipData = randomChip.userData as any;
-      if (!chipData || chipData.type !== 'chip') return;
       
       const skills: any[] = ['tank', 'booster'];
       const randomSkill = skills[Math.floor(Math.random() * skills.length)];
@@ -318,16 +330,17 @@ self.onmessage = async (e) => {
             }
           }
 
-          if (isGameOver) {
-            isRunning = false;
-            clearInterval(stepInterval);
+          if (isGameOver && !hasDispatchedGameOver) {
+            hasDispatchedGameOver = true;
             self.postMessage({ 
               type: 'GAME_OVER', 
               payload: { winners, mode: gameMode } 
             });
           }
+        }
+      } // End of activeChips loop
       
-      if (activeChips.length > 0) {
+      if (activeChips.length > 0 && !hasDispatchedGameOver) { // Only trigger storm if game is not fully over
         const avgSpeed = totalSpeed / activeChips.length;
         // Gravity Storm: If the average speed of all chips is very low (stuck) for 5 seconds (300 frames)
         if (avgSpeed < 10) {
@@ -344,8 +357,6 @@ self.onmessage = async (e) => {
           }
         } else {
           lowSpeedFrames = 0;
-        }
-      }
         }
       }
       
@@ -365,7 +376,8 @@ self.onmessage = async (e) => {
     }
   } else if (type === 'STOP') {
     isRunning = false;
-    clearInterval(stepInterval);
+    if (stepInterval) clearInterval(stepInterval);
+    if (skillInterval) clearInterval(skillInterval);
     if (world) {
       world.free();
       world = null;

@@ -75,6 +75,11 @@ export default function PhysicsCanvas() {
     let pipViewport: Viewport;
     let bgSprite: PIXI.Sprite;
     const graphicsMap = new Map<string, PIXI.Container>();
+    const minimapDotsMap = new Map<string, PIXI.Graphics>();
+    let minimapDynamic: PIXI.Container;
+    let minimapStatic: PIXI.Container;
+    let viewIndicator: PIXI.Graphics;
+    let currentRankings: any[] = [];
     
     let activeChipsCount = 0;
     let initPromise: Promise<void> | null = null;
@@ -214,18 +219,54 @@ export default function PhysicsCanvas() {
           worldHeight: 1200,
           events: app.renderer.events
         });
-        // Set PiP mask to bottom left
+        // Set PiP mask to top left
         const pipMask = new PIXI.Graphics();
-        pipMask.roundRect(20, window.innerHeight - 320, 200, 300, 16);
+        pipMask.roundRect(20, 20, 200, 300, 16);
         pipMask.fill(0xffffff);
         app.stage.addChild(pipMask);
         pipViewport.mask = pipMask;
-        pipViewport.position.set(20, window.innerHeight - 320);
+        pipViewport.position.set(20, 20);
         pipViewport.scale.set(0.25); // Scale down
         
+        // Add minimap background
+        const minimapBg = new PIXI.Graphics();
+        minimapBg.rect(0, 0, 800, 1200);
+        minimapBg.fill({ color: 0x000000, alpha: 0.7 });
+        pipViewport.addChild(minimapBg);
+
+        // Add container for dynamic minimap dots
+        minimapDynamic = new PIXI.Container();
+        pipViewport.addChild(minimapDynamic);
+        
+        // View indicator
+        viewIndicator = new PIXI.Graphics();
+        pipViewport.addChild(viewIndicator);
+        
+        // Interaction (Click & Drag to pan)
+        pipViewport.eventMode = 'static';
+        const moveCamera = (e: any) => {
+          setIsAutoFollow(false);
+          const localPos = pipViewport.toLocal(e.global);
+          viewport.moveCenter(localPos.x, localPos.y);
+        };
+        pipViewport.on('pointerdown', (e) => {
+          (pipViewport as any)._isDraggingMinimap = true;
+          moveCamera(e);
+        });
+        pipViewport.on('pointermove', (e) => {
+          if ((pipViewport as any)._isDraggingMinimap) {
+            moveCamera(e);
+          }
+        });
+        app.renderer.events.cursorStyles.default = 'auto';
+        pipViewport.cursor = 'pointer';
+        if (typeof window !== 'undefined') {
+          window.addEventListener('pointerup', () => { (pipViewport as any)._isDraggingMinimap = false; });
+        }
+
         // Draw border for PiP
         const pipBorder = new PIXI.Graphics();
-        pipBorder.roundRect(20, window.innerHeight - 320, 200, 300, 16);
+        pipBorder.roundRect(20, 20, 200, 300, 16);
         pipBorder.stroke({ width: 2, color: 0x00ffcc, alpha: 0.8 });
         app.stage.addChild(pipBorder);
         app.stage.addChild(pipViewport);
@@ -265,8 +306,14 @@ export default function PhysicsCanvas() {
             const staticContainer = new PIXI.Container();
             viewport.addChildAt(staticContainer, 0);
 
+            // Minimap static layer
+            minimapStatic = new PIXI.Container();
+            pipViewport.addChildAt(minimapStatic, 1);
+
             payload.mapData.forEach((item: any) => {
               const g = new PIXI.Container();
+              const mg = new PIXI.Graphics(); // Minimap Graphic
+
               if (item.type === 'wall') {
                 const tex = PIXI.Assets.get('/images/assets/obstacles/wall_cyber.png');
                 if (tex) {
@@ -291,6 +338,9 @@ export default function PhysicsCanvas() {
                   g.addChild(fallback);
                 }
                 
+                mg.rect(-item.w / 2, -item.h / 2, item.w, item.h);
+                mg.fill({ color: 0x8888aa, alpha: 0.5 });
+                
                 // Add drop shadow
                 const shadow = new PIXI.Graphics();
                 shadow.rect(-item.w / 2, -item.h / 2, item.w, item.h);
@@ -312,12 +362,14 @@ export default function PhysicsCanvas() {
                   fallback.stroke({ width: 2, color: 0x888899, alpha: 1.0 });
                   g.addChild(fallback);
                 }
-                // Solid shadow instead of glow
                 const shadow = new PIXI.Graphics();
                 shadow.circle(0, 0, item.radius);
                 shadow.fill({ color: 0x000000, alpha: 0.7 });
                 shadow.position.set(4, 6);
                 g.addChildAt(shadow, 0);
+
+                mg.circle(0, 0, item.radius);
+                mg.fill({ color: 0x00ffcc, alpha: 0.7 });
               } else if (item.type === 'bumper') {
                 const tex = PIXI.Assets.get('/images/assets/obstacles/bumper_plasma.png');
                 if (tex) {
@@ -338,6 +390,9 @@ export default function PhysicsCanvas() {
                 shadow.fill({ color: 0x000000, alpha: 0.8 });
                 shadow.position.set(5, 8);
                 g.addChildAt(shadow, 0);
+
+                mg.circle(0, 0, item.radius);
+                mg.fill({ color: 0xffaa55, alpha: 0.8 });
               } else if (item.type === 'booster') {
                 const tex = PIXI.Assets.get('/images/assets/obstacles/booster_pad.png');
                 if (tex) {
@@ -347,6 +402,8 @@ export default function PhysicsCanvas() {
                   sprite.height = 50;
                   g.addChild(sprite);
                 }
+                mg.rect(-25, -25, 50, 50);
+                mg.fill({ color: 0x55ff55, alpha: 0.8 });
               } else if (item.type === 'windmill') {
                 const tex = PIXI.Assets.get('/images/assets/obstacles/windmill_rotor.png');
                 if (tex) {
@@ -365,7 +422,11 @@ export default function PhysicsCanvas() {
                 const speed = item.speed || 3;
                 app.ticker.add((ticker) => {
                   g.rotation += speed * (ticker.deltaMS / 1000);
+                  mg.rotation += speed * (ticker.deltaMS / 1000);
                 });
+                mg.rect(-50, -5, 100, 10);
+                mg.rect(-5, -50, 10, 100);
+                mg.fill({ color: 0x00ffff, alpha: 0.6 });
               } else if (item.type === 'blackhole' || item.type === 'whitehole') {
                 const tex = PIXI.Assets.get('/images/assets/obstacles/blackhole.png');
                 if (tex) {
@@ -397,9 +458,17 @@ export default function PhysicsCanvas() {
                     gsap.to(sprite.scale, { x: 1.1, y: 1.1, duration: 1, yoyo: true, repeat: -1, ease: 'sine.inOut' });
                   });
                 }
+                mg.circle(0, 0, item.radius * 1.5);
+                if (item.color) mg.fill({ color: parseInt(item.color.replace('#', '0x')), alpha: 0.6 });
+                else mg.fill({ color: 0x8888ff, alpha: 0.6 });
               }
               g.position.set(item.x, item.y);
               g.rotation = item.rotation || 0;
+              
+              mg.position.set(item.x, item.y);
+              mg.rotation = item.rotation || 0;
+              minimapStatic.addChild(mg);
+
               // Provide an ID to the graphic object for animations
               if (item.id) {
                 g.label = item.id;
@@ -487,13 +556,41 @@ export default function PhysicsCanvas() {
             }
             
             container.position.set(x, y);
-            container.rotation = rot;
+            // approximate rolling rotation
+            container.rotation += (vx * 0.005);
             
             if ((container as any).mBlur) {
-               // Approximate velocity based on previous position could be done, 
-               // but we only have speed here. We will just use Y velocity roughly.
-               // For a real setup we should send vx, vy from worker.
-               (container as any).mBlur.velocity.y = speed > 50 ? Math.min(speed / 5, 40) : 0;
+               (container as any).mBlur.velocity.x = (vx > 10 || vx < -10) ? vx * 0.15 : 0;
+               (container as any).mBlur.velocity.y = (vy > 10 || vy < -10) ? vy * 0.15 : 0;
+            }
+
+            // Minimap Dot Logic
+            if (minimapDynamic) {
+              let mDot = minimapDotsMap.get(bodyId);
+              if (!mDot) {
+                mDot = new PIXI.Graphics();
+                minimapDynamic.addChild(mDot);
+                minimapDotsMap.set(bodyId, mDot);
+              }
+              mDot.position.set(x, y);
+
+              // Update color and size
+              mDot.clear();
+              if (isChip && survivor) {
+                const colorNum = parseInt(survivor.color.replace('#', '0x')) || 0xffffff;
+                if (currentRankings.length > 0 && currentRankings[0].id === survivor.id) {
+                  mDot.circle(0,0, 30); // 1st place is huge and gold
+                  mDot.fill(0xffd700);
+                  // Add a subtle white outline to 1st place
+                  mDot.stroke({ width: 8, color: 0xffffff, alpha: 1 });
+                } else {
+                  mDot.circle(0,0, 16);
+                  mDot.fill(colorNum);
+                }
+              } else {
+                mDot.circle(0,0, 12);
+                mDot.fill(0x888888);
+              }
             }
 
             if (y > firstY && y < 1200) { 
@@ -545,6 +642,13 @@ export default function PhysicsCanvas() {
             }
           }
 
+          // Update Viewport Indicator
+          if (viewIndicator) {
+             viewIndicator.clear();
+             viewIndicator.rect(viewport.left, viewport.top, viewport.right - viewport.left, viewport.bottom - viewport.top);
+             viewIndicator.stroke({ width: 8, color: 0xffffff, alpha: 0.8 }); // 8 world units -> 2px on screen
+          }
+
         } else if (type === 'SOUND_EFFECT') {
           if (payload.type === 'warp') soundManager.playFinish();
           else if (payload.type === 'finish') soundManager.playFinish();
@@ -568,6 +672,7 @@ export default function PhysicsCanvas() {
           if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
           triggerShockwave(); // Cinematic shockwave on skill fire
         } else if (type === 'RANKINGS_UPDATE') {
+          currentRankings = payload;
           setRankings(payload);
         } else if (type === 'CHIP_FINISHED') {
           setFinishedFeed(prev => [...prev, payload]);

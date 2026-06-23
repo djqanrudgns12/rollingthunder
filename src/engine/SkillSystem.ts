@@ -34,8 +34,12 @@ export class SkillSystem {
         targetBody.setGravityScale(5.0, true);
         // 2초 후 원래 중력으로 복구 (워커 내부 타이머)
         setTimeout(() => {
-          if (targetBody && targetBody.isAlive()) {
-            targetBody.setGravityScale(1.0, true);
+          if (targetBody) {
+            try {
+              targetBody.setGravityScale(1.0, true);
+            } catch (e) {
+              // Body might have been destroyed or world freed
+            }
           }
         }, 2000);
         break;
@@ -48,8 +52,12 @@ export class SkillSystem {
         // Rapier2D에서 콜라이더 그룹 변경은 복잡할 수 있으므로 강한 튕김 방지용 damping 적용
         targetBody.setLinearDamping(0.5);
         setTimeout(() => {
-          if (targetBody && targetBody.isAlive()) {
-            targetBody.setLinearDamping(0);
+          if (targetBody) {
+            try {
+              targetBody.setLinearDamping(0);
+            } catch (e) {
+              // Body might have been destroyed
+            }
           }
         }, 2000);
         break;
