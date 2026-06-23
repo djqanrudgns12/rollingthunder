@@ -21,13 +21,16 @@ interface GameState {
 
   survivors: Participant[]
   setSurvivors: (survivors: Participant[]) => void
-  targetSurvivalCount: number
-  setTargetSurvivalCount: (count: number) => void
+  targetWinnerCount: number
+  setTargetWinnerCount: (count: number) => void
   sessionId: string | null
   setSessionId: (id: string | null) => void
+  
+  selectedMapPreset: string
+  setSelectedMapPreset: (preset: string) => void
 
-  winningRule: 'first' | 'last' | 'custom'
-  setWinningRule: (rule: 'first' | 'last' | 'custom') => void
+  gameMode: 'speed' | 'turtle' | 'lucky'
+  setGameMode: (mode: 'speed' | 'turtle' | 'lucky') => void
   customWinningRank: number
   setCustomWinningRank: (rank: number) => void
 }
@@ -46,13 +49,16 @@ export const useGameStore = create<GameState>()(
 
       survivors: [],
       setSurvivors: (survivors) => set({ survivors }),
-      targetSurvivalCount: 1,
-      setTargetSurvivalCount: (targetSurvivalCount) => set({ targetSurvivalCount }),
+      targetWinnerCount: 1,
+      setTargetWinnerCount: (targetWinnerCount) => set({ targetWinnerCount }),
       sessionId: null,
       setSessionId: (sessionId) => set({ sessionId }),
       
-      winningRule: 'first',
-      setWinningRule: (winningRule) => set({ winningRule }),
+      selectedMapPreset: 'random',
+      setSelectedMapPreset: (selectedMapPreset) => set({ selectedMapPreset }),
+      
+      gameMode: 'speed',
+      setGameMode: (gameMode) => set({ gameMode }),
       customWinningRank: 1,
       setCustomWinningRank: (customWinningRank) => set({ customWinningRank }),
     }),

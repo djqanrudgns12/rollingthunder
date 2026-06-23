@@ -32,8 +32,9 @@ export class RapierEngine {
   public clear() {
     if (this.world) {
       this.world.free();
-      RapierEngine.instance = new RapierEngine();
+      this.world = null;
       this.isInitialized = false;
     }
+    RapierEngine.instance = null as any;
   }
 }

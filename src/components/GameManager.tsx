@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import * as PIXI from 'pixi.js'
+
 import { useUIStore } from '@/store/uiStore'
 import Dashboard from './Dashboard'
-import PhysicsCanvas from './PhysicsCanvas'
+import dynamic from 'next/dynamic';
+const PhysicsCanvas = dynamic(() => import('./PhysicsCanvas'), { ssr: false });
 
 export default function GameManager() {
   const gameStage = useUIStore(state => state.gameStage)
@@ -20,6 +21,7 @@ export default function GameManager() {
           setLoadError(true);
         }, 10000); // 10 seconds timeout
 
+        const PIXI = await import('pixi.js');
         await PIXI.Assets.load([
           '/images/assets/chip_obsidian_gold.png',
           '/images/assets/chip_neon_plasma.png',

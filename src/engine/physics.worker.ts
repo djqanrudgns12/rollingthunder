@@ -4,6 +4,7 @@ import { ChipFactory } from './ChipFactory';
 import { NudgeSystem } from './NudgeSystem';
 import { SkillSystem } from './SkillSystem';
 import { RankingTracker } from './RankingTracker';
+import { getPresetMap } from './MapPresets';
 
 let world: RAPIER.World | null = null;
 let eventQueue: RAPIER.EventQueue | null = null;
@@ -15,7 +16,9 @@ let positionsBuffer: Float32Array;
 let activeChips: RAPIER.RigidBody[] = [];
 
 let survivorsData: any[] = [];
-let targetSurvivalCount = 1;
+let targetCount = 1;
+let gameMode = 'speed';
+let customWinningRank = 1;
 const finishedChips = new Set<string>();
 const finishOrder: string[] = [];
 
@@ -56,14 +59,19 @@ self.onmessage = async (e) => {
     world = new RAPIER.World(gravity);
     eventQueue = new RAPIER.EventQueue(true);
     
-    const { width, height, customMapData, gimmickDensity, survivors, targetSurvival } = payload;
-    targetSurvivalCount = targetSurvival;
+    const { width, height, customMapData, selectedMapPreset, gimmickDensity, survivors, targetCount: tc, mode, customRank } = payload;
+    targetCount = tc;
+    gameMode = mode;
+    customWinningRank = customRank;
     survivorsData = survivors;
     
     MapBuilder.createWalls(world, width, height);
     
-    if (customMapData && customMapData.length > 0) {
-      customMapData.forEach((item: any) => {
+    const presetData = selectedMapPreset && selectedMapPreset !== 'random' ? getPresetMap(selectedMapPreset) : null;
+    const mapToLoad = customMapData && customMapData.length > 0 ? customMapData : presetData;
+
+    if (mapToLoad && mapToLoad.length > 0) {
+      mapToLoad.forEach((item: any) => {
         if (item.type === 'pin') {
           MapBuilder.createPin(world!, item.x, item.y, item.radius || 15, false, item.restitution, item.friction);
         } else if (item.type === 'bumper') {
@@ -132,7 +140,10 @@ self.onmessage = async (e) => {
     setInterval(() => {
       if (!isRunning || !world || activeChips.length === 0) return;
       const randomChip = activeChips[Math.floor(Math.random() * activeChips.length)];
+      if (!randomChip) return;
       const chipData = randomChip.userData as any;
+      if (!chipData || chipData.type !== 'chip') return;
+      
       const skills: any[] = ['tank', 'booster'];
       const randomSkill = skills[Math.floor(Math.random() * skills.length)];
       
@@ -154,12 +165,33 @@ self.onmessage = async (e) => {
       
       eventQueue.drainCollisionEvents((handle1, handle2, intersecting) => {
         if (!intersecting) return;
-        const b1 = world!.getCollider(handle1).parent();
-        const b2 = world!.getCollider(handle2).parent();
+        const c1 = world!.getCollider(handle1);
+        const c2 = world!.getCollider(handle2);
+        if (!c1 || !c2) return;
+        const b1 = c1.parent();
+        const b2 = c2.parent();
         if (!b1 || !b2) return;
         
         const d1 = b1.userData as any;
         const d2 = b2.userData as any;
+        
+        // Calculate relative velocity for impact sound
+        const v1 = b1.linvel();
+        const v2 = b2.linvel();
+        const relVx = v1.x - v2.x;
+        const relVy = v1.y - v2.y;
+        const impactV = Math.sqrt(relVx * relVx + relVy * relVy);
+        
+        if (impactV > 50) {
+           const isBumper = d1?.type === 'bumper' || d2?.type === 'bumper';
+           const x = (b1.translation().x + b2.translation().x) / 2;
+           if (isBumper) {
+             self.postMessage({ type: 'SOUND_EFFECT', payload: { type: 'bumperHit', impulse: impactV * 10, x }});
+           } else {
+             // Wall or pin
+             self.postMessage({ type: 'SOUND_EFFECT', payload: { type: 'wallHit', impulse: impactV * 5, x }});
+           }
+        }
         
         let chipBody: RAPIER.RigidBody | null = null;
         let sensorBody: RAPIER.RigidBody | null = null;
@@ -236,9 +268,7 @@ self.onmessage = async (e) => {
         positionsBuffer[i * 5 + 4] = speed;
         
         const data = body.userData as any;
-        // payload 에는 height 를 넣어줬음. 하지만 this payload refers to initial.
-        // Let's assume height = 1200
-        if (t.y > 1220 && !finishedChips.has(data.id)) {
+        if (data?.type === 'chip' && t.y > 1220 && !finishedChips.has(data.id)) {
           finishedChips.add(data.id);
           finishOrder.push(data.id);
           self.postMessage({ type: 'SOUND_EFFECT', payload: { type: 'finish' }});
@@ -251,6 +281,38 @@ self.onmessage = async (e) => {
                 rank: finishOrder.length, 
                 survivor 
               }
+            });
+          }
+
+          // Check Game Over conditions
+          let isGameOver = false;
+          let winners: any[] = [];
+
+          if (gameMode === 'speed') {
+            if (finishOrder.length === targetCount) {
+              isGameOver = true;
+              winners = finishOrder.map(id => survivorsData.find((s:any) => s.id === id)).filter(Boolean);
+            }
+          } else if (gameMode === 'turtle') {
+            // End when all losers have finished, leaving exactly targetCount survivors on the map
+            if (finishOrder.length === (survivorsData.length - targetCount)) {
+              isGameOver = true;
+              const finishedSet = new Set(finishOrder);
+              winners = survivorsData.filter((s:any) => !finishedSet.has(s.id));
+            }
+          } else if (gameMode === 'lucky') {
+            if (finishOrder.length === customWinningRank) {
+              isGameOver = true;
+              winners = [survivor]; // The one who just finished at this exact rank
+            }
+          }
+
+          if (isGameOver) {
+            isRunning = false;
+            clearInterval(stepInterval);
+            self.postMessage({ 
+              type: 'GAME_OVER', 
+              payload: { winners, mode: gameMode } 
             });
           }
         }

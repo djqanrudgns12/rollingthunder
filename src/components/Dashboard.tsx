@@ -14,12 +14,12 @@ function getRandomAnimal() {
 }
 
 export default function Dashboard() {
-  const { participants, addParticipant, removeParticipant, clearParticipants, setGimmickDensity, gimmickDensity, setSurvivors, setTargetSurvivalCount, setSessionId, winningRule, setWinningRule, customWinningRank, setCustomWinningRank } = useGameStore()
+  const { participants, addParticipant, removeParticipant, clearParticipants, setGimmickDensity, gimmickDensity, setSurvivors, targetWinnerCount, setTargetWinnerCount, setSessionId, gameMode, setGameMode, customWinningRank, setCustomWinningRank } = useGameStore()
   const { setGameStage, customMapData, isBroadcasterMode, setBroadcasterMode, isAnonymized, setAnonymized } = useUIStore()
   
   const [nameInput, setNameInput] = useState('')
   const [skinInput, setSkinInput] = useState('')
-  const [survivalCount, setLocalSurvivalCount] = useState(1)
+  const [localWinnerCount, setLocalWinnerCount] = useState(targetWinnerCount || 1)
   const [title, setTitle] = useState('새로운 추첨')
   const [isMapModalOpen, setIsMapModalOpen] = useState(false)
 
@@ -40,21 +40,19 @@ export default function Dashboard() {
       alert('최소 2명 이상의 참가자가 필요합니다.')
       return
     }
-    if (survivalCount >= participants.length) {
-      alert('생존자 수는 참가자 수보다 적어야 합니다.')
+    if (gameMode !== 'lucky' && localWinnerCount >= participants.length) {
+      alert('당첨/생존자 수는 참가자 수보다 적어야 합니다.')
       return
     }
 
     // Set Chroma Key background if Broadcaster Mode is on
-    if (isBroadcasterMode) {
-      document.body.style.backgroundColor = '#00ff00'
-      document.body.style.backgroundImage = 'none'
-    }
+    // We no longer set document.body.style here. 
+    // It's handled per-component to prevent green-screen bleeding to Dashboard.
 
     try {
       // Optimistic UI - Start game instantly, save session in background
       setSurvivors(participants)
-      setTargetSurvivalCount(survivalCount)
+      setTargetWinnerCount(localWinnerCount)
       setGameStage('playing')
 
       let sid = null;
@@ -156,33 +154,33 @@ export default function Dashboard() {
           </div>
 
           <div className="flex flex-col gap-4 mt-2 bg-black/20 p-4 rounded-xl border border-white/5 shrink-0">
-            {/* 우승 기준 설정 */}
+            {/* 게임 모드 설정 */}
             <div className="flex flex-col gap-3 border-b border-white/5 pb-4">
-              <label className="text-xs text-white/50 font-bold tracking-widest uppercase">우승 기준 (Winning Rule)</label>
+              <label className="text-xs text-white/50 font-bold tracking-widest uppercase">게임 모드 (Game Mode)</label>
               <div className="flex gap-2">
                 <button 
-                  onClick={() => setWinningRule('first')}
-                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${winningRule === 'first' ? 'bg-[var(--accent-primary)] text-black shadow-[0_0_10px_var(--accent-primary)]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                  onClick={() => setGameMode('speed')}
+                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${gameMode === 'speed' ? 'bg-[var(--accent-primary)] text-black shadow-[0_0_10px_var(--accent-primary)]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                 >
-                  1등 우승
+                  스피드 레이스
                 </button>
                 <button 
-                  onClick={() => setWinningRule('last')}
-                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${winningRule === 'last' ? 'bg-[var(--accent-secondary)] text-black shadow-[0_0_10px_var(--accent-secondary)]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                  onClick={() => setGameMode('turtle')}
+                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${gameMode === 'turtle' ? 'bg-[var(--accent-secondary)] text-black shadow-[0_0_10px_var(--accent-secondary)]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                 >
-                  꼴등 우승
+                  거북이 레이스
                 </button>
                 <button 
-                  onClick={() => setWinningRule('custom')}
-                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${winningRule === 'custom' ? 'bg-purple-500 text-white shadow-[0_0_10px_#a855f7]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                  onClick={() => setGameMode('lucky')}
+                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${gameMode === 'lucky' ? 'bg-purple-500 text-white shadow-[0_0_10px_#a855f7]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                 >
-                  N등 우승
+                  행운의 등수
                 </button>
               </div>
               
-              {winningRule === 'custom' && (
+              {gameMode === 'lucky' && (
                 <div className="flex items-center gap-3 bg-black/40 p-3 rounded-lg border border-purple-500/30 animate-in fade-in slide-in-from-top-2">
-                  <span className="text-sm text-purple-300 font-bold">몇 등을 우승으로 할까요?</span>
+                  <span className="text-sm text-purple-300 font-bold">몇 번째로 들어온 사람을 당첨시킬까요?</span>
                   <div className="flex items-center bg-black rounded-lg overflow-hidden border border-white/10 ml-auto">
                     <button onClick={() => setCustomWinningRank(Math.max(1, customWinningRank - 1))} className="px-3 py-1 hover:bg-white/10 text-white/70">-</button>
                     <input 
@@ -199,29 +197,45 @@ export default function Dashboard() {
 
             <div className="grid grid-cols-2 gap-6 pt-2">
               <div className="flex flex-col gap-2">
-                <label className="text-xs text-[var(--accent-primary)] font-bold tracking-widest uppercase">Target Survivors (최종 생존자 수)</label>
-                <div className="flex items-center bg-black/50 rounded-xl overflow-hidden border border-white/10 mt-1">
-                  <button onClick={() => setLocalSurvivalCount(Math.max(1, survivalCount - 1))} className="flex-1 py-3 hover:bg-white/10 text-white/70 text-xl font-bold transition-colors">-</button>
-                  <input 
-                    type="number" 
-                    min={1} 
-                    max={Math.max(1, participants.length - 1)}
-                    value={survivalCount}
-                    onChange={(e) => setLocalSurvivalCount(Number(e.target.value))}
-                    className="w-16 bg-transparent text-center text-[var(--text-primary)] font-mono text-xl focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <button onClick={() => setLocalSurvivalCount(Math.min(Math.max(1, participants.length - 1), survivalCount + 1))} className="flex-1 py-3 hover:bg-white/10 text-white/70 text-xl font-bold transition-colors">+</button>
-                </div>
+                <label className="text-xs text-[var(--accent-primary)] font-bold tracking-widest uppercase">
+                  {gameMode === 'speed' ? '당첨자 수 (명)' : gameMode === 'turtle' ? '최후의 생존자 수 (명)' : '당첨 등수 (등)'}
+                </label>
+                {gameMode === 'lucky' ? (
+                  <div className="flex items-center bg-black/50 rounded-xl overflow-hidden border border-white/10 mt-1">
+                    <input 
+                      type="number" 
+                      value={customWinningRank}
+                      readOnly
+                      className="w-full bg-transparent text-center text-purple-300 font-mono text-xl py-3 focus:outline-none"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center bg-black/50 rounded-xl overflow-hidden border border-white/10 mt-1">
+                    <button onClick={() => setLocalWinnerCount(Math.max(1, localWinnerCount - 1))} className="flex-1 py-3 hover:bg-white/10 text-white/70 text-xl font-bold transition-colors">-</button>
+                    <input 
+                      type="number" 
+                      min={1} 
+                      max={Math.max(1, participants.length - 1)}
+                      value={localWinnerCount}
+                      onChange={(e) => setLocalWinnerCount(Number(e.target.value))}
+                      className="w-16 bg-transparent text-center text-[var(--text-primary)] font-mono text-xl focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <button onClick={() => setLocalWinnerCount(Math.min(Math.max(1, participants.length - 1), localWinnerCount + 1))} className="flex-1 py-3 hover:bg-white/10 text-white/70 text-xl font-bold transition-colors">+</button>
+                  </div>
+                )}
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-xs text-[var(--accent-secondary)] font-bold tracking-widest uppercase">Gimmick Density (기믹 밀도)</label>
+                <div className="flex justify-between items-center">
+                  <label className="text-xs text-[var(--accent-secondary)] font-bold tracking-widest uppercase">Gimmick Density (기믹 밀도)</label>
+                  <span className="text-xs text-white/70 font-mono bg-white/10 px-2 py-0.5 rounded-md">{gimmickDensity}%</span>
+                </div>
                 <input 
                   type="range" 
                   min={10} 
                   max={90}
                   value={gimmickDensity}
                   onChange={(e) => setGimmickDensity(Number(e.target.value))}
-                  className="accent-[var(--accent-secondary)] mt-4 cursor-pointer"
+                  className="accent-[var(--accent-secondary)] mt-3 cursor-pointer"
                 />
               </div>
             </div>

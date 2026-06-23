@@ -2,7 +2,9 @@
 
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
-import EditorContainer from '@/components/editor/EditorContainer'
+import dynamic from 'next/dynamic'
+
+const EditorContainer = dynamic(() => import('@/components/editor/EditorContainer'), { ssr: false })
 
 export default function EditorPage() {
   return (
