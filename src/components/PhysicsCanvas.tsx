@@ -154,7 +154,7 @@ export default function PhysicsCanvas() {
               const lastWarp = lastWarpTime.get(chipData.id!) || 0
               if (now - lastWarp > 1000) { // 쿨다운 1초 (무한 루프 방지)
                 // 같은 색상의 다른 포탈 찾기
-                let targetPortal: RAPIER.RigidBody | null = null
+                let targetPortal: any = null
                 world.forEachRigidBody(b => {
                   const d = b.userData as UserData
                   if (d?.type === 'portal' && d.color === sensorData.color && b.handle !== sensorBody!.handle) {
