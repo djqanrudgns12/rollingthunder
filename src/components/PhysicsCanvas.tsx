@@ -172,6 +172,8 @@ export default function PhysicsCanvas() {
       isMounted = false;
       cancelAnimationFrame(animationId)
       cleanup.then(clean => clean && clean())
+      // 화면 전환 시 WASM 물리 메모리를 즉각 해제하여 메모리 누수 완벽 방지
+      RapierEngine.getInstance().then(engine => engine.clear())
     }
   }, [survivors, targetSurvivalCount, gimmickDensity, setSurvivors, setGameStage])
 

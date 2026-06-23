@@ -26,11 +26,12 @@ export class SkillSystem {
     switch (skill) {
       case 'tank':
         // 질량 무한대 및 크기 증폭 (추가 질량 부여)
-        targetBody.setAdditionalMass(100, true);
+        // Rapier2D 규격에 맞춰 mass와 principal_angular_inertia 전달
+        (targetBody as any).setAdditionalMassProps(100, 0, true);
         break;
       case 'booster':
         // 강한 하방 추진력
-        targetBody.applyImpulse({ x: 0, y: 300 }, true);
+        (targetBody as any).applyImpulse({ x: 0, y: 300 }, true);
         break;
       // 추가 스킬들은 MapBuilder 및 추가 컴포넌트와 연계하여 구현
       default:

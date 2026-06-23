@@ -40,14 +40,15 @@
     @apply border-white/10;
   }
   
-  body {
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-    font-family: var(--font-pretendard);
-    /* For smooth scrolling and native overscroll behavior on mobile/iOS */
+  html, body {
+    @apply bg-[var(--bg-primary)] text-[var(--text-primary)] antialiased;
     overscroll-behavior-y: none;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    touch-action: pan-x pan-y;
+  }
+
+  canvas {
+    /* 게임 플레이 중 더블 탭 확대, 스와이프 뒤로가기 방지 */
+    touch-action: none;
   }
 
   /* Remove default scrollbar for aesthetics */
