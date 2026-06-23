@@ -385,7 +385,7 @@ export default function PhysicsCanvas() {
       clearInterval(skillTimer);
       cleanupPromise.then(() => {
         // Ticker 자동 종료 및 WebGL 메모리(VRAM) 즉각 강제 해제
-        app.destroy(true, { children: true, texture: true, baseTexture: true })
+        app.destroy(true, { children: true, texture: true })
         RapierEngine.getInstance().then(engine => engine.clear())
       })
     }
