@@ -14,10 +14,17 @@ interface MapLoadModalProps {
 
 // id 는 반드시 MapPresets.ts 의 프리셋 키와 일치해야 한다('random' 은 랜덤 생성).
 const DEFAULT_MAPS = [
-  { id: 'random', title: '랜덤 맵', type: '매번 새로운 배치' },
-  { id: 'neon_expressway', title: '네온 익스프레스웨이', type: '부스터·범퍼·풍차' },
-  { id: 'gravity_abyss', title: '중력의 심연 (블랙홀)', type: '블랙홀·화이트홀' },
-  { id: 'mechanical_factory', title: '기계 공장', type: '피스톤·풍차·범퍼' },
+  { id: 'random', title: '랜덤 맵', type: '매번 새로운 배치', length: '', complexity: '' },
+  { id: 'neon_arcade', title: '네온 아케이드', type: '범퍼·부스터·풍차', length: '미들', complexity: '중간' },
+  { id: 'gravity_abyss', title: '블랙홀의 함정', type: '블랙홀·화이트홀·핀', length: '미들', complexity: '복잡' },
+  { id: 'mechanical_factory', title: '톱니바퀴 공장', type: '풍차·고탄성벽', length: '롱', complexity: '복잡' },
+  { id: 'boost_highway', title: '부스트 하이웨이', type: '초고속 부스터 스프린트', length: '숏', complexity: '단순' },
+  { id: 'portal_labyrinth', title: '차원 포탈 미궁', type: '포탈 순간이동·밀폐 방', length: '미들', complexity: '복잡' },
+  { id: 'plinko_cascade', title: '플링코 폭포', type: '핀 120+개 순수 운', length: '롱', complexity: '복잡' },
+  { id: 'roulette_of_fate', title: '운명의 룰렛', type: '거대 깔때기 병목', length: '숏', complexity: '중간' },
+  { id: 'tornado_canyon', title: '토네이도 협곡', type: '블랙홀+풍차 회오리', length: '롱', complexity: '중간' },
+  { id: 'bounce_mirror', title: '바운스 미러', type: '좌우 대칭·초고탄성', length: '미들', complexity: '단순' },
+  { id: 'meteor_field', title: '운석 지대', type: '범퍼만 25+개 벽없음', length: '롱', complexity: '중간' },
 ]
 
 export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
@@ -104,7 +111,7 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
         {/* Content */}
         <div className="p-6 min-h-[300px]">
           {activeTab === 'default' && (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-1">
               <p className="text-sm text-white/50 mb-2">기본으로 제공되는 맵 프리셋을 선택하세요.</p>
               {DEFAULT_MAPS.map((map) => (
                 <button
@@ -114,7 +121,23 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
                 >
                   <div>
                     <h3 className="font-bold text-white group-hover:text-[var(--accent-primary)] transition-colors">{map.title}</h3>
-                    <span className="text-xs text-white/40">{map.type}</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs text-white/40">{map.type}</span>
+                      {map.length && (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                          map.length === '숏' ? 'bg-green-500/20 text-green-400' :
+                          map.length === '미들' ? 'bg-blue-500/20 text-blue-400' :
+                          'bg-purple-500/20 text-purple-400'
+                        }`}>{map.length}</span>
+                      )}
+                      {map.complexity && (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                          map.complexity === '단순' ? 'bg-emerald-500/20 text-emerald-400' :
+                          map.complexity === '중간' ? 'bg-yellow-500/20 text-yellow-400' :
+                          'bg-red-500/20 text-red-400'
+                        }`}>{map.complexity}</span>
+                      )}
+                    </div>
                   </div>
                   <span className="text-xs font-bold text-[var(--accent-primary)] opacity-0 group-hover:opacity-100 transition-opacity">
                     선택하기

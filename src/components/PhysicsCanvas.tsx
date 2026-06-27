@@ -13,9 +13,10 @@ import SkillEventOverlay from './SkillEventOverlay'
 import { Hand, Volume2, VolumeX, Maximize, Video } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { GlowFilter, MotionBlurFilter, ShockwaveFilter } from 'pixi-filters'
-// World dimensions (physics + camera + minimap 가 공유하는 단일 출처)
+import { getPresetMeta } from '@/engine/MapPresets'
+// 맵 가로 폭은 고정 (물리엔진·카메라·미니맵 공유)
 const WORLD_WIDTH = 800;
-const WORLD_HEIGHT = 2400;
+// WORLD_HEIGHT는 맵 프리셋에 따라 동적으로 결정됨 (기본값 2400)
 
 export default function PhysicsCanvas() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -78,6 +79,11 @@ export default function PhysicsCanvas() {
     let currentRankings: any[] = [];
     
     let activeChipsCount = 0;
+    let targetManualPos: { x: number, y: number } | null = null;
+    
+    // 맵 프리셋에 따른 동적 월드 높이 결정
+    const presetMeta = selectedMapPreset && selectedMapPreset !== 'random' ? getPresetMeta(selectedMapPreset) : null;
+    const WORLD_HEIGHT = presetMeta ? presetMeta.worldHeight : 2400;
     let initPromise: Promise<void> | null = null;
     
     const initPixi = async () => {
@@ -208,9 +214,12 @@ export default function PhysicsCanvas() {
         });
 
         // PiP Viewport (Minimap / Last place tracker)
+        const minimapHeight = 300;
+        const minimapWidth = minimapHeight * (WORLD_WIDTH / WORLD_HEIGHT);
+
         pipViewport = new Viewport({
-          screenWidth: 200,
-          screenHeight: 300,
+          screenWidth: minimapWidth,
+          screenHeight: minimapHeight,
           worldWidth: WORLD_WIDTH,
           worldHeight: WORLD_HEIGHT,
           events: app.renderer.events
@@ -219,7 +228,7 @@ export default function PhysicsCanvas() {
         const pipMask = new PIXI.Graphics();
         app.stage.addChild(pipMask);
         pipViewport.mask = pipMask;
-        pipViewport.scale.set(300 / WORLD_HEIGHT); // 세로 트랙 전체가 미니맵(높이 300)에 들어오도록 스케일
+        pipViewport.scale.set(minimapHeight / WORLD_HEIGHT); // 세로 트랙 전체가 미니맵에 들어오도록 스케일
 
         // Add minimap background
         const minimapBg = new PIXI.Graphics();
@@ -237,18 +246,18 @@ export default function PhysicsCanvas() {
         
         // Interaction (Click & Drag to pan)
         pipViewport.eventMode = 'static';
-        const moveCamera = (e: any) => {
+        const moveCameraTarget = (e: any) => {
           setIsAutoFollow(false);
           const localPos = pipViewport.toLocal(e.global);
-          viewport.moveCenter(localPos.x, localPos.y);
+          targetManualPos = { x: localPos.x, y: localPos.y };
         };
         pipViewport.on('pointerdown', (e) => {
           (pipViewport as any)._isDraggingMinimap = true;
-          moveCamera(e);
+          moveCameraTarget(e);
         });
         pipViewport.on('pointermove', (e) => {
           if ((pipViewport as any)._isDraggingMinimap) {
-            moveCamera(e);
+            moveCameraTarget(e);
           }
         });
         app.renderer.events.cursorStyles.default = 'auto';
@@ -265,14 +274,14 @@ export default function PhysicsCanvas() {
         // Setup minimap resize logic to place it at bottom-left
         const updateMinimapPos = () => {
           const h = window.innerHeight;
-          const pipY = h - 300 - 100; // 300 is minimap height, 100 is bottom margin
+          const pipY = h - minimapHeight - 100; // 100 is bottom margin
           
           pipMask.clear();
-          pipMask.roundRect(20, pipY, 200, 300, 16);
+          pipMask.roundRect(20, pipY, minimapWidth, minimapHeight, 16);
           pipMask.fill(0xffffff);
           
           pipBorder.clear();
-          pipBorder.roundRect(20, pipY, 200, 300, 16);
+          pipBorder.roundRect(20, pipY, minimapWidth, minimapHeight, 16);
           pipBorder.stroke({ width: 2, color: 0x00ffcc, alpha: 0.8 });
           
           pipViewport.position.set(20, pipY);
@@ -705,6 +714,16 @@ export default function PhysicsCanvas() {
                 );
                 viewport.scale.x += (targetZoom - viewport.scale.x) * 0.05;
                 viewport.scale.y += (targetZoom - viewport.scale.y) * 0.05;
+              } else if (targetManualPos) {
+                // Smooth manual panning when clicking/dragging minimap
+                viewport.moveCenter(
+                  currentCenter.x + (targetManualPos.x - currentCenter.x) * 0.15,
+                  currentCenter.y + (targetManualPos.y - currentCenter.y) * 0.15
+                );
+                // Clear target if close enough
+                if (Math.abs(currentCenter.x - targetManualPos.x) < 2 && Math.abs(currentCenter.y - targetManualPos.y) < 2) {
+                  targetManualPos = null;
+                }
               }
               return prev;
             });

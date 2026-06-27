@@ -1,6 +1,9 @@
 import RAPIER from '@dimforge/rapier2d-compat';
 import { UserData } from './types';
 
+// 외벽 스타일: 맵마다 다른 외벽 형태를 지정하여 시각적·물리적 다양성 확보
+export type WallStyle = 'straight' | 'zigzag' | 'narrow' | 'wide';
+
 export class MapBuilder {
   static createRect(world: RAPIER.World, x: number, y: number, w: number, h: number, type: 'wall', rotation: number = 0, restitution: number = 0.2, friction: number = 0.5) {
     // rotation(각도) 지원 추가. Rapier는 라디안 단위를 사용하므로 변환.
@@ -18,25 +21,33 @@ export class MapBuilder {
     return rigidBody;
   }
 
-  static createWalls(world: RAPIER.World, width: number, height: number, thickness: number = 100) {
+  static createWalls(world: RAPIER.World, width: number, height: number, thickness: number = 100, style: WallStyle = 'zigzag') {
+    // 외벽 스타일별 설정:
+    // straight: 매끄러운 일자벽 (칩 끼임 없음)
+    // zigzag: 기존 지그재그 (bump=20). 의도적으로 거친 벽면이 필요한 맵 전용
+    // narrow: 좌우 폭을 좁혀 600px로. 밀집 경쟁 유도
+    // wide: 좌우 폭을 넓혀 900px로. 넓은 공간에서 분산
+    const narrowInset = style === 'narrow' ? 100 : 0;
+    const wideOutset = style === 'wide' ? -50 : 0;
+    const useBump = style === 'zigzag';
+    
     const numSegments = Math.ceil((height * 2) / 100);
     for (let i = 0; i < numSegments; i++) {
-      // Start from high above to far below to cover scroll
       const y = i * 100 - (height / 2);
-      // Zig-zag effect: teeth protruding inward by 20
-      const bump = (i % 2 === 0) ? 20 : 0;
+      // 지그재그 스타일에서만 돌출(bump) 적용
+      const bump = (useBump && i % 2 === 0) ? 20 : 0;
       
-      // left wall
+      // left wall (narrowInset: 안쪽으로 밀기, wideOutset: 바깥으로 밀기)
       const leftId = `wall_l_${i}`;
-      const leftBody = this.createRect(world, -thickness / 2 + bump, y, thickness, 100, 'wall');
+      const leftBody = this.createRect(world, -thickness / 2 + bump + narrowInset + wideOutset, y, thickness, 100, 'wall');
       if(leftBody.userData) (leftBody.userData as UserData).id = leftId;
       
       // right wall
       const rightId = `wall_r_${i}`;
-      const rightBody = this.createRect(world, width + thickness / 2 - bump, y, thickness, 100, 'wall');
+      const rightBody = this.createRect(world, width + thickness / 2 - bump - narrowInset - wideOutset, y, thickness, 100, 'wall');
       if(rightBody.userData) (rightBody.userData as UserData).id = rightId;
     }
-    // 바닥 (현재는 칩들이 결승선(화면 아래)을 통과해야 하므로 바닥을 생성하지 않음)
+    // 바닥 생성 안 함: 칩이 결승선(y > worldHeight + 20)을 통과해야 하므로
   }
 
   static createPin(world: RAPIER.World, x: number, y: number, radius: number, isBumper = false, restitution?: number, friction?: number) {
@@ -107,50 +118,95 @@ export class MapBuilder {
   }
 
   static buildRandomMap(world: RAPIER.World, width: number, height: number, density: number) {
-    // 월드 높이(height)에 비례해 구간을 반복 생성한다. 출발선 y=50, 결승선 y>height+20.
-    // 본문(obstacleStart ~ obstacleEnd)에 핀 그리드를 깔고, 일정 간격마다 램프/풍차/블랙홀을 섞는다.
+    // 스마트 분산 배치:
+    //  1) 구조물(램프/풍차/블랙홀/범퍼 클러스터)을 ~560px 구간마다 "골격"으로 먼저 배치하고
+    //     각 구조물 주변에 keep-out 버퍼를 등록한다.
+    //  2) 나머지 공간을 "지터드 헥사 그리드"(블루노이즈 근사) 핀 필드로 균일하게 채운다.
+    //     밀도(density)는 '확률'이 아니라 '간격(spacing)'을 조절하므로 고밀도에서도 뭉치지 않고
+    //     고르게 촘촘해진다. keep-out과 겹치는 핀은 건너뛰어 콜라이더 겹침(물리 오류)을 방지한다.
+    const d = Math.max(0, Math.min(100, density)) / 100; // 0..1
     const obstacleStart = 200;
-    const obstacleEnd = height - 250; // 마지막 깔때기 공간 확보
-    let windmillId = 0;
-    let blackholeId = 0;
+    const obstacleEnd = height - 280; // 마지막 깔때기 공간 확보
+    const playLeft = 70;
+    const playRight = width - 70;
 
-    // --- 본문 핀 그리드 ---
-    const cols = Math.floor(width / 50);
-    for (let y = obstacleStart; y < obstacleEnd; y += 50) {
-      const row = Math.round((y - obstacleStart) / 50);
-      for (let col = 0; col < cols; col++) {
-        if (Math.random() * 100 < (density * 0.8)) {
-          const offsetX = (row % 2 === 0) ? 0 : 25; // 육각형 지그재그 패턴
-          const x = 25 + col * 50 + offsetX;
-          if (x > 50 && x < width - 50) {
-            const isBumper = Math.random() > 0.85; // 15% 확률로 바운싱 범퍼
-            const radius = isBumper ? 10 : 6;
-            this.createPin(world, x, y, radius, isBumper);
-          }
+    // ---- keep-out 레지스트리 (구조물 영역) ----
+    const keepOut: { x: number; y: number; r: number }[] = [];
+    const isClear = (x: number, y: number, r: number) => {
+      for (const k of keepOut) {
+        const dx = x - k.x, dy = y - k.y;
+        const rr = k.r + r;
+        if (dx * dx + dy * dy < rr * rr) return false;
+      }
+      return true;
+    };
+    const register = (x: number, y: number, r: number) => keepOut.push({ x, y, r });
+    const registerWall = (cx: number, cy: number, w: number, deg: number) => {
+      const rad = deg * Math.PI / 180;
+      const cos = Math.cos(rad), sin = Math.sin(rad);
+      for (let t = -w / 2; t <= w / 2; t += 36) register(cx + cos * t, cy + sin * t, 30);
+    };
+
+    let windmillId = 0, blackholeId = 0;
+
+    // ---- 1) 구조물 골격: ~560px 구간마다 테마 1종 ----
+    const zoneH = 560;
+    let zi = 0;
+    for (let zy = obstacleStart + 120; zy < obstacleEnd - 120; zy += zoneH) {
+      const theme = zi % 4;
+      if (theme === 0) {
+        // 지그재그 램프
+        const w = width * 0.42;
+        this.createRect(world, width * 0.27, zy, w, 20, 'wall', 16);
+        registerWall(width * 0.27, zy, w, 16);
+        this.createRect(world, width * 0.73, zy + 170, w, 20, 'wall', -16);
+        registerWall(width * 0.73, zy + 170, w, -16);
+      } else if (theme === 1) {
+        // 풍차 한 쌍 (회전 로터 반경 ~50 → keep-out 70)
+        const ax = width * (0.30 + Math.random() * 0.06);
+        const bx = width * (0.64 + Math.random() * 0.06);
+        this.createKinematic(world, { type: 'windmill', x: ax, y: zy + 40, speed: 3 + Math.random() * 4, id: `rw${windmillId++}` });
+        register(ax, zy + 40, 70);
+        this.createKinematic(world, { type: 'windmill', x: bx, y: zy + 200, speed: -(3 + Math.random() * 4), id: `rw${windmillId++}` });
+        register(bx, zy + 200, 70);
+      } else if (theme === 2) {
+        // 중앙 블랙홀
+        const bx = width * 0.5, by = zy + 120;
+        this.createSensor(world, { type: 'blackhole', x: bx, y: by, radius: 100, force: 3, id: `rbh${blackholeId++}` });
+        register(bx, by, 120);
+      } else {
+        // 범퍼 클러스터 (아치)
+        const cy = zy + 120, n = 5;
+        for (let i = 0; i < n; i++) {
+          const t = (i / (n - 1)) - 0.5; // -0.5..0.5
+          const bx = width * 0.5 + t * width * 0.5;
+          const by = cy + Math.cos(t * Math.PI) * 55;
+          this.createPin(world, bx, by, 12, true);
+          register(bx, by, 34);
         }
       }
+      zi++;
     }
 
-    // --- 약 600px 간격마다 특수 구간 삽입(램프 / 풍차 / 블랙홀 순환) ---
-    let zoneIndex = 0;
-    for (let y = obstacleStart + 150; y < obstacleEnd - 150; y += 600) {
-      const kind = zoneIndex % 3;
-      if (kind === 0) {
-        // 지그재그 램프
-        this.createRect(world, width * 0.25, y, width * 0.4, 20, 'wall', 15);
-        this.createRect(world, width * 0.75, y + 150, width * 0.4, 20, 'wall', -15);
-      } else if (kind === 1) {
-        // 풍차 한 쌍
-        this.createKinematic(world, { type: 'windmill', x: width * 0.3, y, speed: 3 + Math.random() * 4, id: `rw${windmillId++}` });
-        this.createKinematic(world, { type: 'windmill', x: width * 0.7, y: y + 120, speed: -(3 + Math.random() * 4), id: `rw${windmillId++}` });
-      } else {
-        // 블랙홀
-        this.createSensor(world, { type: 'blackhole', x: width * 0.5, y, radius: 110, force: 3, id: `rbh${blackholeId++}` });
+    // ---- 2) 지터드 헥사 그리드 핀 필드 (균일 분산, 간격=밀도) ----
+    const spacing = 115 - d * 62;        // 희박(약 109px) → 조밀(약 53px)
+    const jitter = spacing * 0.30;       // 격자 클러핑 방지용 미세 흔들림
+    const bumperChance = 0.06 + d * 0.10;
+    let rowIdx = 0;
+    for (let y = obstacleStart; y < obstacleEnd; y += spacing) {
+      const rowOffset = (rowIdx % 2) * (spacing / 2); // 헥사 스태거
+      for (let x = playLeft + rowOffset; x <= playRight; x += spacing) {
+        const px = x + (Math.random() * 2 - 1) * jitter;
+        const py = y + (Math.random() * 2 - 1) * jitter;
+        if (px < playLeft || px > playRight) continue;
+        if (!isClear(px, py, 14)) continue; // 구조물과 겹치면 건너뜀
+        const isBumper = Math.random() < bumperChance;
+        this.createPin(world, px, py, isBumper ? 10 : 6, isBumper);
       }
-      zoneIndex++;
+      rowIdx++;
     }
 
-    // --- 최종 깔때기 (반드시 중앙에 틈을 남긴다) ---
+    // ---- 최종 깔때기 (반드시 중앙에 틈을 남긴다) ----
     const f1 = height - 170;
     const f2 = height - 70;
     this.createRect(world, width * 0.2, f1, width * 0.4, 20, 'wall', 30);

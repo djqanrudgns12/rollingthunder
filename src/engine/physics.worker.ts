@@ -4,7 +4,8 @@ import { ChipFactory } from './ChipFactory';
 import { NudgeSystem } from './NudgeSystem';
 import { SkillSystem } from './SkillSystem';
 import { RankingTracker } from './RankingTracker';
-import { getPresetMap } from './MapPresets';
+import { getPresetMap, getPresetMeta } from './MapPresets';
+import type { WallStyle } from './MapBuilder';
 
 let world: RAPIER.World | null = null;
 let eventQueue: RAPIER.EventQueue | null = null;
@@ -26,6 +27,11 @@ const finishedChips = new Set<string>();
 const finishOrder: string[] = [];
 
 const lastWarpTime = new Map<string, number>();
+
+// Y축 진척도 Anti-Stuck: 각 칩이 얼마나 아래로 내려갔는지 추적
+const chipMaxY = new Map<string, number>();          // 칩별 최대 도달 Y 좌표
+const chipLastProgressFrame = new Map<string, number>(); // 마지막으로 진전을 보인 프레임
+let gameStartFrame = 0;  // 게임 시작 이후 경과 프레임 (Absolute Timeout용)
 
 function broadcastFrame() {
   if (!activeChips || activeChips.length === 0) return;
@@ -75,16 +81,27 @@ self.onmessage = async (e) => {
     eventQueue = new RAPIER.EventQueue(true);
     
     const { width, height, customMapData, selectedMapPreset, gimmickDensity, survivors, targetCount: tc, mode, customRank } = payload;
-    worldHeight = height;
+    
+    // 프리셋 메타에서 동적 worldHeight와 wallStyle을 가져옴
+    const presetMeta = selectedMapPreset && selectedMapPreset !== 'random' ? getPresetMeta(selectedMapPreset) : null;
+    worldHeight = presetMeta ? presetMeta.worldHeight : height;
+    const wallStyle: WallStyle = presetMeta ? presetMeta.wallStyle : 'zigzag';
+    
     targetCount = tc;
     gameMode = mode;
     customWinningRank = customRank;
     survivorsData = survivors;
     
-    MapBuilder.createWalls(world, width, height);
+    // 외벽 생성: 맵 프리셋의 wallStyle 적용 (straight/zigzag/narrow/wide)
+    MapBuilder.createWalls(world, width, worldHeight, 100, wallStyle);
     
-    const presetData = selectedMapPreset && selectedMapPreset !== 'random' ? getPresetMap(selectedMapPreset) : null;
+    const presetData = presetMeta ? presetMeta.items : null;
     const mapToLoad = customMapData && customMapData.length > 0 ? customMapData : presetData;
+    
+    // Anti-Stuck 상태 초기화
+    chipMaxY.clear();
+    chipLastProgressFrame.clear();
+    gameStartFrame = 0;
 
     if (mapToLoad && mapToLoad.length > 0) {
       mapToLoad.forEach((item: any) => {
@@ -180,6 +197,7 @@ self.onmessage = async (e) => {
 
     let frameCount = 0;
     let lowSpeedFrames = 0;
+    gameStartFrame = 0;
     stepInterval = setInterval(() => {
       if (!world || !eventQueue) return;
       
@@ -252,11 +270,13 @@ self.onmessage = async (e) => {
         }
       });
       
-      // Blackhole logic
+      // Blackhole 인력 로직: 블랙홀 범위 안의 칩을 중심으로 끌어당김
       const blackholes: RAPIER.RigidBody[] = []
+      const whiteholes: RAPIER.RigidBody[] = []
       world!.forEachRigidBody(b => {
         const d = b.userData as any
         if (d?.type === 'blackhole') blackholes.push(b)
+        if (d?.type === 'whitehole') whiteholes.push(b)
       });
       blackholes.forEach(bh => {
         const bhData = bh.userData as any
@@ -273,6 +293,26 @@ self.onmessage = async (e) => {
           if (dist < radius && dist > 10) {
             const pull = (1 - dist / radius) * forceMult * 10
             chip.applyImpulse({ x: (dx/dist) * pull, y: (dy/dist) * pull }, true)
+          }
+        })
+      });
+      
+      // Whitehole 척력 로직: 화이트홀 범위 안의 칩을 바깥으로 밀어냄 (블랙홀의 정반대)
+      whiteholes.forEach(wh => {
+        const whData = wh.userData as any
+        const whPos = wh.translation()
+        const radius = whData.radius || 100
+        const forceMult = whData.force || 5
+        
+        activeChips.forEach(chip => {
+          const cPos = chip.translation()
+          const dx = cPos.x - whPos.x  // 방향 반전: 화이트홀에서 칩 쪽으로
+          const dy = cPos.y - whPos.y
+          const dist = Math.sqrt(dx * dx + dy * dy)
+          
+          if (dist < radius && dist > 10) {
+            const push = (1 - dist / radius) * forceMult * 10
+            chip.applyImpulse({ x: (dx/dist) * push, y: (dy/dist) * push }, true)
           }
         })
       });
@@ -342,16 +382,15 @@ self.onmessage = async (e) => {
         }
       } // End of activeChips loop
       
-      if (activeChips.length > 0 && !hasDispatchedGameOver) { // Only trigger storm if game is not fully over
+      if (activeChips.length > 0 && !hasDispatchedGameOver) {
         const avgSpeed = totalSpeed / activeChips.length;
-        // Gravity Storm: If the average speed of all chips is very low (stuck) for 5 seconds (300 frames)
+        
+        // Level 1: Gravity Storm — 전체 칩 평균 속도 < 10 이 5초 지속 시 전체 넉백
         if (avgSpeed < 10) {
           lowSpeedFrames++;
           if (lowSpeedFrames > 300) {
             self.postMessage({ type: 'GRAVITY_STORM' });
-            NudgeSystem.applyNudge(world!, 3000); // Massive nudge to break the deadlock
-            
-            // Randomly reverse gravity or apply huge impulses
+            NudgeSystem.applyNudge(world!, 3000);
             activeChips.forEach(chip => {
               chip.applyImpulse({ x: (Math.random() - 0.5) * 50000, y: -Math.random() * 50000 }, true);
             });
@@ -360,7 +399,43 @@ self.onmessage = async (e) => {
         } else {
           lowSpeedFrames = 0;
         }
+        
+        // Level 2: Y-Axis Progress Check — 개별 칩이 15초간 80px 미만 전진 시 강제 하향 임펄스
+        activeChips.forEach(chip => {
+          const data = chip.userData as any;
+          if (!data || data.type !== 'chip' || finishedChips.has(data.id)) return;
+          const t = chip.translation();
+          const prevMaxY = chipMaxY.get(data.id) || 0;
+          if (t.y > prevMaxY) {
+            chipMaxY.set(data.id, t.y);
+            // Y좌표가 80px 이상 전진하면 진척도 갱신
+            if (t.y - prevMaxY > 80 || prevMaxY === 0) {
+              chipLastProgressFrame.set(data.id, gameStartFrame);
+            }
+          }
+          const lastProgress = chipLastProgressFrame.get(data.id) || 0;
+          // 900프레임(15초) 동안 진전 없으면 강제 하향 임펄스
+          if (gameStartFrame - lastProgress > 900) {
+            chip.applyImpulse({ x: (Math.random() - 0.5) * 6000, y: 10000 }, true);
+            chipLastProgressFrame.set(data.id, gameStartFrame); // 쿨다운 리셋
+          }
+        });
+        
+        // Level 3: Absolute Timeout — 3분(10800프레임) 경과 시 중력 2배 + 중력장 비활성화
+        if (gameStartFrame === 10800) {
+          const grav = world!.gravity;
+          world!.gravity = { x: grav.x, y: grav.y * 2 };
+          // 모든 블랙홀/화이트홀의 force를 0으로
+          world!.forEachRigidBody(b => {
+            const d = b.userData as any;
+            if (d?.type === 'blackhole' || d?.type === 'whitehole') {
+              d.force = 0;
+            }
+          });
+        }
       }
+      
+      gameStartFrame++;
       
       if (frameCount % 10 === 0) {
         const ranks = RankingTracker.updateRankings(world!);
