@@ -16,14 +16,6 @@ import { GlowFilter, MotionBlurFilter, ShockwaveFilter } from 'pixi-filters'
 // World dimensions (physics + camera + minimap 가 공유하는 단일 출처)
 const WORLD_WIDTH = 800;
 const WORLD_HEIGHT = 2400;
-// Texture Map
-const CHIP_TEXTURES = [
-  'chip_obsidian_gold.png',
-  'chip_neon_plasma.png',
-  'chip_cyber_hologram.png',
-  'chip_liquid_mercury.png',
-  'chip_crystal_prism.png'
-];
 
 export default function PhysicsCanvas() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -47,7 +39,7 @@ export default function PhysicsCanvas() {
   const triggerShockwave = useCallback(() => {
     if (shockwaveRef.current) {
       shockwaveRef.current.time = 0;
-      shockwaveRef.current.active = true;
+      shockwaveRef.current.enabled = true;
     }
   }, [])
 
@@ -107,13 +99,11 @@ export default function PhysicsCanvas() {
           containerRef.current.appendChild(app.canvas);
         }
 
-        // Preload Assets (장애물은 절차적 PIXI.Graphics로 렌더링하므로 obstacle 텍스처는 로드하지 않음)
+        // Preload Assets — 장애물·칩 모두 절차적 PIXI.Graphics로 렌더링하므로 전체화면 배경만 로드한다.
         const texturesToLoad = [
           '/images/assets/bg_neon_synthwave_ultra.png',
           '/images/assets/bg_abyssal_trench.png',
           '/images/assets/bg_celestial_clockwork.png',
-          '/images/assets/chip_mythic_dragon.png',
-          ...CHIP_TEXTURES.map(t => `/images/assets/${t}`)
         ];
         let loadedAssets: any = {};
         try {
@@ -203,15 +193,15 @@ export default function PhysicsCanvas() {
         shockwave.speed = 600;
         shockwave.brightness = 1.2;
         shockwaveRef.current = shockwave;
-        shockwaveRef.current.active = false;
+        shockwaveRef.current.enabled = false;
         
         app.stage.filters = [shockwave];
         
         app.ticker.add((ticker) => {
-          if (shockwaveRef.current && shockwaveRef.current.active) {
+          if (shockwaveRef.current && shockwaveRef.current.enabled) {
             shockwaveRef.current.time += ticker.deltaTime * 0.02;
             if (shockwaveRef.current.time > 2.5) {
-              shockwaveRef.current.active = false;
+              shockwaveRef.current.enabled = false;
               shockwaveRef.current.time = 0;
             }
           }
@@ -587,27 +577,40 @@ export default function PhysicsCanvas() {
               viewport.addChild(container);
               
               if (isChip && survivor) {
-                const texName = CHIP_TEXTURES[Math.floor(Math.random() * CHIP_TEXTURES.length)];
-                const texUrl = `/images/assets/${texName}`;
-                const tex = PIXI.Assets.get(texUrl) || PIXI.Texture.WHITE;
-                const sprite = new PIXI.Sprite(tex);
-                sprite.anchor.set(0.5);
-                sprite.width = 24;
-                sprite.height = 24;
-                
-                // Add glowing aura and filter
+                // 절차적 네온 구슬: 참가자 색상 기반 (JPEG 칩 텍스처 의존 제거)
+                // 참가자 color는 'hsl(...)' CSS 문자열이므로 PIXI.Color로 파싱(hex/rgb/hsl 모두 지원).
+                const R = 12;
+                let colNum = 0x00ffcc;
+                try { if (survivor.color) colNum = new PIXI.Color(survivor.color).toNumber(); } catch { colNum = 0x00ffcc; }
+                const tier = survivor.skinId ? String(survivor.skinId).split('_')[0] : '';
+                const rimColor = tier === 'UR' ? 0xffd700 : tier === 'SR' ? 0xff6ba0 : 0xffffff;
+
+                // 컬러 오라 (가산 블렌드)
                 const glow = new PIXI.Graphics();
-                glow.circle(0,0, 18);
-                glow.fill({ color: 0x00ffcc, alpha: 0.3 });
+                glow.circle(0, 0, R * 1.7);
+                glow.fill({ color: colNum, alpha: 0.28 });
                 glow.blendMode = 'add';
                 container.addChild(glow);
-                
+
+                // 모션 블러 + 글로우 필터 (기존 유지, 글로우는 등급 색상으로)
                 const mBlur = new MotionBlurFilter([0, 0], 15, 0);
-                container.filters = [mBlur, new GlowFilter({ distance: 10, outerStrength: 1.5, innerStrength: 0, color: 0xffffff, quality: 0.2 })];
+                container.filters = [mBlur, new GlowFilter({ distance: 10, outerStrength: 1.5, innerStrength: 0, color: rimColor, quality: 0.2 })];
                 (container as any).mBlur = mBlur; // save ref
-                
-                container.addChild(sprite);
-                
+
+                // 구슬 본체 + 하단 음영(구체감) + 림 + 글로시 하이라이트
+                const marble = new PIXI.Graphics();
+                marble.circle(0, 0, R);
+                marble.fill({ color: colNum, alpha: 1 });
+                marble.circle(R * 0.1, R * 0.25, R * 0.65);
+                marble.fill({ color: 0x000000, alpha: 0.28 });
+                marble.circle(0, 0, R);
+                marble.stroke({ width: 2, color: rimColor, alpha: 0.9 });
+                marble.circle(-R * 0.33, -R * 0.33, R * 0.3);
+                marble.fill({ color: 0xffffff, alpha: 0.7 });
+                marble.circle(-R * 0.42, -R * 0.42, R * 0.12);
+                marble.fill({ color: 0xffffff, alpha: 0.95 });
+                container.addChild(marble);
+
                 const text = new PIXI.Text({ 
                   text: survivor.name, 
                   style: { fill: 0xffffff, fontSize: 14, fontWeight: 'bold', dropShadow: { alpha: 0.8, color: 0x000000, blur: 3, distance: 0 } } 
