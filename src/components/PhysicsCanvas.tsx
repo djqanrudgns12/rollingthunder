@@ -110,6 +110,18 @@ export default function PhysicsCanvas() {
           '/images/assets/bg_neon_synthwave_ultra.png',
           '/images/assets/bg_abyssal_trench.png',
           '/images/assets/bg_celestial_clockwork.png',
+          '/images/assets/skins/chip_base_1.png',
+          '/images/assets/skins/chip_base_2.png',
+          '/images/assets/skins/chip_base_3.png',
+          '/images/assets/skins/chip_base_4.png',
+          '/images/assets/skins/chip_base_5.png',
+          '/images/assets/skins/chip_base_6.png',
+          '/images/assets/skins/horse.png',
+          '/images/assets/skins/spaceship.png',
+          '/images/assets/skins/shuriken.png',
+          '/images/assets/skins/car.png',
+          '/images/assets/skins/cat.png',
+          '/images/assets/skins/blackhole.png',
         ];
         let loadedAssets: any = {};
         try {
@@ -586,39 +598,47 @@ export default function PhysicsCanvas() {
               viewport.addChild(container);
               
               if (isChip && survivor) {
-                // 절차적 네온 구슬: 참가자 색상 기반 (JPEG 칩 텍스처 의존 제거)
-                // 참가자 color는 'hsl(...)' CSS 문자열이므로 PIXI.Color로 파싱(hex/rgb/hsl 모두 지원).
-                const R = 12;
                 let colNum = 0x00ffcc;
                 try { if (survivor.color) colNum = new PIXI.Color(survivor.color).toNumber(); } catch { colNum = 0x00ffcc; }
-                const tier = survivor.skinId ? String(survivor.skinId).split('_')[0] : '';
-                const rimColor = tier === 'UR' ? 0xffd700 : tier === 'SR' ? 0xff6ba0 : 0xffffff;
+                
+                let skinKey = survivor.skinId || 'chip_base_1';
+                // Remove UR_ and SR_ prefix for asset loading
+                if (skinKey === 'UR_blackhole') skinKey = 'blackhole';
+                if (skinKey === 'SR_cat') skinKey = 'cat';
+                
+                const textureUrl = `/images/assets/skins/${skinKey}.png`;
+                const R = 12; // Physics radius
+                
+                try {
+                  const tex = PIXI.Assets.get(textureUrl);
+                  if (tex) {
+                    // subtle drop shadow
+                    const shadow = new PIXI.Sprite(tex);
+                    shadow.anchor.set(0.5);
+                    shadow.width = R * 2;
+                    shadow.height = R * 2;
+                    shadow.tint = 0x000000;
+                    shadow.alpha = 0.5;
+                    shadow.y = 3;
+                    container.addChild(shadow);
 
-                // 컬러 오라 (가산 블렌드)
-                const glow = new PIXI.Graphics();
-                glow.circle(0, 0, R * 1.7);
-                glow.fill({ color: colNum, alpha: 0.28 });
-                glow.blendMode = 'add';
-                container.addChild(glow);
-
-                // 모션 블러 + 글로우 필터 (기존 유지, 글로우는 등급 색상으로)
-                const mBlur = new MotionBlurFilter([0, 0], 15, 0);
-                container.filters = [mBlur, new GlowFilter({ distance: 10, outerStrength: 1.5, innerStrength: 0, color: rimColor, quality: 0.2 })];
-                (container as any).mBlur = mBlur; // save ref
-
-                // 구슬 본체 + 하단 음영(구체감) + 림 + 글로시 하이라이트
-                const marble = new PIXI.Graphics();
-                marble.circle(0, 0, R);
-                marble.fill({ color: colNum, alpha: 1 });
-                marble.circle(R * 0.1, R * 0.25, R * 0.65);
-                marble.fill({ color: 0x000000, alpha: 0.28 });
-                marble.circle(0, 0, R);
-                marble.stroke({ width: 2, color: rimColor, alpha: 0.9 });
-                marble.circle(-R * 0.33, -R * 0.33, R * 0.3);
-                marble.fill({ color: 0xffffff, alpha: 0.7 });
-                marble.circle(-R * 0.42, -R * 0.42, R * 0.12);
-                marble.fill({ color: 0xffffff, alpha: 0.95 });
-                container.addChild(marble);
+                    const sprite = new PIXI.Sprite(tex);
+                    sprite.anchor.set(0.5); // 완벽한 무결성을 위한 중앙 앵커 정렬
+                    sprite.width = R * 2;   // 물리 반경(12)과 스케일 완벽 동기화
+                    sprite.height = R * 2;
+                    sprite.tint = colNum;   // 참가자 고유 색상 무한 지원
+                    container.addChild(sprite);
+                  } else {
+                    throw new Error("Texture not preloaded");
+                  }
+                } catch (e) {
+                  // 로드 실패 시 무결성 보장을 위한 Fallback (예외 상황 처리)
+                  const fallback = new PIXI.Graphics();
+                  fallback.circle(0, 0, R);
+                  fallback.fill({ color: colNum, alpha: 1.0 });
+                  fallback.stroke({ width: 2, color: 0xffffff, alpha: 0.8 });
+                  container.addChild(fallback);
+                }
 
                 const text = new PIXI.Text({ 
                   text: survivor.name, 
@@ -651,10 +671,7 @@ export default function PhysicsCanvas() {
             // approximate rolling rotation
             container.rotation += (vx * 0.005);
             
-            if ((container as any).mBlur) {
-               (container as any).mBlur.velocity.x = (vx > 10 || vx < -10) ? vx * 0.15 : 0;
-               (container as any).mBlur.velocity.y = (vy > 10 || vy < -10) ? vy * 0.15 : 0;
-            }
+            // mBlur 로직 완전히 제거 (에셋 성능 최적화)
 
             // Minimap Dot Logic
             if (minimapDynamic) {

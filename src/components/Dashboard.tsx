@@ -36,7 +36,12 @@ export default function Dashboard() {
     names.forEach(name => {
       const newId = `chip-${crypto.randomUUID()}`
       const finalName = isAnonymized ? getRandomAnimal() : name
-      addParticipant({ id: newId, name: finalName, color: `hsl(${Math.random() * 360}, 80%, 50%)`, skinId: skinInput || undefined })
+      
+      // 스킨을 선택하지 않은 경우(기본 칩) 1~6번 중 무작위 배정
+      const randomBaseChip = `chip_base_${Math.floor(Math.random() * 6) + 1}`
+      const finalSkinId = skinInput || randomBaseChip
+      
+      addParticipant({ id: newId, name: finalName, color: `hsl(${Math.random() * 360}, 80%, 50%)`, skinId: finalSkinId })
     })
     setNameInput('')
   }
@@ -138,7 +143,11 @@ export default function Dashboard() {
               value={skinInput}
               onChange={(e) => setSkinInput(e.target.value)}
             >
-              <option value="">기본 스킨</option>
+              <option value="">기본 포커칩 (무작위 6종)</option>
+              <option value="horse">경주마</option>
+              <option value="spaceship">우주선</option>
+              <option value="shuriken">표창</option>
+              <option value="car">자동차</option>
               <option value="UR_blackhole">[UR] 블랙홀</option>
               <option value="SR_cat">[SR] 야옹이</option>
             </select>
@@ -153,7 +162,7 @@ export default function Dashboard() {
               <div key={p.id} className="bg-white/10 border border-white/10 rounded-lg px-3 py-1.5 flex items-center gap-2 group relative backdrop-blur-sm">
                 <div className="w-3 h-3 rounded-full shadow-[0_0_10px_currentColor]" style={{ backgroundColor: p.color, color: p.color }}></div>
                 <span className="text-sm font-medium text-[var(--text-primary)] truncate-1-line max-w-[100px]">{p.name}</span>
-                {p.skinId && <span className="text-[10px] text-yellow-400 font-bold ml-1">{p.skinId.split('_')[0]}</span>}
+                {p.skinId && !p.skinId.startsWith('chip_base') && <span className="text-[10px] text-yellow-400 font-bold ml-1">{p.skinId.replace('UR_', '').replace('SR_', '')}</span>}
                 <button onClick={() => removeParticipant(p.id)} className="text-white/30 hover:text-red-400 opacity-0 md:opacity-100 transition-opacity shrink-0 ml-1">×</button>
               </div>
             ))}
