@@ -858,30 +858,12 @@ export default function PhysicsCanvas() {
           setGameState('finished');
           setGameOverResult(payload);
           triggerShockwave();
-          
-          // 폭죽 여러번 터뜨리기
-          const duration = 3000;
-          const end = Date.now() + duration;
-          const frame = () => {
-            confetti({
-              particleCount: 50,
-              angle: 60,
-              spread: 55,
-              origin: { x: 0 },
-              colors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff']
-            });
-            confetti({
-              particleCount: 50,
-              angle: 120,
-              spread: 55,
-              origin: { x: 1 },
-              colors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff']
-            });
-            if (Date.now() < end) {
-              requestAnimationFrame(frame);
-            }
-          };
-          frame();
+          confetti({
+            particleCount: 200,
+            spread: 100,
+            origin: { y: 0.5 },
+            colors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff']
+          });
         }
       };
 
@@ -964,36 +946,27 @@ export default function PhysicsCanvas() {
       </div>
 
       {gameState === 'finished' && gameOverResult && (
-        <div className="absolute bottom-[104px] right-6 z-50 flex flex-col items-end animate-in slide-in-from-right fade-in zoom-in-95 duration-700 bounce">
-          <div className="bg-black/80 backdrop-blur-md border-[3px] border-[#FFD700] rounded-3xl p-6 flex flex-col items-end gap-5 shadow-[0_0_50px_rgba(255,215,0,0.5)] relative overflow-hidden">
-            {/* 반짝이는 배경 효과 */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent animate-pulse pointer-events-none" />
-            
-            <h3 className="text-[#FFD700] font-extrabold text-lg tracking-widest mb-1 drop-shadow-[0_0_10px_rgba(255,215,0,0.8)] z-10">
-              {gameOverResult.mode === 'speed' && '👑 영광의 스피드 챔피언 👑'}
-              {gameOverResult.mode === 'turtle' && '🐢 끈기의 최후 생존자 🐢'}
-              {gameOverResult.mode === 'lucky' && '🍀 기적의 행운 주인공 🍀'}
-            </h3>
-            
-            <div className="flex flex-col gap-4 w-full z-10">
-              {gameOverResult.winners.map((w: any, idx: number) => (
-                <div key={idx} className="flex items-center justify-between gap-6 bg-white/5 rounded-2xl p-3 border border-white/10 shadow-inner">
-                  <img src="/images/assets/ui/winner_trophy.png" alt="Trophy" className="w-12 h-12 object-contain drop-shadow-[0_0_15px_rgba(255,215,0,0.8)] animate-bounce" />
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl font-black text-white tracking-wider drop-shadow-md">{w.name}</span>
-                    <div className="w-10 h-10 rounded-full shadow-[0_0_20px_currentColor] border-2 border-white/50" style={{ backgroundColor: w.color, color: w.color }}></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            <button 
-              onClick={() => setGameStage('dashboard')}
-              className="mt-4 w-full bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF8C00] text-black font-black text-lg tracking-widest px-8 py-4 rounded-2xl hover:opacity-100 hover:scale-[1.03] transition-all shadow-[0_0_30px_rgba(255,215,0,0.4)] z-10 group"
-            >
-              <span className="group-hover:animate-pulse">✨ NEXT MATCH ✨</span>
-            </button>
+        <div className="absolute bottom-[104px] right-8 z-50 flex flex-col items-end animate-in slide-in-from-right fade-in duration-700 pointer-events-none">
+          <h2 className="text-white font-black text-6xl tracking-tighter drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] mb-2">
+            Winner
+          </h2>
+          <div className="flex flex-col items-end gap-2 w-full">
+            {gameOverResult.winners.map((w: any, idx: number) => (
+              <div key={idx} className="flex items-center justify-end gap-4">
+                <span className="text-5xl font-black drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)]" style={{ color: w.color || '#fff' }}>
+                  {w.name}
+                </span>
+                <div className="w-16 h-16 rounded-full shadow-[0_0_15px_currentColor] border-[3px] border-white/50" style={{ backgroundColor: w.color, color: w.color }}></div>
+              </div>
+            ))}
           </div>
+          
+          <button 
+            onClick={() => setGameStage('dashboard')}
+            className="mt-6 pointer-events-auto bg-black/50 backdrop-blur-sm border border-white/20 text-white font-bold text-sm tracking-widest px-6 py-3 rounded-xl hover:bg-white/10 transition-all"
+          >
+            NEXT MATCH
+          </button>
         </div>
       )}
 
