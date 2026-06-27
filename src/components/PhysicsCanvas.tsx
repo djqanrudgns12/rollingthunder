@@ -275,7 +275,7 @@ export default function PhysicsCanvas() {
         // Setup minimap resize logic to place it at bottom-left
         const updateMinimapPos = () => {
           const h = window.innerHeight;
-          const pipY = h - 300 - 20; // 300 is minimap height, 20 is bottom margin
+          const pipY = h - 300 - 100; // 300 is minimap height, 100 is bottom margin
           
           pipMask.clear();
           pipMask.roundRect(20, pipY, 200, 300, 16);
@@ -851,7 +851,7 @@ export default function PhysicsCanvas() {
       </div>
 
       {gameState === 'finished' && gameOverResult && (
-        <div className="absolute bottom-6 right-6 z-50 flex flex-col items-end animate-in slide-in-from-right fade-in duration-700">
+        <div className="absolute bottom-[104px] right-6 z-50 flex flex-col items-end animate-in slide-in-from-right fade-in duration-700">
           <div className="bg-black/80 backdrop-blur-md border border-[#FFD700]/50 rounded-2xl p-6 flex flex-col items-end gap-4 shadow-[0_0_30px_rgba(255,215,0,0.3)]">
             <h3 className="text-[#FFD700] font-bold text-sm tracking-widest uppercase mb-1">
               🎉 {gameOverResult.mode === 'speed' && '스피드 챔피언'}
