@@ -11,6 +11,9 @@ const tools: { id: string; type: EditorItemType; label: string; color: string }[
   { id: 'tool-windmill', type: 'windmill', label: '회전 풍차', color: 'bg-red-500/20 border-red-500' },
   { id: 'tool-portal', type: 'portal', label: '워프 포탈', color: 'bg-purple-500/50 border-purple-500' },
   { id: 'tool-blackhole', type: 'blackhole', label: '블랙홀 (인력)', color: 'bg-black border-white' },
+  { id: 'tool-whitehole', type: 'whitehole', label: '화이트홀 (척력)', color: 'bg-pink-200 border-pink-400' },
+  { id: 'tool-hole', type: 'hole', label: '함정 구멍', color: 'bg-red-900 border-red-500' },
+  { id: 'tool-piston', type: 'piston', label: '피스톤', color: 'bg-yellow-900 border-yellow-500' },
 ]
 
 function PaletteItem({ tool }: { tool: typeof tools[0] }) {

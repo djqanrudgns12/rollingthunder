@@ -62,6 +62,9 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       { id: 'n_b3', type: 'booster', x: 300, y: 2050, rotation: 25, power: 3 },
       { id: 'n_b4', type: 'booster', x: 500, y: 2050, rotation: -25, power: 3 },
       { id: 'n_bp9', type: 'bumper', x: 400, y: 2100, radius: 16, restitution: 1.7 },
+      // Zone 7.5: 함정 구멍 (빠지면 상단 리스폰 패널티)
+      { id: 'n_h1', type: 'hole', x: 350, y: 1400, radius: 25 },
+      { id: 'n_h2', type: 'hole', x: 500, y: 1900, radius: 30 },
       // Zone 8: 출구 깔때기 (θ=±25°, 틈≈120px)
       { id: 'n_w8', type: 'wall', x: 200, y: 2200, w: 280, h: 20, rotation: 25 },
       { id: 'n_w9', type: 'wall', x: 600, y: 2200, w: 280, h: 20, rotation: -25 },
@@ -156,6 +159,9 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       { id: 'm_w7', type: 'wall', x: 640, y: 1550, w: 20, h: 200, rotation: 0 },
       { id: 'm_bp6', type: 'bumper', x: 350, y: 1550, radius: 16, restitution: 2.0 },
       { id: 'm_bp7', type: 'bumper', x: 450, y: 1600, radius: 16, restitution: 2.0 },
+      // Zone 5.5: 피스톤 (A↔B 왕복 이동 플랫폼)
+      { id: 'm_ps1', type: 'piston', x: 400, y: 1100, w: 120, h: 20, speed: 2, waypointB: { x: 250, y: 1100 } },
+      { id: 'm_ps2', type: 'piston', x: 300, y: 1700, w: 100, h: 20, speed: 3, waypointB: { x: 500, y: 1700 } },
       // Zone 6: 3차 풍차 3연속 (지그재그 배치)
       { id: 'm_wm4', type: 'windmill', x: 200, y: 1800, speed: 7 },
       { id: 'm_wm5', type: 'windmill', x: 400, y: 1920, speed: -8 },

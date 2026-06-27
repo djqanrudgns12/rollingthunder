@@ -56,6 +56,26 @@ export default function EditorCanvas() {
                 <div className="absolute border border-white/10 rounded-full animate-[spin_10s_linear_infinite] border-dashed pointer-events-none" style={{ width: '80%', height: '80%' }}></div>
               </div>
             )}
+            {/* 화이트홀: 밝은 핑크 글로우 + 방출 파동 */}
+            {item.type === 'whitehole' && (
+              <div className="rounded-full border border-pink-300/40 flex items-center justify-center bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-pink-100 via-pink-200/50 to-transparent pointer-events-none" style={{ width: (item.radius || 100)*2, height: (item.radius || 100)*2, boxShadow: '0 0 30px rgba(255,102,255,0.4)' }}>
+                <div className="w-[20px] h-[20px] bg-white rounded-full shadow-[0_0_15px_rgba(255,102,255,0.8)]"></div>
+                <div className="absolute border border-pink-300/20 rounded-full animate-[spin_8s_linear_infinite_reverse] border-dashed pointer-events-none" style={{ width: '80%', height: '80%' }}></div>
+              </div>
+            )}
+            {/* 함정 구멍: 빨간 위험 링 + 검은 코어 */}
+            {item.type === 'hole' && (
+              <div className="rounded-full border-2 border-red-500 bg-black/90 flex items-center justify-center" style={{ width: (item.radius || 30)*2, height: (item.radius || 30)*2, boxShadow: '0 0 15px rgba(255,0,0,0.5), inset 0 0 10px rgba(255,0,0,0.3)' }}>
+                <span className="text-red-400 text-sm font-bold">⚠</span>
+              </div>
+            )}
+            {/* 피스톤: 메탈 본체 + 경고 줄무늬 */}
+            {item.type === 'piston' && (
+              <div className="bg-gray-600 border-2 border-yellow-400 rounded-md flex items-center justify-center relative overflow-hidden" style={{ width: item.w || 100, height: item.h || 20 }}>
+                <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,rgba(255,204,0,0.3)_6px,rgba(255,204,0,0.3)_12px)]"></div>
+                <span className="text-yellow-300 text-[7px] font-bold z-10">PISTON</span>
+              </div>
+            )}
             
             {/* 호버 시 좌표 표시 툴팁 */}
             <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap backdrop-blur-sm border border-white/10">

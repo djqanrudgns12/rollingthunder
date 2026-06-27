@@ -144,6 +144,59 @@ export default function PropertiesInspector() {
           </div>
         )}
 
+        {/* 함정 구멍: 반경 조절 */}
+        {item.type === 'hole' && (
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold text-red-400 uppercase drop-shadow-[0_0_5px_rgba(255,0,0,0.5)]">Trap Hole</h4>
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">Hole Radius</label>
+              <input type="range" min="15" max="80" step="5" value={item.radius || 30} onChange={(e) => handleChange('radius', Number(e.target.value))} className="w-full accent-red-500" />
+              <div className="text-right text-xs text-white mt-1">{item.radius || 30} px</div>
+            </div>
+            <p className="text-[10px] text-gray-500 mt-2 leading-relaxed">
+              ※ 칩이 구멍에 빠지면 1.5초 패널티 후 상단으로 리스폰됩니다.
+            </p>
+          </div>
+        )}
+
+        {/* 피스톤: 크기, 속도, 도착점 조절 */}
+        {item.type === 'piston' && (
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold text-yellow-400 uppercase drop-shadow-[0_0_5px_rgba(255,204,0,0.5)]">Piston Platform</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Width</label>
+                <input type="number" value={item.w || 100} onChange={(e) => handleChange('w', Number(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-sm text-white" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Height</label>
+                <input type="number" value={item.h || 20} onChange={(e) => handleChange('h', Number(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-sm text-white" />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">Speed</label>
+              <input type="range" min="1" max="10" step="1" value={item.speed || 2} onChange={(e) => handleChange('speed', Number(e.target.value))} className="w-full accent-yellow-400" />
+              <div className="text-right text-xs text-white mt-1">Speed {item.speed || 2}</div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs text-gray-400 block">Waypoint B (도착점)</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">B.x</label>
+                  <input type="number" value={item.waypointB?.x || item.x + 150} onChange={(e) => handleChange('waypointB', { x: Number(e.target.value), y: item.waypointB?.y || item.y })} className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-sm text-white" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">B.y</label>
+                  <input type="number" value={item.waypointB?.y || item.y} onChange={(e) => handleChange('waypointB', { x: item.waypointB?.x || item.x + 150, y: Number(e.target.value) })} className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-sm text-white" />
+                </div>
+              </div>
+            </div>
+            <p className="text-[10px] text-gray-500 mt-2 leading-relaxed">
+              ※ A(현재 위치)↔B(도착점) 사이를 sin 곡선으로 부드럽게 왕복합니다.
+            </p>
+          </div>
+        )}
+
       </div>
       
       {/* 액션 버튼 */}

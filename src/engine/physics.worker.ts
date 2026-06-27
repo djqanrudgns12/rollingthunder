@@ -113,9 +113,11 @@ self.onmessage = async (e) => {
           MapBuilder.createPin(world!, item.x, item.y, item.radius || 15, true, item.restitution, item.friction);
         } else if (item.type === 'wall') {
           MapBuilder.createRect(world!, item.x, item.y, item.w || 100, item.h || 20, 'wall', item.rotation || 0, item.restitution, item.friction);
-        } else if (item.type === 'windmill') {
+        } else if (item.type === 'windmill' || item.type === 'piston') {
+          // 풍차와 피스톤은 모두 Kinematic Body로 생성
           MapBuilder.createKinematic(world!, item);
-        } else if (item.type === 'portal' || item.type === 'booster' || item.type === 'blackhole' || item.type === 'whitehole') {
+        } else if (item.type === 'portal' || item.type === 'booster' || item.type === 'blackhole' || item.type === 'whitehole' || item.type === 'hole') {
+          // 포탈/부스터/블랙홀/화이트홀/함정구멍은 모두 Sensor로 생성
           MapBuilder.createSensor(world!, item);
         }
       });
@@ -137,7 +139,11 @@ self.onmessage = async (e) => {
           radius: userData.radius,
           rotation: body.rotation(),
           speed: userData.speed,
-          color: userData.color
+          color: userData.color,
+          // piston 전용: 왕복 도착점 정보
+          waypointB: userData.waypointB,
+          originX: userData.originX,
+          originY: userData.originY,
         });
       }
     });
@@ -241,8 +247,8 @@ self.onmessage = async (e) => {
         let chipBody: RAPIER.RigidBody | null = null;
         let sensorBody: RAPIER.RigidBody | null = null;
         
-        if (d1?.type === 'chip' && ['portal', 'booster'].includes(d2?.type)) { chipBody = b1; sensorBody = b2; }
-        if (d2?.type === 'chip' && ['portal', 'booster'].includes(d1?.type)) { chipBody = b2; sensorBody = b1; }
+        if (d1?.type === 'chip' && ['portal', 'booster', 'hole'].includes(d2?.type)) { chipBody = b1; sensorBody = b2; }
+        if (d2?.type === 'chip' && ['portal', 'booster', 'hole'].includes(d1?.type)) { chipBody = b2; sensorBody = b1; }
         
         if (chipBody && sensorBody) {
           const chipData = chipBody.userData as any;
@@ -270,6 +276,29 @@ self.onmessage = async (e) => {
             const angle = (sensorData.rotation || 0) * (Math.PI / 180);
             const power = (sensorData.power || 3) * 500;
             chipBody.applyImpulse({ x: Math.sin(angle) * power, y: -Math.cos(angle) * power }, true);
+          } else if (sensorData.type === 'hole') {
+            // 함정 구멍: 1.5초 패널티 딜레이 후 맵 상단으로 리스폰
+            const now = Date.now();
+            const lastWarp = lastWarpTime.get(chipData.id) || 0;
+            if (now - lastWarp > 2000) { // 쿨다운 2초 (연속 빠짐 방지)
+              lastWarpTime.set(chipData.id, now);
+              // 즉시 속도 0 + 중력 비활성화 → 칩이 구멍에 "갇힌" 연출
+              chipBody.setLinvel({ x: 0, y: 0 }, true);
+              chipBody.setGravityScale(0, true);
+              self.postMessage({ type: 'SOUND_EFFECT', payload: { type: 'holeTrapped' }});
+              self.postMessage({ type: 'HOLE_TRAPPED', payload: { chipId: chipData.id }});
+              // 1.5초 후 상단 리스폰
+              const capturedChip = chipBody;
+              setTimeout(() => {
+                try {
+                  capturedChip.setTranslation({ x: 200 + Math.random() * 400, y: 50 }, true);
+                  capturedChip.setLinvel({ x: 0, y: 0 }, true);
+                  capturedChip.setGravityScale(1.0, true);
+                } catch (e) {
+                  // Body가 이미 해제된 경우 무시
+                }
+              }, 1500);
+            }
           }
         }
       });
@@ -319,6 +348,21 @@ self.onmessage = async (e) => {
             chip.applyImpulse({ x: (dx/dist) * push, y: (dy/dist) * push }, true)
           }
         })
+      });
+
+      // 피스톤 왕복 로직: sin 함수 기반 부드러운 가속-감속 왕복
+      world!.forEachRigidBody(b => {
+        const d = b.userData as any;
+        if (d?.type === 'piston' && d.waypointB) {
+          const speed = d.speed || 2;
+          // sin 함수로 0↔1 보간 (자연스러운 가감속)
+          const t = (Math.sin(gameStartFrame * speed * 0.01) + 1) / 2;
+          const ax = d.originX, ay = d.originY;
+          const bx = d.waypointB.x, by = d.waypointB.y;
+          const nx = ax + (bx - ax) * t;
+          const ny = ay + (by - ay) * t;
+          b.setNextKinematicTranslation({ x: nx, y: ny });
+        }
       });
 
       let totalSpeed = 0;

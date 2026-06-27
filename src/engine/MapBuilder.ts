@@ -80,9 +80,26 @@ export class MapBuilder {
       world.createCollider(c1, body);
       world.createCollider(c2, body);
       body.setAngvel(item.speed || 3, true);
+    } else if (item.type === 'piston') {
+      // 피스톤: 직사각형 이동 플랫폼 (A↔B 왕복)
+      const w = item.w || 100;
+      const h = item.h || 20;
+      const colliderDesc = RAPIER.ColliderDesc.cuboid(w / 2, h / 2)
+        .setRestitution(0.3)
+        .setFriction(0.8);
+      world.createCollider(colliderDesc, body);
     }
     
-    body.userData = { type: item.type, speed: item.speed, id: item.id } as UserData;
+    // piston은 원점(A지점)과 도착점(B지점), 크기 정보를 추가로 저장
+    const userData: any = { type: item.type, speed: item.speed, id: item.id };
+    if (item.type === 'piston') {
+      userData.originX = item.x;
+      userData.originY = item.y;
+      userData.waypointB = item.waypointB;
+      userData.w = item.w || 100;
+      userData.h = item.h || 20;
+    }
+    body.userData = userData as UserData;
     return body;
   }
 
@@ -98,6 +115,9 @@ export class MapBuilder {
       colliderDesc = RAPIER.ColliderDesc.cuboid(25, 25).setSensor(true);
     } else if (item.type === 'blackhole' || item.type === 'whitehole') {
       colliderDesc = RAPIER.ColliderDesc.ball(item.radius || 150).setSensor(true);
+    } else if (item.type === 'hole') {
+      // 함정 구멍: 칩이 진입하면 패널티 리스폰(물리 충돌 없이 이벤트만 발생)
+      colliderDesc = RAPIER.ColliderDesc.ball(item.radius || 30).setSensor(true);
     }
 
     if (colliderDesc) {

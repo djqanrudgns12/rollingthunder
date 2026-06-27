@@ -580,6 +580,80 @@ export default function PhysicsCanvas() {
                 mg.circle(0, 0, item.radius * 1.5);
                 if (item.color) mg.fill({ color: parseInt(item.color.replace('#', '0x')), alpha: 0.6 });
                 else mg.fill({ color: 0x8888ff, alpha: 0.6 });
+              } else if (item.type === 'hole') {
+                // 절차적 함정 구멍: 빨간 위험 링 + 어두운 코어 + 흡입 소용돌이
+                const r = item.radius || 30;
+                // 외곽 위험 글로우
+                const dangerGlow = new PIXI.Graphics();
+                dangerGlow.circle(0, 0, r * 1.4);
+                dangerGlow.fill({ color: 0xff2222, alpha: 0.12 });
+                g.addChild(dangerGlow);
+                // 위험 링
+                const dangerRing = new PIXI.Graphics();
+                dangerRing.circle(0, 0, r);
+                dangerRing.stroke({ width: 3, color: 0xff4444, alpha: 0.9 });
+                dangerRing.circle(0, 0, r * 0.7);
+                dangerRing.stroke({ width: 1, color: 0xff6666, alpha: 0.5 });
+                g.addChild(dangerRing);
+                // 어두운 코어 (구멍 바닥)
+                const core = new PIXI.Graphics();
+                core.circle(0, 0, r * 0.85);
+                core.fill({ color: 0x080808, alpha: 0.95 });
+                g.addChild(core);
+                // 흡입 소용돌이 패턴
+                const swirl = new PIXI.Graphics();
+                for (let a = 0; a < 3; a++) {
+                  const baseAngle = (a / 3) * Math.PI * 2;
+                  for (let t = 0; t <= 1.001; t += 0.05) {
+                    const ang = baseAngle + t * Math.PI * 2;
+                    const rad = t * r * 0.7;
+                    const px = Math.cos(ang) * rad;
+                    const py = Math.sin(ang) * rad;
+                    if (t === 0) swirl.moveTo(px, py);
+                    else swirl.lineTo(px, py);
+                  }
+                }
+                swirl.stroke({ width: 2, color: 0xff4444, alpha: 0.5 });
+                g.addChild(swirl);
+                // 회전 애니메이션 (빨려 들어가는 느낌)
+                import('gsap').then(({ gsap }) => {
+                  gsap.to(swirl, { rotation: Math.PI * 2, duration: 4, repeat: -1, ease: 'none' });
+                });
+                // 미니맵
+                mg.circle(0, 0, r);
+                mg.fill({ color: 0xff2222, alpha: 0.7 });
+              } else if (item.type === 'piston') {
+                // 절차적 피스톤: 메탈 본체 + 노란-검정 경고 줄무늬
+                const w = item.w || 100;
+                const h = item.h || 20;
+                // 그림자
+                const shadow = new PIXI.Graphics();
+                shadow.rect(-w / 2, -h / 2, w, h);
+                shadow.fill({ color: 0x000000, alpha: 0.6 });
+                shadow.position.set(6, 8);
+                g.addChild(shadow);
+                // 메탈 본체
+                const body = new PIXI.Graphics();
+                body.rect(-w / 2, -h / 2, w, h);
+                body.fill({ color: 0x444455, alpha: 1.0 });
+                body.stroke({ width: 2, color: 0xffcc00, alpha: 0.9 });
+                g.addChild(body);
+                // 노란-검정 경고 줄무늬
+                const stripes = new PIXI.Graphics();
+                const stripeW = 12;
+                for (let sx = -w / 2; sx < w / 2; sx += stripeW * 2) {
+                  stripes.rect(sx, -h / 2, stripeW, h);
+                  stripes.fill({ color: 0xffcc00, alpha: 0.35 });
+                }
+                g.addChild(stripes);
+                // 내부 디테일 라인
+                const detail = new PIXI.Graphics();
+                detail.rect(-w / 2 + 4, -h / 2 + 4, w - 8, h - 8);
+                detail.stroke({ width: 1, color: 0x888899, alpha: 0.4 });
+                g.addChild(detail);
+                // 미니맵
+                mg.rect(-w / 2, -h / 2, w, h);
+                mg.fill({ color: 0xffcc00, alpha: 0.6 });
               }
               g.position.set(item.x, item.y);
               g.rotation = item.rotation || 0;
