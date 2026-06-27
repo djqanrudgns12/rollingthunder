@@ -15,7 +15,7 @@ function getRandomAnimal() {
 }
 
 export default function Dashboard() {
-  const { participants, addParticipant, removeParticipant, clearParticipants, setGimmickDensity, gimmickDensity, setSurvivors, targetWinnerCount, setTargetWinnerCount, setSessionId, gameMode, setGameMode, customWinningRank, setCustomWinningRank, globalSkin, setGlobalSkin, setParticipants } = useGameStore()
+  const { participants, addParticipant, removeParticipant, clearParticipants, setGimmickDensity, gimmickDensity, setSurvivors, targetWinnerCount, setTargetWinnerCount, setSessionId, gameMode, setGameMode, customWinningRank, setCustomWinningRank, globalSkin, setGlobalSkin, setParticipants, isSkillEnabled, setSkillEnabled } = useGameStore()
   const { setGameStage, customMapData, isBroadcasterMode, setBroadcasterMode, isAnonymized, setAnonymized } = useUIStore()
   
   const [nameInput, setNameInput] = useState('')
@@ -163,9 +163,20 @@ export default function Dashboard() {
           </div>
 
           <div className="flex flex-col gap-4 mt-2 bg-black/20 p-4 rounded-xl border border-white/5 shrink-0">
-            {/* 스킨 일괄 설정 */}
+            {/* 스킨 일괄 설정 및 스킬 사용 여부 */}
             <div className="flex flex-col gap-3 border-b border-white/5 pb-4">
-              <label className="text-xs text-white/50 font-bold tracking-widest uppercase">참가자 스킨 일괄 적용 (Skin Settings)</label>
+              <div className="flex justify-between items-center">
+                <label className="text-xs text-white/50 font-bold tracking-widest uppercase">참가자 스킨 일괄 적용 (Skin Settings)</label>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-white/50 font-bold tracking-widest uppercase">스킬 (Skills)</span>
+                  <button 
+                    onClick={() => setSkillEnabled(!isSkillEnabled)}
+                    className={`w-10 h-5 rounded-full relative transition-colors duration-300 ${isSkillEnabled ? 'bg-[var(--accent-primary)]' : 'bg-white/20'}`}
+                  >
+                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-black transition-transform duration-300 ${isSkillEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+              </div>
               <select 
                 className="bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none text-sm w-full"
                 value={globalSkin}

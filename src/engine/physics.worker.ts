@@ -22,6 +22,7 @@ let survivorsData: any[] = [];
 let targetCount = 1;
 let gameMode = 'speed';
 let customWinningRank = 1;
+let isSkillEnabled = true;
 let worldHeight = 1200; // INIT에서 갱신. 결승선 = worldHeight + 20
 const finishedChips = new Set<string>();
 const finishOrder: string[] = [];
@@ -80,7 +81,7 @@ self.onmessage = async (e) => {
     world = new RAPIER.World(gravity);
     eventQueue = new RAPIER.EventQueue(true);
     
-    const { width, height, customMapData, selectedMapPreset, gimmickDensity, survivors, targetCount: tc, mode, customRank } = payload;
+    const { width, height, customMapData, selectedMapPreset, gimmickDensity, survivors, targetCount: tc, mode, customRank, isSkillEnabled: isSkill } = payload;
     
     // 프리셋 메타에서 동적 worldHeight와 wallStyle을 가져옴
     const presetMeta = selectedMapPreset && selectedMapPreset !== 'random' ? getPresetMeta(selectedMapPreset) : null;
@@ -91,6 +92,7 @@ self.onmessage = async (e) => {
     gameMode = mode;
     customWinningRank = customRank;
     survivorsData = survivors;
+    isSkillEnabled = isSkill ?? true;
     
     // 외벽 생성: 맵 프리셋의 wallStyle 적용 (straight/zigzag/narrow/wide)
     MapBuilder.createWalls(world, width, worldHeight, 100, wallStyle);
@@ -173,9 +175,10 @@ self.onmessage = async (e) => {
     let dtMultiplier = 1.0;
     
     if (skillInterval) clearInterval(skillInterval);
-    skillInterval = setInterval(() => {
-      if (!world || activeChips.length === 0) return;
-      const aliveChips = activeChips.filter(c => {
+    if (isSkillEnabled) {
+      skillInterval = setInterval(() => {
+        if (!world || activeChips.length === 0) return;
+        const aliveChips = activeChips.filter(c => {
         const d = c.userData as any;
         return d && d.type === 'chip' && !finishedChips.has(d.id);
       });
@@ -190,10 +193,11 @@ self.onmessage = async (e) => {
       dtMultiplier = 0.15;
       SkillSystem.triggerSkill(world, chipData.id, randomSkill);
       
-      setTimeout(() => {
-        dtMultiplier = 1.0;
-      }, 1500);
-    }, 8000);
+        setTimeout(() => {
+          dtMultiplier = 1.0;
+        }, 1500);
+      }, 8000);
+    }
 
     let frameCount = 0;
     let lowSpeedFrames = 0;

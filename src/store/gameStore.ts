@@ -36,6 +36,9 @@ interface GameState {
   setGameMode: (mode: 'speed' | 'turtle' | 'lucky') => void
   customWinningRank: number
   setCustomWinningRank: (rank: number) => void
+  
+  isSkillEnabled: boolean
+  setSkillEnabled: (enabled: boolean) => void
 }
 
 export const useGameStore = create<GameState>()(
@@ -67,6 +70,8 @@ export const useGameStore = create<GameState>()(
       setGameMode: (gameMode) => set({ gameMode }),
       customWinningRank: 1,
       setCustomWinningRank: (customWinningRank) => set({ customWinningRank }),
+      isSkillEnabled: true,
+      setSkillEnabled: (isSkillEnabled) => set({ isSkillEnabled }),
     }),
     {
       name: 'rt-game-storage',

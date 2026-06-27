@@ -29,7 +29,7 @@ export default function PhysicsCanvas() {
   const [gameOverResult, setGameOverResult] = useState<{winners: any[], mode: string} | null>(null)
   const [isAutoFollow, setIsAutoFollow] = useState(true)
   
-  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset } = useGameStore()
+  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, isSkillEnabled } = useGameStore()
   const { setGameStage, customMapData, isBroadcasterMode } = useUIStore()
   const workerRef = useRef<Worker | null>(null)
   
@@ -69,7 +69,7 @@ export default function PhysicsCanvas() {
     let app: PIXI.Application;
     let viewport: Viewport;
     let pipViewport: Viewport;
-    let bgSprite: PIXI.Sprite;
+    let bgSprite: PIXI.Sprite | PIXI.TilingSprite;
     let bgLayers: PIXI.Sprite[] = [];
     const graphicsMap = new Map<string, PIXI.Container>();
     const minimapDotsMap = new Map<string, PIXI.Graphics>();
@@ -165,8 +165,6 @@ export default function PhysicsCanvas() {
         if (bgUrl) {
           const bgTex = PIXI.Assets.get(bgUrl);
           if (bgTex) {
-            bgSprite = new PIXI.Sprite(bgTex);
-            
             // wallStyle에 따른 배경 배치 및 너비 결정
             const wallStyle = presetMeta?.wallStyle || 'straight';
             let visibleWidth = 800;
@@ -180,11 +178,25 @@ export default function PhysicsCanvas() {
               bgX = -50;
             }
             
-            bgSprite.width = visibleWidth;
-            bgSprite.height = WORLD_HEIGHT;
+            // 카메라가 이동 가능한 전체 범위를 빈틈없이 커버
+            const BG_PAD_TOP = 500;    // clamp top: -500
+            const BG_PAD_BOTTOM = 200; // clamp bottom: WORLD_HEIGHT + 200
+            const totalHeight = BG_PAD_TOP + WORLD_HEIGHT + BG_PAD_BOTTOM;
+
+            // TilingSprite: 이미지를 원본 비율로 반복 배치 (늘어짐 없음)
+            bgSprite = new PIXI.TilingSprite({
+              texture: bgTex,
+              width: visibleWidth,
+              height: totalHeight,
+            });
+
+            // 가시 너비에 맞게 타일 스케일 설정 (가로=맵 너비, 세로=비율 유지)
+            const scale = visibleWidth / bgTex.width;
+            (bgSprite as PIXI.TilingSprite).tileScale.set(scale, scale);
+
             bgSprite.x = bgX;
-            bgSprite.y = 0;
-            bgSprite.alpha = 0.4; // 배경 투명도 설정 (0.4)
+            bgSprite.y = -BG_PAD_TOP; // 카메라 상단 한계점부터 시작
+            bgSprite.alpha = 0.4;
             
             viewport.addChildAt(bgSprite, 0); // 제일 바닥에 렌더링
           }
@@ -885,7 +897,8 @@ export default function PhysicsCanvas() {
             survivors,
             targetCount: targetWinnerCount,
             mode: gameMode,
-            customRank: customWinningRank
+            customRank: customWinningRank,
+            isSkillEnabled
           }
         });
       }
@@ -924,7 +937,7 @@ export default function PhysicsCanvas() {
         });
       }
     }
-  }, [survivors, targetWinnerCount, gimmickDensity, setSurvivors, setGameStage, customMapData, gameMode, customWinningRank])
+  }, [survivors, targetWinnerCount, gimmickDensity, setSurvivors, setGameStage, customMapData, gameMode, customWinningRank, isSkillEnabled])
 
   return (
     <div className={`relative w-full h-full flex flex-col items-center justify-center overflow-hidden ${isBroadcasterMode ? 'bg-[#00ff00]' : 'bg-black'}`}>
