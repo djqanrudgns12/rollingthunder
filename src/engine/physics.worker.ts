@@ -21,6 +21,7 @@ let survivorsData: any[] = [];
 let targetCount = 1;
 let gameMode = 'speed';
 let customWinningRank = 1;
+let worldHeight = 1200; // INIT에서 갱신. 결승선 = worldHeight + 20
 const finishedChips = new Set<string>();
 const finishOrder: string[] = [];
 
@@ -74,6 +75,7 @@ self.onmessage = async (e) => {
     eventQueue = new RAPIER.EventQueue(true);
     
     const { width, height, customMapData, selectedMapPreset, gimmickDensity, survivors, targetCount: tc, mode, customRank } = payload;
+    worldHeight = height;
     targetCount = tc;
     gameMode = mode;
     customWinningRank = customRank;
@@ -291,7 +293,7 @@ self.onmessage = async (e) => {
         positionsBuffer[i * 5 + 4] = v.y;
         
         const data = body.userData as any;
-        if (data?.type === 'chip' && t.y > 1220 && !finishedChips.has(data.id)) {
+        if (data?.type === 'chip' && t.y > worldHeight + 20 && !finishedChips.has(data.id)) {
           finishedChips.add(data.id);
           finishOrder.push(data.id);
           self.postMessage({ type: 'SOUND_EFFECT', payload: { type: 'finish' }});

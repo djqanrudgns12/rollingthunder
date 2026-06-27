@@ -107,33 +107,21 @@ export class MapBuilder {
   }
 
   static buildRandomMap(world: RAPIER.World, width: number, height: number, density: number) {
-    // 4 Theme Zones:
-    // Zone 1: Neon Coaster (Ramps) - y: 150 ~ 400
-    // Zone 2: Gear Factory (Windmills & Pins) - y: 400 ~ 700
-    // Zone 3: Cyber Portal (Blackholes) - y: 700 ~ 950
-    // Zone 4: Final Void (Funnels) - y: 950 ~ 1150
-    
-    // --- Zone 1: Ramps ---
-    // Center at 0.25, width 0.4 => covers 0.05 to 0.45
-    this.createRect(world, width * 0.25, 200, width * 0.4, 20, 'wall', 15);
-    // Center at 0.75, width 0.4 => covers 0.55 to 0.95
-    this.createRect(world, width * 0.75, 300, width * 0.4, 20, 'wall', -15);
-    
-    // --- Zone 2 & 3: Pins ---
-    const cols = Math.floor(width / 50);
-    const startY = 400;
-    const endY = 900;
-    const rows = Math.floor((endY - startY) / 50);
+    // 월드 높이(height)에 비례해 구간을 반복 생성한다. 출발선 y=50, 결승선 y>height+20.
+    // 본문(obstacleStart ~ obstacleEnd)에 핀 그리드를 깔고, 일정 간격마다 램프/풍차/블랙홀을 섞는다.
+    const obstacleStart = 200;
+    const obstacleEnd = height - 250; // 마지막 깔때기 공간 확보
+    let windmillId = 0;
+    let blackholeId = 0;
 
-    for (let row = 0; row < rows; row++) {
+    // --- 본문 핀 그리드 ---
+    const cols = Math.floor(width / 50);
+    for (let y = obstacleStart; y < obstacleEnd; y += 50) {
+      const row = Math.round((y - obstacleStart) / 50);
       for (let col = 0; col < cols; col++) {
-        // Less density if there's other elements, but we'll stick to user density
         if (Math.random() * 100 < (density * 0.8)) {
-          const offsetX = (row % 2 === 0) ? 0 : 25; // 육각형 지그재그 구조 패턴
+          const offsetX = (row % 2 === 0) ? 0 : 25; // 육각형 지그재그 패턴
           const x = 25 + col * 50 + offsetX;
-          const y = startY + row * 50;
-          
-          // 양 옆 톱니바퀴 프레임에 겹치지 않도록 안전거리(Padding) 확보
           if (x > 50 && x < width - 50) {
             const isBumper = Math.random() > 0.85; // 15% 확률로 바운싱 범퍼
             const radius = isBumper ? 10 : 6;
@@ -142,22 +130,32 @@ export class MapBuilder {
         }
       }
     }
-    
-    // Add Windmills in Zone 2
-    this.createKinematic(world, { type: 'windmill', x: width * 0.3, y: 500, speed: 3, id: 'w1' });
-    this.createKinematic(world, { type: 'windmill', x: width * 0.7, y: 600, speed: -4, id: 'w2' });
-    
-    // Add Blackholes in Zone 3
-    this.createSensor(world, { type: 'blackhole', x: width * 0.5, y: 800, radius: 100, force: 3, id: 'bh1' });
-    
-    // --- Zone 4: Final Funnel ---
-    // A huge funnel leading to the center. MUST HAVE A GAP!
-    // Layer 1: Gap is 0.2 of width
-    this.createRect(world, width * 0.2, 1050, width * 0.4, 20, 'wall', 30); // 0 to 0.4
-    this.createRect(world, width * 0.8, 1050, width * 0.4, 20, 'wall', -30); // 0.6 to 1.0
-    
-    // Layer 2: Gap is 0.1 of width
-    this.createRect(world, width * 0.225, 1150, width * 0.45, 20, 'wall', 15); // 0 to 0.45
-    this.createRect(world, width * 0.775, 1150, width * 0.45, 20, 'wall', -15); // 0.55 to 1.0
+
+    // --- 약 600px 간격마다 특수 구간 삽입(램프 / 풍차 / 블랙홀 순환) ---
+    let zoneIndex = 0;
+    for (let y = obstacleStart + 150; y < obstacleEnd - 150; y += 600) {
+      const kind = zoneIndex % 3;
+      if (kind === 0) {
+        // 지그재그 램프
+        this.createRect(world, width * 0.25, y, width * 0.4, 20, 'wall', 15);
+        this.createRect(world, width * 0.75, y + 150, width * 0.4, 20, 'wall', -15);
+      } else if (kind === 1) {
+        // 풍차 한 쌍
+        this.createKinematic(world, { type: 'windmill', x: width * 0.3, y, speed: 3 + Math.random() * 4, id: `rw${windmillId++}` });
+        this.createKinematic(world, { type: 'windmill', x: width * 0.7, y: y + 120, speed: -(3 + Math.random() * 4), id: `rw${windmillId++}` });
+      } else {
+        // 블랙홀
+        this.createSensor(world, { type: 'blackhole', x: width * 0.5, y, radius: 110, force: 3, id: `rbh${blackholeId++}` });
+      }
+      zoneIndex++;
+    }
+
+    // --- 최종 깔때기 (반드시 중앙에 틈을 남긴다) ---
+    const f1 = height - 170;
+    const f2 = height - 70;
+    this.createRect(world, width * 0.2, f1, width * 0.4, 20, 'wall', 30);
+    this.createRect(world, width * 0.8, f1, width * 0.4, 20, 'wall', -30);
+    this.createRect(world, width * 0.225, f2, width * 0.45, 20, 'wall', 15);
+    this.createRect(world, width * 0.775, f2, width * 0.45, 20, 'wall', -15);
   }
 }

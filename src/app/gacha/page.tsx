@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import Header from '@/components/Header'
 import { toast } from 'sonner'
 import { ArrowLeft, Sparkles } from 'lucide-react'
 import { useState } from 'react'

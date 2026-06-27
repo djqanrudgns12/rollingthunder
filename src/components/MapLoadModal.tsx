@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useUIStore } from '@/store/uiStore'
+import { useGameStore } from '@/store/gameStore'
 import { toast } from 'sonner'
 import { X, Search, Map } from 'lucide-react'
 
@@ -11,10 +12,12 @@ interface MapLoadModalProps {
   onClose: () => void
 }
 
+// id 는 반드시 MapPresets.ts 의 프리셋 키와 일치해야 한다('random' 은 랜덤 생성).
 const DEFAULT_MAPS = [
-  { id: 'default-1', title: '네온 아케이드', type: '기본 맵' },
-  { id: 'default-2', title: '파이프 미로', type: '기본 맵' },
-  { id: 'default-3', title: '블랙홀의 함정', type: '기본 맵' },
+  { id: 'random', title: '랜덤 맵', type: '매번 새로운 배치' },
+  { id: 'neon_expressway', title: '네온 익스프레스웨이', type: '부스터·범퍼·풍차' },
+  { id: 'gravity_abyss', title: '중력의 심연 (블랙홀)', type: '블랙홀·화이트홀' },
+  { id: 'mechanical_factory', title: '기계 공장', type: '피스톤·풍차·범퍼' },
 ]
 
 export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
@@ -22,6 +25,7 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
   const [mapCode, setMapCode] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const { setCustomMapData } = useUIStore()
+  const { setSelectedMapPreset } = useGameStore()
 
   if (!isOpen) return null
 
@@ -47,9 +51,11 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
   }
 
   const handleLoadDefaultMap = (mapId: string) => {
-    // 임시: 기본 맵 선택 시 커스텀 맵 데이터를 null로 초기화하여 기본 로직이 작동하게 함
+    // 커스텀 맵 데이터를 비우고(워커는 customMapData를 우선시함), 선택한 프리셋 키를 gameStore에 저장
     setCustomMapData(null)
-    toast.info('기본 맵이 선택되었습니다.')
+    setSelectedMapPreset(mapId)
+    const selected = DEFAULT_MAPS.find(m => m.id === mapId)
+    toast.success(`[${selected?.title ?? '기본 맵'}] 맵이 선택되었습니다.`)
     onClose()
   }
 

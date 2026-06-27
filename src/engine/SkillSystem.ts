@@ -9,9 +9,9 @@ export class SkillSystem {
     chipId: string, 
     skill: SkillType, 
   ) {
-    let targetBody: RAPIER.RigidBody | null = null;
-    
-    // 타겟 칩 찾기
+    // 타겟 칩 찾기. forEachRigidBody 콜백 내부 할당은 TS 제어흐름이 추적하지 못하므로
+    // (targetBody가 never로 좁혀짐) 배열에 수집한 뒤 꺼내는 방식으로 타입 안전성을 확보한다.
+    const targets: RAPIER.RigidBody[] = [];
     world.forEachRigidBody((body) => {
       const data = body.userData as UserData;
       if (data && data.type === 'chip' && data.id === chipId) {
@@ -20,10 +20,11 @@ export class SkillSystem {
 
         (data as {activeSkills?: string[]}).activeSkills = [...activeSkills, skill]
         body.userData = data;
-        targetBody = body;
+        targets.push(body);
       }
     });
 
+    const targetBody = targets[0];
     if (!targetBody) return;
 
     // 슬로모션 등 시각적 처리는 React 컴포넌트 쪽에서 담당하며,
