@@ -83,6 +83,12 @@ export default function PhysicsCanvas() {
     let targetManualChipId: string | null = null;
     const chipPositions = new Map<string, { x: number, y: number }>();
     
+    // AI Camera Director & Minimap states
+    let finishZoomHoldTimer = 0;
+    let isDraggingMinimap = false;
+    let minimapPointerDownTime = 0;
+    let minimapPointerDownPos = { x: 0, y: 0 };
+    
     // 'random' 맵 처리 로직: 10개 맵 중 하나를 무작위로 선택
     const actualMapPreset = selectedMapPreset === 'random' ? 
       Object.keys(MapPresets)[Math.floor(Math.random() * Object.keys(MapPresets).length)] : 
@@ -267,14 +273,11 @@ export default function PhysicsCanvas() {
         
         // Interaction (Click & Drag to pan)
         pipViewport.eventMode = 'static';
-        const moveCameraTarget = (e: any) => {
-          setIsAutoFollow(false);
-          const localPos = pipViewport.toLocal(e.global);
-          
+        
+        const smartChipSearch = (localPos: {x: number, y: number}) => {
           let closestChipId: string | null = null;
           let minDistSq = Infinity;
           const SEARCH_RADIUS_SQ = 250 * 250; // 월드 기준 반경 250 픽셀 내 스마트 검색
-          
           for (const [id, pos] of chipPositions.entries()) {
             const dx = pos.x - localPos.x;
             const dy = pos.y - localPos.y;
@@ -284,7 +287,6 @@ export default function PhysicsCanvas() {
               closestChipId = id;
             }
           }
-          
           if (closestChipId) {
             targetManualChipId = closestChipId;
             targetManualPos = null;
@@ -293,19 +295,45 @@ export default function PhysicsCanvas() {
             targetManualPos = { x: localPos.x, y: localPos.y };
           }
         };
+
         pipViewport.on('pointerdown', (e) => {
-          (pipViewport as any)._isDraggingMinimap = true;
-          moveCameraTarget(e);
+          minimapPointerDownTime = Date.now();
+          const localPos = pipViewport.toLocal(e.global);
+          minimapPointerDownPos = { x: localPos.x, y: localPos.y };
+          isDraggingMinimap = true;
+
+          // 즉시 해당 좌표로 카메라 이동 (Zero-Lerp)
+          setIsAutoFollow(false);
+          viewport.moveCenter(localPos.x, localPos.y);
+          targetManualPos = null;
+          targetManualChipId = null;
         });
+
         pipViewport.on('pointermove', (e) => {
-          if ((pipViewport as any)._isDraggingMinimap) {
-            moveCameraTarget(e);
-          }
+          if (!isDraggingMinimap) return;
+          const localPos = pipViewport.toLocal(e.global);
+          // 드래그 중: 1:1 즉시 동기화 (스크롤바처럼)
+          viewport.moveCenter(localPos.x, localPos.y);
         });
+
         app.renderer.events.cursorStyles.default = 'auto';
         pipViewport.cursor = 'pointer';
         if (typeof window !== 'undefined') {
-          window.addEventListener('pointerup', () => { (pipViewport as any)._isDraggingMinimap = false; });
+          window.addEventListener('pointerup', () => { 
+            if (!isDraggingMinimap) return;
+            const elapsed = Date.now() - minimapPointerDownTime;
+            isDraggingMinimap = false;
+            
+            // 짧은 클릭(Tap) 감지
+            if (elapsed < 200) {
+              smartChipSearch(minimapPointerDownPos);
+            } else {
+              // 손 놓으면 즉시 자동 추적으로 복귀
+              setIsAutoFollow(true);
+              targetManualPos = null;
+              targetManualChipId = null;
+            }
+          });
         }
 
         // Draw border for PiP
@@ -820,54 +848,87 @@ export default function PhysicsCanvas() {
           }
           
           // AI Camera Director
-          // Follow the 1st place chip smoothly if auto follow is enabled
           if (firstY !== -Infinity) {
             setIsAutoFollow(prevAutoFollow => {
               const currentCenter = viewport.center;
+              const progress = firstY / WORLD_HEIGHT; // 0.0 ~ 1.0+
+              
+              // 1. Calculate dynamic zoom based on progress
+              let phaseZoom = 1.0;
+              const MAX_ZOOM = 2.5;
+              if (progress >= 0.97) {
+                phaseZoom = MAX_ZOOM;
+              } else if (progress >= 0.88) {
+                const t = (progress - 0.88) / (0.97 - 0.88);
+                phaseZoom = 1.5 + (t * t) * 1.0; // Ease-in curve
+              } else if (progress >= 0.75) {
+                const t = (progress - 0.75) / (0.88 - 0.75);
+                phaseZoom = 1.0 + t * 0.5; // Linear
+              }
+              
+              let targetZoom = phaseZoom;
+              
+              // Rivalry zoom logic
+              if (secondY !== -Infinity && firstY - secondY < 40) {
+                targetZoom = Math.max(targetZoom, 1.4);
+              }
+              
+              // Finish hold
+              if (finishZoomHoldTimer > 0) {
+                targetZoom = MAX_ZOOM;
+                finishZoomHoldTimer--;
+              }
+              
               let targetX = currentCenter.x;
               let targetY = currentCenter.y;
-              let targetZoom = 1;
               let lerpFactor = 0.05;
 
               if (prevAutoFollow) {
-                targetX = currentCenter.x + (firstX - currentCenter.x) * 0.05;
-                targetY = firstY + 150; // Look ahead
-                if (secondY !== -Infinity && firstY - secondY < 40) {
-                  targetZoom = 1.4; // 박빙 줌인
+                let lookAhead = 150;
+                if (progress > 0.75) lookAhead = 100;
+                if (progress > 0.88) lookAhead = 60;
+                
+                if (progress > 0.88) lerpFactor = 0.12;
+                else if (progress > 0.75) lerpFactor = 0.08;
+                
+                targetX = currentCenter.x + (firstX - currentCenter.x) * lerpFactor;
+                targetY = firstY + lookAhead;
+                
+                // Only lerp Y if not dragging
+                if (!isDraggingMinimap) {
+                  viewport.moveCenter(targetX, currentCenter.y + (targetY - currentCenter.y) * lerpFactor);
                 }
-              } else if (targetManualChipId) {
-                // 스마트 타겟팅: 선택된 칩 락온
-                const pos = chipPositions.get(targetManualChipId);
-                if (pos) {
-                  targetX = pos.x;
-                  targetY = pos.y + 100; // 칩의 약간 아래(진행방향) 조준
-                  targetZoom = 1.2;
-                  lerpFactor = 0.2; // 약간 빠른 안착
+              } else if (!isDraggingMinimap) {
+                // Not following, not dragging (e.g. tracking a specific chip after tap)
+                if (targetManualChipId) {
+                  const pos = chipPositions.get(targetManualChipId);
+                  if (pos) {
+                    targetX = pos.x;
+                    targetY = pos.y + 100;
+                    targetZoom = 1.2;
+                    lerpFactor = 0.2;
+                  }
+                } else if (targetManualPos) {
+                  targetX = targetManualPos.x;
+                  targetY = targetManualPos.y;
+                  targetZoom = 1;
+                  lerpFactor = 0.25;
                 }
-              } else if (targetManualPos) {
-                // 수동 빈 공간 클릭
-                targetX = targetManualPos.x;
-                targetY = targetManualPos.y;
-                targetZoom = 1;
-                lerpFactor = 0.25; // 직관적이고 빠른 휙- 이동 애니메이션 (기존 0.15 보다 속도 대폭 상향)
-              }
-
-              if (prevAutoFollow) {
-                viewport.moveCenter(targetX, currentCenter.y + (targetY - currentCenter.y) * lerpFactor);
-              } else {
+                
                 viewport.moveCenter(
                   currentCenter.x + (targetX - currentCenter.x) * lerpFactor,
                   currentCenter.y + (targetY - currentCenter.y) * lerpFactor
                 );
+                
+                // Clear manual target if reached
+                if (targetManualPos && Math.abs(currentCenter.x - targetManualPos.x) < 5 && Math.abs(currentCenter.y - targetManualPos.y) < 5) {
+                  targetManualPos = null;
+                }
               }
 
-              viewport.scale.x += (targetZoom - viewport.scale.x) * lerpFactor;
-              viewport.scale.y += (targetZoom - viewport.scale.y) * lerpFactor;
-
-              // 클리어 로직 (굳이 필요 없지만 안정성을 위해)
-              if (!prevAutoFollow && targetManualPos && Math.abs(currentCenter.x - targetManualPos.x) < 5 && Math.abs(currentCenter.y - targetManualPos.y) < 5) {
-                targetManualPos = null;
-              }
+              // Apply zoom
+              viewport.scale.x += (targetZoom - viewport.scale.x) * 0.08;
+              viewport.scale.y += (targetZoom - viewport.scale.y) * 0.08;
 
               return prevAutoFollow;
             });
@@ -890,9 +951,19 @@ export default function PhysicsCanvas() {
 
           // Update Viewport Indicator
           if (viewIndicator) {
-             viewIndicator.clear();
-             viewIndicator.rect(viewport.left, viewport.top, viewport.right - viewport.left, viewport.bottom - viewport.top);
-             viewIndicator.stroke({ width: 8, color: 0xffffff, alpha: 0.8 }); // 8 world units -> 2px on screen
+            viewIndicator.clear();
+            const currentZoom = viewport.scale.x;
+            const visibleW = window.innerWidth / currentZoom;
+            const visibleH = window.innerHeight / currentZoom;
+            const cx = viewport.center.x;
+            const cy = viewport.center.y;
+            viewIndicator.rect(
+              cx - visibleW / 2,
+              cy - visibleH / 2,
+              visibleW,
+              visibleH
+            );
+            viewIndicator.stroke({ width: 12 / currentZoom, color: 0x00ffcc, alpha: 0.9 });
           }
 
         } else if (type === 'SOUND_EFFECT') {
@@ -921,6 +992,7 @@ export default function PhysicsCanvas() {
           currentRankings = payload;
           setRankings(payload);
         } else if (type === 'CHIP_FINISHED') {
+          finishZoomHoldTimer = 18; // 약 0.3초 줌 홀드 (60fps 기준)
           setFinishedFeed(prev => [...prev, payload]);
           confetti({
             particleCount: 150,
