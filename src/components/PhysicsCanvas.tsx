@@ -13,7 +13,7 @@ import SkillEventOverlay from './SkillEventOverlay'
 import { Hand, Volume2, VolumeX, Maximize, Video } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { GlowFilter, MotionBlurFilter, ShockwaveFilter } from 'pixi-filters'
-import { getPresetMeta } from '@/engine/MapPresets'
+import { getPresetMeta, MapPresets } from '@/engine/MapPresets'
 // 맵 가로 폭은 고정 (물리엔진·카메라·미니맵 공유)
 const WORLD_WIDTH = 800;
 // WORLD_HEIGHT는 맵 프리셋에 따라 동적으로 결정됨 (기본값 2400)
@@ -83,8 +83,13 @@ export default function PhysicsCanvas() {
     let targetManualChipId: string | null = null;
     const chipPositions = new Map<string, { x: number, y: number }>();
     
+    // 'random' 맵 처리 로직: 10개 맵 중 하나를 무작위로 선택
+    const actualMapPreset = selectedMapPreset === 'random' ? 
+      Object.keys(MapPresets)[Math.floor(Math.random() * Object.keys(MapPresets).length)] : 
+      selectedMapPreset;
+      
     // 맵 프리셋에 따른 동적 월드 높이 결정
-    const presetMeta = selectedMapPreset && selectedMapPreset !== 'random' ? getPresetMeta(selectedMapPreset) : null;
+    const presetMeta = actualMapPreset ? getPresetMeta(actualMapPreset) : null;
     const WORLD_HEIGHT = presetMeta ? presetMeta.worldHeight : 2400;
     let initPromise: Promise<void> | null = null;
     
@@ -109,9 +114,7 @@ export default function PhysicsCanvas() {
 
         // Preload Assets — 장애물·칩 모두 절차적 PIXI.Graphics로 렌더링하므로 전체화면 배경만 로드한다.
         const texturesToLoad = [
-          '/images/assets/bg_neon_synthwave_ultra.png',
-          '/images/assets/bg_abyssal_trench.png',
-          '/images/assets/bg_celestial_clockwork.png',
+          ...(presetMeta?.bgImage ? [presetMeta.bgImage] : []),
           '/images/assets/skins/chip_base_1.png',
           '/images/assets/skins/chip_base_2.png',
           '/images/assets/skins/chip_base_3.png',
@@ -143,44 +146,6 @@ export default function PhysicsCanvas() {
           return;
         }
 
-        // Background Parallax Layers
-        const bgTex1 = PIXI.Assets.get('/images/assets/bg_abyssal_trench.png') || PIXI.Assets.get('/images/assets/bg_neon_synthwave_ultra.png') || PIXI.Texture.WHITE;
-        const bgTex2 = PIXI.Assets.get('/images/assets/bg_celestial_clockwork.png') || PIXI.Texture.WHITE;
-        
-        const layer1 = new PIXI.Sprite(bgTex1);
-        layer1.anchor.set(0.5);
-        layer1.x = 400; layer1.y = 600;
-        layer1.alpha = 0.3;
-        
-        const layer2 = new PIXI.Sprite(bgTex2);
-        layer2.anchor.set(0.5);
-        layer2.x = 400; layer2.y = 600;
-        layer2.alpha = 0.5;
-
-        const updateBgScale = () => {
-          const w = window.innerWidth;
-          const h = window.innerHeight;
-          const s1 = Math.max(w / (bgTex1.width || 1920), (h + 1000) / (bgTex1.height || 1080));
-          const s2 = Math.max(w / (bgTex2.width || 1920), (h + 600) / (bgTex2.height || 1080));
-          layer1.scale.set(s1);
-          layer2.scale.set(s2);
-        };
-        updateBgScale();
-        window.addEventListener('resize', updateBgScale);
-        
-        // Save cleanup func
-        (app as any)._bgResizeHandler = updateBgScale;
-        // Depth of field blur for far background
-        const blurFilter = new PIXI.BlurFilter();
-        blurFilter.blur = 4;
-        layer1.filters = [blurFilter];
-
-        app.stage.addChild(layer1);
-        app.stage.addChild(layer2);
-
-        // useEffect 스코프 변수에 할당 → 메시지(FRAME) 핸들러에서도 참조 가능
-        bgLayers = [layer1, layer2];
-
         // PixiJS v8 compatibility patch for pixi-viewport v6
         const dummyInteraction = { on: () => {}, off: () => {} };
         const patchedEvents = { ...app.renderer.events, interaction: dummyInteraction } as any;
@@ -194,6 +159,36 @@ export default function PhysicsCanvas() {
         });
 
         app.stage.addChild(viewport);
+        
+        // 맵별 배경 이미지 렌더링 (viewport 내부에 붙여 스크롤/줌 연동)
+        const bgUrl = presetMeta?.bgImage;
+        if (bgUrl) {
+          const bgTex = PIXI.Assets.get(bgUrl);
+          if (bgTex) {
+            bgSprite = new PIXI.Sprite(bgTex);
+            
+            // wallStyle에 따른 배경 배치 및 너비 결정
+            const wallStyle = presetMeta?.wallStyle || 'straight';
+            let visibleWidth = 800;
+            let bgX = 0;
+            
+            if (wallStyle === 'narrow') {
+              visibleWidth = 600;
+              bgX = 100;
+            } else if (wallStyle === 'wide') {
+              visibleWidth = 900;
+              bgX = -50;
+            }
+            
+            bgSprite.width = visibleWidth;
+            bgSprite.height = WORLD_HEIGHT;
+            bgSprite.x = bgX;
+            bgSprite.y = 0;
+            bgSprite.alpha = 0.4; // 배경 투명도 설정 (0.4)
+            
+            viewport.addChildAt(bgSprite, 0); // 제일 바닥에 렌더링
+          }
+        }
         viewport.drag().pinch().wheel().decelerate()
           .clamp({ left: -200, right: WORLD_WIDTH + 200, top: -500, bottom: WORLD_HEIGHT + 200, underflow: 'center' }); // clamp bounds
         
@@ -842,21 +837,39 @@ export default function PhysicsCanvas() {
         } else if (type === 'CHIP_FINISHED') {
           setFinishedFeed(prev => [...prev, payload]);
           confetti({
-            particleCount: 100,
-            spread: 70,
+            particleCount: 150,
+            spread: 90,
             origin: { y: 0.8 },
-            colors: ['#00ffcc', '#ff00ff', '#ffff00', '#ffffff']
+            colors: ['#00ffcc', '#ff00ff', '#ffff00', '#ffffff', '#ff0000']
           });
         } else if (type === 'GAME_OVER') {
           setGameState('finished');
           setGameOverResult(payload);
           triggerShockwave();
-          confetti({
-            particleCount: 200,
-            spread: 100,
-            origin: { y: 0.5 },
-            colors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff']
-          });
+          
+          // 폭죽 여러번 터뜨리기
+          const duration = 3000;
+          const end = Date.now() + duration;
+          const frame = () => {
+            confetti({
+              particleCount: 50,
+              angle: 60,
+              spread: 55,
+              origin: { x: 0 },
+              colors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff']
+            });
+            confetti({
+              particleCount: 50,
+              angle: 120,
+              spread: 55,
+              origin: { x: 1 },
+              colors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff']
+            });
+            if (Date.now() < end) {
+              requestAnimationFrame(frame);
+            }
+          };
+          frame();
         }
       };
 
@@ -867,7 +880,7 @@ export default function PhysicsCanvas() {
             width: WORLD_WIDTH,
             height: WORLD_HEIGHT,
             customMapData,
-            selectedMapPreset,
+            selectedMapPreset: actualMapPreset, // 여기서 실제 맵으로 치환된 값을 보냄
             gimmickDensity,
             survivors,
             targetCount: targetWinnerCount,
@@ -882,11 +895,13 @@ export default function PhysicsCanvas() {
 
     return () => {
       isMounted = false;
-      if (typeof window !== 'undefined' && app && (app as any)._bgResizeHandler) {
-        window.removeEventListener('resize', (app as any)._bgResizeHandler);
-      }
-      if (typeof window !== 'undefined' && app && (app as any)._minimapResizeHandler) {
-        window.removeEventListener('resize', (app as any)._minimapResizeHandler);
+      if (typeof window !== 'undefined' && app) {
+        if ((app as any)._bgResizeHandler) {
+          window.removeEventListener('resize', (app as any)._bgResizeHandler);
+        }
+        if ((app as any)._minimapResizeHandler) {
+          window.removeEventListener('resize', (app as any)._minimapResizeHandler);
+        }
       }
       if (workerRef.current) {
         workerRef.current.postMessage({ type: 'STOP' });
@@ -936,26 +951,34 @@ export default function PhysicsCanvas() {
       </div>
 
       {gameState === 'finished' && gameOverResult && (
-        <div className="absolute bottom-[104px] right-6 z-50 flex flex-col items-end animate-in slide-in-from-right fade-in duration-700">
-          <div className="bg-black/80 backdrop-blur-md border border-[#FFD700]/50 rounded-2xl p-6 flex flex-col items-end gap-4 shadow-[0_0_30px_rgba(255,215,0,0.3)]">
-            <h3 className="text-[#FFD700] font-bold text-sm tracking-widest uppercase mb-1">
-              🎉 {gameOverResult.mode === 'speed' && '스피드 챔피언'}
-              {gameOverResult.mode === 'turtle' && '최후의 생존자'}
-              {gameOverResult.mode === 'lucky' && '행운의 주인공'}
+        <div className="absolute bottom-[104px] right-6 z-50 flex flex-col items-end animate-in slide-in-from-right fade-in zoom-in-95 duration-700 bounce">
+          <div className="bg-black/80 backdrop-blur-md border-[3px] border-[#FFD700] rounded-3xl p-6 flex flex-col items-end gap-5 shadow-[0_0_50px_rgba(255,215,0,0.5)] relative overflow-hidden">
+            {/* 반짝이는 배경 효과 */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent animate-pulse pointer-events-none" />
+            
+            <h3 className="text-[#FFD700] font-extrabold text-lg tracking-widest mb-1 drop-shadow-[0_0_10px_rgba(255,215,0,0.8)] z-10">
+              {gameOverResult.mode === 'speed' && '👑 영광의 스피드 챔피언 👑'}
+              {gameOverResult.mode === 'turtle' && '🐢 끈기의 최후 생존자 🐢'}
+              {gameOverResult.mode === 'lucky' && '🍀 기적의 행운 주인공 🍀'}
             </h3>
-            <div className="flex flex-col gap-3">
+            
+            <div className="flex flex-col gap-4 w-full z-10">
               {gameOverResult.winners.map((w: any, idx: number) => (
-                <div key={idx} className="flex items-center justify-end gap-3">
-                  <span className="text-2xl font-black text-white">{w.name}</span>
-                  <div className="w-8 h-8 rounded-full shadow-[0_0_15px_currentColor]" style={{ backgroundColor: w.color, color: w.color }}></div>
+                <div key={idx} className="flex items-center justify-between gap-6 bg-white/5 rounded-2xl p-3 border border-white/10 shadow-inner">
+                  <img src="/images/assets/ui/winner_trophy.png" alt="Trophy" className="w-12 h-12 object-contain drop-shadow-[0_0_15px_rgba(255,215,0,0.8)] animate-bounce" />
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl font-black text-white tracking-wider drop-shadow-md">{w.name}</span>
+                    <div className="w-10 h-10 rounded-full shadow-[0_0_20px_currentColor] border-2 border-white/50" style={{ backgroundColor: w.color, color: w.color }}></div>
+                  </div>
                 </div>
               ))}
             </div>
+            
             <button 
               onClick={() => setGameStage('dashboard')}
-              className="mt-2 w-full bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-extrabold text-sm tracking-widest px-6 py-3 rounded-xl hover:opacity-90 hover:scale-105 transition-all shadow-lg"
+              className="mt-4 w-full bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF8C00] text-black font-black text-lg tracking-widest px-8 py-4 rounded-2xl hover:opacity-100 hover:scale-[1.03] transition-all shadow-[0_0_30px_rgba(255,215,0,0.4)] z-10 group"
             >
-              NEXT MATCH
+              <span className="group-hover:animate-pulse">✨ NEXT MATCH ✨</span>
             </button>
           </div>
         </div>
