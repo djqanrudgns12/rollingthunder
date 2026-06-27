@@ -80,6 +80,8 @@ export default function PhysicsCanvas() {
     
     let activeChipsCount = 0;
     let targetManualPos: { x: number, y: number } | null = null;
+    let targetManualChipId: string | null = null;
+    const chipPositions = new Map<string, { x: number, y: number }>();
     
     // 맵 프리셋에 따른 동적 월드 높이 결정
     const presetMeta = selectedMapPreset && selectedMapPreset !== 'random' ? getPresetMeta(selectedMapPreset) : null;
@@ -261,7 +263,28 @@ export default function PhysicsCanvas() {
         const moveCameraTarget = (e: any) => {
           setIsAutoFollow(false);
           const localPos = pipViewport.toLocal(e.global);
-          targetManualPos = { x: localPos.x, y: localPos.y };
+          
+          let closestChipId: string | null = null;
+          let minDistSq = Infinity;
+          const SEARCH_RADIUS_SQ = 250 * 250; // 월드 기준 반경 250 픽셀 내 스마트 검색
+          
+          for (const [id, pos] of chipPositions.entries()) {
+            const dx = pos.x - localPos.x;
+            const dy = pos.y - localPos.y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < minDistSq && distSq < SEARCH_RADIUS_SQ) {
+              minDistSq = distSq;
+              closestChipId = id;
+            }
+          }
+          
+          if (closestChipId) {
+            targetManualChipId = closestChipId;
+            targetManualPos = null;
+          } else {
+            targetManualChipId = null;
+            targetManualPos = { x: localPos.x, y: localPos.y };
+          }
         };
         pipViewport.on('pointerdown', (e) => {
           (pipViewport as any)._isDraggingMinimap = true;
@@ -591,6 +614,10 @@ export default function PhysicsCanvas() {
             // 절대적으로 고유한 식별자 부여: 칩인 경우 survivor.id 사용, 그 외의 경우 고유 entity ID 사용
             const bodyId = survivor ? survivor.id : `entity_${rawId}_${dataIndex}`;
             
+            if (isChip && survivor) {
+              chipPositions.set(survivor.id, { x, y });
+            }
+
             let container = graphicsMap.get(bodyId);
             
             if (!container) {
@@ -714,35 +741,54 @@ export default function PhysicsCanvas() {
           // AI Camera Director
           // Follow the 1st place chip smoothly if auto follow is enabled
           if (firstY !== -Infinity) {
-            const currentCenter = viewport.center;
-            const targetY = firstY + 150; // Look ahead
-            let targetZoom = 1;
-            
-            // Juiciness: Zoom in when 1st and 2nd are very close!
-            if (secondY !== -Infinity && firstY - secondY < 40) {
-              targetZoom = 1.4; // 박빙 줌인
-            }
-            
-            setIsAutoFollow(prev => {
-              if (prev) {
-                viewport.moveCenter(
-                  currentCenter.x + (firstX - currentCenter.x) * 0.05,
-                  currentCenter.y + (targetY - currentCenter.y) * 0.05
-                );
-                viewport.scale.x += (targetZoom - viewport.scale.x) * 0.05;
-                viewport.scale.y += (targetZoom - viewport.scale.y) * 0.05;
-              } else if (targetManualPos) {
-                // Smooth manual panning when clicking/dragging minimap
-                viewport.moveCenter(
-                  currentCenter.x + (targetManualPos.x - currentCenter.x) * 0.15,
-                  currentCenter.y + (targetManualPos.y - currentCenter.y) * 0.15
-                );
-                // Clear target if close enough
-                if (Math.abs(currentCenter.x - targetManualPos.x) < 2 && Math.abs(currentCenter.y - targetManualPos.y) < 2) {
-                  targetManualPos = null;
+            setIsAutoFollow(prevAutoFollow => {
+              const currentCenter = viewport.center;
+              let targetX = currentCenter.x;
+              let targetY = currentCenter.y;
+              let targetZoom = 1;
+              let lerpFactor = 0.05;
+
+              if (prevAutoFollow) {
+                targetX = currentCenter.x + (firstX - currentCenter.x) * 0.05;
+                targetY = firstY + 150; // Look ahead
+                if (secondY !== -Infinity && firstY - secondY < 40) {
+                  targetZoom = 1.4; // 박빙 줌인
                 }
+              } else if (targetManualChipId) {
+                // 스마트 타겟팅: 선택된 칩 락온
+                const pos = chipPositions.get(targetManualChipId);
+                if (pos) {
+                  targetX = pos.x;
+                  targetY = pos.y + 100; // 칩의 약간 아래(진행방향) 조준
+                  targetZoom = 1.2;
+                  lerpFactor = 0.2; // 약간 빠른 안착
+                }
+              } else if (targetManualPos) {
+                // 수동 빈 공간 클릭
+                targetX = targetManualPos.x;
+                targetY = targetManualPos.y;
+                targetZoom = 1;
+                lerpFactor = 0.25; // 직관적이고 빠른 휙- 이동 애니메이션 (기존 0.15 보다 속도 대폭 상향)
               }
-              return prev;
+
+              if (prevAutoFollow) {
+                viewport.moveCenter(targetX, currentCenter.y + (targetY - currentCenter.y) * lerpFactor);
+              } else {
+                viewport.moveCenter(
+                  currentCenter.x + (targetX - currentCenter.x) * lerpFactor,
+                  currentCenter.y + (targetY - currentCenter.y) * lerpFactor
+                );
+              }
+
+              viewport.scale.x += (targetZoom - viewport.scale.x) * lerpFactor;
+              viewport.scale.y += (targetZoom - viewport.scale.y) * lerpFactor;
+
+              // 클리어 로직 (굳이 필요 없지만 안정성을 위해)
+              if (!prevAutoFollow && targetManualPos && Math.abs(currentCenter.x - targetManualPos.x) < 5 && Math.abs(currentCenter.y - targetManualPos.y) < 5) {
+                targetManualPos = null;
+              }
+
+              return prevAutoFollow;
             });
           }
           

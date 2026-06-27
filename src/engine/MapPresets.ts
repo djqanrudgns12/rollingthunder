@@ -9,6 +9,7 @@ export interface MapPresetMeta {
   complexity: 'Simple' | 'Medium' | 'Complex'; // 복잡도 분류
   worldHeight: number;                       // 이 맵 전용 월드 높이
   wallStyle: WallStyle;                      // 외벽 스타일 (straight/zigzag/narrow/wide)
+  bgImage?: string;                          // 맵별 전용 배경 이미지 경로
   items: EditorItem[];                       // 장애물 배치 배열
 }
 
@@ -31,6 +32,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     complexity: 'Medium',
     worldHeight: 2400,
     wallStyle: 'straight',
+    bgImage: '/images/assets/map_bg_neon_arcade.png',
     items: [
       // Zone 1: 입구 깔때기 (θ=±25°, 틈≈100px)
       { id: 'n_w1', type: 'wall', x: 220, y: 200, w: 280, h: 20, rotation: 25 },
@@ -74,6 +76,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     complexity: 'Complex',
     worldHeight: 2600,
     wallStyle: 'straight',
+    bgImage: '/images/assets/map_bg_gravity_abyss.png',
     items: [
       // Zone 1: 진입 슬라이드
       { id: 'g_w1', type: 'wall', x: 300, y: 250, w: 300, h: 20, rotation: 15 },
@@ -129,6 +132,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     complexity: 'Complex',
     worldHeight: 3200,
     wallStyle: 'zigzag',
+    bgImage: '/images/assets/map_bg_mechanical_factory.png',
     items: [
       // Zone 1: 피스톤 입구 (고탄성 경사벽)
       { id: 'm_w1', type: 'wall', x: 250, y: 250, w: 150, h: 30, rotation: 12, restitution: 1.8 },
@@ -179,6 +183,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     complexity: 'Simple',
     worldHeight: 1600,
     wallStyle: 'narrow',
+    bgImage: '/images/assets/map_bg_boost_highway.png',
     items: [
       // Zone 1: 입구 깔때기 (θ=±20°, 틈≈120px)
       { id: 'bh_w1', type: 'wall', x: 250, y: 200, w: 200, h: 20, rotation: 20 },
@@ -214,6 +219,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     complexity: 'Complex',
     worldHeight: 2500,
     wallStyle: 'straight',
+    bgImage: '/images/assets/map_bg_portal_labyrinth.png',
     items: [
       // Room 1: 진입실 → 경사 깔때기 → 밀폐 경사벽 → 포탈A
       { id: 'pl_w1', type: 'wall', x: 250, y: 220, w: 250, h: 20, rotation: 20 },
@@ -264,6 +270,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     complexity: 'Complex',
     worldHeight: 3600,
     wallStyle: 'straight',
+    bgImage: '/images/assets/map_bg_plinko_cascade.png',
     items: (() => {
       // 프로그래밍 방식으로 대량의 핀을 생성하여 플링코 보드 구현
       const items: EditorItem[] = [];
@@ -326,6 +333,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     complexity: 'Medium',
     worldHeight: 1800,
     wallStyle: 'wide',
+    bgImage: '/images/assets/map_bg_roulette_of_fate.png',
     items: [
       // Zone 1: 거대 깔때기 (θ=±35°, 넓은 외벽에서 시작하여 수렴)
       { id: 'rf_w1', type: 'wall', x: 150, y: 400, w: 450, h: 20, rotation: 35 },
@@ -360,6 +368,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     complexity: 'Medium',
     worldHeight: 3000,
     wallStyle: 'zigzag',
+    bgImage: '/images/assets/map_bg_tornado_canyon.png',
     items: [
       // Zone 1: 진입 분기 (중앙 수직벽)
       { id: 'tc_w1', type: 'wall', x: 400, y: 230, w: 20, h: 160, rotation: 0 },
@@ -411,6 +420,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     complexity: 'Simple',
     worldHeight: 2400,
     wallStyle: 'straight',
+    bgImage: '/images/assets/map_bg_bounce_mirror.png',
     items: [
       // Zone 1: 대칭 분기 (중앙 수직벽)
       { id: 'bm_w1', type: 'wall', x: 400, y: 260, w: 20, h: 200, rotation: 0 },
@@ -460,6 +470,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     complexity: 'Medium',
     worldHeight: 2800,
     wallStyle: 'wide',
+    bgImage: '/images/assets/map_bg_meteor_field.png',
     items: [
       // 벽이 하나도 없는 맵. 오직 둥근 범퍼만 불규칙 배치.
       // 범퍼는 원형이므로 칩이 위에 착지하여 점프만 반복하는 문제가 원천적으로 없음.

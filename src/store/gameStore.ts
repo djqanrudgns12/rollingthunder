@@ -29,6 +29,9 @@ interface GameState {
   selectedMapPreset: string
   setSelectedMapPreset: (preset: string) => void
 
+  globalSkin: string
+  setGlobalSkin: (skin: string) => void
+
   gameMode: 'speed' | 'turtle' | 'lucky'
   setGameMode: (mode: 'speed' | 'turtle' | 'lucky') => void
   customWinningRank: number
@@ -56,6 +59,9 @@ export const useGameStore = create<GameState>()(
       
       selectedMapPreset: 'random',
       setSelectedMapPreset: (selectedMapPreset) => set({ selectedMapPreset }),
+      
+      globalSkin: '',
+      setGlobalSkin: (globalSkin) => set({ globalSkin }),
       
       gameMode: 'speed',
       setGameMode: (gameMode) => set({ gameMode }),

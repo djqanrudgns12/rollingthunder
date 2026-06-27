@@ -15,11 +15,11 @@ function getRandomAnimal() {
 }
 
 export default function Dashboard() {
-  const { participants, addParticipant, removeParticipant, clearParticipants, setGimmickDensity, gimmickDensity, setSurvivors, targetWinnerCount, setTargetWinnerCount, setSessionId, gameMode, setGameMode, customWinningRank, setCustomWinningRank } = useGameStore()
+  const { participants, addParticipant, removeParticipant, clearParticipants, setGimmickDensity, gimmickDensity, setSurvivors, targetWinnerCount, setTargetWinnerCount, setSessionId, gameMode, setGameMode, customWinningRank, setCustomWinningRank, globalSkin, setGlobalSkin, setParticipants } = useGameStore()
   const { setGameStage, customMapData, isBroadcasterMode, setBroadcasterMode, isAnonymized, setAnonymized } = useUIStore()
   
   const [nameInput, setNameInput] = useState('')
-  const [skinInput, setSkinInput] = useState('')
+
   const [localWinnerCount, setLocalWinnerCount] = useState(targetWinnerCount || 1)
   const [title, setTitle] = useState('새로운 추첨')
   const [isMapModalOpen, setIsMapModalOpen] = useState(false)
@@ -29,6 +29,14 @@ export default function Dashboard() {
     setLocalWinnerCount(targetWinnerCount || 1)
   }, [targetWinnerCount])
 
+  const handleSkinChange = (newSkin: string) => {
+    setGlobalSkin(newSkin)
+    setParticipants(participants.map(p => ({
+      ...p,
+      skinId: newSkin === '' ? `chip_base_${Math.floor(Math.random() * 6) + 1}` : newSkin
+    })))
+  }
+
   const handleAdd = () => {
     if (!nameInput.trim()) return
     // Support parsing multiple inputs separated by comma, newline, or spaces
@@ -37,9 +45,8 @@ export default function Dashboard() {
       const newId = `chip-${crypto.randomUUID()}`
       const finalName = isAnonymized ? getRandomAnimal() : name
       
-      // 스킨을 선택하지 않은 경우(기본 칩) 1~6번 중 무작위 배정
-      const randomBaseChip = `chip_base_${Math.floor(Math.random() * 6) + 1}`
-      const finalSkinId = skinInput || randomBaseChip
+      // 스킨 일괄 설정에 따라 배정
+      const finalSkinId = globalSkin === '' ? `chip_base_${Math.floor(Math.random() * 6) + 1}` : globalSkin
       
       addParticipant({ id: newId, name: finalName, color: `hsl(${Math.random() * 360}, 80%, 50%)`, skinId: finalSkinId })
     })
@@ -133,25 +140,12 @@ export default function Dashboard() {
             <input 
               type="text" 
               placeholder="참가자 이름 (쉼표/공백 다중입력)" 
-              className="flex-1 bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-secondary)] transition-colors text-sm"
+              className="flex-[3] bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-secondary)] transition-colors text-sm"
               value={nameInput}
               onChange={(e) => setNameInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
             />
-            <select 
-              className="bg-black/50 border border-white/10 rounded-xl px-2 py-3 text-[var(--text-primary)] focus:outline-none text-sm"
-              value={skinInput}
-              onChange={(e) => setSkinInput(e.target.value)}
-            >
-              <option value="">기본 포커칩 (무작위 6종)</option>
-              <option value="horse">경주마</option>
-              <option value="spaceship">우주선</option>
-              <option value="shuriken">표창</option>
-              <option value="car">자동차</option>
-              <option value="UR_blackhole">[UR] 블랙홀</option>
-              <option value="SR_cat">[SR] 야옹이</option>
-            </select>
-            <button onClick={handleAdd} className="bg-[var(--accent-secondary)] text-black font-bold px-5 py-3 rounded-xl hover:opacity-90 transition-opacity shrink-0">
+            <button onClick={handleAdd} className="flex-1 bg-[var(--accent-secondary)] text-black font-bold px-5 py-3 rounded-xl hover:opacity-90 transition-opacity shrink-0">
               추가
             </button>
           </div>
@@ -169,6 +163,24 @@ export default function Dashboard() {
           </div>
 
           <div className="flex flex-col gap-4 mt-2 bg-black/20 p-4 rounded-xl border border-white/5 shrink-0">
+            {/* 스킨 일괄 설정 */}
+            <div className="flex flex-col gap-3 border-b border-white/5 pb-4">
+              <label className="text-xs text-white/50 font-bold tracking-widest uppercase">참가자 스킨 일괄 적용 (Skin Settings)</label>
+              <select 
+                className="bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none text-sm w-full"
+                value={globalSkin}
+                onChange={(e) => handleSkinChange(e.target.value)}
+              >
+                <option value="">기본 포커칩 (무작위 6종)</option>
+                <option value="horse">경주마</option>
+                <option value="spaceship">우주선</option>
+                <option value="shuriken">표창</option>
+                <option value="car">자동차</option>
+                <option value="blackhole">[UR] 블랙홀</option>
+                <option value="cat">[SR] 야옹이</option>
+              </select>
+            </div>
+
             {/* 게임 모드 설정 */}
             <div className="flex flex-col gap-3 border-b border-white/5 pb-4">
               <label className="text-xs text-white/50 font-bold tracking-widest uppercase">게임 모드 (Game Mode)</label>
