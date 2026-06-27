@@ -37,14 +37,15 @@ export class MapBuilder {
       // 지그재그 스타일에서만 돌출(bump) 적용
       const bump = (useBump && i % 2 === 0) ? 20 : 0;
       
+      // 외벽은 낮은 마찰(0.05): 칩이 벽에 들러붙어 정체되는 것을 원천 차단(항상 미끄러져 낙하).
       // left wall (narrowInset: 안쪽으로 밀기, wideOutset: 바깥으로 밀기)
       const leftId = `wall_l_${i}`;
-      const leftBody = this.createRect(world, -thickness / 2 + bump + narrowInset + wideOutset, y, thickness, 100, 'wall');
+      const leftBody = this.createRect(world, -thickness / 2 + bump + narrowInset + wideOutset, y, thickness, 100, 'wall', 0, 0.2, 0.05);
       if(leftBody.userData) (leftBody.userData as UserData).id = leftId;
-      
+
       // right wall
       const rightId = `wall_r_${i}`;
-      const rightBody = this.createRect(world, width + thickness / 2 - bump - narrowInset - wideOutset, y, thickness, 100, 'wall');
+      const rightBody = this.createRect(world, width + thickness / 2 - bump - narrowInset - wideOutset, y, thickness, 100, 'wall', 0, 0.2, 0.05);
       if(rightBody.userData) (rightBody.userData as UserData).id = rightId;
     }
     // 바닥 생성 안 함: 칩이 결승선(y > worldHeight + 20)을 통과해야 하므로
@@ -110,9 +111,11 @@ export class MapBuilder {
     let colliderDesc;
     
     if (item.type === 'portal') {
-      colliderDesc = RAPIER.ColliderDesc.ball(20).setSensor(true);
+      // 반경 확대(20→38): "확률 지름길"이 의미 있게 작동하도록(칩 일부가 실제로 워프)
+      colliderDesc = RAPIER.ColliderDesc.ball(38).setSensor(true);
     } else if (item.type === 'booster') {
-      colliderDesc = RAPIER.ColliderDesc.cuboid(25, 25).setSensor(true);
+      // 넓은 가속 패드(50×50→90×44): 레인을 가로질러 안정적으로 트리거되도록 확대
+      colliderDesc = RAPIER.ColliderDesc.cuboid(45, 22).setSensor(true);
     } else if (item.type === 'blackhole' || item.type === 'whitehole') {
       colliderDesc = RAPIER.ColliderDesc.ball(item.radius || 150).setSensor(true);
     } else if (item.type === 'hole') {

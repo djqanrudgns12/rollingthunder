@@ -89,6 +89,10 @@ export default function PhysicsCanvas() {
     let minimapPointerDownTime = 0;
     let minimapPointerDownPos = { x: 0, y: 0 };
     
+    // v5 Protagonist Lock-on & Time Dilation
+    let lockedProtagonistId: string | null = null;
+    let isSlowMotionActive = false;
+    
     // 'random' 맵 처리 로직: 10개 맵 중 하나를 무작위로 선택
     const actualMapPreset = selectedMapPreset === 'random' ? 
       Object.keys(MapPresets)[Math.floor(Math.random() * Object.keys(MapPresets).length)] : 
@@ -143,6 +147,7 @@ export default function PhysicsCanvas() {
           '/images/assets/obstacles/obstacle_whitehole.png',
           '/images/assets/obstacles/obstacle_hole.png',
           '/images/assets/obstacles/obstacle_piston.png',
+          '/images/assets/obstacles/windmill_rotor.png',
         ];
         let loadedAssets: any = {};
         try {
@@ -251,12 +256,12 @@ export default function PhysicsCanvas() {
         });
 
         // PiP Viewport (Minimap / Last place tracker)
-        const minimapHeight = 300;
-        const minimapWidth = minimapHeight * (WORLD_WIDTH / WORLD_HEIGHT);
+        const baseMinimapWidth = 240;
+        const baseMinimapHeight = baseMinimapWidth * (WORLD_HEIGHT / WORLD_WIDTH);
 
         pipViewport = new Viewport({
-          screenWidth: minimapWidth,
-          screenHeight: minimapHeight,
+          screenWidth: baseMinimapWidth,
+          screenHeight: baseMinimapHeight,
           worldWidth: WORLD_WIDTH,
           worldHeight: WORLD_HEIGHT,
           events: app.renderer.events
@@ -265,7 +270,7 @@ export default function PhysicsCanvas() {
         const pipMask = new PIXI.Graphics();
         app.stage.addChild(pipMask);
         pipViewport.mask = pipMask;
-        pipViewport.scale.set(minimapHeight / WORLD_HEIGHT); // 세로 트랙 전체가 미니맵에 들어오도록 스케일
+        pipViewport.scale.set(baseMinimapHeight / WORLD_HEIGHT); // 세로 트랙 전체가 미니맵에 들어오도록 스케일
 
         // Add minimap background
         const minimapBg = new PIXI.Graphics();
@@ -287,7 +292,7 @@ export default function PhysicsCanvas() {
         const smartChipSearch = (localPos: {x: number, y: number}) => {
           let closestChipId: string | null = null;
           let minDistSq = Infinity;
-          const SEARCH_RADIUS_SQ = 250 * 250; // 월드 기준 반경 250 픽셀 내 스마트 검색
+          const SEARCH_RADIUS_SQ = 50 * 50; // v5: 초정밀 타겟팅 (반경 50픽셀)
           for (const [id, pos] of chipPositions.entries()) {
             const dx = pos.x - localPos.x;
             const dy = pos.y - localPos.y;
@@ -354,14 +359,30 @@ export default function PhysicsCanvas() {
         // Setup minimap resize logic to place it at bottom-left
         const updateMinimapPos = () => {
           const h = window.innerHeight;
-          const pipY = h - minimapHeight - 100; // 100 is bottom margin
+          // Calculate max height to avoid overlapping with top-left Winner UI (approx 450px)
+          const WINNER_UI_HEIGHT = 450;
+          const BOTTOM_MARGIN = 100;
+          const maxMinimapHeight = h - WINNER_UI_HEIGHT - BOTTOM_MARGIN;
           
+          let currentMinimapHeight = baseMinimapHeight;
+          let currentMinimapWidth = baseMinimapWidth;
+          
+          if (currentMinimapHeight > maxMinimapHeight) {
+            currentMinimapHeight = Math.max(maxMinimapHeight, 200); // minimum 200px
+            currentMinimapWidth = currentMinimapHeight * (WORLD_WIDTH / WORLD_HEIGHT);
+          }
+
+          const pipY = h - currentMinimapHeight - BOTTOM_MARGIN;
+          
+          pipViewport.resize(currentMinimapWidth, currentMinimapHeight, WORLD_WIDTH, WORLD_HEIGHT);
+          pipViewport.scale.set(currentMinimapHeight / WORLD_HEIGHT);
+
           pipMask.clear();
-          pipMask.roundRect(20, pipY, minimapWidth, minimapHeight, 16);
+          pipMask.roundRect(20, pipY, currentMinimapWidth, currentMinimapHeight, 16);
           pipMask.fill(0xffffff);
           
           pipBorder.clear();
-          pipBorder.roundRect(20, pipY, minimapWidth, minimapHeight, 16);
+          pipBorder.roundRect(20, pipY, currentMinimapWidth, currentMinimapHeight, 16);
           pipBorder.stroke({ width: 2, color: 0x00ffcc, alpha: 0.8 });
           
           pipViewport.position.set(20, pipY);
@@ -414,10 +435,13 @@ export default function PhysicsCanvas() {
               const mg = new PIXI.Graphics(); // Minimap Graphic
 
               if (item.type === 'wall') {
-                const sprite = PIXI.Sprite.from('/images/assets/obstacles/obstacle_wall.png');
+                const texture = PIXI.Assets.get('/images/assets/obstacles/obstacle_wall.png') || PIXI.Texture.from('/images/assets/obstacles/obstacle_wall.png');
+                const sprite = new PIXI.TilingSprite({
+                  texture: texture,
+                  width: item.w || 100,
+                  height: item.h || 20,
+                });
                 sprite.anchor.set(0.5);
-                sprite.width = item.w || 100;
-                sprite.height = item.h || 20;
                 g.addChild(sprite);
 
                 mg.rect(-item.w / 2, -item.h / 2, item.w, item.h);
@@ -512,10 +536,13 @@ export default function PhysicsCanvas() {
               } else if (item.type === 'piston') {
                 const w = item.w || 100;
                 const h = item.h || 20;
-                const sprite = PIXI.Sprite.from('/images/assets/obstacles/obstacle_piston.png');
+                const texture = PIXI.Assets.get('/images/assets/obstacles/obstacle_piston.png') || PIXI.Texture.from('/images/assets/obstacles/obstacle_piston.png');
+                const sprite = new PIXI.TilingSprite({
+                  texture: texture,
+                  width: w,
+                  height: h,
+                });
                 sprite.anchor.set(0.5);
-                sprite.width = w;
-                sprite.height = h;
                 g.addChild(sprite);
 
                 mg.rect(-w / 2, -h / 2, w, h);
@@ -545,6 +572,7 @@ export default function PhysicsCanvas() {
           let firstY = -Infinity;
           let secondY = -Infinity;
           let firstX = 400;
+          let firstChipId: string | null = null;
 
           // Buffer format: [id, x, y, vx, vy]
           for (let i = 0; i < buffer.length; i += 5) {
@@ -680,9 +708,40 @@ export default function PhysicsCanvas() {
               secondY = firstY;
               firstY = y;
               firstX = x;
+              if (isChip && survivor) firstChipId = survivor.id;
             } else if (y > secondY && y < WORLD_HEIGHT) {
               secondY = y;
             }
+          }
+          
+          // v5: Protagonist Lock-on Logic
+          if (!lockedProtagonistId && firstY / WORLD_HEIGHT > 0.90 && firstChipId) {
+            lockedProtagonistId = firstChipId;
+          }
+          
+          if (lockedProtagonistId) {
+            const protagonistPos = chipPositions.get(lockedProtagonistId);
+            if (protagonistPos) {
+              firstX = protagonistPos.x;
+              firstY = protagonistPos.y; // 결승선 넘어도 무조건 추적
+            }
+            if (firstY > WORLD_HEIGHT + 300) {
+              lockedProtagonistId = null; // 여운이 끝나면 락온 해제
+            }
+          }
+
+          // v5: Anti-Jitter Centroid Tracking
+          let centroidX = firstX;
+          let countPack = 0;
+          let sumX = 0;
+          for (const pos of chipPositions.values()) {
+            if (pos.y > firstY - 200) { // 선두 200px 이내 선두 그룹 
+              sumX += pos.x;
+              countPack++;
+            }
+          }
+          if (countPack > 0) {
+            centroidX = sumX / countPack;
           }
           
           // AI Camera Director
@@ -717,6 +776,16 @@ export default function PhysicsCanvas() {
                 finishZoomHoldTimer--;
               }
               
+              // v5: Time Dilation
+              if (progress > 0.95 && progress <= 1.0 && !isSlowMotionActive) {
+                isSlowMotionActive = true;
+                workerRef.current?.postMessage({ type: 'SET_TIME_SCALE', payload: { scale: 0.3 } });
+              }
+              if (progress > 1.0 && isSlowMotionActive) {
+                workerRef.current?.postMessage({ type: 'SET_TIME_SCALE', payload: { scale: 1.0 } });
+                isSlowMotionActive = false;
+              }
+              
               let targetX = currentCenter.x;
               let targetY = currentCenter.y;
               let lerpFactor = 0.05;
@@ -726,15 +795,18 @@ export default function PhysicsCanvas() {
                 if (progress > 0.75) lookAhead = 100;
                 if (progress > 0.88) lookAhead = 60;
                 
-                if (progress > 0.88) lerpFactor = 0.12;
-                else if (progress > 0.75) lerpFactor = 0.08;
+                // Spring Damping interpolation
+                let springFactor = 0.04;
+                if (progress > 0.75) springFactor = 0.06;
+                if (progress > 0.88) springFactor = 0.08;
                 
-                targetX = currentCenter.x + (firstX - currentCenter.x) * lerpFactor;
+                // Use CentroidX instead of firstX
+                targetX = currentCenter.x + (centroidX - currentCenter.x) * springFactor;
                 targetY = firstY + lookAhead;
                 
-                // Only lerp Y if not dragging
                 if (!isDraggingMinimap) {
-                  viewport.moveCenter(targetX, currentCenter.y + (targetY - currentCenter.y) * lerpFactor);
+                  // Y-axis uses slightly faster spring for responsiveness, X uses damped centroid
+                  viewport.moveCenter(targetX, currentCenter.y + (targetY - currentCenter.y) * springFactor);
                 }
               } else if (!isDraggingMinimap) {
                 // Not following, not dragging (e.g. tracking a specific chip after tap)
@@ -907,18 +979,8 @@ export default function PhysicsCanvas() {
 
   return (
     <div className={`relative w-full h-full flex flex-col items-center justify-center overflow-hidden ${isBroadcasterMode ? 'bg-[#00ff00]' : 'bg-black'}`}>
-      <LiveLeaderboard rankings={rankings} />
+      <LiveLeaderboard rankings={rankings} finishedFeed={finishedFeed} />
       <SkillEventOverlay activeSkill={activeSkill} />
-      
-      {/* Broadcaster / Streamer UI Layout */}
-      <div className="absolute top-6 right-6 z-50 flex flex-col gap-2 pointer-events-none items-end">
-        {finishedFeed.map((feed, idx) => (
-          <div key={idx} className="bg-black/60 backdrop-blur-md border border-white/20 rounded-xl px-4 py-3 flex items-center gap-3 animate-in slide-in-from-right fade-in duration-500 shadow-[0_0_20px_rgba(0,255,204,0.3)]">
-            <span className="text-xl font-black text-[#00ffcc]">🎉 {feed.rank}등</span>
-            <span className="text-white font-bold">{feed.survivor.name}</span>
-          </div>
-        ))}
-      </div>
 
       <div className="absolute bottom-6 left-6 z-50 flex gap-4">
         <button 
@@ -930,17 +992,17 @@ export default function PhysicsCanvas() {
       </div>
 
       {gameState === 'finished' && gameOverResult && (
-        <div className="absolute bottom-[104px] right-8 z-50 flex flex-col items-end animate-in slide-in-from-right fade-in duration-700 pointer-events-none">
+        <div className="absolute top-6 left-6 z-50 flex flex-col items-start animate-in slide-in-from-left fade-in duration-700 pointer-events-none">
           <h2 className="text-white font-black text-6xl tracking-tighter drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] mb-2">
             Winner
           </h2>
-          <div className="flex flex-col items-end gap-2 w-full">
+          <div className="flex flex-col items-start gap-2 w-full">
             {gameOverResult.winners.map((w: any, idx: number) => (
-              <div key={idx} className="flex items-center justify-end gap-4">
+              <div key={idx} className="flex items-center justify-start gap-4">
+                <div className="w-16 h-16 rounded-full shadow-[0_0_15px_currentColor] border-[3px] border-white/50" style={{ backgroundColor: w.color, color: w.color }}></div>
                 <span className="text-5xl font-black drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)]" style={{ color: w.color || '#fff' }}>
                   {w.name}
                 </span>
-                <div className="w-16 h-16 rounded-full shadow-[0_0_15px_currentColor] border-[3px] border-white/50" style={{ backgroundColor: w.color, color: w.color }}></div>
               </div>
             ))}
           </div>

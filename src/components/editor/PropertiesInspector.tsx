@@ -76,8 +76,9 @@ export default function PropertiesInspector() {
             <h4 className="text-xs font-bold text-gray-500 uppercase">Bumper Physics</h4>
             <div>
               <label className="text-xs text-gray-400 block mb-1">Restitution (Bounciness)</label>
-              <input type="range" min="0.5" max="3.0" step="0.1" value={item.restitution || 1.5} onChange={(e) => handleChange('restitution', Number(e.target.value))} className="w-full accent-orange-500" />
-              <div className="text-right text-xs text-white mt-1">{item.restitution || 1.5}</div>
+              <input type="range" min="0.5" max="2.0" step="0.1" value={item.restitution || 1.4} onChange={(e) => handleChange('restitution', Number(e.target.value))} className="w-full accent-orange-500" />
+              <div className="text-right text-xs text-white mt-1">{item.restitution || 1.4}</div>
+              <p className="text-[10px] text-gray-500 mt-1">1.0 초과는 에너지를 더해 튕김. 2.0 이상은 폭주를 유발하므로 상한 고정.</p>
             </div>
             <div>
               <label className="text-xs text-gray-400 block mb-1">Radius</label>
@@ -137,9 +138,14 @@ export default function PropertiesInspector() {
               <div className="text-right text-xs text-white mt-1">{item.radius || 150} px</div>
             </div>
             <div>
-              <label className="text-xs text-gray-400 block mb-1">Gravity Force</label>
-              <input type="range" min="1" max="20" step="1" value={item.force || 5} onChange={(e) => handleChange('force', Number(e.target.value))} className="w-full accent-white" />
+              <label className="text-xs text-gray-400 block mb-1">Gravity Force (강도)</label>
+              <input type="range" min="1" max="10" step="1" value={item.force || 5} onChange={(e) => handleChange('force', Number(e.target.value))} className="w-full accent-white" />
               <div className="text-right text-xs text-white mt-1">Force {item.force || 5}</div>
+              <p className="text-[10px] text-gray-500 mt-1">
+                {item.type === 'blackhole'
+                  ? '칩을 중심으로 빨아들이는 소용돌이(접선 회전 포함). 3=은은, 6=강력, 9+=탈출 곤란.'
+                  : '칩을 바깥으로 밀어내는 반발장. 3=은은, 6=강력, 9+=강하게 튕겨냄.'}
+              </p>
             </div>
           </div>
         )}
@@ -154,7 +160,7 @@ export default function PropertiesInspector() {
               <div className="text-right text-xs text-white mt-1">{item.radius || 30} px</div>
             </div>
             <p className="text-[10px] text-gray-500 mt-2 leading-relaxed">
-              ※ 칩이 구멍에 빠지면 1.5초 패널티 후 상단으로 리스폰됩니다.
+              ※ 칩이 구멍에 빠지면 1.5초 갇힌 뒤, 함정 위쪽(약 500px) 체크포인트로 되돌아갑니다.
             </p>
           </div>
         )}

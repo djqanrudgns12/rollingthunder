@@ -55,21 +55,30 @@ export default function EditorContainer() {
       const newX = Math.round(rawX / snapSize) * snapSize
       const newY = Math.round(rawY / snapSize) * snapSize
 
+      // 타입별 "바로 작동하는" 기본값(프리셋에서 검증된 값과 동일 스케일).
+      // 새 힘 모델 기준: 중력장 force 는 1~10, 범퍼 탄성 ≤ 2.0.
+      const radius =
+        type === 'pin' || type === 'bumper' ? 15 :
+        type === 'blackhole' ? 150 :
+        type === 'whitehole' ? 120 :
+        type === 'hole' ? 30 : undefined
+      const isPiston = type === 'piston'
       addItem({
         id: `item-${Date.now()}`,
         type,
         x: newX,
         y: newY,
-        radius: type === 'pin' || type === 'bumper' ? 15 : type === 'blackhole' ? 150 : undefined,
-        w: type === 'wall' ? 100 : undefined,
-        h: type === 'wall' ? 20 : undefined,
-        restitution: type === 'bumper' ? 1.5 : undefined,
+        radius,
+        w: type === 'wall' ? 100 : isPiston ? 120 : undefined,
+        h: type === 'wall' ? 20 : isPiston ? 20 : undefined,
+        restitution: type === 'bumper' ? 1.4 : undefined,
         friction: 0.1,
         rotation: 0,
         power: type === 'booster' ? 3 : undefined,
-        speed: type === 'windmill' ? 3 : undefined,
+        speed: type === 'windmill' ? 3 : isPiston ? 3 : undefined,
         color: type === 'portal' ? '#c084fc' : undefined,
-        force: type === 'blackhole' ? 5 : undefined
+        force: type === 'blackhole' || type === 'whitehole' ? 5 : undefined,
+        waypointB: isPiston ? { x: newX + 150, y: newY } : undefined,
       })
     }
   }
