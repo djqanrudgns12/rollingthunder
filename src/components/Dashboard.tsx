@@ -6,8 +6,21 @@ import { useState, useEffect, useRef } from 'react'
 import { createSession } from '@/actions/db'
 import MapLoadModal, { DEFAULT_MAPS } from './MapLoadModal'
 import ListManagerModal from './ListManagerModal'
-import { Tv, Shield, ShieldOff, Video, Map } from 'lucide-react'
+import { Tv, Shield, ShieldOff, Video, Map, Circle, Car, Rocket, Zap, Cat, Target } from 'lucide-react'
 import { toast } from 'sonner'
+
+// Skin Preview Helper Component
+function SkinPreviewIcon({ skinId }: { skinId: string }) {
+  switch (skinId) {
+    case 'horse': return <Zap className="w-5 h-5" />
+    case 'spaceship': return <Rocket className="w-5 h-5" />
+    case 'shuriken': return <Target className="w-5 h-5" />
+    case 'car': return <Car className="w-5 h-5" />
+    case 'blackhole': return <Circle className="w-5 h-5 animate-spin" />
+    case 'cat': return <Cat className="w-5 h-5" />
+    default: return <Circle className="w-5 h-5" />
+  }
+}
 
 // Simple Anonymizer Helper
 const ANIMAL_NAMES = ['사자', '호랑이', '토끼', '고양이', '강아지', '독수리', '돌고래', '상어', '거북이', '알파카', '기린', '코끼리']
@@ -192,159 +205,115 @@ export default function Dashboard() {
 
 
       <div className={`p-5 md:p-8 rounded-3xl w-full max-w-2xl flex flex-col gap-4 shadow-2xl transition-all duration-500 max-h-[calc(100vh-2rem)] overflow-hidden ${isBroadcasterMode ? 'bg-black border-2 border-green-500' : 'glass-panel-heavy'}`}>
-        {/* Header (Logo) - 항상 고정 */}
-        <div className="text-center flex flex-col items-center shrink-0">
-          <img src="/images/assets/brand_logo_masterpiece.png" alt="Rolling Thunder" className="w-48 mb-2 filter drop-shadow-[0_0_20px_rgba(0,255,204,0.3)] animate-pulse" />
-          <p className="text-[var(--text-secondary)] text-sm">무작위 생존 추첨 시뮬레이션 - 마스터피스 에디션</p>
+        {/* Header (Text Logo) - 항상 고정 */}
+        <div className="text-center flex flex-col items-center shrink-0 mb-6 animate-in fade-in slide-in-from-top-4">
+          <h1 className="text-5xl md:text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 drop-shadow-[0_0_15px_rgba(0,255,255,0.5)]">
+            ROLLING THUNDER
+          </h1>
+          <p className="text-lg font-bold mt-2 text-cyan-300 text-shadow-sm animate-pulse">오늘 우리 자웅을 가리자!</p>
         </div>
 
         {/* Body (Forms) - 화면이 작을 때 스크롤 됨 */}
         <div className="flex flex-col gap-3 overflow-y-auto scrollbar-hide flex-1 pb-2">
-          <div className="flex gap-2 shrink-0">
+          {/* 스킨 및 스킬 설정 영역 (상단 배치) */}
+          <div className="flex flex-col gap-3 bg-white/5 p-4 rounded-2xl border border-white/10 shrink-0 backdrop-blur-md shadow-[0_4px_30px_rgba(0,0,0,0.1)] transition-all hover:bg-white/10">
+            <div className="flex justify-between items-center">
+              <div className="flex flex-col">
+                <label className="text-xs text-[var(--accent-primary)] font-bold tracking-widest uppercase">참가자 스킨 일괄 적용</label>
+                <div className="flex items-center gap-3 mt-2">
+                  <div className="w-10 h-10 rounded-full bg-[var(--accent-primary)]/20 border-2 border-[var(--accent-primary)] flex items-center justify-center shadow-[0_0_15px_var(--accent-primary)] text-[var(--accent-primary)] shrink-0">
+                    <SkinPreviewIcon skinId={globalSkin} />
+                  </div>
+                  <select 
+                    className="bg-black/50 border border-white/10 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-[var(--accent-primary)] text-sm transition-colors flex-1"
+                    value={globalSkin}
+                    onChange={(e) => handleSkinChange(e.target.value)}
+                  >
+                    <option value="">기본 포커칩 (무작위 6종)</option>
+                    <option value="horse">경주마</option>
+                    <option value="spaceship">우주선</option>
+                    <option value="shuriken">표창</option>
+                    <option value="car">자동차</option>
+                    <option value="blackhole">[UR] 블랙홀</option>
+                    <option value="cat">[SR] 야옹이</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                <span className="text-xs text-[var(--accent-secondary)] font-bold tracking-widest uppercase">스킬 (SKILLS)</span>
+                <button 
+                  onClick={() => setSkillEnabled(!isSkillEnabled)}
+                  className={`w-10 h-5 rounded-full relative transition-colors duration-300 ${isSkillEnabled ? 'bg-[var(--accent-primary)]' : 'bg-white/20'}`}
+                >
+                  <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-black transition-transform duration-300 ${isSkillEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* 추첨 방 제목 및 맵 설정 */}
+          <div className="flex gap-2 shrink-0 flex-col md:flex-row">
             <input 
               type="text" 
               placeholder="추첨 방 제목" 
-              className="flex-[2] bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] transition-colors truncate-1-line"
+              className="flex-1 bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] transition-colors truncate-1-line"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
-          </div>
-          
-          <div className="flex flex-col gap-2 shrink-0">
             <button 
               onClick={() => setIsMapModalOpen(true)} 
-              className="relative w-full overflow-hidden bg-black/40 backdrop-blur-md border border-white/10 hover:border-[var(--accent-primary)] rounded-xl transition-all duration-300 group shadow-[0_4px_20px_rgba(0,0,0,0.5)] hover:shadow-[0_0_20px_var(--accent-primary)] hover:scale-[1.01]"
+              className="relative flex-[1.5] overflow-hidden bg-black/40 backdrop-blur-md border border-white/10 hover:border-[var(--accent-primary)] rounded-xl transition-all duration-300 group shadow-[0_4px_20px_rgba(0,0,0,0.5)] hover:shadow-[0_0_20px_var(--accent-primary)] hover:scale-[1.01]"
             >
-              {/* Animated gradient background on hover */}
               <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent-primary)]/0 via-[var(--accent-primary)]/10 to-[var(--accent-primary)]/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-              
-              <div className="relative p-4 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:border-[var(--accent-primary)] group-hover:bg-[var(--accent-primary)]/10 transition-colors">
-                    <Map className="w-6 h-6 text-white/70 group-hover:text-[var(--accent-primary)] transition-colors" />
+              <div className="relative px-4 py-3 flex items-center justify-between h-full">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:border-[var(--accent-primary)] group-hover:bg-[var(--accent-primary)]/10 transition-colors shrink-0">
+                    <Map className="w-4 h-4 text-white/70 group-hover:text-[var(--accent-primary)] transition-colors" />
                   </div>
                   <div className="flex flex-col items-start">
-                    <div className="flex items-center gap-2 mb-1">
-                      {customMapData ? (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30">커스텀 맵</span>
-                      ) : (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">기본 맵</span>
-                      )}
-                    </div>
-                    <h3 className="text-lg font-bold text-white group-hover:text-[var(--accent-primary)] transition-colors text-shadow-sm truncate max-w-[200px] md:max-w-[300px]">
+                    <h3 className="text-sm font-bold text-white group-hover:text-[var(--accent-primary)] transition-colors text-shadow-sm truncate max-w-[150px]">
                       {customMapData ? (customMapTitle || '이름 없는 커스텀 맵') : (DEFAULT_MAPS.find(m => m.id === selectedMapPreset)?.title || '랜덤 맵')}
                     </h3>
                   </div>
                 </div>
-                
                 <div className="flex items-center gap-2 text-white/40 group-hover:text-[var(--accent-primary)] transition-colors">
-                  <span className="text-xs font-bold uppercase tracking-wider hidden md:block">변경하기</span>
-                  <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-[var(--accent-primary)]/20">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                  <span className="text-xs font-bold uppercase tracking-wider hidden md:block">변경</span>
+                  <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-[var(--accent-primary)]/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                   </div>
                 </div>
               </div>
             </button>
           </div>
 
-          <div className="flex gap-2 shrink-0 items-stretch">
-            <textarea 
-              placeholder="참가자 이름 (쉼표/공백/줄바꿈 다중입력)" 
-              className="flex-[3] bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-secondary)] transition-colors text-sm resize-none scrollbar-hide"
-              rows={2}
-              value={nameInput}
-              onChange={(e) => {
-                setNameInput(e.target.value)
-                isTypingRef.current = true
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  handleAdd()
-                }
-              }}
-            />
-            <div className="flex flex-col gap-2 shrink-0 w-28">
-              <button onClick={handleAdd} className="flex-[2] bg-[var(--accent-secondary)] text-black font-bold rounded-xl hover:opacity-90 transition-opacity text-sm shadow-[0_0_15px_rgba(0,255,204,0.3)] min-h-[40px]">
-                추가
-              </button>
-              <div className="flex gap-1 flex-1 min-h-[24px]">
-                <button onClick={() => setIsListModalOpen(true)} className="flex-1 bg-white/10 text-white/70 font-bold rounded-lg hover:bg-white/20 hover:text-white transition-colors text-xs border border-white/5" title="다수의 명단을 저장하거나 불러옵니다">
-                  명단 관리
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-black/40 rounded-xl border border-white/5 p-3 min-h-[80px] shrink-0 overflow-y-auto flex flex-wrap gap-2 shadow-inner">
-            {participants.length === 0 && <p className="text-white/30 text-sm m-auto">참가자가 없습니다.</p>}
-            {participants.map(p => (
-              <div key={p.id} className="bg-white/10 border border-white/10 rounded-lg px-3 py-1.5 flex items-center gap-2 group relative backdrop-blur-sm">
-                <div className="w-3 h-3 rounded-full shadow-[0_0_10px_currentColor]" style={{ backgroundColor: p.color, color: p.color }}></div>
-                <span className="text-sm font-medium text-[var(--text-primary)] truncate-1-line max-w-[100px]">{p.name}</span>
-                {p.skinId && !p.skinId.startsWith('chip_base') && <span className="text-[10px] text-yellow-400 font-bold ml-1">{p.skinId.replace('UR_', '').replace('SR_', '')}</span>}
-                <button onClick={() => handleRemoveParticipant(p.id)} className="text-white/30 hover:text-red-400 opacity-0 md:opacity-100 transition-opacity shrink-0 ml-1">×</button>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex flex-col gap-4 mt-2 bg-black/20 p-4 rounded-xl border border-white/5 shrink-0">
-            {/* 스킨 일괄 설정 및 스킬 사용 여부 */}
-            <div className="flex flex-col gap-3 border-b border-white/5 pb-4">
-              <div className="flex justify-between items-center">
-                <label className="text-xs text-white/50 font-bold tracking-widest uppercase">참가자 스킨 일괄 적용 (Skin Settings)</label>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-white/50 font-bold tracking-widest uppercase">스킬 (Skills)</span>
-                  <button 
-                    onClick={() => setSkillEnabled(!isSkillEnabled)}
-                    className={`w-10 h-5 rounded-full relative transition-colors duration-300 ${isSkillEnabled ? 'bg-[var(--accent-primary)]' : 'bg-white/20'}`}
-                  >
-                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-black transition-transform duration-300 ${isSkillEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
-                  </button>
-                </div>
-              </div>
-              <select 
-                className="bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none text-sm w-full"
-                value={globalSkin}
-                onChange={(e) => handleSkinChange(e.target.value)}
-              >
-                <option value="">기본 포커칩 (무작위 6종)</option>
-                <option value="horse">경주마</option>
-                <option value="spaceship">우주선</option>
-                <option value="shuriken">표창</option>
-                <option value="car">자동차</option>
-                <option value="blackhole">[UR] 블랙홀</option>
-                <option value="cat">[SR] 야옹이</option>
-              </select>
-            </div>
-
-            {/* 게임 모드 설정 */}
-            <div className="flex flex-col gap-3 border-b border-white/5 pb-4">
+          {/* 게임 모드 설정 */}
+          <div className="flex flex-col gap-4 bg-black/20 p-4 rounded-xl border border-white/5 shrink-0">
+            <div className="flex flex-col gap-3 pb-2 border-b border-white/5">
               <label className="text-xs text-white/50 font-bold tracking-widest uppercase">게임 모드 (Game Mode)</label>
               <div className="flex gap-2">
                 <button 
                   onClick={() => setGameMode('speed')}
                   className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${gameMode === 'speed' ? 'bg-[var(--accent-primary)] text-black shadow-[0_0_10px_var(--accent-primary)]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                 >
-                  스피드 레이스
+                  스피드
                 </button>
                 <button 
                   onClick={() => setGameMode('turtle')}
                   className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${gameMode === 'turtle' ? 'bg-[var(--accent-secondary)] text-black shadow-[0_0_10px_var(--accent-secondary)]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                 >
-                  거북이 레이스
+                  거북이
                 </button>
                 <button 
                   onClick={() => setGameMode('custom')}
                   className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${gameMode === 'custom' ? 'bg-purple-500 text-white shadow-[0_0_10px_#a855f7]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                 >
-                  커스텀 레이스
+                  커스텀
                 </button>
                 <button 
                   onClick={() => setGameMode('random')}
                   className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${gameMode === 'random' ? 'bg-orange-500 text-white shadow-[0_0_10px_#f97316]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                 >
-                  랜덤 레이스
+                  랜덤
                 </button>
               </div>
               
@@ -366,16 +335,15 @@ export default function Dashboard() {
 
               {gameMode === 'random' && (
                 <div className="flex items-center gap-3 bg-black/40 p-3 rounded-lg border border-orange-500/30 animate-in fade-in slide-in-from-top-2">
-                  <span className="text-sm text-orange-300 font-bold">🎲 컴퓨터가 당첨 등수를 랜덤으로 결정합니다</span>
-                  <span className="text-xs text-orange-400/60 ml-auto">(시작 시 공개)</span>
+                  <span className="text-sm text-orange-300 font-bold">🎲 컴퓨터가 당첨 등수를 랜덤 결정</span>
                 </div>
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-6 pt-2">
+            <div className="grid grid-cols-2 gap-6 pt-1">
               <div className="flex flex-col gap-2">
                 <label className="text-xs text-[var(--accent-primary)] font-bold tracking-widest uppercase">
-                  {gameMode === 'speed' ? '당첨자 수 (명)' : gameMode === 'turtle' ? '최후의 생존자 수 (명)' : gameMode === 'random' ? '당첨자 수 (명)' : '당첨 등수 (등)'}
+                  {gameMode === 'speed' ? '당첨자 수 (명)' : gameMode === 'turtle' ? '최후의 생존자 (명)' : gameMode === 'random' ? '당첨자 수 (명)' : '당첨 등수 (등)'}
                 </label>
                 {gameMode === 'custom' ? (
                   <div className="flex items-center bg-black/50 rounded-xl overflow-hidden border border-white/10 mt-1">
@@ -383,27 +351,27 @@ export default function Dashboard() {
                       type="number" 
                       value={customWinningRank}
                       readOnly
-                      className="w-full bg-transparent text-center text-purple-300 font-mono text-xl py-3 focus:outline-none"
+                      className="w-full bg-transparent text-center text-purple-300 font-mono text-xl py-2 focus:outline-none"
                     />
                   </div>
                 ) : (
                   <div className="flex items-center bg-black/50 rounded-xl overflow-hidden border border-white/10 mt-1">
-                    <button onClick={() => setLocalWinnerCount(Math.max(1, localWinnerCount - 1))} className="flex-1 py-3 hover:bg-white/10 text-white/70 text-xl font-bold transition-colors">-</button>
+                    <button onClick={() => setLocalWinnerCount(Math.max(1, localWinnerCount - 1))} className="flex-1 py-2 hover:bg-white/10 text-white/70 text-xl font-bold transition-colors">-</button>
                     <input 
                       type="number" 
                       min={1} 
                       max={Math.max(1, participants.length - 1)}
                       value={localWinnerCount}
                       onChange={(e) => setLocalWinnerCount(Number(e.target.value))}
-                      className="w-16 bg-transparent text-center text-[var(--text-primary)] font-mono text-xl focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="w-16 bg-transparent text-center text-[var(--text-primary)] font-mono text-xl py-2 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
-                    <button onClick={() => setLocalWinnerCount(Math.min(Math.max(1, participants.length - 1), localWinnerCount + 1))} className="flex-1 py-3 hover:bg-white/10 text-white/70 text-xl font-bold transition-colors">+</button>
+                    <button onClick={() => setLocalWinnerCount(Math.min(Math.max(1, participants.length - 1), localWinnerCount + 1))} className="flex-1 py-2 hover:bg-white/10 text-white/70 text-xl font-bold transition-colors">+</button>
                   </div>
                 )}
               </div>
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between items-center">
-                  <label className="text-xs text-[var(--accent-secondary)] font-bold tracking-widest uppercase">Gimmick Density (기믹 밀도)</label>
+                  <label className="text-xs text-[var(--accent-secondary)] font-bold tracking-widest uppercase">Gimmick Density</label>
                   <span className="text-xs text-white/70 font-mono bg-white/10 px-2 py-0.5 rounded-md">{gimmickDensity}%</span>
                 </div>
                 <input 
@@ -412,9 +380,49 @@ export default function Dashboard() {
                   max={90}
                   value={gimmickDensity}
                   onChange={(e) => setGimmickDensity(Number(e.target.value))}
-                  className="accent-[var(--accent-secondary)] mt-3 cursor-pointer"
+                  className="accent-[var(--accent-secondary)] mt-2 cursor-pointer"
                 />
               </div>
+            </div>
+          </div>
+
+          {/* 참가자 입력 및 목록 */}
+          <div className="flex flex-col gap-2 shrink-0">
+            <div className="flex gap-2 items-stretch">
+              <textarea 
+                placeholder="참가자 이름 (쉼표/공백/줄바꿈 다중입력)" 
+                className="flex-[3] bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-secondary)] transition-colors text-sm resize-none scrollbar-hide h-[52px]"
+                value={nameInput}
+                onChange={(e) => {
+                  setNameInput(e.target.value)
+                  isTypingRef.current = true
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleAdd()
+                  }
+                }}
+              />
+              <div className="flex gap-2 shrink-0">
+                <button onClick={handleAdd} className="w-16 bg-[var(--accent-secondary)] text-black font-bold rounded-xl hover:opacity-90 transition-opacity text-sm shadow-[0_0_15px_rgba(0,255,204,0.3)]">
+                  추가
+                </button>
+                <button onClick={() => setIsListModalOpen(true)} className="w-16 bg-white/10 text-white/70 font-bold rounded-xl hover:bg-white/20 hover:text-white transition-colors text-xs border border-white/5" title="명단 관리">
+                  명단
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-black/40 rounded-xl border border-white/5 p-3 min-h-[80px] max-h-[160px] overflow-y-auto flex flex-wrap gap-2 shadow-inner">
+              {participants.length === 0 && <p className="text-white/30 text-sm m-auto">참가자가 없습니다.</p>}
+              {participants.map(p => (
+                <div key={p.id} className="bg-white/10 border border-white/10 rounded-lg px-3 py-1.5 flex items-center gap-2 group relative backdrop-blur-sm">
+                  <div className="w-3 h-3 rounded-full shadow-[0_0_10px_currentColor]" style={{ backgroundColor: p.color, color: p.color }}></div>
+                  <span className="text-sm font-medium text-[var(--text-primary)] truncate-1-line max-w-[100px]">{p.name}</span>
+                  <button onClick={() => handleRemoveParticipant(p.id)} className="text-white/30 hover:text-red-400 opacity-0 md:opacity-100 transition-opacity shrink-0 ml-1">×</button>
+                </div>
+              ))}
             </div>
           </div>
         </div>

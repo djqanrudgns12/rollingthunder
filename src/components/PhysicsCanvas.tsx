@@ -1351,6 +1351,30 @@ export default function PhysicsCanvas() {
       }
     }
   }, [survivors, targetWinnerCount, gimmickDensity, setSurvivors, setGameStage, customMapData, gameMode, customWinningRank, isSkillEnabled, randomWinningRanks])
+  const getOrdinalSuffix = (n: number) => {
+    const v = n % 100;
+    if (v >= 11 && v <= 13) return `${n}TH`;
+    const lastDigit = n % 10;
+    if (lastDigit === 1) return `${n}ST`;
+    if (lastDigit === 2) return `${n}ND`;
+    if (lastDigit === 3) return `${n}RD`;
+    return `${n}TH`;
+  };
+
+  const getRankText = (mode: string, idx: number) => {
+    if (mode === 'custom') {
+      return getOrdinalSuffix(customWinningRank);
+    }
+    if (mode === 'random') {
+      const sortedRanks = [...randomWinningRanks].sort((a, b) => a - b);
+      const rank = sortedRanks[idx] || (idx + 1);
+      return getOrdinalSuffix(rank);
+    }
+    if (mode === 'turtle') {
+      return '꼴등!';
+    }
+    return getOrdinalSuffix(idx + 1);
+  };
 
   return (
     <div className={`relative w-full h-full flex flex-col items-center justify-center overflow-hidden ${isBroadcasterMode ? 'bg-[#00ff00]' : 'bg-black'}`}>
@@ -1398,7 +1422,7 @@ export default function PhysicsCanvas() {
           </div>
           <h2 className="animate-victory-pulse font-black text-6xl tracking-tighter text-[#FFD700] mb-2 drop-shadow-[0_0_15px_rgba(255,215,0,0.5)] text-center">
             {gameMode === 'random' ? (gameOverResult.winners.length === 1 ? 'Lucky Winner!' : 'Lucky Winners!') :
-             (gameOverResult.winners.length === 1 ? 'The Winner!' : 'Top Survivors!')}
+             (gameOverResult.winners.length === 1 ? 'Victory!' : 'Top Survivors!')}
           </h2>
           <span className="text-white/90 text-xl font-bold mb-6 tracking-widest drop-shadow-md bg-black/40 px-4 py-1 rounded-full border border-white/20">
             {gameMode === 'speed' ? '스피드 레이스' : 
@@ -1409,10 +1433,10 @@ export default function PhysicsCanvas() {
           <div className="flex flex-col items-center gap-3 w-full bg-black/60 backdrop-blur-md px-6 py-6 rounded-3xl border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.8)] pointer-events-auto">
             {gameOverResult.winners.map((w: any, idx: number) => (
               <div key={idx} className="flex items-center justify-between w-full gap-4 px-2 py-2 border-b border-white/5 last:border-0">
-                <span className={`text-2xl font-black w-16 text-center ${idx === 0 ? 'text-[#FFD700]' : idx === 1 ? 'text-[#C0C0C0]' : idx === 2 ? 'text-[#CD7F32]' : 'text-white/50'}`}>
-                  {idx + 1}{idx === 0 ? 'ST' : idx === 1 ? 'ND' : idx === 2 ? 'RD' : 'TH'}
+                <span className={`text-2xl font-black w-20 text-center whitespace-nowrap ${idx === 0 ? 'text-[#FFD700]' : idx === 1 ? 'text-[#C0C0C0]' : idx === 2 ? 'text-[#CD7F32]' : 'text-white/50'}`}>
+                  {getRankText(gameMode, idx)}
                 </span>
-                <div className="w-10 h-10 rounded-full shadow-[0_0_15px_currentColor] border-[2px] border-white/40 shrink-0" style={{ backgroundColor: w.color, color: w.color }}></div>
+                <div className="w-8 h-8 rounded-full shadow-[0_0_15px_currentColor] border-[2px] border-white/40 shrink-0" style={{ backgroundColor: w.color, color: w.color }}></div>
                 <span className="text-2xl font-black truncate flex-1 text-left" style={{ color: w.color || '#fff' }}>
                   {w.name}
                 </span>

@@ -561,6 +561,14 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       ...arc(400, 2200, 280, 120, 240, { seg: 8, rest: 0.25 }),
       { id: 'rf_wh3', type: 'whitehole', x: 400, y: 2120, radius: 175, force: 6 },
       ...pinField(2560, 1, { spacing: 62, bumperEvery: 4 }),
+      // 사이드 기믹: 원형 사발 옆 빗금(고립) 구간 풍차 배치
+      { id: 'rf_wm1', type: 'windmill', x: 80, y: 680, speed: 7 },
+      { id: 'rf_wm2', type: 'windmill', x: 720, y: 680, speed: -7 },
+      { id: 'rf_wm3', type: 'windmill', x: 80, y: 1440, speed: 7 },
+      { id: 'rf_wm4', type: 'windmill', x: 720, y: 1440, speed: -7 },
+      { id: 'rf_wm5', type: 'windmill', x: 80, y: 2200, speed: 7 },
+      { id: 'rf_wm6', type: 'windmill', x: 720, y: 2200, speed: -7 },
+
       // 사이드 보강: arc 사발 바깥쪽 사이드 직낙 차단
       sideKicker(450, 'left', { deg: 22 }), sideKicker(400, 'right', { deg: 22 }),
       sideBumper(950, 'left'), sideBumper(980, 'right'),
@@ -568,6 +576,10 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       sideBumper(1660, 'left'), sideBumper(1700, 'right'),
       sideKicker(2050, 'left'), sideKicker(2080, 'right'),
       sideBumper(2430, 'left'), sideBumper(2460, 'right'),
+      // 사이드 기믹: 하단 사선 벽 양 끝단(모서리) 고립 방지 풍차
+      { id: 'rf_wm7', type: 'windmill', x: 50, y: 2680, speed: 8 },
+      { id: 'rf_wm8', type: 'windmill', x: 750, y: 2680, speed: -8 },
+
       // 출구: 광폭 완만 사발 — 가장자리 급경사(30°) + 중앙 완만(8°)
       // 검산: 가장자리 inner_end = 80+69=149, 720-69=651
       { id: 'rf_ex1', type: 'wall', x: 80, y: 2720, w: 160, h: 16, rotation: 30, friction: 0.07 },
