@@ -59,17 +59,13 @@ export default function SkillLogOverlay() {
       {/* 로그 본체: 스크롤 가능한 대화창 영역 */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2 custom-scrollbar"
-        style={{
-          // 스타크래프트 대화창처럼 하단부터 로그가 쌓이게끔 역방향 정렬
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'flex-end',
-        }}
+        className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2 custom-scrollbar flex flex-col"
       >
-        <AnimatePresence initial={false}>
-          {skillLogs.map((log: SkillLogEntry) => {
-            const skillInfo = SKILL_DISPLAY[log.skill]
+        {/* mt-auto를 사용하여 아이템이 적을 때는 하단에 정렬되고, 많아지면 정상적으로 위/아래 스크롤 가능하게 함 */}
+        <div className="mt-auto flex flex-col">
+          <AnimatePresence initial={false}>
+            {skillLogs.map((log: SkillLogEntry) => {
+              const skillInfo = SKILL_DISPLAY[log.skill]
             const skillColor = skillInfo?.color || '#ffffff'
 
             return (
@@ -119,6 +115,7 @@ export default function SkillLogOverlay() {
             )
           })}
         </AnimatePresence>
+        </div>
       </div>
     </div>
   )

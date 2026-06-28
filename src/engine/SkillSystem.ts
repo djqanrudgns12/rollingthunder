@@ -72,7 +72,7 @@ export class SkillSystem {
   private static activeEntries: ActiveSkillEntry[] = [];
 
   // ── 물리 속성 재계산 (중복 스킬 대응) ──────────────────────────────
-  private static recalcPhysics(body: RAPIER.RigidBody, chipId: string) {
+  public static recalcPhysics(body: RAPIER.RigidBody, chipId: string) {
     // 칩의 기본 물리 속성 (ChipFactory.ts 참조)
     let targetGravity = 1.0;
     let targetDamping = 0.18;
@@ -274,7 +274,7 @@ export class SkillSystem {
 
     for (const chip of activeChips) {
       const data = chip.userData as any;
-      if (!data || data.type !== 'chip' || data.id === magnetChipId) continue;
+      if (!data || data.type !== 'chip' || data.finished || data.id === magnetChipId) continue;
 
       const cPos = chip.translation();
       const dx = mPos.x - cPos.x;

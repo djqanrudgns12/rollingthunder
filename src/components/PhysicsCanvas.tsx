@@ -11,10 +11,10 @@ import type { EditorItem } from '@/store/editorStore'
 import LiveLeaderboard from './LiveLeaderboard'
 import { generateSkillMessage } from './SkillLogOverlay'
 import { Hand, Volume2, VolumeX, Maximize, Video } from 'lucide-react'
-import confetti from 'canvas-confetti'
 import gsap from 'gsap'
 import { GlowFilter, MotionBlurFilter, ShockwaveFilter, ColorOverlayFilter } from 'pixi-filters'
 import { getPresetMeta, MapPresets } from '@/engine/MapPresets'
+import { CameraDirector } from './cameraDirector'
 // 맵 가로 폭은 고정 (물리엔진·카메라·미니맵 공유)
 const WORLD_WIDTH = 800;
 // WORLD_HEIGHT는 맵 프리셋에 따라 동적으로 결정됨 (기본값 2400)
@@ -27,7 +27,6 @@ export default function PhysicsCanvas() {
   const [finishedFeed, setFinishedFeed] = useState<{ rank: number, survivor: any }[]>([])
   const [gameState, setGameState] = useState<'idle' | 'playing' | 'finished'>('idle')
   const [gameOverResult, setGameOverResult] = useState<{winners: any[], mode: string} | null>(null)
-  const [isAutoFollow, setIsAutoFollow] = useState(true)
   const [showRandomPopup, setShowRandomPopup] = useState(false)
   
   const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks } = useGameStore()
@@ -81,22 +80,23 @@ export default function PhysicsCanvas() {
     let currentRankings: any[] = [];
     
     let activeChipsCount = 0;
-    let targetManualPos: { x: number, y: number } | null = null;
-    let targetManualChipId: string | null = null;
     const chipPositions = new Map<string, { x: number, y: number }>();
-    
-    // AI Camera Director & Minimap states
-    let finishZoomHoldTimer = 0;
-    let isDraggingMinimap = false;
-    let minimapPointerDownTime = 0;
-    let minimapPointerDownPos = { x: 0, y: 0 };
-    
-    // v5 Protagonist Lock-on & Time Dilation
-    let lockedProtagonistId: string | null = null;
-    let isSlowMotionActive = false;
+
+    // 스마트 카메라 디렉터(단일 두뇌). lastCamMs: 프레임 간 dt 계산용.
+    let cameraDirector: CameraDirector | null = null;
+    let lastCamMs = performance.now();
+
+    // 미니맵 인터랙션 상태(탭/드래그를 이동거리로 구분). 화면상 미니맵 사각형을 저장해
+    // 윈도우 레벨 포인터 이벤트로 직접 처리(Pixi 히트테스트 의존 제거).
+    let minimapPointerActive = false;
+    let minimapMoved = false;
+    let minimapDownScreen = { x: 0, y: 0 };
+    let minimapScreenRect = { x: 20, y: 0, w: 0, h: 0, scale: 1 };
     
     // Skill VFX Map
     const activeVFXMap = new Map<string, { cleanup: () => void }>();
+    let intervals: ReturnType<typeof setInterval>[] = [];
+    let tickers: Array<(ticker: PIXI.Ticker) => void> = [];
     
     // 'random' 맵 처리 로직: 10개 맵 중 하나를 무작위로 선택
     const actualMapPreset = selectedMapPreset === 'random' ? 
@@ -230,13 +230,22 @@ export default function PhysicsCanvas() {
         viewport.drag().pinch().wheel().decelerate()
           .clamp({ left: -200, right: WORLD_WIDTH + 200, top: -500, bottom: WORLD_HEIGHT + 200, underflow: 'center' }); // clamp bounds
         
-        viewport.on('drag-start', () => setIsAutoFollow(false));
-        viewport.on('wheel', () => setIsAutoFollow(false));
-        viewport.on('pinch-start', () => setIsAutoFollow(false));
+        // 사용자가 직접 화면을 조작하면 카메라 디렉터를 수동 모드로(잠시 후 자동 복귀)
+        viewport.on('drag-start', () => cameraDirector?.notifyUserPan());
+        viewport.on('wheel', () => cameraDirector?.notifyUserPan());
+        viewport.on('pinch-start', () => cameraDirector?.notifyUserPan());
 
-        // Clamp zoom
-        viewport.clampZoom({ minWidth: 400, maxWidth: 1600 });
+        // 줌 제어는 카메라 디렉터가 단독 소유(clampZoom 플러그인은 시네마틱 줌과 충돌하므로 미사용)
         viewport.moveCenter(400, 200);
+
+        // 스마트 카메라 디렉터 생성 (뷰포트 + 화면/월드 크기 + 슬로모션 콜백)
+        cameraDirector = new CameraDirector(viewport, {
+          worldWidth: WORLD_WIDTH,
+          worldHeight: WORLD_HEIGHT,
+          screenW: window.innerWidth,
+          screenH: window.innerHeight,
+          setTimeScale: (scale: number) => workerRef.current?.postMessage({ type: 'SET_TIME_SCALE', payload: { scale } }),
+        });
 
         // Filters
         const shockwave = new ShockwaveFilter();
@@ -291,69 +300,72 @@ export default function PhysicsCanvas() {
         viewIndicator = new PIXI.Graphics();
         pipViewport.addChild(viewIndicator);
         
-        // Interaction (Click & Drag to pan)
         pipViewport.eventMode = 'static';
-        
-        const smartChipSearch = (localPos: {x: number, y: number}) => {
-          let closestChipId: string | null = null;
-          let minDistSq = Infinity;
-          const SEARCH_RADIUS_SQ = 50 * 50; // v5: 초정밀 타겟팅 (반경 50픽셀)
+
+        // 탭으로 누른 지점 근처의 칩(반경 60px)을 찾는다(있으면 락온 추적).
+        const findChipNear = (lx: number, ly: number): string | null => {
+          let best: string | null = null;
+          let minDistSq = 60 * 60;
           for (const [id, pos] of chipPositions.entries()) {
-            const dx = pos.x - localPos.x;
-            const dy = pos.y - localPos.y;
-            const distSq = dx * dx + dy * dy;
-            if (distSq < minDistSq && distSq < SEARCH_RADIUS_SQ) {
-              minDistSq = distSq;
-              closestChipId = id;
-            }
+            const dx = pos.x - lx, dy = pos.y - ly;
+            const d = dx * dx + dy * dy;
+            if (d < minDistSq) { minDistSq = d; best = id; }
           }
-          if (closestChipId) {
-            targetManualChipId = closestChipId;
-            targetManualPos = null;
-          } else {
-            targetManualChipId = null;
-            targetManualPos = { x: localPos.x, y: localPos.y };
-          }
+          return best;
         };
 
-        pipViewport.on('pointerdown', (e) => {
-          minimapPointerDownTime = Date.now();
-          const localPos = pipViewport.toLocal(e.global);
-          minimapPointerDownPos = { x: localPos.x, y: localPos.y };
-          isDraggingMinimap = true;
+        // 화면 좌표가 미니맵 안인지 + 월드 좌표로 변환
+        const inMinimap = (sx: number, sy: number) => {
+          const r = minimapScreenRect;
+          return sx >= r.x && sx <= r.x + r.w && sy >= r.y && sy <= r.y + r.h;
+        };
+        const minimapToWorld = (sx: number, sy: number) => {
+          const r = minimapScreenRect;
+          return { x: (sx - r.x) / r.scale, y: (sy - r.y) / r.scale };
+        };
 
-          // 즉시 해당 좌표로 카메라 이동 (Zero-Lerp)
-          setIsAutoFollow(false);
-          viewport.moveCenter(localPos.x, localPos.y);
-          targetManualPos = null;
-          targetManualChipId = null;
-        });
-
-        pipViewport.on('pointermove', (e) => {
-          if (!isDraggingMinimap) return;
-          const localPos = pipViewport.toLocal(e.global);
-          // 드래그 중: 1:1 즉시 동기화 (스크롤바처럼)
-          viewport.moveCenter(localPos.x, localPos.y);
-        });
-
-        app.renderer.events.cursorStyles.default = 'auto';
-        pipViewport.cursor = 'pointer';
+        // 미니맵 인터랙션은 윈도우 레벨에서 처리(아래 전체화면 메인 뷰포트가 Pixi 히트테스트를
+        // 가로채 클릭이 안 먹던 문제를 우회). 미니맵 위 조작 동안은 메인 드래그를 일시정지.
         if (typeof window !== 'undefined') {
-          window.addEventListener('pointerup', () => { 
-            if (!isDraggingMinimap) return;
-            const elapsed = Date.now() - minimapPointerDownTime;
-            isDraggingMinimap = false;
-            
-            // 짧은 클릭(Tap) 감지
-            if (elapsed < 200) {
-              smartChipSearch(minimapPointerDownPos);
-            } else {
-              // 손 놓으면 즉시 자동 추적으로 복귀
-              setIsAutoFollow(true);
-              targetManualPos = null;
-              targetManualChipId = null;
+          const onDown = (ev: PointerEvent) => {
+            if (!inMinimap(ev.clientX, ev.clientY)) return;
+            minimapPointerActive = true;
+            minimapMoved = false;
+            minimapDownScreen = { x: ev.clientX, y: ev.clientY };
+            try { viewport.plugins.pause('drag'); } catch {}
+          };
+          const onMove = (ev: PointerEvent) => {
+            if (!minimapPointerActive) return;
+            const dx = ev.clientX - minimapDownScreen.x;
+            const dy = ev.clientY - minimapDownScreen.y;
+            if (!minimapMoved && dx * dx + dy * dy > 36) {
+              minimapMoved = true;
+              cameraDirector?.minimapScrubStart();
             }
-          });
+            if (minimapMoved) {
+              const w = minimapToWorld(ev.clientX, ev.clientY);
+              cameraDirector?.minimapScrub(w.x, w.y);
+            }
+          };
+          const onUp = () => {
+            if (!minimapPointerActive) return;
+            minimapPointerActive = false;
+            try { viewport.plugins.resume('drag'); } catch {}
+            if (minimapMoved) {
+              cameraDirector?.minimapScrubEnd();
+            } else {
+              const w = minimapToWorld(minimapDownScreen.x, minimapDownScreen.y);
+              cameraDirector?.minimapJump(w.x, w.y, findChipNear(w.x, w.y));
+            }
+          };
+          window.addEventListener('pointerdown', onDown);
+          window.addEventListener('pointermove', onMove);
+          window.addEventListener('pointerup', onUp);
+          (app as any)._minimapInputCleanup = () => {
+            window.removeEventListener('pointerdown', onDown);
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+          };
         }
 
         // Draw border for PiP
@@ -391,6 +403,9 @@ export default function PhysicsCanvas() {
           pipBorder.stroke({ width: 2, color: 0x00ffcc, alpha: 0.8 });
           
           pipViewport.position.set(20, pipY);
+          // 윈도우 레벨 미니맵 클릭 처리를 위한 화면 사각형/스케일 저장
+          minimapScreenRect = { x: 20, y: pipY, w: currentMinimapWidth, h: currentMinimapHeight, scale: currentMinimapHeight / WORLD_HEIGHT };
+          cameraDirector?.resize(window.innerWidth, window.innerHeight);
         };
         updateMinimapPos();
         window.addEventListener('resize', updateMinimapPos);
@@ -398,6 +413,16 @@ export default function PhysicsCanvas() {
 
         // Web Worker Initialization
         workerRef.current = new Worker(new URL('../engine/physics.worker.ts', import.meta.url));
+        workerRef.current.onerror = (err) => {
+          console.error("Worker error:", err.message, err.filename, err.lineno);
+          const errDiv = document.createElement('div');
+          errDiv.style.color = 'yellow';
+          errDiv.style.position = 'absolute';
+          errDiv.style.top = '100px';
+          errDiv.style.zIndex = '9999';
+          errDiv.innerText = "Worker Error: " + err.message;
+          document.body.appendChild(errDiv);
+        };
       } catch (e: any) {
         console.error("DEBUG CRASH:", e.stack);
         const errDiv = document.createElement('div');
@@ -409,16 +434,6 @@ export default function PhysicsCanvas() {
         errDiv.innerText = e.stack || e.message;
         document.body.appendChild(errDiv);
       }
-      workerRef.current!.onerror = (err) => {
-        console.error("Worker error:", err.message, err.filename, err.lineno);
-        const errDiv = document.createElement('div');
-        errDiv.style.color = 'yellow';
-        errDiv.style.position = 'absolute';
-        errDiv.style.top = '100px';
-        errDiv.style.zIndex = '9999';
-        errDiv.innerText = "Worker Error: " + err.message;
-        document.body.appendChild(errDiv);
-      };
 
       const applySkillVFX = (chipId: string, skill: string) => {
         const container = graphicsMap.get(chipId);
@@ -696,6 +711,7 @@ export default function PhysicsCanvas() {
                 lightning.destroy();
               }
             }, 80);
+            intervals.push(flashInterval);
 
             // 목적지 쇼크웨이브
             if (shockwaveRef.current) {
@@ -731,9 +747,10 @@ export default function PhysicsCanvas() {
       };
 
       const removeSkillVFX = (chipId: string) => {
-        const vfx = activeVFXMap.get(chipId);
-        if (vfx) {
-          vfx.cleanup();
+        const container = graphicsMap.get(chipId);
+        if (container && !container.destroyed) {
+          const vfx = activeVFXMap.get(chipId);
+          if (vfx) vfx.cleanup();
           activeVFXMap.delete(chipId);
         }
       };
@@ -810,10 +827,13 @@ export default function PhysicsCanvas() {
                 g.addChild(sprite);
 
                 const speed = item.speed || 3;
-                app.ticker.add((ticker) => {
+                const windTick = (ticker: PIXI.Ticker) => {
+                  if (g.destroyed || mg.destroyed) return;
                   g.rotation += speed * (ticker.deltaMS / 1000);
                   mg.rotation += speed * (ticker.deltaMS / 1000);
-                });
+                };
+                app.ticker.add(windTick);
+                tickers.push(windTick);
                 mg.rect(-50, -5, 100, 10);
                 mg.rect(-5, -50, 10, 100);
                 mg.fill({ color: 0x00ffff, alpha: 0.6 });
@@ -877,10 +897,29 @@ export default function PhysicsCanvas() {
                 mg.rect(-w / 2, -h / 2, w, h);
                 mg.fill({ color: 0xffcc00, alpha: 0.6 });
               }
-              g.position.set(item.x, item.y);
-              g.rotation = item.rotation || 0;
               
-              mg.position.set(item.x, item.y);
+              if (item.type === 'piston' && item.waypointB) {
+                const speed = item.speed || 2;
+                const ax = item.x, ay = item.y;
+                const bx = item.waypointB.x, by = item.waypointB.y;
+                let t = 0;
+                const pistonTick = (ticker: PIXI.Ticker) => {
+                  if (g.destroyed || mg.destroyed) return;
+                  t += (ticker.deltaMS * 60 / 1000);
+                  const phase = (Math.sin(t * speed * 0.01) + 1) / 2;
+                  g.x = ax + (bx - ax) * phase;
+                  g.y = ay + (by - ay) * phase;
+                  mg.x = ax + (bx - ax) * phase;
+                  mg.y = ay + (by - ay) * phase;
+                };
+                app.ticker.add(pistonTick);
+                tickers.push(pistonTick);
+              } else {
+                g.position.set(item.x, item.y);
+                mg.position.set(item.x, item.y);
+              }
+              
+              g.rotation = item.rotation || 0;
               mg.rotation = item.rotation || 0;
               minimapStatic.addChild(mg);
 
@@ -1054,134 +1093,13 @@ export default function PhysicsCanvas() {
             }
           }
           
-          // v5: Protagonist Lock-on Logic
-          if (!lockedProtagonistId && firstY / WORLD_HEIGHT > 0.90 && firstChipId) {
-            lockedProtagonistId = firstChipId;
-          }
-          
-          if (lockedProtagonistId) {
-            const protagonistPos = chipPositions.get(lockedProtagonistId);
-            if (protagonistPos) {
-              firstX = protagonistPos.x;
-              firstY = protagonistPos.y; // 결승선 넘어도 무조건 추적
-            }
-            if (firstY > WORLD_HEIGHT + 300) {
-              lockedProtagonistId = null; // 여운이 끝나면 락온 해제
-            }
-          }
-
-          // v5: Anti-Jitter Centroid Tracking
-          let centroidX = firstX;
-          let countPack = 0;
-          let sumX = 0;
-          for (const pos of chipPositions.values()) {
-            if (pos.y > firstY - 200) { // 선두 200px 이내 선두 그룹 
-              sumX += pos.x;
-              countPack++;
-            }
-          }
-          if (countPack > 0) {
-            centroidX = sumX / countPack;
-          }
-          
-          // AI Camera Director
-          if (firstY !== -Infinity) {
-            setIsAutoFollow(prevAutoFollow => {
-              const currentCenter = viewport.center;
-              const progress = firstY / WORLD_HEIGHT; // 0.0 ~ 1.0+
-              
-              // 1. Calculate dynamic zoom based on progress
-              let phaseZoom = 1.0;
-              const MAX_ZOOM = 2.5;
-              if (progress >= 0.97) {
-                phaseZoom = MAX_ZOOM;
-              } else if (progress >= 0.88) {
-                const t = (progress - 0.88) / (0.97 - 0.88);
-                phaseZoom = 1.5 + (t * t) * 1.0; // Ease-in curve
-              } else if (progress >= 0.75) {
-                const t = (progress - 0.75) / (0.88 - 0.75);
-                phaseZoom = 1.0 + t * 0.5; // Linear
-              }
-              
-              let targetZoom = phaseZoom;
-              
-              // Rivalry zoom logic
-              if (secondY !== -Infinity && firstY - secondY < 40) {
-                targetZoom = Math.max(targetZoom, 1.4);
-              }
-              
-              // Finish hold
-              if (finishZoomHoldTimer > 0) {
-                targetZoom = MAX_ZOOM;
-                finishZoomHoldTimer--;
-              }
-              
-              // v5: Time Dilation
-              if (progress > 0.95 && progress <= 1.0 && !isSlowMotionActive) {
-                isSlowMotionActive = true;
-                workerRef.current?.postMessage({ type: 'SET_TIME_SCALE', payload: { scale: 0.3 } });
-              }
-              if (progress > 1.0 && isSlowMotionActive) {
-                workerRef.current?.postMessage({ type: 'SET_TIME_SCALE', payload: { scale: 1.0 } });
-                isSlowMotionActive = false;
-              }
-              
-              let targetX = currentCenter.x;
-              let targetY = currentCenter.y;
-              let lerpFactor = 0.05;
-
-              if (prevAutoFollow) {
-                let lookAhead = 150;
-                if (progress > 0.75) lookAhead = 100;
-                if (progress > 0.88) lookAhead = 60;
-                
-                // Spring Damping interpolation
-                let springFactor = 0.04;
-                if (progress > 0.75) springFactor = 0.06;
-                if (progress > 0.88) springFactor = 0.08;
-                
-                // Use CentroidX instead of firstX
-                targetX = currentCenter.x + (centroidX - currentCenter.x) * springFactor;
-                targetY = firstY + lookAhead;
-                
-                if (!isDraggingMinimap) {
-                  // Y-axis uses slightly faster spring for responsiveness, X uses damped centroid
-                  viewport.moveCenter(targetX, currentCenter.y + (targetY - currentCenter.y) * springFactor);
-                }
-              } else if (!isDraggingMinimap) {
-                // Not following, not dragging (e.g. tracking a specific chip after tap)
-                if (targetManualChipId) {
-                  const pos = chipPositions.get(targetManualChipId);
-                  if (pos) {
-                    targetX = pos.x;
-                    targetY = pos.y + 100;
-                    targetZoom = 1.2;
-                    lerpFactor = 0.2;
-                  }
-                } else if (targetManualPos) {
-                  targetX = targetManualPos.x;
-                  targetY = targetManualPos.y;
-                  targetZoom = 1;
-                  lerpFactor = 0.25;
-                }
-                
-                viewport.moveCenter(
-                  currentCenter.x + (targetX - currentCenter.x) * lerpFactor,
-                  currentCenter.y + (targetY - currentCenter.y) * lerpFactor
-                );
-                
-                // Clear manual target if reached
-                if (targetManualPos && Math.abs(currentCenter.x - targetManualPos.x) < 5 && Math.abs(currentCenter.y - targetManualPos.y) < 5) {
-                  targetManualPos = null;
-                }
-              }
-
-              // Apply zoom
-              viewport.scale.x += (targetZoom - viewport.scale.x) * 0.08;
-              viewport.scale.y += (targetZoom - viewport.scale.y) * 0.08;
-
-              return prevAutoFollow;
-            });
+          // ── 스마트 카메라 디렉터: 단일 목표 + 단일 지수 댐핑 ──
+          // (선두 그룹을 여유있게 프레이밍, 결착/우승에서만 시네마틱 줌인+슬로모션)
+          if (cameraDirector) {
+            const nowMs = performance.now();
+            const dtSec = (nowMs - lastCamMs) / 1000;
+            lastCamMs = nowMs;
+            cameraDirector.update(dtSec, chipPositions, currentRankings[0]?.id ?? null);
           }
           
           // Background Parallax & Theme Zone Color
@@ -1199,7 +1117,8 @@ export default function PhysicsCanvas() {
             }
           }
 
-          // Update Viewport Indicator
+          // Update Viewport Indicator — 월드 경계로 clamp 하여 트랙 폭 안의 깔끔한 밴드로 표시
+          // (visibleW = innerWidth/zoom 가 트랙 폭 800을 넘쳐 "가로 꽉 찬 박스"가 되던 문제 해결)
           if (viewIndicator) {
             viewIndicator.clear();
             const currentZoom = viewport.scale.x;
@@ -1207,13 +1126,14 @@ export default function PhysicsCanvas() {
             const visibleH = window.innerHeight / currentZoom;
             const cx = viewport.center.x;
             const cy = viewport.center.y;
-            viewIndicator.rect(
-              cx - visibleW / 2,
-              cy - visibleH / 2,
-              visibleW,
-              visibleH
-            );
-            viewIndicator.stroke({ width: 12 / currentZoom, color: 0x00ffcc, alpha: 0.9 });
+            const x0 = Math.max(0, cx - visibleW / 2);
+            const x1 = Math.min(WORLD_WIDTH, cx + visibleW / 2);
+            const y0 = Math.max(0, cy - visibleH / 2);
+            const y1 = Math.min(WORLD_HEIGHT, cy + visibleH / 2);
+            const sw = Math.max(2, 8 / currentZoom);
+            viewIndicator.rect(x0, y0, x1 - x0, y1 - y0);
+            viewIndicator.fill({ color: 0x00ffcc, alpha: 0.12 });
+            viewIndicator.stroke({ width: sw, color: 0x00ffcc, alpha: 0.9 });
           }
 
         } else if (type === 'SOUND_EFFECT') {
@@ -1263,7 +1183,8 @@ export default function PhysicsCanvas() {
           currentRankings = payload;
           setRankings(payload);
         } else if (type === 'CHIP_FINISHED') {
-          finishZoomHoldTimer = 18; // 약 0.3초 줌 홀드 (60fps 기준)
+          // 도달자(우승 아님) 가벼운 강조: 짧은 줌 펀치(슬로모션 없음)
+          cameraDirector?.flashFinisher();
           setFinishedFeed(prev => [...prev, payload]);
           
           // Phase 1: Local Shockwave
@@ -1293,16 +1214,9 @@ export default function PhysicsCanvas() {
           setGameState('finished');
           setGameOverResult(payload);
           triggerShockwave();
-          
-          // Phase 2: Time Freeze (Slow motion)
-          if (workerRef.current) {
-            workerRef.current.postMessage({ type: 'SET_TIME_SCALE', payload: { scale: 0.15 } });
-            setTimeout(() => {
-              if (workerRef.current) {
-                workerRef.current.postMessage({ type: 'SET_TIME_SCALE', payload: { scale: 1.0 } });
-              }
-            }, 1500);
-          }
+          // 우승 시네마틱: 우승자 락온 + 최대 줌 + 슬로모션(디렉터가 단일 소유)
+          const winnerId = payload?.winners?.[0]?.id ?? null;
+          cameraDirector?.triggerWinner(winnerId);
         }
       };
 
@@ -1340,11 +1254,20 @@ export default function PhysicsCanvas() {
         if ((app as any)._minimapResizeHandler) {
           window.removeEventListener('resize', (app as any)._minimapResizeHandler);
         }
+        if ((app as any)._minimapInputCleanup) {
+          (app as any)._minimapInputCleanup();
+        }
+        if ((app as any)._pointerUpHandler) {
+          window.removeEventListener('pointerup', (app as any)._pointerUpHandler);
+        }
       }
       if (workerRef.current) {
         workerRef.current.postMessage({ type: 'STOP' });
         workerRef.current.terminate();
+        workerRef.current = null;
       }
+      intervals.forEach(i => clearInterval(i));
+      tickers.forEach(t => app.ticker.remove(t));
       if (initPromise) {
         initPromise.then(() => {
           if (viewport) viewport.destroy();

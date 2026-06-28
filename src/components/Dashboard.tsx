@@ -1,8 +1,8 @@
 'use client'
 
-import { useGameStore } from '@/store/gameStore'
+import { useGameStore, Participant } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createSession } from '@/actions/db'
 import MapLoadModal, { DEFAULT_MAPS } from './MapLoadModal'
 import { Tv, Shield, ShieldOff, Video, Map } from 'lucide-react'
@@ -24,6 +24,69 @@ export default function Dashboard() {
   const [title, setTitle] = useState('새로운 추첨')
   const [isMapModalOpen, setIsMapModalOpen] = useState(false)
 
+  // Undo/Redo states
+  const [undoStack, setUndoStack] = useState<{ participants: Participant[], nameInput: string }[]>([])
+  const [redoStack, setRedoStack] = useState<{ participants: Participant[], nameInput: string }[]>([])
+  const isTypingRef = useRef(false)
+  
+  const stateRef = useRef({ participants, nameInput, undoStack, redoStack })
+  useEffect(() => {
+    stateRef.current = { participants, nameInput, undoStack, redoStack }
+  }, [participants, nameInput, undoStack, redoStack])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isZ = e.key.toLowerCase() === 'z'
+      const isY = e.key.toLowerCase() === 'y'
+
+      if (e.ctrlKey && (isZ || isY)) {
+        // If the user is actively typing, let native browser undo handle text changes
+        if (isTypingRef.current && document.activeElement?.tagName === 'INPUT') {
+          return
+        }
+
+        if (isZ) {
+          const { participants, nameInput, undoStack } = stateRef.current
+          if (undoStack.length > 0) {
+            e.preventDefault()
+            const prevState = undoStack[undoStack.length - 1]
+            setRedoStack(prev => [...prev, { participants, nameInput }])
+            setUndoStack(prev => prev.slice(0, -1))
+            
+            setParticipants(prevState.participants)
+            setNameInput(prevState.nameInput)
+            isTypingRef.current = false
+          }
+        }
+
+        if (isY) {
+          const { participants, nameInput, redoStack } = stateRef.current
+          if (redoStack.length > 0) {
+            e.preventDefault()
+            const nextState = redoStack[redoStack.length - 1]
+            setUndoStack(prev => [...prev, { participants, nameInput }])
+            setRedoStack(prev => prev.slice(0, -1))
+            
+            setParticipants(nextState.participants)
+            setNameInput(nextState.nameInput)
+            isTypingRef.current = false
+          }
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [setParticipants])
+
+  const saveStateForUndo = (currentParticipants: Participant[], currentNameInput: string) => {
+    setUndoStack(prev => {
+      const newStack = [...prev, { participants: currentParticipants, nameInput: currentNameInput }]
+      return newStack.length > 50 ? newStack.slice(-50) : newStack
+    })
+    setRedoStack([])
+  }
+
   // Sync local state when Zustand store hydrates from localStorage
   useEffect(() => {
     setLocalWinnerCount(targetWinnerCount || 1)
@@ -39,8 +102,13 @@ export default function Dashboard() {
 
   const handleAdd = () => {
     if (!nameInput.trim()) return
+    
+    saveStateForUndo(participants, nameInput)
+    isTypingRef.current = false
+
     // Support parsing multiple inputs separated by comma, newline, or spaces
     const names = nameInput.split(/[,\s]+/).map(n => n.trim()).filter(n => n !== '')
+    const newParticipants = [...participants]
     names.forEach(name => {
       const newId = `chip-${crypto.randomUUID()}`
       const finalName = isAnonymized ? getRandomAnimal() : name
@@ -48,9 +116,22 @@ export default function Dashboard() {
       // 스킨 일괄 설정에 따라 배정
       const finalSkinId = globalSkin === '' ? `chip_base_${Math.floor(Math.random() * 6) + 1}` : globalSkin
       
-      addParticipant({ id: newId, name: finalName, color: `hsl(${Math.random() * 360}, 80%, 50%)`, skinId: finalSkinId })
+      newParticipants.push({ id: newId, name: finalName, color: `hsl(${Math.random() * 360}, 80%, 50%)`, skinId: finalSkinId })
     })
+    setParticipants(newParticipants)
     setNameInput('')
+  }
+
+  const handleRemoveParticipant = (id: string) => {
+    saveStateForUndo(participants, nameInput)
+    isTypingRef.current = false
+    removeParticipant(id)
+  }
+
+  const handleClearParticipants = () => {
+    saveStateForUndo(participants, nameInput)
+    isTypingRef.current = false
+    clearParticipants()
   }
 
   const handleStart = async () => {
@@ -104,23 +185,7 @@ export default function Dashboard() {
   return (
     <div className={`flex flex-col items-center justify-center w-full min-h-screen p-4 z-10 transition-colors duration-500 ${isBroadcasterMode ? 'bg-[#00ff00]' : 'bg-transparent'}`}>
       
-      {/* Broadcaster Quick Actions */}
-      <div className="absolute top-4 left-4 flex gap-2">
-        <button 
-          onClick={() => setBroadcasterMode(!isBroadcasterMode)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all ${isBroadcasterMode ? 'bg-green-500 text-black shadow-[0_0_20px_#00ff00]' : 'bg-black/50 text-white/50 hover:bg-black/80 hover:text-white'}`}
-        >
-          <Tv size={18} />
-          <span>스트리머 모드 {isBroadcasterMode ? 'ON' : 'OFF'}</span>
-        </button>
-        <button 
-          onClick={() => setAnonymized(!isAnonymized)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all ${isAnonymized ? 'bg-purple-500 text-white shadow-[0_0_20px_#a855f7]' : 'bg-black/50 text-white/50 hover:bg-black/80 hover:text-white'}`}
-        >
-          {isAnonymized ? <Shield size={18} /> : <ShieldOff size={18} />}
-          <span>익명화 {isAnonymized ? 'ON' : 'OFF'}</span>
-        </button>
-      </div>
+
 
       <div className={`p-5 md:p-8 rounded-3xl w-full max-w-2xl flex flex-col gap-4 shadow-2xl transition-all duration-500 max-h-[calc(100vh-2rem)] overflow-hidden ${isBroadcasterMode ? 'bg-black border-2 border-green-500' : 'glass-panel-heavy'}`}>
         {/* Header (Logo) - 항상 고정 */}
@@ -184,7 +249,10 @@ export default function Dashboard() {
               placeholder="참가자 이름 (쉼표/공백 다중입력)" 
               className="flex-[3] bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-secondary)] transition-colors text-sm"
               value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
+              onChange={(e) => {
+                setNameInput(e.target.value)
+                isTypingRef.current = true
+              }}
               onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
             />
             <button onClick={handleAdd} className="flex-1 bg-[var(--accent-secondary)] text-black font-bold px-5 py-3 rounded-xl hover:opacity-90 transition-opacity shrink-0">
@@ -199,7 +267,7 @@ export default function Dashboard() {
                 <div className="w-3 h-3 rounded-full shadow-[0_0_10px_currentColor]" style={{ backgroundColor: p.color, color: p.color }}></div>
                 <span className="text-sm font-medium text-[var(--text-primary)] truncate-1-line max-w-[100px]">{p.name}</span>
                 {p.skinId && !p.skinId.startsWith('chip_base') && <span className="text-[10px] text-yellow-400 font-bold ml-1">{p.skinId.replace('UR_', '').replace('SR_', '')}</span>}
-                <button onClick={() => removeParticipant(p.id)} className="text-white/30 hover:text-red-400 opacity-0 md:opacity-100 transition-opacity shrink-0 ml-1">×</button>
+                <button onClick={() => handleRemoveParticipant(p.id)} className="text-white/30 hover:text-red-400 opacity-0 md:opacity-100 transition-opacity shrink-0 ml-1">×</button>
               </div>
             ))}
           </div>
@@ -337,7 +405,7 @@ export default function Dashboard() {
 
         {/* Footer (Buttons) - 항상 고정 */}
         <div className="flex gap-4 shrink-0 pt-2 border-t border-white/10">
-          <button onClick={clearParticipants} className="flex-1 bg-white/5 hover:bg-white/10 text-white/50 font-bold py-4 rounded-xl transition-colors border border-white/10">
+          <button onClick={handleClearParticipants} className="flex-1 bg-white/5 hover:bg-white/10 text-white/50 font-bold py-4 rounded-xl transition-colors border border-white/10">
             초기화
           </button>
           <button onClick={handleStart} className="flex-[3] bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-black font-extrabold text-xl tracking-widest py-4 rounded-xl hover:opacity-90 transition-opacity shadow-[0_0_30px_var(--accent-primary)] flex items-center justify-center gap-3">

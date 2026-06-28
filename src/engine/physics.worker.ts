@@ -136,6 +136,7 @@ self.onmessage = async (e) => {
     const isCustomMap = !!(customMapData && customMapData.length > 0);
 
     isSkillEnabled = isSkill ?? true;
+    dtMultiplier = 1.0;
 
     if (!core) core = new SimulationCore();
     core.init({
@@ -184,6 +185,15 @@ self.onmessage = async (e) => {
       core.step(dtMultiplier);
       flushEvents();
       broadcastFrame();
+
+      // 게임 종료 시 워커 내부 루프 자동 중단
+      if (core.gameOver) {
+        clearInterval(stepInterval);
+        stepInterval = null;
+        chipCooldowns = [];
+        isRunning = false;
+        return;
+      }
 
       // ── 핵심: 매 물리 스텝마다 개별 쿨타임 처리 ──
       // 스킬 발동 시 슬로모션을 걸지 않으므로 게임 흐름이 전혀 방해받지 않는다.

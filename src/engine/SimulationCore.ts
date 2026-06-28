@@ -87,7 +87,7 @@ export class SimulationCore {
 
   // 프레임 기반 쿨다운/스케줄
   private lastWarpFrame = new Map<string, number>();
-  private holeRespawns: { body: RAPIER.RigidBody; atFrame: number; x: number; y: number }[] = [];
+  private holeRespawns: { body: RAPIER.RigidBody; chipId: string; atFrame: number; x: number; y: number }[] = [];
 
   // Anti-Stuck 상태
   private chipMaxY = new Map<string, number>();
@@ -110,6 +110,7 @@ export class SimulationCore {
   }
 
   init(config: SimInitConfig) {
+    SkillSystem.reset();
     if (this.world) this.world.free();
 
     this.gameOver = false;
@@ -349,6 +350,7 @@ export class SimulationCore {
             const holeY = sensorBody.translation().y;
             this.holeRespawns.push({
               body: chipBody,
+              chipId: chipData.id,
               atFrame: this.frame + HOLE_PENALTY_FRAMES,
               x: 120 + this.rng() * 560,
               y: Math.max(80, holeY - 600),
@@ -367,7 +369,7 @@ export class SimulationCore {
         try {
           r.body.setTranslation({ x: r.x, y: r.y }, true);
           r.body.setLinvel({ x: 0, y: 0 }, true);
-          r.body.setGravityScale(1.0, true);
+          SkillSystem.recalcPhysics(r.body, r.chipId);
         } catch (e) {
           // body 해제됨 → 무시
         }
@@ -396,6 +398,8 @@ export class SimulationCore {
       const radius = bhData.radius || 150;
       const S = Math.min(bhData.force || 5, WELL_FORCE_CAP) * WELL_DV_PER_FORCE;
       this.activeChips.forEach((chip) => {
+        const data = chip.userData as any;
+        if (data?.finished) return;
         const cPos = chip.translation();
         const dx = bhPos.x - cPos.x;
         const dy = bhPos.y - cPos.y;
@@ -418,6 +422,8 @@ export class SimulationCore {
       const radius = whData.radius || 100;
       const S = Math.min(whData.force || 5, WELL_FORCE_CAP) * WELL_DV_PER_FORCE;
       this.activeChips.forEach((chip) => {
+        const data = chip.userData as any;
+        if (data?.finished) return;
         const cPos = chip.translation();
         const dx = cPos.x - whPos.x;
         const dy = cPos.y - whPos.y;
@@ -451,13 +457,18 @@ export class SimulationCore {
     let totalSpeed = 0;
     for (let i = 0; i < this.activeChips.length; i++) {
       const body = this.activeChips[i];
-      const t = body.translation();
-      const v = body.linvel();
-      totalSpeed += Math.sqrt(v.x * v.x + v.y * v.y);
-
       const data = body.userData as any;
+      
+      // 완주한 칩은 속도 계산에서 제외
+      if (data?.type === 'chip' && !this.finishedChips.has(data.id)) {
+        const v = body.linvel();
+        totalSpeed += Math.sqrt(v.x * v.x + v.y * v.y);
+      }
+
+      const t = body.translation();
       if (data?.type === 'chip' && t.y > this.worldHeight + 20 && !this.finishedChips.has(data.id)) {
         this.finishedChips.add(data.id);
+        data.finished = true;
         this.finishOrder.push(data.id);
         this.events.push({ type: 'SOUND_EFFECT', payload: { type: 'finish' } });
 
@@ -474,7 +485,8 @@ export class SimulationCore {
             winners = this.finishOrder.map((id) => this.survivorsData.find((s: any) => s.id === id)).filter(Boolean);
           }
         } else if (this.gameMode === 'turtle') {
-          if (this.finishOrder.length === (this.survivorsData.length - this.targetCount)) {
+          const targetLength = Math.max(0, this.survivorsData.length - this.targetCount);
+          if (this.finishOrder.length >= targetLength) {
             isGameOver = true;
             const finishedSet = new Set(this.finishOrder);
             winners = this.survivorsData.filter((s: any) => !finishedSet.has(s.id));
@@ -490,8 +502,8 @@ export class SimulationCore {
           if (this.randomRanks.includes(this.finishOrder.length)) {
             this.randomWinners.push(survivor);
           }
-          // 모든 당첨 등수가 채워졌으면 게임 오버
-          if (this.randomWinners.length === this.targetCount) {
+          // 모든 당첨 등수가 채워지거나, 모든 칩이 완주하면 게임 오버
+          if (this.randomWinners.length >= this.targetCount || this.finishOrder.length === this.survivorsData.length) {
             isGameOver = true;
             winners = this.randomWinners;
           }
