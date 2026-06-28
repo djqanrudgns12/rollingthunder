@@ -22,6 +22,9 @@ interface UIState {
   setBroadcasterMode: (isMode: boolean) => void
   isAnonymized: boolean
   setAnonymized: (isAnon: boolean) => void
+  
+  gameTitle: string | null
+  setGameTitle: (title: string | null) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -46,7 +49,10 @@ export const useUIStore = create<UIState>()(
       setBroadcasterMode: (isBroadcasterMode) => set({ isBroadcasterMode }),
       
       isAnonymized: false,
-      setAnonymized: (isAnonymized) => set({ isAnonymized })
+      setAnonymized: (isAnonymized) => set({ isAnonymized }),
+
+      gameTitle: null,
+      setGameTitle: (gameTitle) => set({ gameTitle }),
     }),
     {
       name: 'rt-ui-storage',

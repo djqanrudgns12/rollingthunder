@@ -5,6 +5,7 @@ import { useUIStore } from '@/store/uiStore'
 import { useState, useEffect, useRef } from 'react'
 import { createSession } from '@/actions/db'
 import MapLoadModal, { DEFAULT_MAPS } from './MapLoadModal'
+import ListManagerModal from './ListManagerModal'
 import { Tv, Shield, ShieldOff, Video, Map } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -16,13 +17,14 @@ function getRandomAnimal() {
 
 export default function Dashboard() {
   const { participants, addParticipant, removeParticipant, clearParticipants, setGimmickDensity, gimmickDensity, setSurvivors, targetWinnerCount, setTargetWinnerCount, setSessionId, gameMode, setGameMode, customWinningRank, setCustomWinningRank, globalSkin, setGlobalSkin, setParticipants, isSkillEnabled, setSkillEnabled, selectedMapPreset, setRandomWinningRanks, clearSkillLogs } = useGameStore()
-  const { setGameStage, customMapData, customMapTitle, isBroadcasterMode, setBroadcasterMode, isAnonymized, setAnonymized } = useUIStore()
+  const { setGameStage, customMapData, customMapTitle, isBroadcasterMode, setBroadcasterMode, isAnonymized, setAnonymized, setGameTitle } = useUIStore()
   
   const [nameInput, setNameInput] = useState('')
 
   const [localWinnerCount, setLocalWinnerCount] = useState(targetWinnerCount || 1)
-  const [title, setTitle] = useState('새로운 추첨')
+  const [title, setTitle] = useState('')
   const [isMapModalOpen, setIsMapModalOpen] = useState(false)
+  const [isListModalOpen, setIsListModalOpen] = useState(false)
 
   // Undo/Redo states
   const [undoStack, setUndoStack] = useState<{ participants: Participant[], nameInput: string }[]>([])
@@ -134,26 +136,6 @@ export default function Dashboard() {
     clearParticipants()
   }
 
-  const handleSaveList = () => {
-    if (participants.length === 0) {
-      toast.error('저장할 참가자가 없습니다.')
-      return
-    }
-    const names = participants.map(p => p.name).join(', ')
-    localStorage.setItem('rt-saved-list', names)
-    toast.success('현재 참가자 명단이 로컬에 저장되었습니다.')
-  }
-
-  const handleLoadList = () => {
-    const saved = localStorage.getItem('rt-saved-list')
-    if (!saved) {
-      toast.error('저장된 명단이 없습니다.')
-      return
-    }
-    setNameInput(saved)
-    toast.success('저장된 명단을 불러왔습니다. 추가 버튼을 눌러주세요.')
-  }
-
   const handleStart = async () => {
     if (participants.length < 2) {
       toast.error('최소 2명 이상의 참가자가 필요합니다.')
@@ -191,7 +173,9 @@ export default function Dashboard() {
 
       let sid = null;
       try {
-        const session = await createSession(title)
+        const finalTitle = title.trim() || '롤링 썬더!'
+        setGameTitle(finalTitle)
+        const session = await createSession(finalTitle)
         if (session) sid = session.id
         setSessionId(sid)
       } catch {
@@ -285,11 +269,8 @@ export default function Dashboard() {
                 추가
               </button>
               <div className="flex gap-1 flex-1 min-h-[24px]">
-                <button onClick={handleSaveList} className="flex-1 bg-white/10 text-white/70 font-bold rounded-lg hover:bg-white/20 hover:text-white transition-colors text-[10px] border border-white/5" title="현재 참가자 명단을 저장합니다">
-                  저장
-                </button>
-                <button onClick={handleLoadList} className="flex-1 bg-white/10 text-white/70 font-bold rounded-lg hover:bg-white/20 hover:text-white transition-colors text-[10px] border border-white/5" title="저장된 명단을 입력창으로 불러옵니다">
-                  불러오기
+                <button onClick={() => setIsListModalOpen(true)} className="flex-1 bg-white/10 text-white/70 font-bold rounded-lg hover:bg-white/20 hover:text-white transition-colors text-xs border border-white/5" title="다수의 명단을 저장하거나 불러옵니다">
+                  명단 관리
                 </button>
               </div>
             </div>
@@ -450,6 +431,12 @@ export default function Dashboard() {
         </div>
       </div>
       <MapLoadModal isOpen={isMapModalOpen} onClose={() => setIsMapModalOpen(false)} />
+      <ListManagerModal 
+        isOpen={isListModalOpen} 
+        onClose={() => setIsListModalOpen(false)} 
+        currentParticipants={participants}
+        onLoadList={(names) => setNameInput(names)}
+      />
     </div>
   )
 }

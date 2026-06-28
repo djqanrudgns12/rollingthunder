@@ -34,7 +34,7 @@ export default function PhysicsCanvas() {
   const [showRandomPopup, setShowRandomPopup] = useState(false)
   
   const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks } = useGameStore()
-  const { setGameStage, customMapData, isBroadcasterMode } = useUIStore()
+  const { setGameStage, customMapData, isBroadcasterMode, gameTitle } = useUIStore()
   const workerRef = useRef<Worker | null>(null)
   
 
@@ -1354,6 +1354,16 @@ export default function PhysicsCanvas() {
 
   return (
     <div className={`relative w-full h-full flex flex-col items-center justify-center overflow-hidden ${isBroadcasterMode ? 'bg-[#00ff00]' : 'bg-black'}`}>
+      {/* Title Bar Overlay */}
+      <div className="absolute top-6 left-6 z-[60] flex flex-col pointer-events-none animate-in fade-in slide-in-from-top-4 duration-500">
+        <div className="bg-black/40 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20 shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+          <p className="text-white/60 text-[10px] font-bold tracking-widest uppercase mb-0.5 ml-1">Title</p>
+          <h1 className="text-white font-extrabold text-xl tracking-wide drop-shadow-md">
+            {gameTitle || '롤링 썬더!'}
+          </h1>
+        </div>
+      </div>
+
       <LiveLeaderboard rankings={rankings} finishedFeed={finishedFeed} />
 
       <div className="absolute bottom-6 left-6 z-50 flex gap-4">
