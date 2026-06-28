@@ -9,7 +9,7 @@ import type { Viewport } from 'pixi-viewport';
 //   - 미니맵 클릭-점프/드래그-스크럽 같은 수동 조작도 여기서 목표로 흡수(일정 시간 후 자동 복귀).
 // ──────────────────────────────────────────────────────────────────────────
 
-type Mode = 'idle' | 'race' | 'manual' | 'winner';
+type Mode = 'idle' | 'race' | 'manual' | 'finisher_focus';
 
 export interface CameraDirectorOpts {
   worldWidth: number;
@@ -53,8 +53,11 @@ export class CameraDirector {
 
   private slowMoActive = false;
   private leadBattle = false;
-  private winnerDecided = false; // 우승 확정 후엔 결착 시네마틱/슬로모션을 더 걸지 않고 남은 레이스만 추적
   private zoomPunch = 0; // 도달자 가벼운 줌 펀치(감쇠)
+  private shakeIntensity = 0; // 스크린 셰이크 강도
+  private winnerDecided = false; // 우승 확정 후엔 결착 시네마틱/슬로모션을 더 걸지 않고 남은 레이스만 추적
+  private finisherQueue: { chipId: string }[] = [];
+  private isProcessingFinisher = false;
 
   // ── 튜닝 상수 ──
   private readonly PAN_K = 5.0;          // 위치 댐핑 강도
@@ -89,7 +92,7 @@ export class CameraDirector {
   setGameState(state: 'idle' | 'playing' | 'finished') {
     this.gameState = state;
     if (state === 'idle') {
-      if (this.mode !== 'winner' && this.mode !== 'manual') {
+      if (this.mode !== 'finisher_focus' && this.mode !== 'manual') {
         this.mode = 'idle';
       }
     } else if (state === 'playing') {
@@ -101,7 +104,7 @@ export class CameraDirector {
 
   // 메인 뷰포트를 사용자가 직접 드래그/휠/핀치 → 카메라가 손을 떼고(자유 조작) 잠시 후 복귀
   notifyUserPan() {
-    if (this.mode === 'winner') return;
+    if (this.mode === 'finisher_focus') return;
     this.mode = 'manual';
     this.freeManual = true;
     this.focusChipId = null;
@@ -110,7 +113,7 @@ export class CameraDirector {
 
   // 미니맵 탭 → 해당 좌표로 점프. chipId가 있으면 그 칩을 락온 추적.
   minimapJump(x: number, y: number, chipId: string | null) {
-    if (this.mode === 'winner') return;
+    if (this.mode === 'finisher_focus') return;
     this.mode = 'manual';
     this.freeManual = false;
     this.scrubbing = false;
@@ -121,9 +124,9 @@ export class CameraDirector {
   }
 
   // 미니맵 드래그 스크럽(1:1)
-  minimapScrubStart() { if (this.mode !== 'winner') { this.mode = 'manual'; this.freeManual = false; this.scrubbing = true; this.focusChipId = null; } }
+  minimapScrubStart() { if (this.mode !== 'finisher_focus') { this.mode = 'manual'; this.freeManual = false; this.scrubbing = true; this.focusChipId = null; } }
   minimapScrub(x: number, y: number) {
-    if (this.mode === 'winner') return;
+    if (this.mode === 'finisher_focus') return;
     this.scrubbing = true;
     this.manualTargetX = x;
     this.manualTargetY = y;
@@ -136,30 +139,59 @@ export class CameraDirector {
     this.manualExpireMs = performance.now() + 2500;
   }
 
-  // 도달자(우승 아님) 가벼운 강조: 짧은 줌 펀치(슬로모션 없음)
+  // 도달자 가벼운 줌 펀치(감쇠)
   flashFinisher() {
     this.zoomPunch = Math.max(this.zoomPunch, 0.18);
   }
 
-  // 우승 확정: 우승자 락온 + 최대 줌 + 슬로모션 "비트"(짧게). 단 게임은 멈추지 않는다 —
-  // 비트 후 카메라는 다시 남은 레이스를 따라가고, 마지막 주자가 결승선을 통과할 때까지 진행된다.
-  triggerWinner(winnerId: string | null) {
-    this.mode = 'winner';
-    this.winnerDecided = true;
-    this.focusChipId = winnerId;
-    this.leadBattle = true;
-    this.setTimeScale(0.3);
-    this.slowMoActive = true;
-    // 슬로모션 비트(1.2s) 후 정상 속도 복귀
-    setTimeout(() => { if (this.slowMoActive) { this.setTimeScale(1.0); this.slowMoActive = false; } }, 1200);
-    // 우승 연출(2.4s) 후 카메라를 남은 레이스 추적으로 복귀(우승자는 화면을 떠났으므로)
-    setTimeout(() => {
-      if (this.mode === 'winner') {
+  // 스크린 셰이크 효과
+  addShake(intensity: number) {
+    this.shakeIntensity = Math.max(this.shakeIntensity, intensity);
+  }
+
+  // 개별 피니셔 포커싱 및 슬로우 모션 큐잉
+  focusNextFinisher(chipId: string) {
+    this.finisherQueue.push({ chipId });
+    if (!this.isProcessingFinisher) {
+      this.processNextFinisher();
+    }
+  }
+
+  private processNextFinisher() {
+    if (this.finisherQueue.length === 0) {
+      this.isProcessingFinisher = false;
+      if (this.mode === 'finisher_focus') {
         this.mode = 'race';
         this.focusChipId = null;
-        this.leadBattle = false;
       }
-    }, 2400);
+      return;
+    }
+
+    this.isProcessingFinisher = true;
+    const finisher = this.finisherQueue.shift()!;
+    this.mode = 'finisher_focus';
+    this.focusChipId = finisher.chipId;
+    this.leadBattle = false; // 결착 연출 중지
+
+    // 0.8초간 슬로우 모션
+    this.setTimeScale(0.35);
+    this.slowMoActive = true;
+
+    setTimeout(() => {
+      if (this.slowMoActive) {
+        this.setTimeScale(1.0);
+        this.slowMoActive = false;
+      }
+    }, 800);
+
+    // 1.5초 후 다음 피니셔 처리 (다이나믹 줌아웃-줌인 호흡)
+    setTimeout(() => {
+      // 다음 타겟으로 가기 전에 줌아웃 효과를 위해 잠시 focus 해제
+      this.focusChipId = null; 
+      setTimeout(() => {
+        this.processNextFinisher();
+      }, 300); // 0.3초 줌아웃 호흡 후 다음 포커스
+    }, 1500);
   }
 
   getState() {
@@ -204,17 +236,8 @@ export class CameraDirector {
       if (fp) { leaderY = fp.y; leaderX = fp.x; }
     }
 
-    // 선두 그룹 가중 중심 X(선두에 가까울수록 큰 가중) + 후미 Y
-    let sumW = 0, sumX = 0, packBackY = leaderY;
-    for (const [, p] of chips) {
-      const d = leaderY - p.y;
-      if (d >= -60 && d <= this.PACK_BAND) {
-        const w = 1 - Math.max(0, d) / this.PACK_BAND; // 0..1
-        sumW += w; sumX += p.x * w;
-        if (p.y < packBackY) packBackY = p.y;
-      }
-    }
-    const centroidX = sumW > 0 ? sumX / sumW : leaderX;
+    // 선두 그룹 가중 중심 대신 1등 플레이어(leaderX)를 1순위로 추적하여 중구난방 방지
+    const centroidX = leaderX;
 
     // 저상통과 → 떨림 제거
     this.smCentroidX = damp(this.smCentroidX, centroidX, this.CENTROID_K, dt);
@@ -232,12 +255,10 @@ export class CameraDirector {
         this.focusChipId = null;
       }
     }
-    // 결착 구간/슬로모션은 우승 확정 전에만 감지(우승 후엔 남은 레이스를 담담히 추적)
-    if (this.mode !== 'winner' && !this.winnerDecided) {
+    // 결착 구간/슬로모션은 우승 확정 전에만 감지
+    if (this.mode !== 'finisher_focus' && !this.winnerDecided) {
       if (!this.leadBattle && progress >= this.LEAD_BATTLE_AT) this.leadBattle = true;
       if (this.leadBattle && progress < this.LEAD_BATTLE_AT - 0.05) this.leadBattle = false; // 히스테리시스
-      if (!this.slowMoActive && progress >= this.SLOWMO_AT) { this.slowMoActive = true; this.setTimeScale(0.45); }
-      if (this.slowMoActive && progress < this.SLOWMO_AT - 0.03) { this.slowMoActive = false; this.setTimeScale(1.0); }
     }
 
     // ── 3) 목표 {x, y, zoom} 결정 ──
@@ -260,13 +281,14 @@ export class CameraDirector {
       targetY = this.focusChipId ? this.smLeaderY : this.manualTargetY;
       targetZoom = this.focusChipId ? 1.6 : Math.max(this.camZoom, this.fitWidthZoom());
     } else {
-      // RACE / WINNER 공통: 선두 그룹 프레이밍
-      const packSpan = Math.max(leaderY - packBackY, 240);
-      const fitPack = this.screenH / (packSpan + 360); // 그룹+여백이 화면에 담기는 줌
+      // RACE / FINISHER 공통: 프레이밍
+      let packSpan = 240;
+      // leaderY - packBackY 로직은 삭제했으므로 기본값 사용 (어차피 리더 중심으로 줌)
+      const fitPack = this.screenH / (packSpan + 360); 
       let baseZoom = this.clampZoom(fitPack);
 
-      if (this.mode === 'winner') {
-        baseZoom = this.WINNER_ZOOM;
+      if (this.mode === 'finisher_focus') {
+        baseZoom = this.focusChipId ? this.WINNER_ZOOM : this.fitWidthZoom(); // 타겟 없으면 줌아웃 호흡
       } else if (this.leadBattle) {
         // 결착: 진행도 0.86→0.99 동안 baseZoom→BATTLE_ZOOM 으로 부드럽게 가중
         const t = Math.min(1, Math.max(0, (progress - this.LEAD_BATTLE_AT) / (0.99 - this.LEAD_BATTLE_AT)));
@@ -275,23 +297,44 @@ export class CameraDirector {
       targetZoom = baseZoom;
 
       targetX = this.smCentroidX;
-      // 선두가 화면 하단 ~62%에 오도록(앞을 더 보여줌). 가시 높이의 일부만큼 위로 센터.
+      
       const visH = this.screenH / Math.max(targetZoom, 0.001);
-      targetY = this.smLeaderY - visH * 0.12;
+      // 포커스/결승 접근 시 오프셋을 줄여 화면 정중앙~살짝 아래(0.05)에 배치
+      const yOffset = (this.mode === 'finisher_focus' || this.leadBattle) ? visH * 0.05 : visH * 0.12;
+      targetY = this.smLeaderY - yOffset;
     }
 
     // 도달자 줌 펀치(감쇠)
     this.zoomPunch = damp(this.zoomPunch, 0, 6, dt);
 
+    // ── 선두 이탈 방지 (Catch-up) ──
+    let currentPanK = this.PAN_K;
+    const distY = targetY - this.camY;
+    if (distY > this.screenH * 0.5 && this.mode === 'race') {
+      // 선두가 화면 밑으로 도망가면 카메라 속도 부스트
+      currentPanK = this.PAN_K * 2.5;
+    }
+
     // ── 4) 단일 댐핑 후 적용 ──
+    this.shakeIntensity = damp(this.shakeIntensity, 0, 10, dt); // 셰이크 감쇠
+    
     if (!(this.mode === 'manual' && this.scrubbing)) {
-      this.camX = damp(this.camX, targetX, this.PAN_K, dt);
-      this.camY = damp(this.camY, targetY, this.PAN_K, dt);
+      this.camX = damp(this.camX, targetX, currentPanK, dt);
+      this.camY = damp(this.camY, targetY, currentPanK, dt);
       this.camZoom = damp(this.camZoom, targetZoom, this.ZOOM_K, dt);
     }
 
     const appliedZoom = this.clampZoom(this.camZoom + this.zoomPunch);
-    this.vp.moveCenter(this.camX, this.camY);
+    
+    // 셰이크 적용
+    let finalX = this.camX;
+    let finalY = this.camY;
+    if (this.shakeIntensity > 0.5) {
+      finalX += (Math.random() - 0.5) * this.shakeIntensity;
+      finalY += (Math.random() - 0.5) * this.shakeIntensity;
+    }
+
+    this.vp.moveCenter(finalX, finalY);
     this.vp.scale.set(appliedZoom);
   }
 

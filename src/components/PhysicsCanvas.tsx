@@ -1188,40 +1188,98 @@ export default function PhysicsCanvas() {
           currentRankings = payload;
           setRankings(payload);
         } else if (type === 'CHIP_FINISHED') {
-          // 도달자(우승 아님) 가벼운 강조: 짧은 줌 펀치(슬로모션 없음)
-          cameraDirector?.flashFinisher();
-          setFinishedFeed(prev => [...prev, payload]);
+          // 개별 피니셔 포커싱 & 카메라 셰이크
+          cameraDirector?.focusNextFinisher(payload.chipId);
+          cameraDirector?.addShake(15);
           
-          // Phase 1: Local Shockwave
-          if (viewport && app && payload.position) {
-            const shockCircle = new PIXI.Graphics();
-            shockCircle.circle(0, 0, 150);
-            shockCircle.fill({ color: payload.survivor?.color || 0xffffff, alpha: 0.8 });
-            shockCircle.position.set(payload.position.x, payload.position.y);
-            viewport.addChild(shockCircle);
+          setFinishedFeed(prev => {
+            const currentCount = prev.length + 1; // 현재 들어온 사람의 등수 (대략적 추정)
+            
+            // 실제 등수 확인 시도 (currentRankings 우선)
+            let rank = currentRankings.findIndex(r => r.id === payload.chipId) + 1;
+            if (rank === 0) rank = currentCount;
 
-            let scale = 0.1;
-            let alpha = 0.8;
-            const shockTicker = () => {
-              scale += app.ticker.deltaTime * 0.12;
-              alpha -= app.ticker.deltaTime * 0.03;
-              shockCircle.scale.set(scale);
-              shockCircle.alpha = alpha;
-              
-              if (alpha <= 0) {
-                app.ticker.remove(shockTicker);
-                shockCircle.destroy();
+            // 시각 효과 연출 (GSAP, PIXI)
+            if (viewport && app && payload.position) {
+              // 1. 파티클 폭발 효과
+              for (let i = 0; i < 12; i++) {
+                const particle = new PIXI.Graphics();
+                particle.circle(0, 0, Math.random() * 8 + 4);
+                
+                let pColor = 0xffffff;
+                if (rank === 1) pColor = 0xFFD700;
+                else if (rank === 2) pColor = 0xC0C0C0;
+                else if (rank === 3) pColor = 0xCD7F32;
+                else pColor = payload.survivor?.color || 0xffffff;
+                
+                particle.fill({ color: pColor, alpha: 1 });
+                particle.position.set(payload.position.x, payload.position.y);
+                viewport.addChild(particle);
+
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 150 + 50;
+                const tx = payload.position.x + Math.cos(angle) * speed;
+                const ty = payload.position.y + Math.sin(angle) * speed;
+
+                import('gsap').then(({ gsap }) => {
+                  gsap.to(particle.position, {
+                    x: tx, y: ty, duration: 0.6 + Math.random() * 0.4, ease: 'power2.out'
+                  });
+                  gsap.to(particle, {
+                    alpha: 0, scale: { x: 0, y: 0 }, duration: 0.6 + Math.random() * 0.4, ease: 'power2.in',
+                    onComplete: () => particle.destroy()
+                  });
+                });
               }
-            };
-            app.ticker.add(shockTicker);
-          }
+
+              // 2. 순위 타이포그래피 (텍스트 팝업)
+              let rankText = `${rank}th`;
+              if (rank === 1) rankText = '1st!';
+              else if (rank === 2) rankText = '2nd!';
+              else if (rank === 3) rankText = '3rd!';
+
+              let textColor = '#ffffff';
+              if (rank === 1) textColor = '#FFD700'; // 금
+              else if (rank === 2) textColor = '#C0C0C0'; // 은
+              else if (rank === 3) textColor = '#CD7F32'; // 동
+
+              import('pixi.js').then((PIXI) => {
+                const textObj = new PIXI.Text({
+                  text: rankText,
+                  style: {
+                    fontFamily: 'Impact, sans-serif',
+                    fontSize: 64,
+                    fill: textColor,
+                    stroke: { color: '#000000', width: 6 },
+                    dropShadow: { alpha: 0.5, angle: Math.PI / 6, blur: 4, color: 0x000000, distance: 6 }
+                  }
+                });
+                textObj.anchor.set(0.5);
+                textObj.position.set(payload.position.x, payload.position.y - 40);
+                textObj.scale.set(0);
+                viewport.addChild(textObj);
+
+                import('gsap').then(({ gsap }) => {
+                  gsap.to(textObj.scale, {
+                    x: 1, y: 1, duration: 0.4, ease: 'back.out(1.7)'
+                  });
+                  gsap.to(textObj.position, {
+                    y: payload.position.y - 150, duration: 1.5, ease: 'power1.out'
+                  });
+                  gsap.to(textObj, {
+                    alpha: 0, duration: 0.5, delay: 1.0, onComplete: () => textObj.destroy()
+                  });
+                });
+              });
+            }
+            
+            return [...prev, payload];
+          });
         } else if (type === 'GAME_OVER') {
           setGameState('finished');
           setGameOverResult(payload);
           triggerShockwave();
-          // 우승 시네마틱: 우승자 락온 + 최대 줌 + 슬로모션(디렉터가 단일 소유)
-          const winnerId = payload?.winners?.[0]?.id ?? null;
-          cameraDirector?.triggerWinner(winnerId);
+          // 개별 피니셔 로직으로 대체되었으므로 GAME_OVER 시에는 추가 카메라 연출 없이 남은 연출 지속
         }
       };
 
