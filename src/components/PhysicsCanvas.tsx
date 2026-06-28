@@ -26,6 +26,10 @@ export default function PhysicsCanvas() {
   const [isMuted, setIsMuted] = useState(false)
   const [finishedFeed, setFinishedFeed] = useState<{ rank: number, survivor: any }[]>([])
   const [gameState, setGameState] = useState<'idle' | 'playing' | 'finished'>('idle')
+  const gameStateRef = useRef(gameState)
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
   const [gameOverResult, setGameOverResult] = useState<{winners: any[], mode: string} | null>(null)
   const [showRandomPopup, setShowRandomPopup] = useState(false)
   
@@ -266,6 +270,15 @@ export default function PhysicsCanvas() {
               shockwaveRef.current.enabled = false;
               shockwaveRef.current.time = 0;
             }
+          }
+
+          // ── 스마트 카메라 디렉터: 단일 목표 + 단일 지수 댐핑 ──
+          if (cameraDirector) {
+            cameraDirector.setGameState(gameStateRef.current);
+            const nowMs = performance.now();
+            const dtSec = (nowMs - lastCamMs) / 1000;
+            lastCamMs = nowMs;
+            cameraDirector.update(dtSec, chipPositions, currentRankings[0]?.id ?? null);
           }
         });
 
@@ -517,10 +530,11 @@ export default function PhysicsCanvas() {
                 gsap.to(trail, {
                   y: trail.position.y - 20,
                   alpha: 0,
-                  scale: { x: 0.5, y: 0.5 },
                   duration: 0.3,
                   onComplete: () => trail.destroy()
                 });
+                // 스케일은 Point(x/y) 라 별도 트윈으로 축소(타입/런타임 모두 정상)
+                gsap.to(trail.scale, { x: 0.5, y: 0.5, duration: 0.3 });
               }
             };
             app.ticker.add(trailTicker);
@@ -1091,15 +1105,6 @@ export default function PhysicsCanvas() {
             } else if (y > secondY && y < WORLD_HEIGHT) {
               secondY = y;
             }
-          }
-          
-          // ── 스마트 카메라 디렉터: 단일 목표 + 단일 지수 댐핑 ──
-          // (선두 그룹을 여유있게 프레이밍, 결착/우승에서만 시네마틱 줌인+슬로모션)
-          if (cameraDirector) {
-            const nowMs = performance.now();
-            const dtSec = (nowMs - lastCamMs) / 1000;
-            lastCamMs = nowMs;
-            cameraDirector.update(dtSec, chipPositions, currentRankings[0]?.id ?? null);
           }
           
           // Background Parallax & Theme Zone Color

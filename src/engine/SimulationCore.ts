@@ -73,6 +73,11 @@ export class SimulationCore {
 
   gameOver = false;
 
+  // 모든 칩이 결승선을 통과했는지(마지막 주자까지 완주). 워커 루프 종료 판정에 사용.
+  get allFinished(): boolean {
+    return this.activeChips.length > 0 && this.finishedChips.size >= this.activeChips.length;
+  }
+
   private survivorsData: any[] = [];
   private targetCount = 1;
   private gameMode = 'speed';
@@ -235,7 +240,9 @@ export class SimulationCore {
 
     const totalSpeed = this.scanChipsAndFinish();
 
-    if (this.activeChips.length > 0 && !this.gameOver) {
+    // 우승 확정 후에도 남은 주자가 끼이지 않고 결승선을 통과하도록 anti-stuck는 계속 동작
+    // (마지막 주자까지 완주하는 것이 의도된 동작). 완주한 칩은 applyAntiStuck 내부에서 제외됨.
+    if (this.activeChips.length > 0) {
       this.applyAntiStuck(totalSpeed);
     }
 

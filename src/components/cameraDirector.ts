@@ -9,7 +9,7 @@ import type { Viewport } from 'pixi-viewport';
 //   - 미니맵 클릭-점프/드래그-스크럽 같은 수동 조작도 여기서 목표로 흡수(일정 시간 후 자동 복귀).
 // ──────────────────────────────────────────────────────────────────────────
 
-type Mode = 'race' | 'manual' | 'winner';
+type Mode = 'idle' | 'race' | 'manual' | 'winner';
 
 export interface CameraDirectorOpts {
   worldWidth: number;
@@ -42,7 +42,8 @@ export class CameraDirector {
   private smLeaderY = 0;
   private hasLeader = false;
 
-  private mode: Mode = 'race';
+  private mode: Mode = 'idle';
+  private gameState: 'idle' | 'playing' | 'finished' = 'idle';
   private manualExpireMs = 0;
   private manualTargetX = 0;
   private manualTargetY = 0;
@@ -52,6 +53,7 @@ export class CameraDirector {
 
   private slowMoActive = false;
   private leadBattle = false;
+  private winnerDecided = false; // 우승 확정 후엔 결착 시네마틱/슬로모션을 더 걸지 않고 남은 레이스만 추적
   private zoomPunch = 0; // 도달자 가벼운 줌 펀치(감쇠)
 
   // ── 튜닝 상수 ──
@@ -82,6 +84,19 @@ export class CameraDirector {
   resize(screenW: number, screenH: number) {
     this.screenW = screenW;
     this.screenH = screenH;
+  }
+
+  setGameState(state: 'idle' | 'playing' | 'finished') {
+    this.gameState = state;
+    if (state === 'idle') {
+      if (this.mode !== 'winner' && this.mode !== 'manual') {
+        this.mode = 'idle';
+      }
+    } else if (state === 'playing') {
+      if (this.mode === 'idle') {
+        this.mode = 'race';
+      }
+    }
   }
 
   // 메인 뷰포트를 사용자가 직접 드래그/휠/핀치 → 카메라가 손을 떼고(자유 조작) 잠시 후 복귀
@@ -126,15 +141,25 @@ export class CameraDirector {
     this.zoomPunch = Math.max(this.zoomPunch, 0.18);
   }
 
-  // 우승 확정: 우승자 락온 + 최대 줌 + 슬로모션 비트
+  // 우승 확정: 우승자 락온 + 최대 줌 + 슬로모션 "비트"(짧게). 단 게임은 멈추지 않는다 —
+  // 비트 후 카메라는 다시 남은 레이스를 따라가고, 마지막 주자가 결승선을 통과할 때까지 진행된다.
   triggerWinner(winnerId: string | null) {
     this.mode = 'winner';
+    this.winnerDecided = true;
     this.focusChipId = winnerId;
     this.leadBattle = true;
-    this.setTimeScale(0.25);
+    this.setTimeScale(0.3);
     this.slowMoActive = true;
-    // 우승 여운 후 정상 속도 복귀
-    setTimeout(() => { if (this.slowMoActive) { this.setTimeScale(1.0); this.slowMoActive = false; } }, 1500);
+    // 슬로모션 비트(1.2s) 후 정상 속도 복귀
+    setTimeout(() => { if (this.slowMoActive) { this.setTimeScale(1.0); this.slowMoActive = false; } }, 1200);
+    // 우승 연출(2.4s) 후 카메라를 남은 레이스 추적으로 복귀(우승자는 화면을 떠났으므로)
+    setTimeout(() => {
+      if (this.mode === 'winner') {
+        this.mode = 'race';
+        this.focusChipId = null;
+        this.leadBattle = false;
+      }
+    }, 2400);
   }
 
   getState() {
@@ -199,12 +224,16 @@ export class CameraDirector {
     const progress = this.smLeaderY / this.worldH;
 
     // ── 2) 모드 전이 ──
-    if (this.mode === 'manual' && !this.scrubbing && performance.now() > this.manualExpireMs) {
-      this.mode = 'race';
-      this.focusChipId = null;
+    if (this.mode === 'manual' && !this.scrubbing) {
+      if (this.gameState === 'finished') {
+        // 게임 종료 후에는 수동 모드 타이머를 무시하여 자유롭게 감상 가능
+      } else if (performance.now() > this.manualExpireMs) {
+        this.mode = this.gameState === 'idle' ? 'idle' : 'race';
+        this.focusChipId = null;
+      }
     }
-    // 결착 구간/슬로모션은 race·manual 어디서든 감지(winner 제외 전이는 GAME_OVER가 담당)
-    if (this.mode !== 'winner') {
+    // 결착 구간/슬로모션은 우승 확정 전에만 감지(우승 후엔 남은 레이스를 담담히 추적)
+    if (this.mode !== 'winner' && !this.winnerDecided) {
       if (!this.leadBattle && progress >= this.LEAD_BATTLE_AT) this.leadBattle = true;
       if (this.leadBattle && progress < this.LEAD_BATTLE_AT - 0.05) this.leadBattle = false; // 히스테리시스
       if (!this.slowMoActive && progress >= this.SLOWMO_AT) { this.slowMoActive = true; this.setTimeScale(0.45); }
@@ -214,7 +243,16 @@ export class CameraDirector {
     // ── 3) 목표 {x, y, zoom} 결정 ──
     let targetX: number, targetY: number, targetZoom: number;
 
-    if (this.mode === 'manual' && this.scrubbing) {
+    if (this.mode === 'idle') {
+      targetZoom = this.fitWidthZoom();
+      targetX = this.worldW / 2;
+      const visH = this.screenH / Math.max(targetZoom, 0.001);
+      targetY = 50 - visH * 0.12;
+      
+      // 대기 상태에서는 떨림 보정 값들을 중앙/출발선으로 고정 (시작 시 부드러운 전환용)
+      this.smCentroidX = targetX;
+      this.smLeaderY = 50;
+    } else if (this.mode === 'manual' && this.scrubbing) {
       // 스크럽 중엔 camX/Y가 이미 직접 동기화됨 → 목표=현재
       targetX = this.camX; targetY = this.camY; targetZoom = this.camZoom;
     } else if (this.mode === 'manual') {

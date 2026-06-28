@@ -186,8 +186,9 @@ self.onmessage = async (e) => {
       flushEvents();
       broadcastFrame();
 
-      // 게임 종료 시 워커 내부 루프 자동 중단
-      if (core.gameOver) {
+      // 워커 루프는 "우승 확정(gameOver)"이 아니라 "마지막 주자까지 완주(allFinished)" 시 종료.
+      // 우승자가 나와도 남은 주자들이 결승선을 통과할 때까지 시뮬레이션을 계속 진행한다.
+      if (core.allFinished) {
         clearInterval(stepInterval);
         stepInterval = null;
         chipCooldowns = [];
