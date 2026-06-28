@@ -207,7 +207,7 @@ export default function Dashboard() {
       <div className={`p-5 md:p-8 rounded-3xl w-full max-w-2xl flex flex-col gap-4 shadow-2xl transition-all duration-500 max-h-[calc(100vh-2rem)] overflow-hidden ${isBroadcasterMode ? 'bg-black border-2 border-green-500' : 'glass-panel-heavy'}`}>
         {/* Header (Text Logo) - 항상 고정 */}
         <div className="text-center flex flex-col items-center shrink-0 mb-6 animate-in fade-in slide-in-from-top-4">
-          <h1 className="text-5xl md:text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 drop-shadow-[0_0_15px_rgba(0,255,255,0.5)]">
+          <h1 className="text-5xl md:text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 drop-shadow-[0_0_15px_rgba(0,255,255,0.5)] pr-2">
             ROLLING THUNDER
           </h1>
           <p className="text-lg font-bold mt-2 text-cyan-300 text-shadow-sm animate-pulse">오늘 우리 자웅을 가리자!</p>

@@ -428,47 +428,77 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     worldHeight: 3000,
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_portal_labyrinth.png',
-    themeWeights: { pin: 0.10, bumper: 0.35, booster: 0.00, portal: 0.30, blackhole: 0.00, whitehole: 0.00, hole: 0.10, windmill: 0.15 },
+    themeWeights: { pin: 0.10, bumper: 0.20, booster: 0.00, portal: 0.00, blackhole: 0.00, whitehole: 0.00, hole: 0.00, windmill: 0.10 },
     items: [
-      // 골격: 박스 방 미로. 좌우 엇갈린 방(박스벽 + 바닥 중앙 gap)을 칩이 떨어지며 통과하고,
-      // 같은 색 포탈이 비인접 방으로 워프(확률 지름길). 방 바닥은 항상 열려 진행을 막지 않음.
-      // 입구: 3연속 방 진입 — 상단 전체 너비에 방 3개 배치. 스폰 위치에 따라 서로 다른 방으로 진입
-      ...room(135, 160, 270, 160, { floorGap: 110 }),
-      ...room(400, 160, 270, 160, { floorGap: 110 }),
-      ...room(665, 160, 270, 160, { floorGap: 110 }),
-      ...room(300, 420, 340, 170, { floorGap: 130 }),
-      { id: 'pl_r1a', type: 'bumper', x: 230, y: 400, radius: 16, restitution: 1.3 },
-      { id: 'pl_r1b', type: 'bumper', x: 370, y: 400, radius: 16, restitution: 1.3 },
-      { id: 'pl_pa1', type: 'portal', x: 300, y: 470, color: '#FF6600' },
-      ...room(500, 720, 340, 170, { floorGap: 130 }),
-      { id: 'pl_r2a', type: 'bumper', x: 430, y: 700, radius: 16, restitution: 1.3 },
-      { id: 'pl_r2b', type: 'bumper', x: 570, y: 700, radius: 16, restitution: 1.3 },
-      { id: 'pl_pb1', type: 'portal', x: 500, y: 770, color: '#00FF66' },
-      ...room(300, 1020, 340, 170, { floorGap: 130 }),
-      { id: 'pl_r3a', type: 'bumper', x: 300, y: 1000, radius: 18, restitution: 1.3 },
-      ...room(500, 1320, 340, 170, { floorGap: 130 }),
-      { id: 'pl_pa2', type: 'portal', x: 500, y: 1300, color: '#FF6600' },
-      { id: 'pl_r4a', type: 'bumper', x: 430, y: 1360, radius: 16, restitution: 1.3 },
-      ...room(300, 1620, 340, 170, { floorGap: 130 }),
-      { id: 'pl_pb2', type: 'portal', x: 300, y: 1600, color: '#00FF66' },
-      { id: 'pl_r5a', type: 'bumper', x: 370, y: 1660, radius: 16, restitution: 1.3 },
-      ...room(500, 1920, 340, 170, { floorGap: 130 }),
-      { id: 'pl_r6a', type: 'bumper', x: 500, y: 1900, radius: 18, restitution: 1.3 },
-      ...room(300, 2220, 340, 170, { floorGap: 130 }),
-      { id: 'pl_r7a', type: 'bumper', x: 230, y: 2200, radius: 16, restitution: 1.3 },
-      { id: 'pl_r7b', type: 'bumper', x: 370, y: 2200, radius: 16, restitution: 1.3 },
-      ...room(500, 2520, 340, 170, { floorGap: 130 }),
-      { id: 'pl_r8a', type: 'bumper', x: 500, y: 2500, radius: 18, restitution: 1.3 },
-      // 사이드 보강: 방과 방 사이 노출 구간 차단
-      sideKicker(600, 'left'), sideKicker(900, 'right'),
-      sideBumper(1200, 'left'), sideBumper(1500, 'right'),
-      sideKicker(1800, 'left'), sideKicker(2100, 'right'),
-      sideBumper(2400, 'left'), sideBumper(2650, 'right'),
-      // 출구: 지그재그 미로 배출 — 짧은 경사벽 좌우 교대 배치 (각 벽 260px, 양쪽에 충분한 gap)
-      // 검산: 벽 길이 260px → 한쪽만 커버, 반대쪽은 완전히 열림
-      { id: 'pl_ex1', type: 'wall', x: 200, y: 2720, w: 260, h: 20, rotation: 12, friction: 0.07 },
-      { id: 'pl_ex2', type: 'wall', x: 600, y: 2800, w: 260, h: 20, rotation: -12, friction: 0.07 },
-      { id: 'pl_ex3', type: 'wall', x: 250, y: 2880, w: 240, h: 16, rotation: 10, friction: 0.07 },
+      // ========== Zone 1: 환영의 십자로 (Crossroads of Illusion) ==========
+      // 좌우 비대칭 진입로. 좌측은 핀밭을 지나 주황 포탈로, 우측은 중앙으로 하강
+      { id: 'pl_z1_w1', type: 'wall', x: 200, y: 180, w: 400, h: 20, rotation: 15, friction: 0.07 },
+      { id: 'pl_z1_w2', type: 'wall', x: 650, y: 220, w: 300, h: 20, rotation: -20, friction: 0.07 },
+      ...pinField(250, 1, { spacing: 60, bumperEvery: 5 }), // 좌측 핀밭 (y: 250+)
+      { id: 'pl_pa_in', type: 'portal', x: 150, y: 400, color: '#FF6600' }, // 주황 입구 (Zone 1 좌측) - 지름길
+      
+      // ========== Zone 2: 양자 얽힘 바운스 룸 (Quantum Bounce Room) ==========
+      // 폐쇄된 육각형 룸 (y: 500 ~ 950)
+      { id: 'pl_z2_w1', type: 'wall', x: 250, y: 550, w: 200, h: 20, rotation: 45, friction: 0.07 },
+      { id: 'pl_z2_w2', type: 'wall', x: 550, y: 550, w: 200, h: 20, rotation: -45, friction: 0.07 },
+      { id: 'pl_z2_w3', type: 'wall', x: 150, y: 750, w: 20, h: 250, rotation: 0, friction: 0.07 },
+      { id: 'pl_z2_w4', type: 'wall', x: 650, y: 750, w: 20, h: 250, rotation: 0, friction: 0.07 },
+      { id: 'pl_z2_w5', type: 'wall', x: 230, y: 950, w: 250, h: 20, rotation: -20, friction: 0.07 }, // 바닥 좌
+      { id: 'pl_z2_w6', type: 'wall', x: 570, y: 950, w: 250, h: 20, rotation: 20, friction: 0.07 },  // 바닥 우
+      // 중앙 gap: 약 106px (충분히 빠져나감)
+      
+      // 초고탄성 범퍼 도배 (룸 내부)
+      { id: 'pl_z2_b1', type: 'bumper', x: 250, y: 700, radius: 20, restitution: 1.6 },
+      { id: 'pl_z2_b2', type: 'bumper', x: 400, y: 650, radius: 25, restitution: 1.6 },
+      { id: 'pl_z2_b3', type: 'bumper', x: 550, y: 700, radius: 20, restitution: 1.6 },
+      { id: 'pl_z2_b4', type: 'bumper', x: 300, y: 800, radius: 15, restitution: 1.6 },
+      { id: 'pl_z2_b5', type: 'bumper', x: 500, y: 800, radius: 15, restitution: 1.6 },
+      { id: 'pl_z2_b6', type: 'bumper', x: 400, y: 850, radius: 18, restitution: 1.6 },
+      
+      // 포탈 맹점 배치
+      { id: 'pl_pb_in', type: 'portal', x: 220, y: 880, color: '#00FF66' }, // 초록 입구 (함정 - 상단 회귀)
+      { id: 'pl_pc_in', type: 'portal', x: 580, y: 880, color: '#9900FF' }, // 보라 입구 (보상 - 직행)
+
+      // ========== Zone 3: 시지프스의 깔때기 (Sisyphus' Funnel) ==========
+      // 거대한 V자형 깔때기 + 중간 탈출 틈새 (y: 1100 ~ 1500)
+      { id: 'pl_z3_w1a', type: 'wall', x: 100, y: 1250, w: 150, h: 20, rotation: 35, friction: 0.07 },
+      { id: 'pl_z3_w1b', type: 'wall', x: 300, y: 1390, w: 150, h: 20, rotation: 35, friction: 0.07 },
+      { id: 'pl_z3_w2a', type: 'wall', x: 700, y: 1250, w: 150, h: 20, rotation: -35, friction: 0.07 },
+      { id: 'pl_z3_w2b', type: 'wall', x: 500, y: 1390, w: 150, h: 20, rotation: -35, friction: 0.07 },
+      
+      // 탈출 보조 풍차 및 절망 포탈
+      { id: 'pl_z3_wm1', type: 'windmill', x: 290, y: 1340, speed: -12 }, // 틈새로 쳐올리는 역회전 풍차
+      { id: 'pl_z3_wm2', type: 'windmill', x: 510, y: 1340, speed: 12 },
+      { id: 'pl_pd_in', type: 'portal', x: 400, y: 1480, color: '#FF0033' }, // 빨강 입구 (함정 - 육각방 천장 회귀)
+      
+      // 사이드 보호
+      sideKicker(1600, 'left', { deg: 15 }), sideKicker(1600, 'right', { deg: 15 }),
+
+      // ========== Zone 4: 도플갱어의 춤 (Dance of Doppelgangers) ==========
+      // 기하학적 다중 포탈 겹침 무늬 (y: 1700 ~ 2200)
+      { id: 'pl_pe_in', type: 'portal', x: 350, y: 1800, color: '#00FFFF' }, // 시안 입구
+      { id: 'pl_pf_in', type: 'portal', x: 450, y: 1800, color: '#FF00FF' }, // 마젠타 입구
+      { id: 'pl_pe_out', type: 'portal', x: 400, y: 1950, color: '#00FFFF' }, // 시안 출구 (가운데 교차)
+      { id: 'pl_pf_out', type: 'portal', x: 300, y: 1950, color: '#FF00FF' }, // 마젠타 출구
+      { id: 'pl_pg_in', type: 'portal', x: 500, y: 1950, color: '#FFFF00' },  // 노랑 입구
+      { id: 'pl_pg_out', type: 'portal', x: 400, y: 2100, color: '#FFFF00' }, // 노랑 출구
+      
+      // 외곽 이탈 방지 가드레일 (포탈 존으로 칩을 유도)
+      { id: 'pl_z4_w1', type: 'wall', x: 150, y: 1900, w: 300, h: 20, rotation: 60, friction: 0.07 },
+      { id: 'pl_z4_w2', type: 'wall', x: 650, y: 1900, w: 300, h: 20, rotation: -60, friction: 0.07 },
+      
+      // ========== 포탈 출구 매핑 (Outlets) ==========
+      { id: 'pl_pa_out', type: 'portal', x: 400, y: 1080, color: '#FF6600' }, // 주황 출구 (Zone 1 -> Zone 3 직행)
+      { id: 'pl_pb_out', type: 'portal', x: 400, y: 120, color: '#00FF66' },  // 초록 출구 (Zone 2 함정 -> 최상단 중앙 회귀)
+      { id: 'pl_pc_out', type: 'portal', x: 400, y: 2350, color: '#9900FF' }, // 보라 출구 (Zone 2 보상 -> Zone 4 배출구 직행)
+      { id: 'pl_pd_out', type: 'portal', x: 400, y: 550, color: '#FF0033' },  // 빨강 출구 (Zone 3 함정 -> Zone 2 내부 천장)
+
+      // ========== 출구: 지그재그 미로 배출 ==========
+      { id: 'pl_ex1', type: 'wall', x: 200, y: 2450, w: 400, h: 20, rotation: 12, friction: 0.07 },
+      { id: 'pl_ex2', type: 'wall', x: 600, y: 2550, w: 400, h: 20, rotation: -12, friction: 0.07 },
+      { id: 'pl_ex3', type: 'wall', x: 200, y: 2650, w: 400, h: 20, rotation: 12, friction: 0.07 },
+      { id: 'pl_ex4', type: 'wall', x: 600, y: 2750, w: 400, h: 20, rotation: -12, friction: 0.07 },
+      { id: 'pl_ex5', type: 'wall', x: 250, y: 2880, w: 240, h: 16, rotation: 10, friction: 0.07 },
     ],
   },
 
@@ -509,14 +539,18 @@ export const MapPresets: Record<string, MapPresetMeta> = {
           }
         }
       }
-      // 사이드 보강: 삼각 핀밭 상반부 사이드 직낙 차단
+      // 사이드 보강: 엣지허깅 직낙을 방지하고 안쪽으로 퍼올리는 구출 풍차 배치
       out.push(
-        sideKicker(480, 'left', { deg: 15 }), sideKicker(500, 'right', { deg: 15 }),
-        sideBumper(750, 'left'), sideBumper(720, 'right'),
-        sideKicker(1050, 'left', { deg: 18 }), sideKicker(1080, 'right', { deg: 18 }),
-        sideBumper(1400, 'left'), sideBumper(1450, 'right'),
-        sideKicker(1800, 'left'), sideKicker(1750, 'right'),
-        sideBumper(2150, 'left'), sideBumper(2200, 'right'),
+        { id: kid('wm'), type: 'windmill', x: 40, y: 550, speed: 7 },
+        { id: kid('wm'), type: 'windmill', x: 760, y: 550, speed: -7 },
+        { id: kid('wm'), type: 'windmill', x: 40, y: 950, speed: 7 },
+        { id: kid('wm'), type: 'windmill', x: 760, y: 950, speed: -7 },
+        { id: kid('wm'), type: 'windmill', x: 40, y: 1350, speed: 7 },
+        { id: kid('wm'), type: 'windmill', x: 760, y: 1350, speed: -7 },
+        { id: kid('wm'), type: 'windmill', x: 40, y: 1750, speed: 7 },
+        { id: kid('wm'), type: 'windmill', x: 760, y: 1750, speed: -7 },
+        { id: kid('wm'), type: 'windmill', x: 40, y: 2150, speed: 7 },
+        { id: kid('wm'), type: 'windmill', x: 760, y: 2150, speed: -7 }
       );
       // 출구: 다중 갈퀴 바닥 — 짧은 경사벽 7개로 여러 틈새로 배출 (h:35, 약간 기울여 갈림 방지)
       const rakeY = top + rows * rowH + 70;
@@ -562,12 +596,12 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       { id: 'rf_wh3', type: 'whitehole', x: 400, y: 2120, radius: 175, force: 6 },
       ...pinField(2560, 1, { spacing: 62, bumperEvery: 4 }),
       // 사이드 기믹: 원형 사발 옆 빗금(고립) 구간 풍차 배치
-      { id: 'rf_wm1', type: 'windmill', x: 80, y: 680, speed: 7 },
-      { id: 'rf_wm2', type: 'windmill', x: 720, y: 680, speed: -7 },
-      { id: 'rf_wm3', type: 'windmill', x: 80, y: 1440, speed: 7 },
-      { id: 'rf_wm4', type: 'windmill', x: 720, y: 1440, speed: -7 },
-      { id: 'rf_wm5', type: 'windmill', x: 80, y: 2200, speed: 7 },
-      { id: 'rf_wm6', type: 'windmill', x: 720, y: 2200, speed: -7 },
+      { id: 'rf_wm1', type: 'windmill', x: 25, y: 400, speed: 7 },
+      { id: 'rf_wm2', type: 'windmill', x: 775, y: 350, speed: -7 },
+      { id: 'rf_wm3', type: 'windmill', x: 25, y: 1220, speed: 7 },
+      { id: 'rf_wm4', type: 'windmill', x: 775, y: 1250, speed: -7 },
+      { id: 'rf_wm5', type: 'windmill', x: 25, y: 2000, speed: 7 },
+      { id: 'rf_wm6', type: 'windmill', x: 775, y: 2030, speed: -7 },
 
       // 사이드 보강: arc 사발 바깥쪽 사이드 직낙 차단
       sideKicker(450, 'left', { deg: 22 }), sideKicker(400, 'right', { deg: 22 }),
@@ -577,8 +611,8 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       sideKicker(2050, 'left'), sideKicker(2080, 'right'),
       sideBumper(2430, 'left'), sideBumper(2460, 'right'),
       // 사이드 기믹: 하단 사선 벽 양 끝단(모서리) 고립 방지 풍차
-      { id: 'rf_wm7', type: 'windmill', x: 50, y: 2680, speed: 8 },
-      { id: 'rf_wm8', type: 'windmill', x: 750, y: 2680, speed: -8 },
+      { id: 'rf_wm7', type: 'windmill', x: 25, y: 2650, speed: 8 },
+      { id: 'rf_wm8', type: 'windmill', x: 775, y: 2650, speed: -8 },
 
       // 출구: 광폭 완만 사발 — 가장자리 급경사(30°) + 중앙 완만(8°)
       // 검산: 가장자리 inner_end = 80+69=149, 720-69=651
