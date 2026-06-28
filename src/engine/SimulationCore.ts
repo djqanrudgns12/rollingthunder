@@ -198,21 +198,53 @@ export class SimulationCore {
       }
     });
 
-    // 칩 스폰
+    // 칩 스폰 (스마트 그리드 배치)
     this.activeChips = [];
-    config.survivors.forEach((s: any) => {
-      const spawnX = config.width * 0.1 + this.rng() * (config.width * 0.8);
-      const chip = ChipFactory.createChip(this.world!, spawnX, 50, 12, s.id);
+    const slots = this.generateSlots(config.survivors.length, config.width);
+    config.survivors.forEach((s: any, idx: number) => {
+      const slot = slots[idx];
+      const chip = ChipFactory.createChip(this.world!, slot.x, slot.y, 24, s.id);
       chip.setLinvel({ x: 0, y: 0 }, true);
       this.activeChips.push(chip);
     });
   }
 
+  private generateSlots(count: number, width: number): {x: number, y: number}[] {
+    const slots: {x: number, y: number}[] = [];
+    const spacingX = 65;
+    const availableWidth = width * 0.8;
+    const maxPerRow = Math.max(1, Math.floor(availableWidth / spacingX));
+    
+    const rows = Math.ceil(count / maxPerRow);
+    let slotIdx = 0;
+    
+    for (let r = 0; r < rows; r++) {
+      const rowY = 50 + r * 65; 
+      const countInRow = (r === rows - 1) ? (count - slotIdx) : maxPerRow;
+      const rowWidth = (countInRow - 1) * spacingX;
+      const rowStartX = (width - rowWidth) / 2;
+      
+      for (let c = 0; c < countInRow; c++) {
+        slots.push({ x: rowStartX + c * spacingX, y: rowY });
+        slotIdx++;
+      }
+    }
+    
+    // Fisher-Yates 셔플
+    for (let i = slots.length - 1; i > 0; i--) {
+      const j = Math.floor(this.rng() * (i + 1));
+      [slots[i], slots[j]] = [slots[j], slots[i]];
+    }
+    
+    return slots;
+  }
+
   shuffle(width: number) {
     if (!this.world) return;
-    this.activeChips.forEach((chip) => {
-      const spawnX = width * 0.1 + this.rng() * (width * 0.8);
-      chip.setTranslation({ x: spawnX, y: 50 }, true);
+    const slots = this.generateSlots(this.activeChips.length, width);
+    this.activeChips.forEach((chip, idx) => {
+      const slot = slots[idx];
+      chip.setTranslation({ x: slot.x, y: slot.y }, true);
       chip.setLinvel({ x: 0, y: 0 }, true);
     });
   }

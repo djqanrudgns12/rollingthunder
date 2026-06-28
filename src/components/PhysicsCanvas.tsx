@@ -235,9 +235,10 @@ export default function PhysicsCanvas() {
           .clamp({ left: -200, right: WORLD_WIDTH + 200, top: -500, bottom: WORLD_HEIGHT + 200, underflow: 'center' }); // clamp bounds
         
         // 사용자가 직접 화면을 조작하면 카메라 디렉터를 수동 모드로(잠시 후 자동 복귀)
-        viewport.on('drag-start', () => cameraDirector?.notifyUserPan());
-        viewport.on('wheel', () => cameraDirector?.notifyUserPan());
-        viewport.on('pinch-start', () => cameraDirector?.notifyUserPan());
+        viewport.on('drag-start', () => cameraDirector?.notifyUserInteraction());
+        viewport.on('wheel', () => cameraDirector?.notifyUserInteraction());
+        viewport.on('pinch-start', () => cameraDirector?.notifyUserInteraction());
+        viewport.on('zoomed', () => cameraDirector?.notifyUserInteraction());
 
         // 줌 제어는 카메라 디렉터가 단독 소유(clampZoom 플러그인은 시네마틱 줌과 충돌하므로 미사용)
         viewport.moveCenter(400, 200);
@@ -279,6 +280,25 @@ export default function PhysicsCanvas() {
             const dtSec = (nowMs - lastCamMs) / 1000;
             lastCamMs = nowMs;
             cameraDirector.update(dtSec, chipPositions, currentRankings[0]?.id ?? null);
+          }
+
+          // Update Viewport Indicator — 월드 경계로 clamp 하여 트랙 폭 안의 깔끔한 밴드로 표시
+          // (visibleW = innerWidth/zoom 가 트랙 폭 800을 넘쳐 "가로 꽉 찬 박스"가 되던 문제 해결)
+          if (viewIndicator) {
+            viewIndicator.clear();
+            const currentZoom = viewport.scale.x;
+            const visibleW = window.innerWidth / currentZoom;
+            const visibleH = window.innerHeight / currentZoom;
+            const cx = viewport.center.x;
+            const cy = viewport.center.y;
+            const x0 = Math.max(0, cx - visibleW / 2);
+            const x1 = Math.min(WORLD_WIDTH, cx + visibleW / 2);
+            const y0 = Math.max(0, cy - visibleH / 2);
+            const y1 = Math.min(WORLD_HEIGHT, cy + visibleH / 2);
+            const sw = Math.max(2, 8 / currentZoom);
+            viewIndicator.rect(x0, y0, x1 - x0, y1 - y0);
+            viewIndicator.fill({ color: 0x00ffcc, alpha: 0.12 });
+            viewIndicator.stroke({ width: sw, color: 0x00ffcc, alpha: 0.9 });
           }
         });
 
@@ -992,7 +1012,7 @@ export default function PhysicsCanvas() {
                 if (skinKey === 'SR_cat') skinKey = 'cat';
                 
                 const textureUrl = `/images/assets/skins/${skinKey}.png`;
-                const R = 12; // Physics radius
+                const R = 24; // Physics radius
                 
                 const iconWrapper = new PIXI.Container();
                 iconWrapper.label = 'icon';
@@ -1031,10 +1051,16 @@ export default function PhysicsCanvas() {
 
                 const text = new PIXI.Text({ 
                   text: survivor.name, 
-                  style: { fill: 0xffffff, fontSize: 14, fontWeight: 'bold', dropShadow: { alpha: 0.8, color: 0x000000, blur: 3, distance: 0 } } 
+                  style: { 
+                    fill: colNum, 
+                    fontSize: 14, 
+                    fontWeight: 'bold', 
+                    dropShadow: { alpha: 0.9, color: 0x000000, blur: 4, distance: 1 },
+                    stroke: { color: 0x000000, width: 3, join: 'round' }
+                  } 
                 });
                 text.anchor.set(0.5);
-                text.y = -25;
+                text.y = -40;
                 container.addChild(text);
               } else {
                 // Dynamic kinematics like windmill rotor
@@ -1122,25 +1148,6 @@ export default function PhysicsCanvas() {
             } else {
               bgLayers[0].tint = 0xffffff; // Neon
             }
-          }
-
-          // Update Viewport Indicator — 월드 경계로 clamp 하여 트랙 폭 안의 깔끔한 밴드로 표시
-          // (visibleW = innerWidth/zoom 가 트랙 폭 800을 넘쳐 "가로 꽉 찬 박스"가 되던 문제 해결)
-          if (viewIndicator) {
-            viewIndicator.clear();
-            const currentZoom = viewport.scale.x;
-            const visibleW = window.innerWidth / currentZoom;
-            const visibleH = window.innerHeight / currentZoom;
-            const cx = viewport.center.x;
-            const cy = viewport.center.y;
-            const x0 = Math.max(0, cx - visibleW / 2);
-            const x1 = Math.min(WORLD_WIDTH, cx + visibleW / 2);
-            const y0 = Math.max(0, cy - visibleH / 2);
-            const y1 = Math.min(WORLD_HEIGHT, cy + visibleH / 2);
-            const sw = Math.max(2, 8 / currentZoom);
-            viewIndicator.rect(x0, y0, x1 - x0, y1 - y0);
-            viewIndicator.fill({ color: 0x00ffcc, alpha: 0.12 });
-            viewIndicator.stroke({ width: sw, color: 0x00ffcc, alpha: 0.9 });
           }
 
         } else if (type === 'SOUND_EFFECT') {

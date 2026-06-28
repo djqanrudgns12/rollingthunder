@@ -103,30 +103,35 @@ export class CameraDirector {
   }
 
   // 메인 뷰포트를 사용자가 직접 드래그/휠/핀치 → 카메라가 손을 떼고(자유 조작) 잠시 후 복귀
-  notifyUserPan() {
+  notifyUserInteraction() {
     if (this.mode === 'finisher_focus') return;
     this.mode = 'manual';
     this.freeManual = true;
     this.focusChipId = null;
-    this.manualExpireMs = performance.now() + 3500;
+    this.manualExpireMs = performance.now() + 3000;
   }
 
   // 미니맵 탭 → 해당 좌표로 점프. chipId가 있으면 그 칩을 락온 추적.
   minimapJump(x: number, y: number, chipId: string | null) {
-    if (this.mode === 'finisher_focus') return;
     this.mode = 'manual';
     this.freeManual = false;
     this.scrubbing = false;
     this.focusChipId = chipId;
     this.manualTargetX = x;
     this.manualTargetY = y;
-    this.manualExpireMs = performance.now() + 3500;
+    this.manualExpireMs = performance.now() + 3000;
   }
 
   // 미니맵 드래그 스크럽(1:1)
-  minimapScrubStart() { if (this.mode !== 'finisher_focus') { this.mode = 'manual'; this.freeManual = false; this.scrubbing = true; this.focusChipId = null; } }
+  minimapScrubStart() { 
+    this.mode = 'manual'; 
+    this.freeManual = false; 
+    this.scrubbing = true; 
+    this.focusChipId = null; 
+  }
+  
   minimapScrub(x: number, y: number) {
-    if (this.mode === 'finisher_focus') return;
+    this.mode = 'manual';
     this.scrubbing = true;
     this.manualTargetX = x;
     this.manualTargetY = y;
@@ -134,9 +139,10 @@ export class CameraDirector {
     this.camX = x;
     this.camY = y;
   }
+  
   minimapScrubEnd() {
     this.scrubbing = false;
-    this.manualExpireMs = performance.now() + 2500;
+    this.manualExpireMs = performance.now() + 3000;
   }
 
   // 도달자 가벼운 줌 펀치(감쇠)
@@ -206,6 +212,10 @@ export class CameraDirector {
     // 자유 수동(메인 화면 직접 조작) 중에는 카메라가 손을 뗀다(pixi-viewport가 처리).
     // 단, 결착 구간/타임아웃이 오면 즉시 복귀(현재 뷰 상태를 동기화해 점프 없이 이어받음).
     if (this.mode === 'manual' && this.freeManual) {
+      // 수동 조작 시 지나친 줌 인/아웃 방지 (0.3x ~ 3.0x 범위 강제)
+      if (this.vp.scale.x < 0.3) this.vp.scale.set(0.3);
+      if (this.vp.scale.x > 3.0) this.vp.scale.set(3.0);
+
       const leaderYNow = this.frontRunnerY(chips);
       const nearFinish = leaderYNow / this.worldH >= this.LEAD_BATTLE_AT;
       if (performance.now() > this.manualExpireMs || nearFinish) {
@@ -281,10 +291,24 @@ export class CameraDirector {
       targetY = this.focusChipId ? this.smLeaderY : this.manualTargetY;
       targetZoom = this.focusChipId ? 1.6 : Math.max(this.camZoom, this.fitWidthZoom());
     } else {
-      // RACE / FINISHER 공통: 프레이밍
-      let packSpan = 240;
-      // leaderY - packBackY 로직은 삭제했으므로 기본값 사용 (어차피 리더 중심으로 줌)
-      const fitPack = this.screenH / (packSpan + 360); 
+      // RACE / FINISHER 공통: 프레이밍 (스마트 줌 로직)
+      let packBackY = this.smLeaderY;
+      for (const [, p] of chips) {
+        // 선두보다 뒤에 있는 칩들 중 너무 멀리 떨어진 칩은 제외 (최대 1000px 뒤까지 고려)
+        if (p.y < this.smLeaderY && p.y > this.smLeaderY - 1000) {
+          if (p.y < packBackY) packBackY = p.y;
+        }
+      }
+      
+      let packSpan = this.smLeaderY - packBackY;
+      packSpan = Math.max(200, Math.min(packSpan, 700));
+
+      // 경기 진행도(progress 0 ~ 1)에 따라 카메라가 서서히 줌인 (기본 여백 감소)
+      // 초반에는 넓은 시야를, 후반 결승선에서는 긴박감을 위해 타이트하게 포커싱
+      const progressFactor = Math.max(0, Math.min(1, progress));
+      const dynamicPadding = 500 - (progressFactor * 250); 
+      
+      const fitPack = this.screenH / (packSpan + dynamicPadding); 
       let baseZoom = this.clampZoom(fitPack);
 
       if (this.mode === 'finisher_focus') {

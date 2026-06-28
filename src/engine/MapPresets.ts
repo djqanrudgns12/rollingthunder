@@ -596,12 +596,12 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       { id: 'rf_wh3', type: 'whitehole', x: 400, y: 2120, radius: 175, force: 6 },
       ...pinField(2560, 1, { spacing: 62, bumperEvery: 4 }),
       // 사이드 기믹: 원형 사발 옆 빗금(고립) 구간 풍차 배치
-      { id: 'rf_wm1', type: 'windmill', x: 25, y: 400, speed: 7 },
-      { id: 'rf_wm2', type: 'windmill', x: 775, y: 350, speed: -7 },
-      { id: 'rf_wm3', type: 'windmill', x: 25, y: 1220, speed: 7 },
-      { id: 'rf_wm4', type: 'windmill', x: 775, y: 1250, speed: -7 },
-      { id: 'rf_wm5', type: 'windmill', x: 25, y: 2000, speed: 7 },
-      { id: 'rf_wm6', type: 'windmill', x: 775, y: 2030, speed: -7 },
+      { id: 'rf_wm1', type: 'windmill', x: 180, y: 480, speed: 7 },
+      { id: 'rf_wm2', type: 'windmill', x: 620, y: 430, speed: -7 },
+      { id: 'rf_wm3', type: 'windmill', x: 180, y: 1300, speed: 7 },
+      { id: 'rf_wm4', type: 'windmill', x: 620, y: 1330, speed: -7 },
+      { id: 'rf_wm5', type: 'windmill', x: 180, y: 2080, speed: 7 },
+      { id: 'rf_wm6', type: 'windmill', x: 620, y: 2110, speed: -7 },
 
       // 사이드 보강: arc 사발 바깥쪽 사이드 직낙 차단
       sideKicker(450, 'left', { deg: 22 }), sideKicker(400, 'right', { deg: 22 }),
@@ -611,8 +611,8 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       sideKicker(2050, 'left'), sideKicker(2080, 'right'),
       sideBumper(2430, 'left'), sideBumper(2460, 'right'),
       // 사이드 기믹: 하단 사선 벽 양 끝단(모서리) 고립 방지 풍차
-      { id: 'rf_wm7', type: 'windmill', x: 25, y: 2650, speed: 8 },
-      { id: 'rf_wm8', type: 'windmill', x: 775, y: 2650, speed: -8 },
+      { id: 'rf_wm7', type: 'windmill', x: 150, y: 2750, speed: 8 },
+      { id: 'rf_wm8', type: 'windmill', x: 650, y: 2750, speed: -8 },
 
       // 출구: 광폭 완만 사발 — 가장자리 급경사(30°) + 중앙 완만(8°)
       // 검산: 가장자리 inner_end = 80+69=149, 720-69=651
