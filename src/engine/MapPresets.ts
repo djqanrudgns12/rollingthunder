@@ -680,57 +680,89 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     ],
   },
 
-  // ========== MAP 9: 바운스 미러 ==========
+  // ========== MAP 9: 혼돈의 거울 ==========
   'bounce_mirror': {
-    name: '바운스 미러',
-    description: '중앙 범퍼가 칩을 좌우로 가르고 셰브론이 다시 중앙으로 튕기는 완전 대칭 위브 맵',
-    lengthType: 'Middle',
-    complexity: 'Medium',
-    worldHeight: 2500,
+    name: '혼돈의 거울',
+    description: '극강의 혼돈과 비대칭, 쉴 새 없는 튕김과 지름길 포탈 워프가 난무하는 운명의 시련',
+    lengthType: 'Long',
+    complexity: 'High',
+    worldHeight: 4200,
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_bounce_mirror.png',
-    themeWeights: { pin: 0.20, bumper: 0.60, booster: 0.00, portal: 0.00, blackhole: 0.00, whitehole: 0.00, hole: 0.05, windmill: 0.15 },
+    themeWeights: { pin: 0.15, bumper: 0.40, booster: 0.15, portal: 0.10, blackhole: 0.05, whitehole: 0.05, hole: 0.00, windmill: 0.10 },
     items: [
-      // 골격: 완전 좌우대칭 셰브론 위브. 중앙 범퍼(둥근 스플리터)가 칩을 좌/우로 가르면,
-      // 양옆 고탄성 셰브론 암(∨)이 칩을 다시 중앙으로 튕겨 보낸다(동시에 가쪽 직낙 차단).
-      // 입구: W자 대칭 스플리터 — 중앙 ˆ + 양 가장자리 안쪽 경사벽 = W 형태
-      // 검산: 외벽 inner = 100+91=191, 700-91=609. 내벽 inner = 330-66=264, 470+66=536
-      // gap1(좌~내좌) = 264-191=73px, gap2(내우~우) = 609-536=73px, gap3(내좌~내우)=470-330=140px (통과가능 ✓)
-      { id: 'bm_entL', type: 'wall', x: 100, y: 180, w: 200, h: 20, rotation: 25, friction: 0.07 },
-      { id: 'bm_entR', type: 'wall', x: 700, y: 180, w: 200, h: 20, rotation: -25, friction: 0.07 },
-      { id: 'bm_entCL', type: 'wall', x: 330, y: 200, w: 140, h: 16, rotation: -18, friction: 0.07 },
-      { id: 'bm_entCR', type: 'wall', x: 470, y: 200, w: 140, h: 16, rotation: 18, friction: 0.07 },
-      // 좌우 교대 셰브론(중앙 gap)으로 만드는 대칭 위브: 한 셰브론의 드롭이 다음 셰브론의
-      // 반대쪽 암에 떨어져 칩이 ∨∧∨∧ 로 짜이며 내려간다. 범퍼가 바운스 손맛을 더함.
-      ...chevron(330, 360, { gap: 130, len: 200, rest: 0.85 }),
-      { id: 'bm_b0', type: 'bumper', x: 500, y: 360, radius: 16, restitution: 1.25 },
-      ...chevron(470, 550, { gap: 130, len: 200, rest: 0.85 }),
-      { id: 'bm_b1', type: 'bumper', x: 300, y: 550, radius: 16, restitution: 1.25 },
-      ...chevron(330, 740, { gap: 130, len: 200, rest: 0.85 }),
-      { id: 'bm_b2', type: 'bumper', x: 500, y: 740, radius: 16, restitution: 1.25 },
-      ...chevron(470, 930, { gap: 130, len: 200, rest: 0.85 }),
-      { id: 'bm_b3', type: 'bumper', x: 300, y: 930, radius: 16, restitution: 1.25 },
-      ...chevron(330, 1120, { gap: 130, len: 200, rest: 0.85 }),
-      { id: 'bm_b4', type: 'bumper', x: 500, y: 1120, radius: 16, restitution: 1.25 },
-      ...chevron(470, 1310, { gap: 130, len: 200, rest: 0.85 }),
-      { id: 'bm_b5', type: 'bumper', x: 300, y: 1310, radius: 16, restitution: 1.25 },
-      ...chevron(330, 1500, { gap: 130, len: 200, rest: 0.85 }),
-      { id: 'bm_b6', type: 'bumper', x: 500, y: 1500, radius: 16, restitution: 1.25 },
-      ...chevron(470, 1690, { gap: 130, len: 200, rest: 0.85 }),
-      { id: 'bm_b7', type: 'bumper', x: 300, y: 1690, radius: 16, restitution: 1.25 },
-      ...chevron(330, 1880, { gap: 130, len: 200, rest: 0.85 }),
-      ...chevron(470, 2070, { gap: 130, len: 200, rest: 0.85 }),
-      // 사이드 보강: 셰브론 바깥쪽 사이드 직낙 차단
-      sideKicker(400, 'left', { deg: 22 }), sideKicker(420, 'right', { deg: 22 }),
-      sideBumper(740, 'left'), sideBumper(760, 'right'),
-      sideKicker(1120, 'left', { deg: 18 }), sideKicker(1140, 'right', { deg: 18 }),
-      sideBumper(1500, 'left'), sideBumper(1520, 'right'),
-      sideKicker(1880, 'left'), sideKicker(1900, 'right'),
-      // 출구: 대형 셰브론 — chevron(gap:150) 자체에 충분한 통과 gap 확보
-      // 검산: chevron gap=150, len=260 → funnel과 유사한 안전 구조
-      ...chevron(400, 2260, { gap: 150, len: 260, rest: 0.5 }),
-      { id: 'bm_exL', type: 'wall', x: 80, y: 2220, w: 160, h: 16, rotation: 30, friction: 0.07 },
-      { id: 'bm_exR', type: 'wall', x: 720, y: 2220, w: 160, h: 16, rotation: -30, friction: 0.07 },
+      // 1구간: 혼돈의 소용돌이 (y: 150 ~ 900)
+      // 입구 스플리터 (비대칭) - 틈새 간격 넉넉하게 120 이상
+      { id: kid('wm'), type: 'wall', x: 200, y: 180, w: 250, h: 20, rotation: 30, restitution: 0.5, friction: 0.07 },
+      { id: kid('wm'), type: 'wall', x: 650, y: 220, w: 250, h: 20, rotation: -20, restitution: 0.5, friction: 0.07 },
+      // 거대 비대칭 풍차 2대
+      { id: kid('wm'), type: 'windmill', x: 250, y: 400, speed: 7 },
+      { id: kid('wm'), type: 'windmill', x: 550, y: 550, speed: -9 },
+      // 직낙 차단용 중앙 대형 범퍼
+      { id: kid('bp'), type: 'bumper', x: 400, y: 700, radius: 40, restitution: 1.5 },
+      
+      // 2구간: 기적의 틈새 & 로또 포탈 (y: 900 ~ 1900)
+      // 왼쪽 로또 공간 (막혀있는 듯 하나 포탈 존재)
+      { id: kid('wl'), type: 'wall', x: 180, y: 900, w: 260, h: 16, rotation: -25, restitution: 0.5, friction: 0.07 }, // 왼쪽 가장자리로 유도
+      // 가장자리 구석에 포탈 (안쪽으로 120px 여유 공간)
+      { id: kid('pt'), type: 'portal', x: 90, y: 1050, color: '#FF33CC' }, // 워프 진입점 A (하단 역전용)
+      // 포탈 밑을 받쳐주는 벽 (구석 형성하되 완전히 막히지 않게 조심, 포탈이 흡수함)
+      sideKicker(1150, 'left', { w: 200, deg: 35 }), 
+
+      // 중앙 우측은 지연 핀 지대
+      { id: kid('pn'), type: 'pin', x: 500, y: 950 }, { id: kid('pn'), type: 'pin', x: 560, y: 980 },
+      { id: kid('pn'), type: 'pin', x: 440, y: 1010 }, { id: kid('pn'), type: 'pin', x: 620, y: 1040 },
+      { id: kid('pn'), type: 'pin', x: 500, y: 1070 }, { id: kid('pn'), type: 'pin', x: 560, y: 1100 },
+      { id: kid('bp'), type: 'bumper', x: 650, y: 1250, radius: 25, restitution: 1.4 },
+      
+      // 오른쪽 갇힘 구제 포탈
+      { id: kid('wl'), type: 'wall', x: 600, y: 1400, w: 300, h: 16, rotation: 25, restitution: 0.5, friction: 0.07 }, 
+      { id: kid('pt'), type: 'portal', x: 710, y: 1550, color: '#33CCFF' }, // 워프 진입점 B
+      sideKicker(1650, 'right', { w: 200, deg: 35 }),
+
+      // 3구간: 중력 왜곡 & 가속의 방 (y: 1900 ~ 3000)
+      // 포탈 A와 B의 출구 (가장 아래쪽으로 역전 텔레포트)
+      { id: kid('pt'), type: 'portal', x: 400, y: 1950, color: '#FF33CC' }, // 포탈 A 출구 (역전)
+      { id: kid('pt'), type: 'portal', x: 200, y: 2200, color: '#33CCFF' }, // 포탈 B 출구 (부스터 하이웨이 직행)
+
+      // 블랙홀 화이트홀의 미로
+      { id: kid('bh'), type: 'blackhole', x: 600, y: 2000, force: 1.2 },
+      { id: kid('wh'), type: 'whitehole', x: 600, y: 2200, force: 1.5 },
+      { id: kid('bh'), type: 'blackhole', x: 250, y: 2400, force: 1.5 },
+      { id: kid('wh'), type: 'whitehole', x: 550, y: 2600, force: 1.2 },
+
+      // 화이트홀이 튕겨내는 위치(x: 200~300)에 부스터 하이웨이 연쇄
+      { id: kid('bs'), type: 'booster', x: 250, y: 2600, w: 100, h: 20, rotation: 90, force: 20 },
+      { id: kid('bs'), type: 'booster', x: 250, y: 2750, w: 100, h: 20, rotation: 90, force: 20 },
+      { id: kid('bs'), type: 'booster', x: 250, y: 2900, w: 100, h: 20, rotation: 90, force: 25 },
+      
+      // 오른쪽 안전한 셰브론 기반 굽이길 (단 Gap은 150으로 넓게)
+      ...chevron(550, 2800, { gap: 150, len: 180, deg: 15 }),
+      { id: kid('wl'), type: 'wall', x: 700, y: 2950, w: 200, h: 16, rotation: -20, restitution: 0.5 },
+
+      // 4구간: 메가 범퍼 지대 & 최후의 심판 (y: 3000 ~ 4200)
+      { id: kid('bp'), type: 'bumper', x: 400, y: 3100, radius: 45, restitution: 1.5 },
+      { id: kid('bp'), type: 'bumper', x: 200, y: 3250, radius: 35, restitution: 1.5 },
+      { id: kid('bp'), type: 'bumper', x: 600, y: 3350, radius: 30, restitution: 1.5 },
+      { id: kid('bp'), type: 'bumper', x: 300, y: 3500, radius: 40, restitution: 1.5 },
+      { id: kid('bp'), type: 'bumper', x: 500, y: 3650, radius: 35, restitution: 1.5 },
+
+      // 최후의 방해꾼 초고속 풍차
+      { id: kid('wm'), type: 'windmill', x: 400, y: 3850, speed: 12 },
+      
+      // 출구 대형 깔때기 (최소 Gap 180 보장으로 절대로 막히지 않음)
+      ...funnel(4000, { gap: 180, deg: 25, len: 350 }),
+
+      // ============================================
+      // 사이드 직낙 방지 헬퍼 보강 (넓게 배치해 끼임 방지)
+      sideKicker(500, 'left', { deg: 25 }), sideKicker(800, 'right', { deg: 25 }),
+      sideBumper(1200, 'left'), sideBumper(1300, 'right'),
+      sideKicker(1800, 'left', { deg: 20 }), sideKicker(1800, 'right', { deg: 20 }),
+      sideBumper(2300, 'left'), sideBumper(2100, 'right'),
+      sideKicker(2500, 'right', { deg: 30 }),
+      sideBumper(2800, 'left'), sideBumper(3200, 'right'),
+      sideKicker(3400, 'left', { deg: 25 }), sideKicker(3500, 'right', { deg: 25 }),
+      sideBumper(3700, 'left'), sideBumper(3700, 'right'),
     ],
   },
 

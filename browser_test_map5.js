@@ -10,8 +10,8 @@ const path = require('path');
   if (!fs.existsSync(artifactsDir)) fs.mkdirSync(artifactsDir, { recursive: true });
 
   try {
-    console.log('Navigating to http://localhost:3000');
-    await page.goto('http://localhost:3000', { waitUntil: 'networkidle' });
+    console.log('Navigating to http://localhost:3005');
+    await page.goto('http://localhost:3005', { waitUntil: 'networkidle' });
     await page.waitForTimeout(2000); 
 
     // Open map modal

@@ -16,17 +16,29 @@ const path = require('path');
 
     // Open map selector
     console.log('Opening map selector...');
-    await page.click('text=변경');
-    await page.waitForTimeout(500);
+    await page.evaluate(() => {
+        document.querySelectorAll('button').forEach(b => {
+            if (b.innerText && (b.innerText.includes('변경') || b.innerText.includes('맵'))) {
+                b.click();
+            }
+        });
+    });
+    await page.waitForTimeout(1000);
 
     // Select '플링코 폭포'
     console.log('Selecting Plinko Cascade map...');
-    await page.click('text=플링코 폭포');
-    await page.waitForTimeout(500);
+    await page.evaluate(() => {
+        document.querySelectorAll('div, h3, button').forEach(el => {
+            if (el.innerText && el.innerText.includes('플링코 폭포')) {
+                el.click();
+            }
+        });
+    });
+    await page.waitForTimeout(1000);
 
     // Click confirm or load map
-    await page.click('button:has-text("맵 불러오기")');
-    await page.waitForTimeout(500);
+    // (Removed because clicking the map directly loads it)
+    await page.waitForTimeout(1000);
 
     // Add many participants to see if any get stuck
     let participants = [];
