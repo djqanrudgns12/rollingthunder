@@ -6,13 +6,13 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 // ── 스킬별 표시 설정 ──
 // 각 스킬 종류에 대한 이름과 고유 색상. 로그에서 스킬 이름에 이 색상을 적용한다.
-const SKILL_DISPLAY: Record<string, { name: string; color: string }> = {
-  tank:     { name: '탱크 모드',     color: '#FF8C00' },  // 주황 (무겁고 강한 느낌)
-  booster:  { name: '슈퍼 부스터',   color: '#00FFD0' },  // 시안 (빠른 속도감)
-  slime:    { name: '슬라임화',      color: '#39FF14' },  // 네온 그린 (끈적 변신)
-  ghost:    { name: '유령화',        color: '#C084FC' },  // 보라 (신비로운 투명)
-  magnet:   { name: '자석 모드',     color: '#FF4444' },  // 빨강 (자력 에너지)
-  teleport: { name: '순간 이동',     color: '#FF69B4' },  // 핫핑크 (공간이동)
+const SKILL_DISPLAY: Record<string, { name: string; color: string; twClasses: string }> = {
+  tank:     { name: '탱크 모드',     color: '#FF8C00', twClasses: 'text-orange-400 border-orange-500/50 bg-orange-950/40 shadow-[0_0_8px_rgba(234,88,12,0.5)]' },
+  booster:  { name: '슈퍼 부스터',   color: '#00FFD0', twClasses: 'text-cyan-400 border-cyan-500/50 bg-cyan-950/40 shadow-[0_0_8px_rgba(6,182,212,0.5)]' },
+  slime:    { name: '슬라임화',      color: '#39FF14', twClasses: 'text-green-400 border-green-500/50 bg-green-950/40 shadow-[0_0_8px_rgba(34,197,94,0.5)]' },
+  ghost:    { name: '유령화',        color: '#C084FC', twClasses: 'text-purple-400 border-purple-500/50 bg-purple-950/40 shadow-[0_0_8px_rgba(168,85,247,0.5)]' },
+  magnet:   { name: '자석 모드',     color: '#FF4444', twClasses: 'text-red-400 border-red-500/50 bg-red-950/40 shadow-[0_0_8px_rgba(239,68,68,0.5)]' },
+  teleport: { name: '순간 이동',     color: '#FF69B4', twClasses: 'text-pink-400 border-pink-500/50 bg-pink-950/40 shadow-[0_0_8px_rgba(236,72,153,0.5)]' },
 }
 
 // ── 다이내믹 문구 템플릿 ──
@@ -33,10 +33,9 @@ const MESSAGE_TEMPLATES: string[] = [
 
 // 무작위 문구 생성 함수
 export function generateSkillMessage(playerName: string, skillKey: string): string {
-  const skillInfo = SKILL_DISPLAY[skillKey]
-  const skillName = skillInfo ? skillInfo.name : skillKey
   const template = MESSAGE_TEMPLATES[Math.floor(Math.random() * MESSAGE_TEMPLATES.length)]
-  return template.replace('{name}', playerName).replace('{skill}', skillName)
+  // {skill} 부분은 UI에서 분할하여 뱃지 스타일을 입히기 위해 남겨두고 {name}만 치환합니다.
+  return template.replace('{name}', playerName)
 }
 
 export default function SkillLogOverlay() {
@@ -80,21 +79,42 @@ export default function SkillLogOverlay() {
                 animate={{ opacity: 1, x: 0, scale: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                className="py-1 text-base leading-snug whitespace-normal break-keep drop-shadow-md"
+                className="py-1 text-base leading-snug whitespace-normal break-keep drop-shadow-md flex items-start gap-2"
                 // 멀리서도 잘 보이도록 글씨를 키우고 줄바꿈(whitespace-normal)을 허용함
               >
-                {/* 플레이어 이름: 플레이어 고유 색상 */}
-                <span
-                  className="font-bold drop-shadow-[0_0_4px_currentColor]"
-                  style={{ color: log.playerColor }}
-                >
-                  {log.playerName}
-                </span>
-                {/* 스킬 관련 텍스트: 스킬 고유 색상 + 흰색 혼합 */}
-                <span className="text-white/80">
-                  {/* message에서 이름 부분을 제거하고 나머지만 표시 */}
-                  {log.message.replace(log.playerName, '')}
-                </span>
+                {/* 플레이어 아이콘 (순위보드와 동일한 색상 도트) */}
+                <div 
+                  className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_currentColor] shrink-0 mt-[6px]"
+                  style={{ backgroundColor: log.playerColor, color: log.playerColor }} 
+                />
+                <div className="flex-1">
+                  {/* 플레이어 이름: 플레이어 고유 색상 */}
+                  <span
+                    className="font-bold drop-shadow-[0_0_4px_currentColor]"
+                    style={{ color: log.playerColor }}
+                  >
+                    {log.playerName}
+                  </span>
+                  {/* 스킬 관련 텍스트: 분할 렌더링 */}
+                  <span className="text-white/80">
+                    {(() => {
+                      const msg = log.message.replace(log.playerName, '');
+                      // 만약 이전 버전의 로그라서 {skill} 텍스트가 없다면 그대로 렌더링
+                      if (!msg.includes('{skill}')) return msg;
+                      
+                      const parts = msg.split('{skill}');
+                      return (
+                        <>
+                          {parts[0]}
+                          <span className={`inline-flex items-center justify-center px-1.5 py-0.5 mx-1 border rounded text-[0.9em] font-black italic tracking-wide drop-shadow-md ${skillInfo?.twClasses || ''}`}>
+                            {skillInfo?.name || log.skill}
+                          </span>
+                          {parts[1]}
+                        </>
+                      )
+                    })()}
+                  </span>
+                </div>
               </motion.div>
             )
           })}

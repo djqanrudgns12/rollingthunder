@@ -2,6 +2,21 @@ import { EditorItem } from '@/store/editorStore';
 import type { WallStyle } from './MapBuilder';
 
 // 맵 프리셋 메타데이터: 각 맵의 이름·길이·복잡도·외벽 스타일·장애물 좌표를 하나로 묶음
+export interface ThemeWeights {
+  pin: number;
+  bumper: number;
+  booster: number;
+  portal: number;
+  blackhole: number;
+  whitehole: number;
+  hole: number;
+  windmill: number;
+}
+
+export const DEFAULT_THEME_WEIGHTS: ThemeWeights = {
+  pin: 0.1, bumper: 0.3, booster: 0.1, portal: 0.05, blackhole: 0.05, whitehole: 0.05, hole: 0.05, windmill: 0.3
+};
+
 export interface MapPresetMeta {
   name: string;                              // UI에 표시될 맵 이름
   description: string;                       // 맵 특성 한 줄 설명
@@ -10,6 +25,7 @@ export interface MapPresetMeta {
   worldHeight: number;                       // 이 맵 전용 월드 높이
   wallStyle: WallStyle;                      // 외벽 스타일 (straight/zigzag/narrow/wide)
   bgImage?: string;                          // 맵별 전용 배경 이미지 경로
+  themeWeights: ThemeWeights;                // 밀도 증가 시 추가 주입 비율
   items: EditorItem[];                       // 장애물 배치 배열
 }
 
@@ -160,6 +176,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     worldHeight: 3300,
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_neon_arcade.png',
+    themeWeights: { pin: 0.15, bumper: 0.35, booster: 0.20, portal: 0.05, blackhole: 0.00, whitehole: 0.00, hole: 0.05, windmill: 0.20 },
     items: [
       // 골격: 핀볼 테이블. 개방 베이마다 범퍼 군집 + 측벽 킥커(가쪽 칩을 안으로 튕김)
       // + 각진 부스터(플런저)로 칩이 사방 난반사. 지그재그 슬로프 없음.
@@ -220,35 +237,37 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     worldHeight: 3300,
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_gravity_abyss.png',
+    themeWeights: { pin: 0.25, bumper: 0.05, booster: 0.00, portal: 0.00, blackhole: 0.35, whitehole: 0.30, hole: 0.00, windmill: 0.05 },
     items: [
-      // 골격: 중력 우물 체인. 좌우로 엇갈린 대형 블랙홀(인력)·화이트홀(척력)이 칩을
-      // 사선으로 당기고 밀어 곡선 궤적의 소용돌이 강하를 만든다. 벽은 호(arc) 가드레일만.
+      // 골격: 중력 우물 체인. 베이마다 가쪽 킥커가 칩을 중앙으로 보내면 좌우로 엇갈린
+      // 블랙홀(인력)·화이트홀(척력)이 사선으로 당기고 밀어 곡선 궤적을 만든다.
+      // (우물 아래 핀밭은 칩을 우물이 핀에 박아 정체시키므로 두지 않는다)
       ...funnel(170, { gap: 160, deg: 24, len: 280 }),
-      // 가쪽 킥커(곡선 호는 C-포켓에 칩이 갇히므로 직선 저마찰 킥커로 가쪽 직낙만 차단)
-      { id: 'g_k1', type: 'wall', x: 120, y: 700, w: 250, h: 16, rotation: 22, friction: 0.07 },
-      { id: 'g_k2', type: 'wall', x: 680, y: 1120, w: 250, h: 16, rotation: -22, friction: 0.07 },
-      { id: 'g_k3', type: 'wall', x: 120, y: 1540, w: 250, h: 16, rotation: 22, friction: 0.07 },
-      // 우물 체인(엇갈림)
-      { id: 'g_bh1', type: 'blackhole', x: 300, y: 520, radius: 165, force: 4 },
-      { id: 'g_wh1', type: 'whitehole', x: 560, y: 560, radius: 135, force: 4 },
-      { id: 'g_bh2', type: 'blackhole', x: 520, y: 920, radius: 165, force: 4 },
-      { id: 'g_wh2', type: 'whitehole', x: 250, y: 980, radius: 135, force: 4 },
-      ...pinField(1140, 1, { spacing: 64, bumperEvery: 4 }),
-      { id: 'g_bh3', type: 'blackhole', x: 300, y: 1380, radius: 165, force: 4 },
-      { id: 'g_wh3', type: 'whitehole', x: 560, y: 1420, radius: 135, force: 4 },
-      { id: 'g_ps1', type: 'piston', x: 400, y: 1640, w: 150, h: 20, speed: 3, waypointB: { x: 250, y: 1640 } },
-      { id: 'g_bh4', type: 'blackhole', x: 520, y: 1820, radius: 165, force: 4 },
-      { id: 'g_wh4', type: 'whitehole', x: 250, y: 1880, radius: 135, force: 4 },
-      ...pinField(2080, 1, { spacing: 64, bumperEvery: 4 }),
-      ...arc(780, 2300, 360, 120, 240, { seg: 10, rest: 0.2 }),
-      { id: 'g_bh5', type: 'blackhole', x: 300, y: 2280, radius: 165, force: 4 },
-      { id: 'g_wh5', type: 'whitehole', x: 560, y: 2320, radius: 135, force: 4 },
-      { id: 'g_bh6', type: 'blackhole', x: 520, y: 2680, radius: 165, force: 4 },
-      { id: 'g_wh6', type: 'whitehole', x: 250, y: 2740, radius: 135, force: 4 },
-      ...pinField(2900, 1, { spacing: 64, bumperEvery: 4 }),
-      { id: 'g_bh7', type: 'blackhole', x: 400, y: 3080, radius: 175, force: 4 },
+      // Bay 1
+      { id: 'g_k1', type: 'wall', x: 120, y: 540, w: 250, h: 16, rotation: 22, friction: 0.07 },
+      { id: 'g_k2', type: 'wall', x: 680, y: 540, w: 250, h: 16, rotation: -22, friction: 0.07 },
+      { id: 'g_bh1', type: 'blackhole', x: 300, y: 780, radius: 140, force: 4 },
+      { id: 'g_wh1', type: 'whitehole', x: 560, y: 780, radius: 120, force: 4 },
+      // Bay 2
+      { id: 'g_k3', type: 'wall', x: 120, y: 1080, w: 250, h: 16, rotation: 22, friction: 0.07 },
+      { id: 'g_k4', type: 'wall', x: 680, y: 1080, w: 250, h: 16, rotation: -22, friction: 0.07 },
+      { id: 'g_bh2', type: 'blackhole', x: 520, y: 1320, radius: 140, force: 4 },
+      { id: 'g_wh2', type: 'whitehole', x: 250, y: 1320, radius: 120, force: 4 },
+      { id: 'g_ps1', type: 'piston', x: 400, y: 1540, w: 150, h: 20, speed: 3, waypointB: { x: 250, y: 1540 } },
+      // Bay 3
+      { id: 'g_k5', type: 'wall', x: 120, y: 1700, w: 250, h: 16, rotation: 22, friction: 0.07 },
+      { id: 'g_k6', type: 'wall', x: 680, y: 1700, w: 250, h: 16, rotation: -22, friction: 0.07 },
+      { id: 'g_bh3', type: 'blackhole', x: 300, y: 1940, radius: 140, force: 4 },
+      { id: 'g_wh3', type: 'whitehole', x: 560, y: 1940, radius: 120, force: 4 },
+      // Bay 4
+      { id: 'g_k7', type: 'wall', x: 120, y: 2320, w: 250, h: 16, rotation: 22, friction: 0.07 },
+      { id: 'g_k8', type: 'wall', x: 680, y: 2320, w: 250, h: 16, rotation: -22, friction: 0.07 },
+      { id: 'g_bh4', type: 'blackhole', x: 520, y: 2560, radius: 140, force: 4 },
+      { id: 'g_wh4', type: 'whitehole', x: 250, y: 2560, radius: 120, force: 4 },
+      // 피날레 우물
+      { id: 'g_bh5', type: 'blackhole', x: 400, y: 2920, radius: 150, force: 4 },
       // 출구 깔때기
-      ...funnel(3200, { gap: 130 }),
+      ...funnel(3120, { gap: 130 }),
     ],
   },
 
@@ -261,6 +280,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     worldHeight: 2700,
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_mechanical_factory.png',
+    themeWeights: { pin: 0.15, bumper: 0.10, booster: 0.10, portal: 0.00, blackhole: 0.00, whitehole: 0.00, hole: 0.10, windmill: 0.55 },
     items: [
       // 골격: 조립 라인. 수평 컨베이어 피스톤(좌우 왕복 플랫폼) + 대형 톱니(풍차) +
       // 저마찰 캐치 렛지가 칩을 다음 층으로 넘긴다. 피스톤을 놓쳐도 렛지가 흐름을 보장.
@@ -292,6 +312,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     worldHeight: 3300,
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_boost_highway.png',
+    themeWeights: { pin: 0.40, bumper: 0.10, booster: 0.40, portal: 0.00, blackhole: 0.00, whitehole: 0.00, hole: 0.00, windmill: 0.10 },
     items: [
       // 골격: 수직 레인 스피드웨이. 세로벽으로 나뉜 평행 레인을 하향 부스터로 직진 질주,
       // 레인 사이 틈에서 확률적으로 차선 변경(운). 핀 산란대로 순위 셔플.
@@ -337,6 +358,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     worldHeight: 3000,
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_portal_labyrinth.png',
+    themeWeights: { pin: 0.10, bumper: 0.35, booster: 0.00, portal: 0.30, blackhole: 0.00, whitehole: 0.00, hole: 0.10, windmill: 0.15 },
     items: [
       // 골격: 박스 방 미로. 좌우 엇갈린 방(박스벽 + 바닥 중앙 gap)을 칩이 떨어지며 통과하고,
       // 같은 색 포탈이 비인접 방으로 워프(확률 지름길). 방 바닥은 항상 열려 진행을 막지 않음.
@@ -378,6 +400,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     worldHeight: 2700,
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_plinko_cascade.png',
+    themeWeights: { pin: 0.70, bumper: 0.25, booster: 0.00, portal: 0.00, blackhole: 0.00, whitehole: 0.00, hole: 0.00, windmill: 0.05 },
     items: ((): EditorItem[] => {
       // 골격: 골턴 보드(삼각 핀밭). 좁은 한 점에서 떨어뜨려 아래로 갈수록 넓어지는 삼각형
       // 핀밭으로 칩을 퍼뜨린다(순수 운). 삼각 변을 따라 측벽이 가쪽 이탈을 막는다.
@@ -414,6 +437,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     worldHeight: 3000,
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_roulette_of_fate.png',
+    themeWeights: { pin: 0.30, bumper: 0.10, booster: 0.00, portal: 0.10, blackhole: 0.00, whitehole: 0.35, hole: 0.00, windmill: 0.15 },
     items: [
       // 골격: 원형 룰렛 볼. 마주보는 호(arc) 측벽이 사발을 이루고(상단 진입·하단 배출 열림),
       // 중심 화이트홀이 칩을 림으로 밀어 돌린 뒤 하단 gap 으로 떨어뜨린다.
@@ -449,6 +473,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     worldHeight: 2700,
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_tornado_canyon.png',
+    themeWeights: { pin: 0.10, bumper: 0.05, booster: 0.10, portal: 0.00, blackhole: 0.25, whitehole: 0.00, hole: 0.00, windmill: 0.50 },
     items: [
       // 골격: 토네이도 컬럼. 중앙에 거대 블랙홀을 세로로 쌓아 칩을 빨아들이며 휘감고(가쪽 칩도
       // 중앙으로 당겨 직낙 차단), 양옆 역회전 풍차가 가른다. 호(arc)가 층을 나눈다.
@@ -495,6 +520,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     worldHeight: 2500,
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_bounce_mirror.png',
+    themeWeights: { pin: 0.20, bumper: 0.60, booster: 0.00, portal: 0.00, blackhole: 0.00, whitehole: 0.00, hole: 0.05, windmill: 0.15 },
     items: [
       // 골격: 완전 좌우대칭 셰브론 위브. 중앙 범퍼(둥근 스플리터)가 칩을 좌/우로 가르면,
       // 양옆 고탄성 셰브론 암(∨)이 칩을 다시 중앙으로 튕겨 보낸다(동시에 가쪽 직낙 차단).
@@ -533,6 +559,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     worldHeight: 2500,
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_meteor_field.png',
+    themeWeights: { pin: 0.10, bumper: 0.70, booster: 0.05, portal: 0.00, blackhole: 0.00, whitehole: 0.00, hole: 0.00, windmill: 0.15 },
     items: [
       // 골격: 개활 소행성대. 흩어진 대형 둥근 운석(범퍼) 사이를 칩이 핀볼처럼 튕기며 내려간다.
       // 범퍼 골(cusp) 정체를 막기 위해 가쪽 킥커와 저마찰 "레스큐 렛지"를 군데군데 깔았다.

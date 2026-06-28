@@ -22,7 +22,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Rolling Thunder | Physics Marble Race",
+  title: "Rolling Thunder | 도파민 터지는 레이스",
   description: "Premium dynamic marble race and physics simulation game.",
   manifest: "/manifest.json",
 };

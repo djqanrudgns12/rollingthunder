@@ -15,7 +15,7 @@ function getRandomAnimal() {
 }
 
 export default function Dashboard() {
-  const { participants, addParticipant, removeParticipant, clearParticipants, setGimmickDensity, gimmickDensity, setSurvivors, targetWinnerCount, setTargetWinnerCount, setSessionId, gameMode, setGameMode, customWinningRank, setCustomWinningRank, globalSkin, setGlobalSkin, setParticipants, isSkillEnabled, setSkillEnabled, selectedMapPreset, setRandomWinningRanks } = useGameStore()
+  const { participants, addParticipant, removeParticipant, clearParticipants, setGimmickDensity, gimmickDensity, setSurvivors, targetWinnerCount, setTargetWinnerCount, setSessionId, gameMode, setGameMode, customWinningRank, setCustomWinningRank, globalSkin, setGlobalSkin, setParticipants, isSkillEnabled, setSkillEnabled, selectedMapPreset, setRandomWinningRanks, clearSkillLogs } = useGameStore()
   const { setGameStage, customMapData, customMapTitle, isBroadcasterMode, setBroadcasterMode, isAnonymized, setAnonymized } = useUIStore()
   
   const [nameInput, setNameInput] = useState('')
@@ -83,6 +83,7 @@ export default function Dashboard() {
 
     try {
       // Optimistic UI - Start game instantly, save session in background
+      clearSkillLogs()
       setSurvivors(participants)
       setTargetWinnerCount(localWinnerCount)
       setGameStage('playing')

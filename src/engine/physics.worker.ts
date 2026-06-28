@@ -91,7 +91,7 @@ function flushEvents() {
 // 각 칩의 쿨타임을 1씩 증가시키고, max에 도달하면 스킬을 발동한 뒤 즉시 초기화한다.
 // 이 방식은 게임 속도(dtMultiplier)에 영향을 받지 않으며, 순수 프레임 카운트 기반이다.
 function processSkillCooldowns() {
-  if (!core || !isSkillEnabled || core.gameOver) return;
+  if (!core || !isSkillEnabled) return;
 
   for (const cd of chipCooldowns) {
     if (core.finishedChips.has(cd.chipId)) continue;
@@ -106,7 +106,7 @@ function processSkillCooldowns() {
       self.postMessage({ type: 'SKILL_FIRED', payload: { chipId: cd.chipId, skill: randomSkill } });
 
       // 물리 엔진에 스킬 효과 적용 (v2: currentFrame + activeChips 전달)
-      SkillSystem.triggerSkill(core.world!, cd.chipId, randomSkill, core.frame, core.activeChips);
+      SkillSystem.triggerSkill(core.world!, cd.chipId, randomSkill, core.frame, core.activeChips, core.finishedChips);
 
       // 쿨타임 즉시 초기화 + 새로운 랜덤 쿨타임 부여
       cd.currentCooldown = 0;
@@ -133,13 +133,16 @@ self.onmessage = async (e) => {
     const wallStyle: WallStyle = presetMeta ? presetMeta.wallStyle : 'zigzag';
     const presetData = presetMeta ? presetMeta.items : null;
     const mapItems = customMapData && customMapData.length > 0 ? customMapData : presetData;
+    const isCustomMap = !!(customMapData && customMapData.length > 0);
 
     isSkillEnabled = isSkill ?? true;
 
     if (!core) core = new SimulationCore();
     core.init({
       width, height, worldHeight, wallStyle,
-      mapItems, gimmickDensity,
+      mapItems, gimmickDensity, isCustomMap,
+      themeWeights: presetMeta?.themeWeights,
+      mapKey: selectedMapPreset && selectedMapPreset !== 'random' ? selectedMapPreset : 'random',
       survivors, targetCount, mode, customRank, randomRanks,
     });
 

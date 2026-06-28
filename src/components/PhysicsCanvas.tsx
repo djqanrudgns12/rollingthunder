@@ -1265,22 +1265,44 @@ export default function PhysicsCanvas() {
         } else if (type === 'CHIP_FINISHED') {
           finishZoomHoldTimer = 18; // 약 0.3초 줌 홀드 (60fps 기준)
           setFinishedFeed(prev => [...prev, payload]);
-          confetti({
-            particleCount: 150,
-            spread: 90,
-            origin: { y: 0.8 },
-            colors: ['#00ffcc', '#ff00ff', '#ffff00', '#ffffff', '#ff0000']
-          });
+          
+          // Phase 1: Local Shockwave
+          if (viewport && app && payload.position) {
+            const shockCircle = new PIXI.Graphics();
+            shockCircle.circle(0, 0, 150);
+            shockCircle.fill({ color: payload.survivor?.color || 0xffffff, alpha: 0.8 });
+            shockCircle.position.set(payload.position.x, payload.position.y);
+            viewport.addChild(shockCircle);
+
+            let scale = 0.1;
+            let alpha = 0.8;
+            const shockTicker = () => {
+              scale += app.ticker.deltaTime * 0.12;
+              alpha -= app.ticker.deltaTime * 0.03;
+              shockCircle.scale.set(scale);
+              shockCircle.alpha = alpha;
+              
+              if (alpha <= 0) {
+                app.ticker.remove(shockTicker);
+                shockCircle.destroy();
+              }
+            };
+            app.ticker.add(shockTicker);
+          }
         } else if (type === 'GAME_OVER') {
           setGameState('finished');
           setGameOverResult(payload);
           triggerShockwave();
-          confetti({
-            particleCount: 200,
-            spread: 100,
-            origin: { y: 0.5 },
-            colors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff']
-          });
+          
+          // Phase 2: Time Freeze (Slow motion)
+          if (workerRef.current) {
+            workerRef.current.postMessage({ type: 'SET_TIME_SCALE', payload: { scale: 0.15 } });
+            setTimeout(() => {
+              if (workerRef.current) {
+                workerRef.current.postMessage({ type: 'SET_TIME_SCALE', payload: { scale: 1.0 } });
+              }
+            }, 1500);
+          }
         }
       };
 
@@ -1357,7 +1379,22 @@ export default function PhysicsCanvas() {
 
       {gameState === 'finished' && gameOverResult && (
         <div className="absolute top-6 left-6 z-50 flex flex-col items-start animate-in slide-in-from-left fade-in duration-700 pointer-events-none">
-          <h2 className="font-black text-6xl tracking-tighter drop-shadow-[0_0_15px_rgba(255,215,0,0.8)] text-[#FFD700] mb-0" style={{ textShadow: '0 0 10px #FFD700, 0 0 20px #FFD700' }}>
+          {/* Stardust Particles (Phase 3) */}
+          <div className="absolute inset-0 pointer-events-none overflow-visible z-[-1]">
+            {[...Array(15)].map((_, i) => (
+              <div 
+                key={i} 
+                className="stardust-particle" 
+                style={{ 
+                  left: `${Math.random() * 120 - 10}%`, 
+                  top: `${100 + Math.random() * 50}%`,
+                  animationDelay: `${Math.random() * 3}s`,
+                  animationDuration: `${2.5 + Math.random() * 2}s`
+                }} 
+              />
+            ))}
+          </div>
+          <h2 className="animate-victory-pulse font-black text-6xl tracking-tighter text-[#FFD700] mb-0">
             Victory!
           </h2>
           <span className="text-white/80 text-xl font-bold mb-4 ml-1 tracking-wider drop-shadow-md">

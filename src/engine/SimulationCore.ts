@@ -4,6 +4,8 @@ import type { WallStyle } from './MapBuilder';
 import { ChipFactory } from './ChipFactory';
 import { RankingTracker } from './RankingTracker';
 import { SkillSystem } from './SkillSystem';
+import { applyDensity } from './GimmickInjector';
+import { ThemeWeights, DEFAULT_THEME_WEIGHTS } from './MapPresets';
 
 // ──────────────────────────────────────────────────────────────────────────
 // SimulationCore: 물리 시뮬레이션의 "순수 코어".
@@ -28,6 +30,9 @@ export interface SimInitConfig {
   wallStyle: WallStyle;
   mapItems: any[] | null;  // 명시적 배치 아이템(프리셋/커스텀). null이면 랜덤 생성
   gimmickDensity: number;
+  isCustomMap?: boolean;   // 커스텀 맵 여부 (밀도 조절 무시)
+  themeWeights?: ThemeWeights; // 맵별 추가 기믹 가중치
+  mapKey?: string;         // 프리셋 ID (시드 생성용)
   survivors: any[];
   targetCount: number;
   mode: string;            // 'speed' | 'turtle' | 'custom' | 'random'
@@ -135,9 +140,19 @@ export class SimulationCore {
     MapBuilder.createWalls(this.world, config.width, this.worldHeight, 100, config.wallStyle);
 
     // 장애물 배치
-    const mapToLoad = config.mapItems && config.mapItems.length > 0 ? config.mapItems : null;
-    if (mapToLoad) {
-      mapToLoad.forEach((item: any) => {
+    const isCustomMap = config.isCustomMap ?? false;
+    const baseItems = config.mapItems && config.mapItems.length > 0 ? config.mapItems : null;
+    if (baseItems) {
+      const finalItems = isCustomMap
+        ? baseItems
+        : applyDensity(
+            baseItems,
+            config.gimmickDensity,
+            this.worldHeight,
+            config.themeWeights ?? DEFAULT_THEME_WEIGHTS,
+            config.mapKey ?? 'unknown'
+          );
+      finalItems.forEach((item: any) => {
         if (item.type === 'pin') {
           MapBuilder.createPin(this.world!, item.x, item.y, item.radius || 15, false, item.restitution, item.friction);
         } else if (item.type === 'bumper') {
@@ -448,7 +463,7 @@ export class SimulationCore {
 
         const survivor = this.survivorsData.find((s: any) => s.id === data.id);
         if (survivor) {
-          this.events.push({ type: 'CHIP_FINISHED', payload: { rank: this.finishOrder.length, survivor } });
+          this.events.push({ type: 'CHIP_FINISHED', payload: { rank: this.finishOrder.length, survivor, position: { x: t.x, y: t.y } } });
         }
 
         let isGameOver = false;

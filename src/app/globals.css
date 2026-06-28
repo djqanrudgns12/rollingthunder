@@ -110,3 +110,31 @@
 .custom-scrollbar:hover::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.4);
 }
+
+@keyframes stardustRise {
+  0% { transform: translateY(100px) scale(0.5); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 0.8; }
+  100% { transform: translateY(-200px) scale(1.5); opacity: 0; }
+}
+
+.stardust-particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: radial-gradient(circle, #FFD700 0%, rgba(255,215,0,0) 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: stardustRise 3s ease-in infinite;
+  box-shadow: 0 0 10px #FFD700;
+}
+
+@keyframes victoryPulse {
+  0%, 100% { filter: brightness(1); text-shadow: 0 0 10px #FFD700, 0 0 20px #FFD700; }
+  50% { filter: brightness(1.3); text-shadow: 0 0 20px #FFD700, 0 0 40px #FFF; transform: scale(1.02); }
+}
+
+.animate-victory-pulse {
+  animation: victoryPulse 2s ease-in-out infinite;
+  display: inline-block;
+}
