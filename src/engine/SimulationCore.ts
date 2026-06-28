@@ -589,11 +589,11 @@ export class SimulationCore {
         }
       }
       const lastProgress = this.chipLastProgressFrame.get(data.id) || 0;
-      // 10초(600프레임) 진전 없으면 탈출 임펄스. 코너 끼임 대비 "중앙으로" 밀어내고
+      // 5초(300프레임) 진전 없으면 탈출 임펄스. 코너 끼임 대비 "중앙으로" 밀어내고
       // 강하게 아래로 보낸다(벽 코너에서 빠져나오도록 수평 성분을 중앙 지향으로).
-      if (this.frame - lastProgress > 600) {
-        const towardCenter = (400 - t.x) * 0.9; // 중앙(x=400)으로 향하는 Δv
-        this.applyDeltaV(chip, towardCenter + (Math.random() - 0.5) * 120, 360);
+      if (this.frame - lastProgress > 300) {
+        const towardCenter = (400 - t.x) * 1.5; // 중앙(x=400)으로 향하는 Δv (기존 0.9에서 강화)
+        this.applyDeltaV(chip, towardCenter + (Math.random() - 0.5) * 150, 450); // 아래로 보내는 힘 강화 (기존 360 -> 450)
         this.chipLastProgressFrame.set(data.id, this.frame);
       }
     });

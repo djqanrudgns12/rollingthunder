@@ -4,12 +4,19 @@ import type { Viewport } from 'pixi-viewport';
 // CameraDirector: 경기 카메라의 단일 두뇌.
 //   - 매 프레임 "단 하나의" 목표 {x, y, zoom}을 정하고, 프레임레이트 독립 지수 댐핑으로
 //     실제 뷰포트를 부드럽게 수렴시킨다(여러 스프링이 경합하던 '정신없음' 제거).
-//   - 기본은 선두 그룹을 여유있게 담는 프레이밍. 결승 결착/우승자에서만 시네마틱 줌인+슬로모션.
-//   - 슬로모션(SET_TIME_SCALE) 호출 소유자를 이 클래스 하나로 일원화한다.
+//   - 기본은 선두 그룹을 여유있게 담는 프레이밍. 그 위에 "시네마틱 비트(DirectorBeat)"
+//     레이어를 얹어 축구 중계처럼 능동적인 줌/속도 연출을 한다:
+//       TRACKING → (결승 직전 + 드라마 조건) ANTICIPATION(줌인+슬로우)
+//                → (통과 순간) CLIMAX(스냅 가속+펀치) → HANDOFF(다음 주자 휘프팬) → TRACKING
+//   - 비트는 모두 매 프레임 누적 실시간 dt로 구동된다(슬로모션은 물리 dt만 늦추고 렌더 틱은
+//     실시간이므로 비트 타이밍은 "실제 초" 기준 — setTimeout 불필요/결정적).
+//   - 슬로모션(SET_TIME_SCALE) 호출 소유자를 이 클래스 하나로 일원화한다(부드러운 이즈 + 스팸 방지).
 //   - 미니맵 클릭-점프/드래그-스크럽 같은 수동 조작도 여기서 목표로 흡수(일정 시간 후 자동 복귀).
 // ──────────────────────────────────────────────────────────────────────────
 
 type Mode = 'idle' | 'race' | 'manual' | 'finisher_focus';
+// 결승 연출 비트(레이싱 중에만 활성). 'tracking'은 평상 추적.
+type FinisherPhase = 'idle' | 'climax' | 'handoff';
 
 export interface CameraDirectorOpts {
   worldWidth: number;
@@ -22,6 +29,10 @@ export interface CameraDirectorOpts {
 // 프레임레이트 독립 지수 보간: dt(초)에 무관하게 일정한 "절반 도달 시간"을 보장.
 function damp(cur: number, target: number, k: number, dt: number): number {
   return target + (cur - target) * Math.exp(-k * dt);
+}
+
+function clamp01(v: number): number {
+  return v < 0 ? 0 : v > 1 ? 1 : v;
 }
 
 export class CameraDirector {
@@ -47,29 +58,58 @@ export class CameraDirector {
   private manualExpireMs = 0;
   private manualTargetX = 0;
   private manualTargetY = 0;
-  private focusChipId: string | null = null; // 수동 칩 락온 / 우승자 락온
+  private focusChipId: string | null = null; // 수동 칩 락온 / 결승 락온
   private scrubbing = false;
   private freeManual = false; // 사용자가 메인 화면을 직접 드래그/핀치 중 → 카메라가 손을 뗌
 
-  private slowMoActive = false;
   private leadBattle = false;
   private zoomPunch = 0; // 도달자 가벼운 줌 펀치(감쇠)
   private shakeIntensity = 0; // 스크린 셰이크 강도
-  private winnerDecided = false; // 우승 확정 후엔 결착 시네마틱/슬로모션을 더 걸지 않고 남은 레이스만 추적
+  private winnerDecided = false; // 우승 확정 후엔 결착 시네마틱을 더 걸지 않고 남은 레이스만 추적
+
+  // ── 시네마틱 비트 상태 ──
   private finisherQueue: { chipId: string }[] = [];
-  private isProcessingFinisher = false;
+  private finisherPhase: FinisherPhase = 'idle';
+  private finisherPhaseT = 0;            // 현재 비트 경과(실시간 초)
+  private anticipating = false;          // 결승 직전 줌인+슬로우 활성
+  private anticipationT = 0;             // 슬로우 지속(스톨 가드용)
+  private anticipationCooldownT = 0;     // 재무장 방지 쿨다운
+  private photoFinishActive = false;     // 1·2위 접전(듀얼 프레이밍)
+  private lastStandActive = false;       // 남은 주자 1~2명(라스트 스탠드 긴장)
+  private nextFinishIsWinner = true;     // 다음 완주자가 "우승 슬롯"인가(PhysicsCanvas가 갱신)
+  private establishingT = 0;             // 오프닝(줌아웃→푸시인) 잔여
+  private lastLeaderId: string | null = null; // 선두 교체 감지용
+  private overtakeCooldownT = 0;         // 선두 교체 하이라이트 쿨다운
+
+  // 시간 배율(슬로모션/가속): 부드럽게 이즈, 변화가 충분할 때만 워커로 전송
+  private timeScaleCurrent = 1.0;
+  private timeScaleTarget = 1.0;
+  private timeScaleSent = 1.0;
 
   // ── 튜닝 상수 ──
   private readonly PAN_K = 5.0;          // 위치 댐핑 강도
   private readonly ZOOM_K = 3.0;         // 줌 댐핑 강도
   private readonly CENTROID_K = 3.0;     // 중심 X 저상통과
   private readonly LEADER_K = 7.0;       // 선두 Y 저상통과(반응성 위해 다소 빠르게)
-  private readonly PACK_BAND = 700;      // 선두에서 이 거리(px) 안쪽을 '선두 그룹'으로 본다
   private readonly LEAD_BATTLE_AT = 0.86; // 진행도 이 이상이면 결착 줌인 시작
-  private readonly SLOWMO_AT = 0.93;     // 진행도 이 이상이면 슬로모션
   private readonly MAX_ZOOM = 2.0;
   private readonly BATTLE_ZOOM = 1.75;
   private readonly WINNER_ZOOM = 2.0;
+
+  // 시네마틱 비트 튜닝
+  private readonly IMMINENT_PX = 260;        // 결승선까지 이 거리 안이면 "도달 직전"
+  private readonly PHOTO_FINISH_PX = 130;    // 1·2위 Y간격 이 이내면 접전(포토피니시)
+  private readonly SLOWMO_SCALE = 0.4;       // 결승 직전 슬로모션 배율
+  private readonly LASTSTAND_SCALE = 0.55;   // 마지막 주자 추적 슬로모션(완만)
+  private readonly RELEASE_SCALE = 1.18;     // 통과 순간 스냅 가속 펀치
+  private readonly MAX_ANTICIPATION_S = 1.2; // 슬로우 최대 지속(스톨 가드)
+  private readonly CLIMAX_S = 0.55;          // 통과자 락온 유지 시간
+  private readonly HANDOFF_S = 0.5;          // 다음 주자 휘프팬 시간
+  private readonly ESTABLISH_S = 1.0;        // 오프닝 푸시인 시간
+  private readonly OVERTAKE_CD_S = 1.5;      // 선두 교체 하이라이트 쿨다운
+  private readonly TIMESCALE_K = 9.0;        // 시간배율 이즈 강도
+  private readonly HANDOFF_PAN_K = 11.0;     // 휘프팬 위치 댐핑(빠른 스냅)
+  private readonly HANDOFF_ZOOM_K = 7.0;     // 휘프팬 줌 댐핑
 
   constructor(vp: Viewport, opts: CameraDirectorOpts) {
     this.vp = vp;
@@ -90,6 +130,7 @@ export class CameraDirector {
   }
 
   setGameState(state: 'idle' | 'playing' | 'finished') {
+    const prev = this.gameState;
     this.gameState = state;
     if (state === 'idle') {
       if (this.mode !== 'finisher_focus' && this.mode !== 'manual') {
@@ -99,16 +140,25 @@ export class CameraDirector {
       if (this.mode === 'idle') {
         this.mode = 'race';
       }
+      // 오프닝 연출: idle→playing 전이 시 넓게 빠졌다가 출발 팩으로 푸시인
+      if (prev !== 'playing') {
+        this.establishingT = this.ESTABLISH_S;
+        this.camZoom = this.fitWidthZoom(); // 즉시 줌아웃 → 추적 줌이 더 타이트해 자연스레 밀려들어옴
+      }
     }
   }
 
   // 메인 뷰포트를 사용자가 직접 드래그/휠/핀치 → 카메라가 손을 떼고(자유 조작) 잠시 후 복귀
   notifyUserInteraction() {
+    // 통과 순간(climax) 같은 결정적 연출 중에는 카메라가 손을 떼지 않는다.
     if (this.mode === 'finisher_focus') return;
     this.mode = 'manual';
     this.freeManual = true;
     this.focusChipId = null;
     this.manualExpireMs = performance.now() + 3000;
+    // 수동 전환 시 슬로모션 즉시 해제(슬로우인 채로 사용자가 패닝하는 어색함 방지)
+    this.anticipating = false;
+    this.resetTimeScale();
   }
 
   // 미니맵 탭 → 해당 좌표로 점프. chipId가 있으면 그 칩을 락온 추적.
@@ -123,13 +173,13 @@ export class CameraDirector {
   }
 
   // 미니맵 드래그 스크럽(1:1)
-  minimapScrubStart() { 
-    this.mode = 'manual'; 
-    this.freeManual = false; 
-    this.scrubbing = true; 
-    this.focusChipId = null; 
+  minimapScrubStart() {
+    this.mode = 'manual';
+    this.freeManual = false;
+    this.scrubbing = true;
+    this.focusChipId = null;
   }
-  
+
   minimapScrub(x: number, y: number) {
     this.mode = 'manual';
     this.scrubbing = true;
@@ -139,7 +189,7 @@ export class CameraDirector {
     this.camX = x;
     this.camY = y;
   }
-  
+
   minimapScrubEnd() {
     this.scrubbing = false;
     this.manualExpireMs = performance.now() + 3000;
@@ -155,49 +205,20 @@ export class CameraDirector {
     this.shakeIntensity = Math.max(this.shakeIntensity, intensity);
   }
 
-  // 개별 피니셔 포커싱 및 슬로우 모션 큐잉
-  focusNextFinisher(chipId: string) {
-    this.finisherQueue.push({ chipId });
-    if (!this.isProcessingFinisher) {
-      this.processNextFinisher();
-    }
+  // PhysicsCanvas가 게임 로직(모드/목표 등수)으로 계산해 알려주는 드라마 컨텍스트.
+  // 다음 완주자가 "우승 슬롯"인지 여부 → 결승 직전 ANTICIPATION 게이팅에 사용.
+  setDrama(nextFinishIsWinner: boolean) {
+    this.nextFinishIsWinner = nextFinishIsWinner;
+    this.winnerDecided = !nextFinishIsWinner;
   }
 
-  private processNextFinisher() {
-    if (this.finisherQueue.length === 0) {
-      this.isProcessingFinisher = false;
-      if (this.mode === 'finisher_focus') {
-        this.mode = 'race';
-        this.focusChipId = null;
-      }
-      return;
+  // 완주 발생 → 결승 연출 큐잉. dramatic=false(중상위권 다수)면 무거운 락온/슬로우 없이
+  // 가벼운 줌 펀치만 주어 템포를 유지한다("핵심 순간만" 정책).
+  focusNextFinisher(chipId: string, dramatic: boolean) {
+    this.flashFinisher();
+    if (dramatic || this.lastStandActive) {
+      this.finisherQueue.push({ chipId });
     }
-
-    this.isProcessingFinisher = true;
-    const finisher = this.finisherQueue.shift()!;
-    this.mode = 'finisher_focus';
-    this.focusChipId = finisher.chipId;
-    this.leadBattle = false; // 결착 연출 중지
-
-    // 0.8초간 슬로우 모션
-    this.setTimeScale(0.35);
-    this.slowMoActive = true;
-
-    setTimeout(() => {
-      if (this.slowMoActive) {
-        this.setTimeScale(1.0);
-        this.slowMoActive = false;
-      }
-    }, 800);
-
-    // 1.5초 후 다음 피니셔 처리 (다이나믹 줌아웃-줌인 호흡)
-    setTimeout(() => {
-      // 다음 타겟으로 가기 전에 줌아웃 효과를 위해 잠시 focus 해제
-      this.focusChipId = null; 
-      setTimeout(() => {
-        this.processNextFinisher();
-      }, 300); // 0.3초 줌아웃 호흡 후 다음 포커스
-    }, 1500);
   }
 
   getState() {
@@ -209,9 +230,16 @@ export class CameraDirector {
     void leaderHintId;
     const dt = Math.min(Math.max(dtSec, 0.001), 0.05);
 
+    // 시간배율은 전역(모드 무관) — 매 프레임 부드럽게 이즈(전 프레임 타겟 기준, 1프레임 지연은 무시 가능).
+    this.tickTimeScale(dt);
+    this.anticipationCooldownT = Math.max(0, this.anticipationCooldownT - dt);
+    this.overtakeCooldownT = Math.max(0, this.overtakeCooldownT - dt);
+    this.establishingT = Math.max(0, this.establishingT - dt);
+
     // 자유 수동(메인 화면 직접 조작) 중에는 카메라가 손을 뗀다(pixi-viewport가 처리).
     // 단, 결착 구간/타임아웃이 오면 즉시 복귀(현재 뷰 상태를 동기화해 점프 없이 이어받음).
     if (this.mode === 'manual' && this.freeManual) {
+      this.timeScaleTarget = 1.0; // 수동 중엔 항상 정상 속도
       // 수동 조작 시 지나친 줌 인/아웃 방지 (0.3x ~ 3.0x 범위 강제)
       if (this.vp.scale.x < 0.3) this.vp.scale.set(0.3);
       if (this.vp.scale.x > 3.0) this.vp.scale.set(3.0);
@@ -226,13 +254,23 @@ export class CameraDirector {
       }
     }
 
-    // ── 1) 선두 그룹 산출 ──
+    // ── 1) 선두/2위/잔여주자 산출 ──
     // 선두 = (결승선 직전까지) 가장 멀리 내려간 칩. finished(아래로 빠진) 칩은 제외.
-    let leaderY = -Infinity;
-    let leaderX = this.smCentroidX;
-    const racingMaxY = this.worldH + 60;
-    for (const [, p] of chips) {
-      if (p.y < racingMaxY && p.y > leaderY) { leaderY = p.y; leaderX = p.x; }
+    const finishLineY = this.worldH + 20;
+    const racingCap = this.worldH + 60;
+    let leaderY = -Infinity, leaderX = this.smCentroidX, leaderId: string | null = null;
+    let secondY = -Infinity, secondX = this.smCentroidX;
+    let racingCount = 0;
+    for (const [id, p] of chips) {
+      if (p.y <= finishLineY) racingCount++; // 아직 결승선 통과 전 = 레이싱 중
+      if (p.y < racingCap) {
+        if (p.y > leaderY) {
+          secondY = leaderY; secondX = leaderX;
+          leaderY = p.y; leaderX = p.x; leaderId = id;
+        } else if (p.y > secondY) {
+          secondY = p.y; secondX = p.x;
+        }
+      }
     }
     if (leaderY === -Infinity) {
       // 모두 결승선 통과 → 마지막 알려진 선두 유지 또는 가장 아래 칩
@@ -240,7 +278,7 @@ export class CameraDirector {
     }
     if (leaderY === -Infinity) leaderY = this.smLeaderY; // 칩이 없으면 기존 유지
 
-    // 우승자/수동 칩 락온이 있으면 그 칩으로 선두 기준을 덮어씀
+    // 우승자/수동 칩 락온이 있으면 그 칩으로 선두 기준을 덮어씀(climax 중 통과자 추적)
     if (this.focusChipId) {
       const fp = chips.get(this.focusChipId);
       if (fp) { leaderY = fp.y; leaderX = fp.x; }
@@ -255,6 +293,7 @@ export class CameraDirector {
     this.hasLeader = true;
 
     const progress = this.smLeaderY / this.worldH;
+    const playing = this.gameState === 'playing';
 
     // ── 2) 모드 전이 ──
     if (this.mode === 'manual' && !this.scrubbing) {
@@ -265,21 +304,71 @@ export class CameraDirector {
         this.focusChipId = null;
       }
     }
-    // 결착 구간/슬로모션은 우승 확정 전에만 감지
+    // 결착 구간(progress 기반 줌)은 우승 확정 전에만 감지
     if (this.mode !== 'finisher_focus' && !this.winnerDecided) {
       if (!this.leadBattle && progress >= this.LEAD_BATTLE_AT) this.leadBattle = true;
       if (this.leadBattle && progress < this.LEAD_BATTLE_AT - 0.05) this.leadBattle = false; // 히스테리시스
     }
 
-    // ── 3) 목표 {x, y, zoom} 결정 ──
+    // ── 3) 시네마틱 비트 구동(레이싱 중에만) ──
+    this.lastStandActive = playing && racingCount > 0 && racingCount <= 2;
+
+    if (this.mode !== 'idle' && !(this.mode === 'manual')) {
+      this.driveFinisherSequence(dt);
+
+      // 선두 교체 하이라이트(후반부 + 쿨다운, 결승 연출/슬로우 중이 아닐 때만)
+      if (
+        leaderId && this.lastLeaderId && leaderId !== this.lastLeaderId &&
+        progress >= 0.5 && this.overtakeCooldownT <= 0 &&
+        this.finisherPhase === 'idle' && !this.anticipating && playing
+      ) {
+        this.zoomPunch = Math.max(this.zoomPunch, 0.12);
+        this.addShake(6);
+        this.overtakeCooldownT = this.OVERTAKE_CD_S;
+      }
+
+      // 결승 직전 ANTICIPATION 무장/해제(통과 연출이 진행 중이 아닐 때만)
+      const imminent = leaderY < finishLineY && (finishLineY - leaderY) <= this.IMMINENT_PX;
+      const photoFinish = secondY > -Infinity && (leaderY - secondY) <= this.PHOTO_FINISH_PX;
+      const dramaWorthy = this.nextFinishIsWinner || photoFinish || this.lastStandActive;
+      if (this.finisherPhase === 'idle' && playing && !this.freeManual) {
+        if (!this.anticipating) {
+          if (imminent && dramaWorthy && this.anticipationCooldownT <= 0 && this.establishingT <= 0) {
+            this.anticipating = true;
+            this.anticipationT = 0;
+            this.photoFinishActive = photoFinish;
+          }
+        } else {
+          this.anticipationT += dt;
+          this.photoFinishActive = photoFinish; // 프레이밍은 라이브로 갱신
+          if (!imminent || this.anticipationT > this.MAX_ANTICIPATION_S) {
+            // 선두 후퇴(짧은 쿨다운) 또는 스톨(긴 쿨다운) → 정상 속도 복귀
+            this.anticipating = false;
+            this.anticipationCooldownT = this.anticipationT > this.MAX_ANTICIPATION_S ? 1.2 : 0.4;
+          }
+        }
+      }
+    }
+    if (leaderId) this.lastLeaderId = leaderId;
+
+    // 시간배율 타겟 결정(통과 연출 중이 아닐 때만 — climax는 스냅 가속을 직접 세팅)
+    if (this.finisherPhase === 'idle') {
+      let tsT = 1.0;
+      if (this.lastStandActive) tsT = this.LASTSTAND_SCALE;
+      if (this.anticipating) tsT = this.SLOWMO_SCALE;
+      this.timeScaleTarget = playing ? tsT : 1.0;
+    }
+
+    // ── 4) 목표 {x, y, zoom} 결정 ──
     let targetX: number, targetY: number, targetZoom: number;
 
     if (this.mode === 'idle') {
+      this.timeScaleTarget = 1.0;
       targetZoom = this.fitWidthZoom();
       targetX = this.worldW / 2;
       const visH = this.screenH / Math.max(targetZoom, 0.001);
       targetY = 50 - visH * 0.12;
-      
+
       // 대기 상태에서는 떨림 보정 값들을 중앙/출발선으로 고정 (시작 시 부드러운 전환용)
       this.smCentroidX = targetX;
       this.smLeaderY = 50;
@@ -287,11 +376,12 @@ export class CameraDirector {
       // 스크럽 중엔 camX/Y가 이미 직접 동기화됨 → 목표=현재
       targetX = this.camX; targetY = this.camY; targetZoom = this.camZoom;
     } else if (this.mode === 'manual') {
+      this.timeScaleTarget = 1.0;
       targetX = this.manualTargetX;
       targetY = this.focusChipId ? this.smLeaderY : this.manualTargetY;
       targetZoom = this.focusChipId ? 1.6 : Math.max(this.camZoom, this.fitWidthZoom());
     } else {
-      // RACE / FINISHER 공통: 프레이밍 (스마트 줌 로직)
+      // RACE / FINISHER 공통: 프레이밍 (스마트 줌 로직 + 시네마틱 비트 오버라이드)
       let packBackY = this.smLeaderY;
       for (const [, p] of chips) {
         // 선두보다 뒤에 있는 칩들 중 너무 멀리 떨어진 칩은 제외 (최대 1000px 뒤까지 고려)
@@ -299,57 +389,86 @@ export class CameraDirector {
           if (p.y < packBackY) packBackY = p.y;
         }
       }
-      
+
       let packSpan = this.smLeaderY - packBackY;
       packSpan = Math.max(200, Math.min(packSpan, 700));
 
-      // 경기 진행도(progress 0 ~ 1)에 따라 카메라가 서서히 줌인 (기본 여백 감소)
-      // 초반에는 넓은 시야를, 후반 결승선에서는 긴박감을 위해 타이트하게 포커싱
-      const progressFactor = Math.max(0, Math.min(1, progress));
-      const dynamicPadding = 500 - (progressFactor * 250); 
-      
-      const fitPack = this.screenH / (packSpan + dynamicPadding); 
+      // 경기 진행도에 따라 카메라가 서서히 줌인(기본 여백 감소): 초반 넓게, 후반 타이트하게.
+      const progressFactor = clamp01(progress);
+      const dynamicPadding = 500 - (progressFactor * 250);
+      const fitPack = this.screenH / (packSpan + dynamicPadding);
       let baseZoom = this.clampZoom(fitPack);
 
-      if (this.mode === 'finisher_focus') {
-        baseZoom = this.focusChipId ? this.WINNER_ZOOM : this.fitWidthZoom(); // 타겟 없으면 줌아웃 호흡
-      } else if (this.leadBattle) {
-        // 결착: 진행도 0.86→0.99 동안 baseZoom→BATTLE_ZOOM 으로 부드럽게 가중
-        const t = Math.min(1, Math.max(0, (progress - this.LEAD_BATTLE_AT) / (0.99 - this.LEAD_BATTLE_AT)));
+      // 결착(progress) 줌 램프 — ANTICIPATION/통과 연출이 없을 때만(서로 싸우지 않게 일원화)
+      if (this.leadBattle && !this.anticipating && this.finisherPhase === 'idle') {
+        const t = clamp01((progress - this.LEAD_BATTLE_AT) / (0.99 - this.LEAD_BATTLE_AT));
         baseZoom = baseZoom + (this.BATTLE_ZOOM - baseZoom) * (t * t);
       }
-      targetZoom = baseZoom;
 
-      targetX = this.smCentroidX;
-      
-      const visH = this.screenH / Math.max(targetZoom, 0.001);
-      // 포커스/결승 접근 시 오프셋을 줄여 화면 정중앙~살짝 아래(0.05)에 배치
-      const yOffset = (this.mode === 'finisher_focus' || this.leadBattle) ? visH * 0.05 : visH * 0.12;
-      targetY = this.smLeaderY - yOffset;
+      if (this.finisherPhase === 'climax') {
+        // 통과 순간: 결승선 부근을 가장 타이트하게(WINNER_ZOOM) 잡는다 — 완주 VFX(파티클/등수)가 여기서 터짐.
+        targetZoom = this.WINNER_ZOOM;
+        const visH = this.screenH / Math.max(targetZoom, 0.001);
+        targetX = this.smCentroidX;
+        targetY = finishLineY - visH * 0.05;
+      } else if (this.finisherPhase === 'handoff') {
+        // 호흡: 한 단계 빠지며 다음 선두로 휘프팬
+        targetZoom = Math.min(baseZoom, this.clampZoom(this.fitWidthZoom() * 1.2));
+        const visH = this.screenH / Math.max(targetZoom, 0.001);
+        targetX = this.smCentroidX;
+        targetY = this.smLeaderY - visH * 0.1;
+      } else if (this.anticipating && this.photoFinishActive) {
+        // 포토피니시: 1·2위를 한 화면에 담는다(둘의 중앙, 둘 다 보이게 줌 완화)
+        const dx = Math.abs(leaderX - secondX);
+        const dyy = Math.abs(leaderY - secondY);
+        const fitBothW = this.screenW / (dx + 340);
+        const fitBothH = this.screenH / (dyy + 380);
+        targetZoom = this.clampZoom(Math.min(fitBothW, fitBothH, this.BATTLE_ZOOM));
+        targetX = (leaderX + secondX) / 2;
+        targetY = (leaderY + secondY) / 2;
+      } else if (this.anticipating) {
+        // 단독 선두 결승 직전: WINNER_ZOOM 푸시인 + 화면 정중앙 약간 아래
+        targetZoom = this.WINNER_ZOOM;
+        const visH = this.screenH / Math.max(targetZoom, 0.001);
+        targetX = this.smCentroidX;
+        targetY = this.smLeaderY - visH * 0.05;
+      } else {
+        // TRACKING
+        targetZoom = baseZoom;
+        const visH = this.screenH / Math.max(targetZoom, 0.001);
+        targetX = this.smCentroidX;
+        targetY = this.smLeaderY - visH * 0.12;
+      }
     }
 
     // 도달자 줌 펀치(감쇠)
     this.zoomPunch = damp(this.zoomPunch, 0, 6, dt);
 
-    // ── 선두 이탈 방지 (Catch-up) ──
+    // ── 댐핑 강도 선택(휘프팬/오프닝/캐치업) ──
     let currentPanK = this.PAN_K;
+    let currentZoomK = this.establishingT > 0 ? this.ZOOM_K * 0.6 : this.ZOOM_K; // 오프닝은 완만한 푸시인
     const distY = targetY - this.camY;
-    if (distY > this.screenH * 0.5 && this.mode === 'race') {
+    if (distY > this.screenH * 0.5 && this.mode !== 'manual') {
       // 선두가 화면 밑으로 도망가면 카메라 속도 부스트
       currentPanK = this.PAN_K * 2.5;
     }
+    if (this.finisherPhase === 'handoff') {
+      // 다음 주자로 빠르게 스냅(휘프팬)
+      currentPanK = this.HANDOFF_PAN_K;
+      currentZoomK = this.HANDOFF_ZOOM_K;
+    }
 
-    // ── 4) 단일 댐핑 후 적용 ──
+    // ── 단일 댐핑 후 적용 ──
     this.shakeIntensity = damp(this.shakeIntensity, 0, 10, dt); // 셰이크 감쇠
-    
+
     if (!(this.mode === 'manual' && this.scrubbing)) {
       this.camX = damp(this.camX, targetX, currentPanK, dt);
       this.camY = damp(this.camY, targetY, currentPanK, dt);
-      this.camZoom = damp(this.camZoom, targetZoom, this.ZOOM_K, dt);
+      this.camZoom = damp(this.camZoom, targetZoom, currentZoomK, dt);
     }
 
     const appliedZoom = this.clampZoom(this.camZoom + this.zoomPunch);
-    
+
     // 셰이크 적용
     let finalX = this.camX;
     let finalY = this.camY;
@@ -360,6 +479,71 @@ export class CameraDirector {
 
     this.vp.moveCenter(finalX, finalY);
     this.vp.scale.set(appliedZoom);
+  }
+
+  // ── 결승 연출 시퀀스(프레임 구동): 큐 소비 → CLIMAX(스냅 가속) → HANDOFF(휘프팬) → idle ──
+  private driveFinisherSequence(dt: number) {
+    if (this.finisherPhase === 'idle') {
+      if (this.finisherQueue.length > 0) {
+        this.finisherQueue.shift();
+        // 통과 직후 결승선 부근을 잡는다(아래 climax 프레이밍이 finishLineY를 직접 사용).
+        // 완주 칩은 이미 결승선 아래로 빠졌으므로 락온하지 않는다.
+        this.focusChipId = null;
+        this.mode = 'finisher_focus';
+        this.finisherPhase = 'climax';
+        this.finisherPhaseT = 0;
+        this.anticipating = false;
+        this.leadBattle = false;
+        // 통과 순간 = 갑자기 빨라짐: 시간배율을 즉시 1.0 위로 펀치 후 1.0로 정착
+        this.timeScaleCurrent = this.RELEASE_SCALE;
+        this.timeScaleSent = this.RELEASE_SCALE;
+        this.setTimeScale(this.RELEASE_SCALE);
+        this.timeScaleTarget = 1.0;
+        this.zoomPunch = Math.max(this.zoomPunch, 0.2);
+        this.addShake(14);
+      }
+      return;
+    }
+
+    this.finisherPhaseT += dt;
+    if (this.finisherPhase === 'climax') {
+      if (this.finisherPhaseT >= this.CLIMAX_S) {
+        this.finisherPhase = 'handoff';
+        this.finisherPhaseT = 0;
+        this.focusChipId = null; // 호흡 → 다음 선두로 휘프팬
+      }
+    } else if (this.finisherPhase === 'handoff') {
+      if (this.finisherPhaseT >= this.HANDOFF_S) {
+        this.finisherPhase = 'idle';
+        this.finisherPhaseT = 0;
+        if (this.finisherQueue.length === 0 && this.mode === 'finisher_focus') {
+          this.mode = this.gameState === 'idle' ? 'idle' : 'race';
+        }
+      }
+    }
+  }
+
+  // 시간배율을 타겟으로 부드럽게 이즈. 변화가 충분(또는 타겟 도달)할 때만 워커로 전송(메시지 스팸 방지).
+  private tickTimeScale(dt: number) {
+    this.timeScaleCurrent = damp(this.timeScaleCurrent, this.timeScaleTarget, this.TIMESCALE_K, dt);
+    if (Math.abs(this.timeScaleCurrent - this.timeScaleTarget) < 0.012) {
+      this.timeScaleCurrent = this.timeScaleTarget;
+    }
+    const reachedAndUnsent = this.timeScaleCurrent === this.timeScaleTarget && this.timeScaleSent !== this.timeScaleCurrent;
+    if (Math.abs(this.timeScaleCurrent - this.timeScaleSent) >= 0.03 || reachedAndUnsent) {
+      this.timeScaleSent = this.timeScaleCurrent;
+      this.setTimeScale(this.timeScaleCurrent);
+    }
+  }
+
+  // 시간배율 즉시 1.0 복원(수동 전환 등)
+  private resetTimeScale() {
+    this.timeScaleTarget = 1.0;
+    this.timeScaleCurrent = 1.0;
+    if (this.timeScaleSent !== 1.0) {
+      this.timeScaleSent = 1.0;
+      this.setTimeScale(1.0);
+    }
   }
 
   // (결승선 직전까지) 가장 멀리 내려간 칩의 Y

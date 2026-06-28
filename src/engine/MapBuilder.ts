@@ -86,11 +86,19 @@ export class MapBuilder {
     
     if (item.type === 'windmill') {
       // 십자가 모양 렌더링을 위해 두 개의 직사각형 Collider 교차 연결
-      const c1 = RAPIER.ColliderDesc.cuboid(50, 5).setRestitution(1.2);
-      const c2 = RAPIER.ColliderDesc.cuboid(5, 50).setRestitution(1.2);
+      // 끼임 방지를 위해 탄성(restitution)을 높임 (1.2 -> 1.5)
+      const c1 = RAPIER.ColliderDesc.cuboid(50, 5).setRestitution(1.5);
+      const c2 = RAPIER.ColliderDesc.cuboid(5, 50).setRestitution(1.5);
       world.createCollider(c1, body);
       world.createCollider(c2, body);
       body.setAngvel(item.speed || 3, true);
+    } else if (item.type === 'spinner') {
+      // 룰렛 스피너: 일자바 형태의 동적 장애물
+      const w = item.w || 200;
+      const h = item.h || 20;
+      const c = RAPIER.ColliderDesc.cuboid(w / 2, h / 2).setRestitution(1.4).setFriction(0.2);
+      world.createCollider(c, body);
+      body.setAngvel(item.speed || 5, true);
     } else if (item.type === 'piston') {
       // 피스톤: 직사각형 이동 플랫폼 (A↔B 왕복)
       const w = item.w || 100;
@@ -110,6 +118,9 @@ export class MapBuilder {
       userData.originY = item.y;
       userData.waypointB = item.waypointB;
       userData.w = item.w || 100;
+      userData.h = item.h || 20;
+    } else if (item.type === 'spinner') {
+      userData.w = item.w || 200;
       userData.h = item.h || 20;
     }
     body.userData = userData as UserData;

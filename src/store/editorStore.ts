@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 // 하이엔드 기믹 타입 추가
-export type EditorItemType = 'pin' | 'bumper' | 'wall' | 'hole' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole';
+export type EditorItemType = 'pin' | 'bumper' | 'wall' | 'hole' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole' | 'spinner';
 
 export interface EditorItem {
   id: string;

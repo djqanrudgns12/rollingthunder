@@ -69,13 +69,13 @@ export default function EditorContainer() {
         x: newX,
         y: newY,
         radius,
-        w: type === 'wall' ? 100 : isPiston ? 120 : undefined,
-        h: type === 'wall' ? 20 : isPiston ? 20 : undefined,
+        w: type === 'wall' ? 100 : isPiston ? 120 : type === 'spinner' ? 200 : undefined,
+        h: type === 'wall' ? 20 : isPiston ? 20 : type === 'spinner' ? 20 : undefined,
         restitution: type === 'bumper' ? 1.4 : undefined,
         friction: 0.1,
         rotation: 0,
         power: type === 'booster' ? 3 : undefined,
-        speed: type === 'windmill' ? 3 : isPiston ? 3 : undefined,
+        speed: type === 'windmill' || type === 'spinner' ? 5 : isPiston ? 3 : undefined,
         color: type === 'portal' ? '#c084fc' : undefined,
         force: type === 'blackhole' || type === 'whitehole' ? 5 : undefined,
         waypointB: isPiston ? { x: newX + 150, y: newY } : undefined,
@@ -134,6 +134,7 @@ export default function EditorContainer() {
             {activeType === 'wall' && <div className="w-[100px] h-[20px] bg-white/40 border-2 border-white backdrop-blur-md rounded-md shadow-lg"></div>}
             {activeType === 'booster' && <div className="w-[50px] h-[50px] bg-gradient-to-t from-[var(--accent-primary)] to-transparent opacity-80 border-2 border-[var(--accent-primary)] rounded-md shadow-lg"></div>}
             {activeType === 'windmill' && <div className="w-[100px] h-[100px] border-2 border-red-500 rounded-full bg-red-500/10"></div>}
+            {activeType === 'spinner' && <div className="w-[100px] h-[10px] bg-purple-500/50 border border-purple-500 rounded-full shadow-[0_0_15px_purple]"></div>}
             {activeType === 'portal' && <div className="w-[40px] h-[40px] rounded-full border-4 border-purple-500"></div>}
             {activeType === 'blackhole' && <div className="w-[60px] h-[60px] rounded-full border-2 border-white border-dashed bg-black shadow-[0_0_30px_rgba(0,0,0,1)]"></div>}
           </div>

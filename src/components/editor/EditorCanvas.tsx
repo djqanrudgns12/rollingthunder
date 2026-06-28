@@ -45,6 +45,12 @@ export default function EditorCanvas() {
                 <div className="w-[10px] h-full bg-red-500 absolute shadow-[0_0_10px_red]"></div>
               </div>
             )}
+            {item.type === 'spinner' && (
+              <div className="flex items-center justify-center relative animate-[spin_4s_linear_infinite]" style={{ width: item.w || 200, height: item.w || 200, animationDirection: (item.speed || 5) > 0 ? 'normal' : 'reverse', animationDuration: `${Math.max(1, 20 / Math.abs(item.speed || 5))}s` }}>
+                <div className={`absolute rounded-full shadow-[0_0_15px_currentColor] ${(item.speed || 5) > 0 ? 'bg-red-500 text-red-500' : 'bg-purple-500 text-purple-500'}`} style={{ width: item.w || 200, height: item.h || 20 }}></div>
+                <div className="w-[15px] h-[15px] bg-white rounded-full absolute shadow-[0_0_10px_white]"></div>
+              </div>
+            )}
             {item.type === 'portal' && (
               <div className="w-[40px] h-[40px] rounded-full border-4 flex items-center justify-center animate-[spin_3s_linear_infinite]" style={{ borderColor: item.color || '#c084fc', boxShadow: `0 0 20px ${item.color || '#c084fc'}` }}>
                 <div className="w-[20px] h-[20px] rounded-full" style={{ backgroundColor: item.color || '#c084fc' }}></div>

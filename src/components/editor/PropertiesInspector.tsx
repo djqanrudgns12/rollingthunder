@@ -114,6 +114,28 @@ export default function PropertiesInspector() {
             </div>
           </div>
         )}
+
+        {item.type === 'spinner' && (
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold text-purple-400 uppercase drop-shadow-[0_0_5px_rgba(168,85,247,0.5)]">Roulette Spinner</h4>
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">Length (px)</label>
+              <input type="range" min="50" max="600" step="10" value={item.w || 200} onChange={(e) => handleChange('w', Number(e.target.value))} className="w-full accent-purple-500" />
+              <div className="text-right text-xs text-white mt-1">{item.w || 200} px</div>
+            </div>
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">Thickness (px)</label>
+              <input type="range" min="10" max="50" step="5" value={item.h || 20} onChange={(e) => handleChange('h', Number(e.target.value))} className="w-full accent-purple-500" />
+              <div className="text-right text-xs text-white mt-1">{item.h || 20} px</div>
+            </div>
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">Angular Velocity (rad/s)</label>
+              <input type="range" min="-15" max="15" step="1" value={item.speed || 5} onChange={(e) => handleChange('speed', Number(e.target.value))} className="w-full accent-purple-500" />
+              <div className="text-right text-xs text-white mt-1">{item.speed || 5} rad/s</div>
+              <p className="text-[10px] text-gray-500 mt-1">음수: 반시계(보라) / 양수: 시계(빨강)</p>
+            </div>
+          </div>
+        )}
         
         {item.type === 'portal' && (
           <div className="space-y-3">

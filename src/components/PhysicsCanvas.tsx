@@ -101,7 +101,24 @@ export default function PhysicsCanvas() {
     const activeVFXMap = new Map<string, { cleanup: () => void }>();
     let intervals: ReturnType<typeof setInterval>[] = [];
     let tickers: Array<(ticker: PIXI.Ticker) => void> = [];
-    
+
+    // 완주 등수가 "우승/드라마 슬롯"인지 모드별로 판정 → 카메라 결승 연출(슬로우/락온) 게이팅용.
+    // 게임 로직(모드·목표 등수)을 아는 메인 스레드가 계산해, CameraDirector에는 boolean만 넘긴다.
+    const isWinnerRank = (rank: number): boolean => {
+      if (rank < 1) return false;
+      switch (gameMode) {
+        case 'speed': return rank <= targetWinnerCount;
+        case 'custom': return rank === customWinningRank;
+        case 'random': return randomWinningRanks.includes(rank);
+        case 'turtle': {
+          // 거북이: 마지막 targetWinnerCount명이 우승(완주 X). 결정적 순간 = 패자들의 마지막 완주.
+          const losers = Math.max(0, survivors.length - targetWinnerCount);
+          return rank >= losers;
+        }
+        default: return rank <= targetWinnerCount;
+      }
+    };
+
     // 'random' 맵 처리 로직: 10개 맵 중 하나를 무작위로 선택
     const actualMapPreset = selectedMapPreset === 'random' ? 
       Object.keys(MapPresets)[Math.floor(Math.random() * Object.keys(MapPresets).length)] : 
@@ -795,6 +812,8 @@ export default function PhysicsCanvas() {
         
         if (type === 'INIT_DONE') {
           activeChipsCount = payload.activeChipsCount;
+          // 첫 완주자가 우승 슬롯인지 알려 결승 직전 슬로우 연출 게이팅을 무장
+          cameraDirector?.setDrama(isWinnerRank(1));
 
           // 랜덤 레이스: 게임 초기화 완료 시 당첨 등수 팝업을 3초간 표시
           if (gameMode === 'random' && randomWinningRanks.length > 0) {
@@ -871,6 +890,56 @@ export default function PhysicsCanvas() {
                 mg.rect(-50, -5, 100, 10);
                 mg.rect(-5, -50, 10, 100);
                 mg.fill({ color: 0x00ffff, alpha: 0.6 });
+              } else if (item.type === 'spinner') {
+                const w = item.w || 200;
+                const h = item.h || 20;
+                const speed = item.speed || 5;
+                const isClockwise = speed > 0;
+                const baseColor = isClockwise ? 0xff3333 : 0xaa33ff;
+                const glowColor = isClockwise ? 0xff0000 : 0x8800ff;
+
+                // 1. Draw the neon bar
+                const bar = new PIXI.Graphics();
+                // Core
+                bar.roundRect(-w/2, -h/2, w, h, h/2);
+                bar.fill({ color: 0xffffff, alpha: 1.0 });
+                // Inner glow
+                bar.stroke({ color: baseColor, width: 4, alpha: 0.8 });
+                // Drop shadow / Outer glow using filters
+                import('pixi-filters').then(({ GlowFilter }) => {
+                  bar.filters = [new GlowFilter({ distance: 15, outerStrength: 2, innerStrength: 0, color: glowColor, quality: 0.5 })];
+                }).catch(() => { /* fallback if filter fails */ });
+                g.addChild(bar);
+
+                // 2. Draw the core pulse
+                const core = new PIXI.Graphics();
+                core.circle(0, 0, h/1.5);
+                core.fill({ color: 0xffffff });
+                core.stroke({ color: baseColor, width: 4 });
+                g.addChild(core);
+
+                let time = 0;
+                const windTick = (ticker: PIXI.Ticker) => {
+                  if (g.destroyed || mg.destroyed) return;
+                  const dt = ticker.deltaMS / 1000;
+                  // The physics engine updates the rotation, but for the static map background we animate it purely visually here
+                  // if this is static rendering. Wait, MapBuilder creates it as a kinematic body.
+                  // Will the frame update handle rotation? In `physics.worker.ts`, kinematics are NOT sent in `FRAME` event (only chips).
+                  // So we MUST animate it here.
+                  g.rotation += speed * dt;
+                  mg.rotation += speed * dt;
+                  
+                  // Pulse animation for core
+                  time += dt;
+                  core.scale.set(1 + Math.sin(time * 10) * 0.1);
+                };
+                app.ticker.add(windTick);
+                tickers.push(windTick);
+
+                // Minimap drawing
+                mg.roundRect(-w/2, -h/2, w, h, h/2);
+                mg.fill({ color: baseColor, alpha: 0.8 });
+
               } else if (item.type === 'blackhole' || item.type === 'whitehole') {
                 const isWhite = item.type === 'whitehole';
                 const r = item.radius || 100;
@@ -1197,9 +1266,12 @@ export default function PhysicsCanvas() {
           currentRankings = payload;
           setRankings(payload);
         } else if (type === 'CHIP_FINISHED') {
-          // 개별 피니셔 포커싱 & 카메라 셰이크
-          cameraDirector?.focusNextFinisher(payload.chipId);
+          // 개별 피니셔 포커싱 & 카메라 셰이크 ("핵심 순간만" 슬로우/락온; 그 외엔 가벼운 펀치)
+          const finishRank: number = payload.rank;
+          cameraDirector?.focusNextFinisher(payload.chipId, isWinnerRank(finishRank));
           cameraDirector?.addShake(15);
+          // 다음 완주자가 우승 슬롯인지 갱신 → 결승 직전 슬로우 연출 재무장 여부 결정
+          cameraDirector?.setDrama(isWinnerRank(finishRank + 1));
           
           setFinishedFeed(prev => {
             const currentCount = prev.length + 1; // 현재 들어온 사람의 등수 (대략적 추정)
