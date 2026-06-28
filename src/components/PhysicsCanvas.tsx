@@ -9,7 +9,7 @@ import { useGameStore } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
 import type { EditorItem } from '@/store/editorStore'
 import LiveLeaderboard from './LiveLeaderboard'
-import SkillEventOverlay from './SkillEventOverlay'
+import { generateSkillMessage } from './SkillLogOverlay'
 import { Hand, Volume2, VolumeX, Maximize, Video } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { GlowFilter, MotionBlurFilter, ShockwaveFilter } from 'pixi-filters'
@@ -22,14 +22,13 @@ export default function PhysicsCanvas() {
   const containerRef = useRef<HTMLDivElement>(null)
   
   const [rankings, setRankings] = useState<ParticipantRank[]>([])
-  const [activeSkill, setActiveSkill] = useState<{ chipId: string; skill: string } | null>(null)
   const [isMuted, setIsMuted] = useState(false)
   const [finishedFeed, setFinishedFeed] = useState<{ rank: number, survivor: any }[]>([])
   const [gameState, setGameState] = useState<'idle' | 'playing' | 'finished'>('idle')
   const [gameOverResult, setGameOverResult] = useState<{winners: any[], mode: string} | null>(null)
   const [isAutoFollow, setIsAutoFollow] = useState(true)
   
-  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, isSkillEnabled } = useGameStore()
+  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs } = useGameStore()
   const { setGameStage, customMapData, isBroadcasterMode } = useUIStore()
   const workerRef = useRef<Worker | null>(null)
   
@@ -256,7 +255,7 @@ export default function PhysicsCanvas() {
         });
 
         // PiP Viewport (Minimap / Last place tracker)
-        const baseMinimapWidth = 240;
+        const baseMinimapWidth = 360;
         const baseMinimapHeight = baseMinimapWidth * (WORLD_HEIGHT / WORLD_WIDTH);
 
         pipViewport = new Viewport({
@@ -361,7 +360,7 @@ export default function PhysicsCanvas() {
           const h = window.innerHeight;
           // Calculate max height to avoid overlapping with top-left Winner UI (approx 450px)
           const WINNER_UI_HEIGHT = 450;
-          const BOTTOM_MARGIN = 100;
+          const BOTTOM_MARGIN = 120;
           const maxMinimapHeight = h - WINNER_UI_HEIGHT - BOTTOM_MARGIN;
           
           let currentMinimapHeight = baseMinimapHeight;
@@ -894,10 +893,25 @@ export default function PhysicsCanvas() {
           }
           else if (payload.type === 'wallHit') soundManager.playWallHit(payload.impulse, payload.x);
         } else if (type === 'SKILL_FIRED') {
-          setActiveSkill(payload);
-          setTimeout(() => setActiveSkill(null), 2000);
-          if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-          triggerShockwave(); // Cinematic shockwave on skill fire
+          // ── 스킬 발동 → 로그에 기록 (중앙 팝업/슬로모션 없음) ──
+          const firedSurvivor = survivors.find(s => s.id === payload.chipId);
+          const playerName = firedSurvivor?.name || payload.chipId;
+          const playerColor = firedSurvivor?.color || '#ffffff';
+          const message = generateSkillMessage(playerName, payload.skill);
+          addSkillLog({
+            id: `${payload.chipId}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            chipId: payload.chipId,
+            playerName,
+            playerColor,
+            skill: payload.skill,
+            message,
+            timestamp: Date.now(),
+          });
+          // 가벼운 진동 피드백만 유지 (게임 흐름 방해 없음)
+          if (navigator.vibrate) navigator.vibrate(50);
+        } else if (type === 'COOLDOWN_UPDATE') {
+          // ── 워커에서 보내온 개별 쿨타임 진행률을 store에 반영 ──
+          setSkillCooldowns(payload);
         } else if (type === 'RANKINGS_UPDATE') {
           currentRankings = payload;
           setRankings(payload);
@@ -980,14 +994,13 @@ export default function PhysicsCanvas() {
   return (
     <div className={`relative w-full h-full flex flex-col items-center justify-center overflow-hidden ${isBroadcasterMode ? 'bg-[#00ff00]' : 'bg-black'}`}>
       <LiveLeaderboard rankings={rankings} finishedFeed={finishedFeed} />
-      <SkillEventOverlay activeSkill={activeSkill} />
 
       <div className="absolute bottom-6 left-6 z-50 flex gap-4">
         <button 
           onClick={() => setGameStage('dashboard')}
           className="glass-panel-heavy hover:bg-white/10 text-white font-bold px-6 py-4 rounded-2xl transition-all shadow-lg flex items-center gap-2 group border border-white/10"
         >
-          <span className="group-hover:-translate-x-1 transition-transform">🚪</span> 새로운 추첨으로 돌아가기
+          <span className="group-hover:-translate-x-1 transition-transform">🚪</span> 로비로 복귀
         </button>
       </div>
 

@@ -3,6 +3,7 @@ import { MapBuilder } from './MapBuilder';
 import type { WallStyle } from './MapBuilder';
 import { ChipFactory } from './ChipFactory';
 import { RankingTracker } from './RankingTracker';
+import { SkillSystem } from './SkillSystem';
 
 // ──────────────────────────────────────────────────────────────────────────
 // SimulationCore: 물리 시뮬레이션의 "순수 코어".
@@ -38,15 +39,15 @@ const PORTAL_COOLDOWN_FRAMES = 60;   // 1초
 const HOLE_COOLDOWN_FRAMES = 120;    // 2초
 const HOLE_PENALTY_FRAMES = 90;      // 1.5초 갇힘 후 리스폰
 
-// 월드 중력(px/s²). 스탠다드 페이스(완주 중앙값 45~70초)를 위해 기존 30G에서 하향.
-// 낙하가 느려지면서 장애물이 칩 경로에 개입할 "행 타임"이 생기고, 효과가 실제로 체감된다.
-export const GRAVITY_Y = 9.81 * 11;
+// 월드 중력(px/s²). v2: 칩 이동 속도를 끌어올려 "루즈함"을 해소(11×→15×).
+// 댐핑 하향(ChipFactory 0.18)과 함께 종단속도를 크게 높여 칩이 쭉쭉 나아가게 한다.
+export const GRAVITY_Y = 9.81 * 15;
 
-// 부스터 1레벨당 부여 Δv(px/s). power 1→160, 5→800.
-const BOOSTER_DV_PER_LEVEL = 160;
-// 중력장 force 1당 중심부 Δv/frame(px/s). force 5 ≈ 중력과 맞먹는 휨(통과는 가능),
-// force 9~10 ≈ 강한 포획. 폭주/영구포획 방지용 상한도 함께 적용.
-const WELL_DV_PER_FORCE = 0.4;
+// 부스터 1레벨당 부여 Δv(px/s). v2: 빨라진 칩 대비 체감 유지 위해 상향(160→210).
+const BOOSTER_DV_PER_LEVEL = 210;
+// 중력장 force 1당 중심부 Δv/frame(px/s). v2: 칩이 빨라 well 통과 시간이 짧아진 만큼 상향(0.4→0.52).
+// force 5 ≈ 중력과 맞먹는 휨(통과 가능), force 9~10 ≈ 강한 포획. 폭주/영구포획 방지용 상한 적용.
+const WELL_DV_PER_FORCE = 0.52;
 const WELL_FORCE_CAP = 14;
 // 블랙홀 접선(소용돌이) 성분 비율 — 너무 크면 영구 궤도에 갇히므로 절제.
 const BLACKHOLE_SWIRL = 0.16;
@@ -203,6 +204,9 @@ export class SimulationCore {
     this.applyPistons();
     this.processHoleRespawns();
 
+    // 스킬 프레임루프: 매 프레임 활성 스킬의 지속 효과 적용 + 만료 해제
+    SkillSystem.step(this.world, this.frame, this.activeChips);
+
     const totalSpeed = this.scanChipsAndFinish();
 
     if (this.activeChips.length > 0 && !this.gameOver) {
@@ -218,6 +222,8 @@ export class SimulationCore {
   }
 
   free() {
+    // 스킬 시스템 상태 정리 (활성 스킬 엔트리 전부 해제)
+    SkillSystem.reset();
     if (this.world) {
       this.world.free();
       this.world = null;

@@ -92,6 +92,8 @@ interface MapResult {
   edgeHuggers: number;        // 엣지허깅 칩 수
   totalChips: number;
   stuckSamples: { x: number; y: number }[];
+  speedSum: number;           // 평균 칩 속도 누적(px/s)
+  speedSamples: number;
 }
 
 function runMap(key: string, races: number, chips: number): MapResult {
@@ -103,7 +105,7 @@ function runMap(key: string, races: number, chips: number): MapResult {
     key, name: meta.name, worldHeight: meta.worldHeight,
     finishTimes: [], timedOutRaces: 0, gravityStorms: 0, leadChanges: [],
     spawnX: [], rankNorm: [], gimmickHits: new Map(), edgeHuggers: 0, totalChips: 0,
-    stuckSamples: [],
+    stuckSamples: [], speedSum: 0, speedSamples: 0,
   };
 
   // 메인 기믹 목록(인스턴스별) 준비
@@ -156,6 +158,9 @@ function runMap(key: string, races: number, chips: number): MapResult {
         const id = (c.userData as any).id;
         if (finishFrame[id] !== undefined) continue;
         const t = c.translation();
+        const v = c.linvel();
+        res.speedSum += Math.sqrt(v.x * v.x + v.y * v.y);
+        res.speedSamples++;
         if (t.x - innerL < edgeNear || innerR - t.x < edgeNear) {
           edgeFrames[id] = (edgeFrames[id] || 0) + 1;
         }
@@ -227,7 +232,8 @@ function report(res: MapResult) {
   const medOk = med >= 45 && med <= 70;
 
   console.log(`\n■ ${res.key}  (${res.name})  worldHeight=${res.worldHeight}`);
-  console.log(`  완주시간   median ${fmt(med)}s  [p10 ${fmt(p10)} ~ p90 ${fmt(p90)}]  ${flag(medOk)} 목표 45~70s`);
+  const avgSpeed = res.speedSamples ? res.speedSum / res.speedSamples : NaN;
+  console.log(`  완주시간   median ${fmt(med)}s  [p10 ${fmt(p10)} ~ p90 ${fmt(p90)}]   평균속도 ${fmt(avgSpeed, 0)}px/s`);
   console.log(`  공정성     |corr(spawnX, rank)| = ${fmt(fairness, 2)}  ${flag(fairness < 0.25)} (<0.25)`);
   console.log(`  엣지허깅   ${fmt(edgePct)}% 칩  ${flag(edgePct < 12)} (<12%)`);
   console.log(`  정체       gravityStorm ${res.gravityStorms}회 / 미완주레이스 ${res.timedOutRaces}  ${flag(res.gravityStorms === 0 && res.timedOutRaces === 0)}`);

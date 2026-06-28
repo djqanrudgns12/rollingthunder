@@ -7,7 +7,7 @@ export class ChipFactory {
     const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
       .setTranslation(x, y)
       .setCcdEnabled(true)
-      .setLinearDamping(0.3); // 공기 저항 (마찰)
+      .setLinearDamping(0.18); // 공기 저항. v2: 0.3→0.18 로 종단속도↑(칩이 더 빠르게 진행)
 
     const rigidBody = world.createRigidBody(rigidBodyDesc);
 

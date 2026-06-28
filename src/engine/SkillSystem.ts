@@ -1,69 +1,326 @@
 import RAPIER from '@dimforge/rapier2d-compat';
 import { UserData } from './types';
 
+// ──────────────────────────────────────────────────────────────────────────
+// SkillSystem v2: 프레임 기반 지속 효과 아키텍처
+//
+// 왜 리팩터링했는가?
+//   기존 setTimeout 기반 스킬 해제는 Web Worker의 이벤트 루프와 물리 엔진의
+//   world.step()이 비동기로 작동하여 정확한 타이밍 보장이 불가능했다.
+//   이제 모든 스킬 효과는 "발동 프레임 ~ 만료 프레임" 동안 매 step()마다
+//   물리 속성을 적용/해제하는 프레임 동기 방식으로 작동한다.
+// ──────────────────────────────────────────────────────────────────────────
+
 export type SkillType = 'tank' | 'slime' | 'ghost' | 'magnet' | 'teleport' | 'booster' | 'none';
 
+// 활성 스킬 엔트리: 매 프레임 순회하며 지속 효과 적용 + 만료 시 원상 복구
+interface ActiveSkillEntry {
+  skill: SkillType;
+  chipId: string;
+  startFrame: number;
+  expireFrame: number;     // 이 프레임에 도달하면 해제
+  originalValues: {        // 해제 시 복구할 원본 물리 속성
+    gravityScale: number;
+    linearDamping: number;
+    restitution: number;
+    friction: number;
+  };
+}
+
+// ── 스킬별 밸런스 상수 ───────────────────────────────────────────────────
+
+// 탱크: 중력 8배 + 감쇠 제거 + 높은 반발력으로 불도저 돌파
+const TANK_GRAVITY_SCALE = 8.0;
+const TANK_DAMPING = 0.0;
+const TANK_RESTITUTION = 0.95;
+const TANK_DURATION_FRAMES = 120;  // 2초
+
+// 부스터: 매 프레임 하방 추진력. 벽에 끼어도 계속 밀어내는 지속형 엔진
+const BOOSTER_FORCE_PER_FRAME = 300;  // ΔV/frame (질량 정규화됨)
+const BOOSTER_DURATION_FRAMES = 90;   // 1.5초
+
+// 유령화: 저중력 + 극저감쇠 + 극저반발로 장애물을 스르르 통과
+const GHOST_GRAVITY_SCALE = 0.3;
+const GHOST_DAMPING = 0.02;
+const GHOST_RESTITUTION = 0.05;
+const GHOST_DURATION_FRAMES = 150;  // 2.5초
+
+// 슬라임: 고마찰 + 무반발 + 고감쇠로 끈적하게 들러붙어 통로 차단
+const SLIME_FRICTION = 5.0;
+const SLIME_RESTITUTION = 0.0;
+const SLIME_DAMPING = 2.0;
+const SLIME_DURATION_FRAMES = 180;  // 3초
+
+// 자석: 반경 내 타 칩을 끌어당기는 인력장. 발동자는 약간의 중력 이득
+const MAGNET_RADIUS = 400;             // 인력 반경 (px)
+const MAGNET_STRENGTH = 8.0;           // 인력 세기 (ΔV/frame)
+const MAGNET_SELF_GRAVITY = 1.5;       // 발동자 중력 스케일
+const MAGNET_UPWARD_DAMP = 0.3;        // 위로 끌어올리는 성분 감쇠 (정체 방지)
+const MAGNET_DURATION_FRAMES = 180;    // 3초
+
+// 순간이동: 1단계 상위 칩과 위치 스왑. 즉시 효과이므로 지속 프레임 불필요
+const TELEPORT_WARP_DISTANCE = 300;    // 1등일 때 순간 워프 거리 (px)
+
+// ── 쿨타임 (초 단위, worker에서 사용) ──────────────────────────────────
+// 스킬별 쿨타임을 export하여 physics.worker에서 참조
+export const SKILL_COOLDOWNS: Record<SkillType, number> = {
+  teleport: 8,
+  magnet: 7,
+  tank: 6,
+  booster: 6,
+  ghost: 5,
+  slime: 4,
+  none: 0,
+};
+
 export class SkillSystem {
+  // 현재 활성화된 스킬 엔트리 목록
+  private static activeEntries: ActiveSkillEntry[] = [];
+
+  // ── 발동: 즉시 효과 적용 + 엔트리 등록 ────────────────────────────
   static triggerSkill(
-    world: RAPIER.World, 
-    chipId: string, 
-    skill: SkillType, 
+    world: RAPIER.World,
+    chipId: string,
+    skill: SkillType,
+    currentFrame: number,
+    activeChips: RAPIER.RigidBody[],
   ) {
-    // 타겟 칩 찾기. forEachRigidBody 콜백 내부 할당은 TS 제어흐름이 추적하지 못하므로
-    // (targetBody가 never로 좁혀짐) 배열에 수집한 뒤 꺼내는 방식으로 타입 안전성을 확보한다.
-    const targets: RAPIER.RigidBody[] = [];
-    world.forEachRigidBody((body) => {
-      const data = body.userData as UserData;
-      if (data && data.type === 'chip' && data.id === chipId) {
-        const activeSkills = (data as {activeSkills?: string[]}).activeSkills || []
-        if (activeSkills.includes(skill)) return // 이미 발동 중이면 무시
+    if (skill === 'none') return;
 
-        (data as {activeSkills?: string[]}).activeSkills = [...activeSkills, skill]
-        body.userData = data;
-        targets.push(body);
-      }
+    // 동일 칩에 같은 스킬이 이미 활성 중이면 무시 (중복 발동 방지)
+    if (this.activeEntries.some(e => e.chipId === chipId && e.skill === skill)) return;
+
+    // 타겟 칩 찾기
+    const targetBody = activeChips.find(chip => {
+      const data = chip.userData as any;
+      return data && data.type === 'chip' && data.id === chipId;
     });
-
-    const targetBody = targets[0];
     if (!targetBody) return;
 
-    // 슬로모션 등 시각적 처리는 React 컴포넌트 쪽에서 담당하며,
-    // 여기서는 순수 물리 엔진 속성 변경만 다룸
+    // 순간이동은 즉시 효과이므로 별도 처리 (엔트리 등록 불필요)
+    if (skill === 'teleport') {
+      this.executeTeleport(world, targetBody, chipId, activeChips);
+      return;
+    }
+
+    // 현재 물리 속성 백업 (해제 시 원복용)
+    const collider = targetBody.collider(0);
+    const originalValues = {
+      gravityScale: targetBody.gravityScale(),
+      linearDamping: targetBody.linearDamping(),
+      restitution: collider ? collider.restitution() : 0.6,
+      friction: collider ? collider.friction() : 0.2,
+    };
+
+    // 스킬별 즉시 효과 적용 + 지속 프레임 결정
+    let durationFrames = 0;
     switch (skill) {
       case 'tank':
-        // 질량 무한대 대신 중력 스케일을 대폭 늘려 무겁고 빠르게 떨어지게 만듦 (다른 마블을 밀어냄)
-        targetBody.setGravityScale(5.0, true);
-        // 2초 후 원래 중력으로 복구 (워커 내부 타이머)
-        setTimeout(() => {
-          if (targetBody) {
-            try {
-              targetBody.setGravityScale(1.0, true);
-            } catch (e) {
-              // Body might have been destroyed or world freed
-            }
-          }
-        }, 2000);
+        targetBody.setGravityScale(TANK_GRAVITY_SCALE, true);
+        targetBody.setLinearDamping(TANK_DAMPING);
+        if (collider) collider.setRestitution(TANK_RESTITUTION);
+        durationFrames = TANK_DURATION_FRAMES;
         break;
+
       case 'booster':
-        // 강한 하방 추진력 (Impulse)
-        targetBody.applyImpulse({ x: 0, y: 50000 }, true);
+        // 즉시 효과 없음. 매 프레임 step()에서 Force 적용
+        durationFrames = BOOSTER_DURATION_FRAMES;
         break;
+
       case 'ghost':
-        // 투명화: 다른 마블과 충돌하지 않도록 처리하고 싶으나,
-        // Rapier2D에서 콜라이더 그룹 변경은 복잡할 수 있으므로 강한 튕김 방지용 damping 적용
-        targetBody.setLinearDamping(0.5);
-        setTimeout(() => {
-          if (targetBody) {
-            try {
-              targetBody.setLinearDamping(0);
-            } catch (e) {
-              // Body might have been destroyed
-            }
-          }
-        }, 2000);
+        targetBody.setGravityScale(GHOST_GRAVITY_SCALE, true);
+        targetBody.setLinearDamping(GHOST_DAMPING);
+        if (collider) collider.setRestitution(GHOST_RESTITUTION);
+        durationFrames = GHOST_DURATION_FRAMES;
         break;
-      default:
+
+      case 'slime':
+        targetBody.setLinearDamping(SLIME_DAMPING);
+        if (collider) {
+          collider.setFriction(SLIME_FRICTION);
+          collider.setRestitution(SLIME_RESTITUTION);
+        }
+        durationFrames = SLIME_DURATION_FRAMES;
+        break;
+
+      case 'magnet':
+        targetBody.setGravityScale(MAGNET_SELF_GRAVITY, true);
+        durationFrames = MAGNET_DURATION_FRAMES;
         break;
     }
+
+    // 엔트리 등록 → step()에서 매 프레임 순회
+    this.activeEntries.push({
+      skill,
+      chipId,
+      startFrame: currentFrame,
+      expireFrame: currentFrame + durationFrames,
+      originalValues,
+    });
+  }
+
+  // ── 매 프레임 호출: 지속 효과 적용 + 만료 해제 ────────────────────
+  static step(
+    world: RAPIER.World,
+    currentFrame: number,
+    activeChips: RAPIER.RigidBody[],
+  ) {
+    if (this.activeEntries.length === 0) return;
+
+    const remaining: ActiveSkillEntry[] = [];
+
+    for (const entry of this.activeEntries) {
+      // 만료 체크
+      if (currentFrame >= entry.expireFrame) {
+        this.deactivateSkill(entry, activeChips);
+        continue;
+      }
+
+      // 매 프레임 지속 효과
+      const body = activeChips.find(chip => {
+        const data = chip.userData as any;
+        return data && data.type === 'chip' && data.id === entry.chipId;
+      });
+
+      if (!body) {
+        // 칩이 사라졌으면(완주/탈락) 엔트리 제거
+        continue;
+      }
+
+      switch (entry.skill) {
+        case 'booster':
+          // 매 프레임 하방 추진력 적용 (질량 정규화)
+          this.applyDeltaV(body, 0, BOOSTER_FORCE_PER_FRAME);
+          break;
+
+        case 'magnet':
+          // 매 프레임 반경 내 타 칩에 인력 적용
+          this.applyMagnetForce(body, entry.chipId, activeChips);
+          break;
+
+        // tank, ghost, slime은 발동 시 속성을 변경해둔 것이 지속됨 (매 프레임 작업 없음)
+      }
+
+      remaining.push(entry);
+    }
+
+    this.activeEntries = remaining;
+  }
+
+  // ── 스킬 해제: 원본 물리 속성 복구 ─────────────────────────────────
+  private static deactivateSkill(
+    entry: ActiveSkillEntry,
+    activeChips: RAPIER.RigidBody[],
+  ) {
+    const body = activeChips.find(chip => {
+      const data = chip.userData as any;
+      return data && data.type === 'chip' && data.id === entry.chipId;
+    });
+
+    if (!body) return;
+
+    try {
+      const { gravityScale, linearDamping, restitution, friction } = entry.originalValues;
+      body.setGravityScale(gravityScale, true);
+      body.setLinearDamping(linearDamping);
+
+      const collider = body.collider(0);
+      if (collider) {
+        collider.setRestitution(restitution);
+        collider.setFriction(friction);
+      }
+    } catch (e) {
+      // Body가 이미 해제된 경우 무시
+    }
+  }
+
+  // ── 순간이동: 1단계 상위 칩과 좌표 스왑 ─────────────────────────────
+  private static executeTeleport(
+    world: RAPIER.World,
+    selfBody: RAPIER.RigidBody,
+    selfId: string,
+    activeChips: RAPIER.RigidBody[],
+  ) {
+    // 모든 칩을 Y좌표 내림차순(진행도 순) 정렬
+    const chipPositions: { body: RAPIER.RigidBody; id: string; y: number }[] = [];
+    for (const chip of activeChips) {
+      const data = chip.userData as any;
+      if (data && data.type === 'chip' && data.id) {
+        chipPositions.push({ body: chip, id: data.id, y: chip.translation().y });
+      }
+    }
+    chipPositions.sort((a, b) => b.y - a.y); // Y가 클수록 앞서 있음 (진행 방향)
+
+    const selfIndex = chipPositions.findIndex(c => c.id === selfId);
+    if (selfIndex < 0) return;
+
+    if (selfIndex > 0) {
+      // 2등 이하: 바로 1단계 위 칩과 좌표 스왑
+      const target = chipPositions[selfIndex - 1];
+      const selfPos = selfBody.translation();
+      const targetPos = target.body.translation();
+
+      // 좌표 교환
+      selfBody.setTranslation({ x: targetPos.x, y: targetPos.y }, true);
+      target.body.setTranslation({ x: selfPos.x, y: selfPos.y }, true);
+
+      // 속도 초기화 (벽 끼임 방지)
+      selfBody.setLinvel({ x: 0, y: 0 }, true);
+      target.body.setLinvel({ x: 0, y: 0 }, true);
+    } else {
+      // 이미 1등: 전방 워프
+      const selfPos = selfBody.translation();
+      selfBody.setTranslation({ x: selfPos.x, y: selfPos.y + TELEPORT_WARP_DISTANCE }, true);
+      selfBody.setLinvel({ x: 0, y: 0 }, true);
+    }
+  }
+
+  // ── 자석 인력: 반경 내 타 칩을 끌어당김 ─────────────────────────────
+  private static applyMagnetForce(
+    magnetBody: RAPIER.RigidBody,
+    magnetChipId: string,
+    activeChips: RAPIER.RigidBody[],
+  ) {
+    const mPos = magnetBody.translation();
+
+    for (const chip of activeChips) {
+      const data = chip.userData as any;
+      if (!data || data.type !== 'chip' || data.id === magnetChipId) continue;
+
+      const cPos = chip.translation();
+      const dx = mPos.x - cPos.x;
+      const dy = mPos.y - cPos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < MAGNET_RADIUS && dist > 10) { // 10px 데드존 (특이점 방지)
+        // 거리 반비례 제곱 인력: 가까울수록 강하게 끌어당김
+        const strength = MAGNET_STRENGTH * Math.pow(1 - dist / MAGNET_RADIUS, 2);
+        let dvx = (dx / dist) * strength;
+        let dvy = (dy / dist) * strength;
+
+        // 위(-y) 방향 인력 감쇠: 칩을 중력에 맞서 띄우는 것을 방지
+        if (dvy < 0) dvy *= MAGNET_UPWARD_DAMP;
+
+        this.applyDeltaV(chip, dvx, dvy);
+      }
+    }
+  }
+
+  // ── 질량 정규화 임펄스 (SimulationCore.applyDeltaV와 동일 패턴) ─────
+  private static applyDeltaV(chip: RAPIER.RigidBody, dvx: number, dvy: number) {
+    const m = chip.mass() || 1;
+    chip.applyImpulse({ x: dvx * m, y: dvy * m }, true);
+  }
+
+  // ── 게임 종료 시 모든 활성 스킬 정리 ────────────────────────────────
+  static reset() {
+    this.activeEntries = [];
+  }
+
+  // ── 외부 조회: 특정 칩에 활성화된 스킬 목록 ─────────────────────────
+  static getActiveSkills(chipId: string): SkillType[] {
+    return this.activeEntries
+      .filter(e => e.chipId === chipId)
+      .map(e => e.skill);
   }
 }
