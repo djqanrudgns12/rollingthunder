@@ -610,6 +610,10 @@ export default function PhysicsCanvas() {
                 const textureUrl = `/images/assets/skins/${skinKey}.png`;
                 const R = 12; // Physics radius
                 
+                const iconWrapper = new PIXI.Container();
+                iconWrapper.label = 'icon';
+                container.addChild(iconWrapper);
+                
                 try {
                   const tex = PIXI.Assets.get(textureUrl);
                   if (tex) {
@@ -621,14 +625,14 @@ export default function PhysicsCanvas() {
                     shadow.tint = 0x000000;
                     shadow.alpha = 0.5;
                     shadow.y = 3;
-                    container.addChild(shadow);
+                    iconWrapper.addChild(shadow);
 
                     const sprite = new PIXI.Sprite(tex);
                     sprite.anchor.set(0.5); // 완벽한 무결성을 위한 중앙 앵커 정렬
                     sprite.width = R * 2;   // 물리 반경(12)과 스케일 완벽 동기화
                     sprite.height = R * 2;
                     sprite.tint = colNum;   // 참가자 고유 색상 무한 지원
-                    container.addChild(sprite);
+                    iconWrapper.addChild(sprite);
                   } else {
                     throw new Error("Texture not preloaded");
                   }
@@ -638,7 +642,7 @@ export default function PhysicsCanvas() {
                   fallback.circle(0, 0, R);
                   fallback.fill({ color: colNum, alpha: 1.0 });
                   fallback.stroke({ width: 2, color: 0xffffff, alpha: 0.8 });
-                  container.addChild(fallback);
+                  iconWrapper.addChild(fallback);
                 }
 
                 const text = new PIXI.Text({ 
@@ -670,7 +674,14 @@ export default function PhysicsCanvas() {
             
             container.position.set(x, y);
             // approximate rolling rotation
-            container.rotation += (vx * 0.005);
+            if (isChip && survivor) {
+              const iconWrapper = container.getChildByLabel('icon');
+              if (iconWrapper) {
+                iconWrapper.rotation += (vx * 0.005);
+              }
+            } else {
+              container.rotation += (vx * 0.005);
+            }
             
             // mBlur 로직 완전히 제거 (에셋 성능 최적화)
 
