@@ -16,6 +16,7 @@ import type { WallStyle } from './MapBuilder';
 let core: SimulationCore | null = null;
 let isRunning = false;
 let stepInterval: any = null;
+let postFinishFrames = 0;
 
 let positionsBuffer: Float32Array;
 let isSkillEnabled = true;
@@ -173,6 +174,7 @@ self.onmessage = async (e) => {
     if (!core) return;
     isRunning = true;
     dtMultiplier = 1.0;
+    postFinishFrames = 0;
 
     // 스킬 쿨타임 초기화 (게임 재시작 시)
     for (const cd of chipCooldowns) {
@@ -188,12 +190,16 @@ self.onmessage = async (e) => {
 
       // 워커 루프는 "우승 확정(gameOver)"이 아니라 "마지막 주자까지 완주(allFinished)" 시 종료.
       // 우승자가 나와도 남은 주자들이 결승선을 통과할 때까지 시뮬레이션을 계속 진행한다.
+      // 마지막 주자가 결승선에 닿자마자 멈추는 현상(화면에 칩이 걸쳐서 정지)을 막기 위해 2초(120프레임) 추가 대기.
       if (core.allFinished) {
-        clearInterval(stepInterval);
-        stepInterval = null;
-        chipCooldowns = [];
-        isRunning = false;
-        return;
+        postFinishFrames++;
+        if (postFinishFrames > 120) {
+          clearInterval(stepInterval);
+          stepInterval = null;
+          chipCooldowns = [];
+          isRunning = false;
+          return;
+        }
       }
 
       // ── 핵심: 매 물리 스텝마다 개별 쿨타임 처리 ──

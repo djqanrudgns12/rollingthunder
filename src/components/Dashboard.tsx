@@ -134,6 +134,26 @@ export default function Dashboard() {
     clearParticipants()
   }
 
+  const handleSaveList = () => {
+    if (participants.length === 0) {
+      toast.error('저장할 참가자가 없습니다.')
+      return
+    }
+    const names = participants.map(p => p.name).join(', ')
+    localStorage.setItem('rt-saved-list', names)
+    toast.success('현재 참가자 명단이 로컬에 저장되었습니다.')
+  }
+
+  const handleLoadList = () => {
+    const saved = localStorage.getItem('rt-saved-list')
+    if (!saved) {
+      toast.error('저장된 명단이 없습니다.')
+      return
+    }
+    setNameInput(saved)
+    toast.success('저장된 명단을 불러왔습니다. 추가 버튼을 눌러주세요.')
+  }
+
   const handleStart = async () => {
     if (participants.length < 2) {
       toast.error('최소 2명 이상의 참가자가 필요합니다.')
@@ -243,21 +263,36 @@ export default function Dashboard() {
             </button>
           </div>
 
-          <div className="flex gap-2 shrink-0">
-            <input 
-              type="text" 
-              placeholder="참가자 이름 (쉼표/공백 다중입력)" 
-              className="flex-[3] bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-secondary)] transition-colors text-sm"
+          <div className="flex gap-2 shrink-0 items-stretch">
+            <textarea 
+              placeholder="참가자 이름 (쉼표/공백/줄바꿈 다중입력)" 
+              className="flex-[3] bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-secondary)] transition-colors text-sm resize-none scrollbar-hide"
+              rows={2}
               value={nameInput}
               onChange={(e) => {
                 setNameInput(e.target.value)
                 isTypingRef.current = true
               }}
-              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleAdd()
+                }
+              }}
             />
-            <button onClick={handleAdd} className="flex-1 bg-[var(--accent-secondary)] text-black font-bold px-5 py-3 rounded-xl hover:opacity-90 transition-opacity shrink-0">
-              추가
-            </button>
+            <div className="flex flex-col gap-2 shrink-0 w-28">
+              <button onClick={handleAdd} className="flex-[2] bg-[var(--accent-secondary)] text-black font-bold rounded-xl hover:opacity-90 transition-opacity text-sm shadow-[0_0_15px_rgba(0,255,204,0.3)] min-h-[40px]">
+                추가
+              </button>
+              <div className="flex gap-1 flex-1 min-h-[24px]">
+                <button onClick={handleSaveList} className="flex-1 bg-white/10 text-white/70 font-bold rounded-lg hover:bg-white/20 hover:text-white transition-colors text-[10px] border border-white/5" title="현재 참가자 명단을 저장합니다">
+                  저장
+                </button>
+                <button onClick={handleLoadList} className="flex-1 bg-white/10 text-white/70 font-bold rounded-lg hover:bg-white/20 hover:text-white transition-colors text-[10px] border border-white/5" title="저장된 명단을 입력창으로 불러옵니다">
+                  불러오기
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="bg-black/40 rounded-xl border border-white/5 p-3 min-h-[80px] shrink-0 overflow-y-auto flex flex-wrap gap-2 shadow-inner">

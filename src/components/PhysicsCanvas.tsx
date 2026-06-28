@@ -283,7 +283,7 @@ export default function PhysicsCanvas() {
         });
 
         // PiP Viewport (Minimap / Last place tracker)
-        const baseMinimapWidth = 360;
+        const baseMinimapWidth = 192;
         const baseMinimapHeight = baseMinimapWidth * (WORLD_HEIGHT / WORLD_WIDTH);
 
         pipViewport = new Viewport({
@@ -935,6 +935,7 @@ export default function PhysicsCanvas() {
               
               g.rotation = item.rotation || 0;
               mg.rotation = item.rotation || 0;
+              mg.scale.set(1.5);
               minimapStatic.addChild(mg);
 
               // Provide an ID to the graphic object for animations
@@ -1083,16 +1084,17 @@ export default function PhysicsCanvas() {
               if (isChip && survivor) {
                 const colorNum = parseInt(survivor.color.replace('#', '0x')) || 0xffffff;
                 if (currentRankings.length > 0 && currentRankings[0].id === survivor.id) {
-                  mDot.circle(0,0, 30); // 1st place is huge and gold
+                  mDot.circle(0,0, 40); // 1st place is huge and gold
                   mDot.fill(0xffd700);
                   // Add a subtle white outline to 1st place
-                  mDot.stroke({ width: 8, color: 0xffffff, alpha: 1 });
+                  mDot.stroke({ width: 10, color: 0xffffff, alpha: 1 });
                 } else {
-                  mDot.circle(0,0, 16);
+                  mDot.circle(0,0, 24);
                   mDot.fill(colorNum);
+                  mDot.stroke({ width: 4, color: 0xffffff, alpha: 0.8 });
                 }
               } else {
-                mDot.circle(0,0, 12);
+                mDot.circle(0,0, 18);
                 mDot.fill(0x888888);
               }
             }
@@ -1357,14 +1359,18 @@ export default function PhysicsCanvas() {
       <div className="absolute bottom-6 left-6 z-50 flex gap-4">
         <button 
           onClick={() => setGameStage('dashboard')}
-          className="glass-panel-heavy hover:bg-white/10 text-white font-bold px-6 py-4 rounded-2xl transition-all shadow-lg flex items-center gap-2 group border border-white/10"
+          className={`glass-panel-heavy text-white font-bold px-6 py-4 rounded-2xl transition-all flex items-center justify-center gap-2 group w-48 ${
+            gameState === 'finished' 
+              ? 'animate-bounce shadow-[0_0_25px_rgba(255,255,255,0.6)] border-2 border-white bg-white/20 hover:bg-white/30'
+              : 'hover:bg-white/10 shadow-lg border border-white/10'
+          }`}
         >
           <span className="group-hover:-translate-x-1 transition-transform">🚪</span> 로비로 복귀
         </button>
       </div>
 
       {gameState === 'finished' && gameOverResult && (
-        <div className="absolute top-6 left-6 z-50 flex flex-col items-start animate-in slide-in-from-left fade-in duration-700 pointer-events-none">
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center animate-in slide-in-from-top fade-in duration-700 pointer-events-none w-full max-w-md">
           {/* Stardust Particles (Phase 3) */}
           <div className="absolute inset-0 pointer-events-none overflow-visible z-[-1]">
             {[...Array(15)].map((_, i) => (
@@ -1380,36 +1386,29 @@ export default function PhysicsCanvas() {
               />
             ))}
           </div>
-          <h2 className="animate-victory-pulse font-black text-6xl tracking-tighter text-[#FFD700] mb-0">
-            Victory!
+          <h2 className="animate-victory-pulse font-black text-6xl tracking-tighter text-[#FFD700] mb-2 drop-shadow-[0_0_15px_rgba(255,215,0,0.5)] text-center">
+            {gameMode === 'random' ? (gameOverResult.winners.length === 1 ? 'Lucky Winner!' : 'Lucky Winners!') :
+             (gameOverResult.winners.length === 1 ? 'The Winner!' : 'Top Survivors!')}
           </h2>
-          <span className="text-white/80 text-xl font-bold mb-4 ml-1 tracking-wider drop-shadow-md">
+          <span className="text-white/90 text-xl font-bold mb-6 tracking-widest drop-shadow-md bg-black/40 px-4 py-1 rounded-full border border-white/20">
             {gameMode === 'speed' ? '스피드 레이스' : 
              gameMode === 'turtle' ? '거북이 레이스' : 
              gameMode === 'custom' ? '커스텀 레이스' : 
              gameMode === 'random' ? '랜덤 레이스' : gameMode}
           </span>
-          <div className="flex flex-col items-start gap-3 w-full ml-1">
+          <div className="flex flex-col items-center gap-3 w-full bg-black/60 backdrop-blur-md px-6 py-6 rounded-3xl border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.8)] pointer-events-auto">
             {gameOverResult.winners.map((w: any, idx: number) => (
-              <div key={idx} className="flex items-center justify-start gap-3 bg-black/40 backdrop-blur-sm px-4 py-2 rounded-2xl border border-white/10">
-                {/* 순위 메달/번호 — 1등🥇, 2등🥈, 3등🥉, 4등~ 숫자 */}
-                <span className="text-2xl font-black min-w-[40px] text-center">
-                  {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}`}
+              <div key={idx} className="flex items-center justify-between w-full gap-4 px-2 py-2 border-b border-white/5 last:border-0">
+                <span className={`text-2xl font-black w-16 text-center ${idx === 0 ? 'text-[#FFD700]' : idx === 1 ? 'text-[#C0C0C0]' : idx === 2 ? 'text-[#CD7F32]' : 'text-white/50'}`}>
+                  {idx + 1}{idx === 0 ? 'ST' : idx === 1 ? 'ND' : idx === 2 ? 'RD' : 'TH'}
                 </span>
-                <div className="w-10 h-10 rounded-full shadow-[0_0_15px_currentColor] border-[2px] border-white/50" style={{ backgroundColor: w.color, color: w.color }}></div>
-                <span className="text-3xl font-black drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] truncate max-w-[200px]" style={{ color: w.color || '#fff' }}>
+                <div className="w-10 h-10 rounded-full shadow-[0_0_15px_currentColor] border-[2px] border-white/40 shrink-0" style={{ backgroundColor: w.color, color: w.color }}></div>
+                <span className="text-2xl font-black truncate flex-1 text-left" style={{ color: w.color || '#fff' }}>
                   {w.name}
                 </span>
               </div>
             ))}
           </div>
-          
-          <button 
-            onClick={() => setGameStage('dashboard')}
-            className="mt-6 pointer-events-auto bg-black/50 backdrop-blur-sm border border-white/20 text-white font-bold text-sm tracking-widest px-6 py-3 rounded-xl hover:bg-white/10 transition-all"
-          >
-            NEXT MATCH
-          </button>
         </div>
       )}
 

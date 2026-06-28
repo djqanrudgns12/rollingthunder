@@ -254,10 +254,12 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       { id: 'n_swm2', type: 'windmill', x: 680, y: 2150, speed: -5 },
       sideBumper(2780, 'left'), sideBumper(2820, 'right'),
       // 출구: 핀볼 드레인 — 가장자리 급경사(35°) + 중앙 완만(12°) 2단 배수구
+      // 검산: 가장자리 벽 inner_end = 80+65=145, 720-65=655 → 겹침 없음
       { id: 'n_ex1', type: 'wall', x: 80, y: 3020, w: 160, h: 16, rotation: 35, friction: 0.07 },
       { id: 'n_ex2', type: 'wall', x: 720, y: 3020, w: 160, h: 16, rotation: -35, friction: 0.07 },
-      { id: 'n_ex3', type: 'wall', x: 280, y: 3080, w: 360, h: 20, rotation: 12, friction: 0.07 },
-      { id: 'n_ex4', type: 'wall', x: 520, y: 3080, w: 360, h: 20, rotation: -12, friction: 0.07 },
+      // 검산: 중앙 벽 inner_end = 210+107=317, 590-107=483 → gap=166px ✓
+      { id: 'n_ex3', type: 'wall', x: 210, y: 3080, w: 220, h: 20, rotation: 12, friction: 0.07 },
+      { id: 'n_ex4', type: 'wall', x: 590, y: 3080, w: 220, h: 20, rotation: -12, friction: 0.07 },
     ],
   },
 
@@ -331,10 +333,12 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       // 골격: 조립 라인. 수평 컨베이어 피스톤(좌우 왕복 플랫폼) + 대형 톱니(풍차) +
       // 저마찰 캐치 렛지가 칩을 다음 층으로 넘긴다. 피스톤을 놓쳐도 렛지가 흐름을 보장.
       // 입구: 다단 호퍼 — 1단(넓은 완만 수렴) + 2단(좁은 급경사 투입). 공장 원자재 호퍼
-      { id: 'm_ent1', type: 'wall', x: 200, y: 120, w: 400, h: 20, rotation: 10, friction: 0.07 },
-      { id: 'm_ent2', type: 'wall', x: 600, y: 120, w: 400, h: 20, rotation: -10, friction: 0.07 },
-      { id: 'm_ent3', type: 'wall', x: 320, y: 210, w: 200, h: 16, rotation: 22, friction: 0.07 },
-      { id: 'm_ent4', type: 'wall', x: 480, y: 210, w: 200, h: 16, rotation: -22, friction: 0.07 },
+      // 검산 1단: inner_end = 170+128=298, 630-128=502 → gap=204px ✓
+      { id: 'm_ent1', type: 'wall', x: 170, y: 120, w: 260, h: 20, rotation: 10, friction: 0.07 },
+      { id: 'm_ent2', type: 'wall', x: 630, y: 120, w: 260, h: 20, rotation: -10, friction: 0.07 },
+      // 검산 2단: inner_end = 290+65=355, 510-65=445 → gap=90px ✓
+      { id: 'm_ent3', type: 'wall', x: 290, y: 210, w: 140, h: 16, rotation: 22, friction: 0.07 },
+      { id: 'm_ent4', type: 'wall', x: 510, y: 210, w: 140, h: 16, rotation: -22, friction: 0.07 },
       { id: 'm_ps1', type: 'piston', x: 300, y: 440, w: 220, h: 20, speed: 2, waypointB: { x: 520, y: 440 } },
       { id: 'm_l1', type: 'wall', x: 680, y: 580, w: 240, h: 16, rotation: -14, friction: 0.07 },
       { id: 'm_wm1', type: 'windmill', x: 400, y: 780, speed: 7 },
@@ -354,9 +358,10 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       sideKicker(1250, 'right', { deg: 18 }),
       sideBumper(1900, 'left'), sideBumper(2000, 'right'),
       sideKicker(2350, 'left'), sideKicker(2400, 'right'),
-      // 출구: 비대칭 편측 컨베이어 — 좌측 수직벽 + 우측 완만 슬로프. 공장 배출구 형태
-      { id: 'm_ex1', type: 'wall', x: 80, y: 2500, w: 16, h: 200, rotation: 0, friction: 0.07 },
-      { id: 'm_ex2', type: 'wall', x: 400, y: 2520, w: 600, h: 20, rotation: -10, friction: 0.07 },
+      // 출구: 비대칭 편측 컨베이어 — 좌측 넓은 경사 + 우측 좁은 경사. 공장 배출구 형태
+      // 검산: inner_end = 190+124=314, 600-117=483 → gap=169px ✓
+      { id: 'm_ex1', type: 'wall', x: 190, y: 2500, w: 260, h: 20, rotation: 18, friction: 0.07 },
+      { id: 'm_ex2', type: 'wall', x: 600, y: 2510, w: 240, h: 20, rotation: -12, friction: 0.07 },
     ],
   },
 
@@ -373,10 +378,10 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     items: [
       // 골격: 수직 레인 스피드웨이. 세로벽으로 나뉜 평행 레인을 하향 부스터로 직진 질주,
       // 레인 사이 틈에서 확률적으로 차선 변경(운). 핀 산란대로 순위 셔플.
-      // 입구: 스타트 그리드 — 수직 분리벽 3개로 4차선 즉시 배정. 경사면 없이 레이싱 시작
-      { id: 'bh_grid1', type: 'wall', x: 200, y: 110, w: 16, h: 180, rotation: 0, friction: 0.07 },
-      { id: 'bh_grid2', type: 'wall', x: 400, y: 110, w: 16, h: 180, rotation: 0, friction: 0.07 },
-      { id: 'bh_grid3', type: 'wall', x: 600, y: 110, w: 16, h: 180, rotation: 0, friction: 0.07 },
+      // 입구: 스타트 그리드 — 짧은 분리벽 3개 + 경사로 4차선 배정 (h:60으로 갈림 방지)
+      { id: 'bh_grid1', type: 'wall', x: 200, y: 150, w: 16, h: 60, rotation: 0, friction: 0.07 },
+      { id: 'bh_grid2', type: 'wall', x: 400, y: 150, w: 16, h: 60, rotation: 0, friction: 0.07 },
+      { id: 'bh_grid3', type: 'wall', x: 600, y: 150, w: 16, h: 60, rotation: 0, friction: 0.07 },
       // 3레인 구간(분리벽 x≈267/533). 부스터는 약하게(power 2)로 "꾸준한 가속" 유지.
       ...lanes(320, 920, 3, { segH: 260, gap: 95 }),
       { id: 'bh_b0', type: 'booster', x: 133, y: 430, rotation: 180, power: 2 },
@@ -407,8 +412,10 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       sideBumper(1120, 'left'), sideBumper(1150, 'right'),
       sideBumper(2050, 'left'), sideBumper(2080, 'right'),
       sideKicker(2960, 'left'), sideKicker(2980, 'right'),
-      // 출구: 피니시 라인 — 개방형. 벽 없이 스피드 유지 채 통과
-      // (핀필드가 감속 역할, 별도 깔때기 불필요)
+      // 최종 산란대
+      ...pinField(2880, 2, { spacing: 62, r: 9, bumperEvery: 3 }),
+      // 출구: 체커 플래그 — 넓은 gap(200px)의 열린 깔때기로 속도 유지
+      ...funnel(3080, { gap: 200, deg: 18, len: 240 }),
     ],
   },
 
@@ -457,10 +464,11 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       sideBumper(1200, 'left'), sideBumper(1500, 'right'),
       sideKicker(1800, 'left'), sideKicker(2100, 'right'),
       sideBumper(2400, 'left'), sideBumper(2650, 'right'),
-      // 출구: 지그재그 미로 배출 — 3걹 가로벽 좌우 교대 배치, 각 벽에 130px gap
-      { id: 'pl_ex1', type: 'wall', x: 350, y: 2720, w: 700, h: 20, rotation: 10, friction: 0.07 },
-      { id: 'pl_ex2', type: 'wall', x: 450, y: 2800, w: 700, h: 20, rotation: -10, friction: 0.07 },
-      { id: 'pl_ex3', type: 'wall', x: 350, y: 2880, w: 600, h: 16, rotation: 8, friction: 0.07 },
+      // 출구: 지그재그 미로 배출 — 짧은 경사벽 좌우 교대 배치 (각 벽 260px, 양쪽에 충분한 gap)
+      // 검산: 벽 길이 260px → 한쪽만 커버, 반대쪽은 완전히 열림
+      { id: 'pl_ex1', type: 'wall', x: 200, y: 2720, w: 260, h: 20, rotation: 12, friction: 0.07 },
+      { id: 'pl_ex2', type: 'wall', x: 600, y: 2800, w: 260, h: 20, rotation: -12, friction: 0.07 },
+      { id: 'pl_ex3', type: 'wall', x: 250, y: 2880, w: 240, h: 16, rotation: 10, friction: 0.07 },
     ],
   },
 
@@ -478,10 +486,11 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       // 골격: 골턴 보드(삼각 핀밭). 좁은 한 점에서 떨어뜨려 아래로 갈수록 넓어지는 삼각형
       // 핀밭으로 칩을 퍼뜨린다(순수 운). 삼각 변을 따라 측벽이 가쪽 이탈을 막는다.
       const out: EditorItem[] = [];
-      // 입구: 니들 드롭 — 맵 전체를 가로막는 천장 + 중앙 50px 틀새로만 진입
+      // 입구: 니들 드롭 — 천장 양쪽 벽 + 중앙 130px 통로로 진입
+      // 검산: inner_end = 185+148=333, 615-148=467 → gap=134px ✓
       out.push(
-        { id: kid('nd'), type: 'wall', x: 195, y: 200, w: 390, h: 24, rotation: 3, friction: 0.07 },
-        { id: kid('nd'), type: 'wall', x: 605, y: 200, w: 390, h: 24, rotation: -3, friction: 0.07 },
+        { id: kid('nd'), type: 'wall', x: 185, y: 200, w: 300, h: 24, rotation: 3, friction: 0.07 },
+        { id: kid('nd'), type: 'wall', x: 615, y: 200, w: 300, h: 24, rotation: -3, friction: 0.07 },
       );
       // 삼각 핀밭: 위는 좁고 아래로 갈수록 넓어진다(spacing 64로 끼임 방지).
       // 핀밭 자체가 칩을 가두므로 가쪽 벽은 두지 않는다(쐐기 정체 원인).
@@ -509,10 +518,11 @@ export const MapPresets: Record<string, MapPresetMeta> = {
         sideKicker(1800, 'left'), sideKicker(1750, 'right'),
         sideBumper(2150, 'left'), sideBumper(2200, 'right'),
       );
-      // 출구: 다중 갈퀴 바닥 — 짧은 수직벽 7개로 여러 틈새로 배출
+      // 출구: 다중 갈퀴 바닥 — 짧은 경사벽 7개로 여러 틈새로 배출 (h:35, 약간 기울여 갈림 방지)
       const rakeY = top + rows * rowH + 70;
       for (let rx = 120; rx <= 680; rx += 95) {
-        out.push({ id: kid('rk'), type: 'wall', x: rx, y: rakeY, w: 16, h: 60, rotation: 0, friction: 0.07 });
+        const tilt = (rx % 190 < 95) ? 5 : -5; // 교대로 약간 기울임
+        out.push({ id: kid('rk'), type: 'wall', x: rx, y: rakeY, w: 16, h: 35, rotation: tilt, friction: 0.07 });
       }
       return out;
     })(),
@@ -558,11 +568,13 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       sideBumper(1660, 'left'), sideBumper(1700, 'right'),
       sideKicker(2050, 'left'), sideKicker(2080, 'right'),
       sideBumper(2430, 'left'), sideBumper(2460, 'right'),
-      // 출구: 광폭 완만 사발 — 맵 전체 너비(x:0~800)를 덮는 넓고 엕은 V(8°)
+      // 출구: 광폭 완만 사발 — 가장자리 급경사(30°) + 중앙 완만(8°)
+      // 검산: 가장자리 inner_end = 80+69=149, 720-69=651
       { id: 'rf_ex1', type: 'wall', x: 80, y: 2720, w: 160, h: 16, rotation: 30, friction: 0.07 },
       { id: 'rf_ex2', type: 'wall', x: 720, y: 2720, w: 160, h: 16, rotation: -30, friction: 0.07 },
-      { id: 'rf_ex3', type: 'wall', x: 260, y: 2790, w: 380, h: 20, rotation: 8, friction: 0.07 },
-      { id: 'rf_ex4', type: 'wall', x: 540, y: 2790, w: 380, h: 20, rotation: -8, friction: 0.07 },
+      // 검산: 중앙 inner_end = 210+119=329, 590-119=471 → gap=142px ✓
+      { id: 'rf_ex3', type: 'wall', x: 210, y: 2790, w: 240, h: 20, rotation: 8, friction: 0.07 },
+      { id: 'rf_ex4', type: 'wall', x: 590, y: 2790, w: 240, h: 20, rotation: -8, friction: 0.07 },
     ],
   },
 
@@ -636,10 +648,12 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       // 골격: 완전 좌우대칭 셰브론 위브. 중앙 범퍼(둥근 스플리터)가 칩을 좌/우로 가르면,
       // 양옆 고탄성 셰브론 암(∨)이 칩을 다시 중앙으로 튕겨 보낸다(동시에 가쪽 직낙 차단).
       // 입구: W자 대칭 스플리터 — 중앙 ˆ + 양 가장자리 안쪽 경사벽 = W 형태
+      // 검산: 외벽 inner = 100+91=191, 700-91=609. 내벽 inner = 330-66=264, 470+66=536
+      // gap1(좌~내좌) = 264-191=73px, gap2(내우~우) = 609-536=73px, gap3(내좌~내우)=470-330=140px (통과가능 ✓)
       { id: 'bm_entL', type: 'wall', x: 100, y: 180, w: 200, h: 20, rotation: 25, friction: 0.07 },
       { id: 'bm_entR', type: 'wall', x: 700, y: 180, w: 200, h: 20, rotation: -25, friction: 0.07 },
-      { id: 'bm_entCL', type: 'wall', x: 350, y: 200, w: 200, h: 20, rotation: -20, friction: 0.07 },
-      { id: 'bm_entCR', type: 'wall', x: 450, y: 200, w: 200, h: 20, rotation: 20, friction: 0.07 },
+      { id: 'bm_entCL', type: 'wall', x: 330, y: 200, w: 140, h: 16, rotation: -18, friction: 0.07 },
+      { id: 'bm_entCR', type: 'wall', x: 470, y: 200, w: 140, h: 16, rotation: 18, friction: 0.07 },
       // 좌우 교대 셰브론(중앙 gap)으로 만드는 대칭 위브: 한 셰브론의 드롭이 다음 셰브론의
       // 반대쪽 암에 떨어져 칩이 ∨∧∨∧ 로 짜이며 내려간다. 범퍼가 바운스 손맛을 더함.
       ...chevron(330, 360, { gap: 130, len: 200, rest: 0.85 }),
@@ -666,8 +680,9 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       sideKicker(1120, 'left', { deg: 18 }), sideKicker(1140, 'right', { deg: 18 }),
       sideBumper(1500, 'left'), sideBumper(1520, 'right'),
       sideKicker(1880, 'left'), sideKicker(1900, 'right'),
-      // 출구: 초대형 셰브론 — 맵 전체 너비를 덮는 거대 V자
-      ...chevron(400, 2260, { gap: 130, len: 380, rest: 0.5 }),
+      // 출구: 대형 셰브론 — chevron(gap:150) 자체에 충분한 통과 gap 확보
+      // 검산: chevron gap=150, len=260 → funnel과 유사한 안전 구조
+      ...chevron(400, 2260, { gap: 150, len: 260, rest: 0.5 }),
       { id: 'bm_exL', type: 'wall', x: 80, y: 2220, w: 160, h: 16, rotation: 30, friction: 0.07 },
       { id: 'bm_exR', type: 'wall', x: 720, y: 2220, w: 160, h: 16, rotation: -30, friction: 0.07 },
     ],
@@ -718,9 +733,11 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       sideKicker(800, 'left', { deg: 20 }), sideKicker(850, 'right', { deg: 20 }),
       sideBumper(1100, 'left'), sideBumper(1150, 'right'),
       sideKicker(1800, 'left'), sideKicker(1850, 'right'),
-      // 출구: 중력 포집 빗면 — 양쪽 넓은 슬로프로 중앙 수렴 + 가장자리 봉인
-      { id: 'mf_ex1', type: 'wall', x: 200, y: 2260, w: 400, h: 20, rotation: 15, friction: 0.07 },
-      { id: 'mf_ex2', type: 'wall', x: 600, y: 2260, w: 400, h: 20, rotation: -15, friction: 0.07 },
+      // 출구: 중력 포집 빗면 — 양쪽 슬로프로 중앙 수렴 + 가장자리 봉인
+      // 검산: inner_end = 190+124=314, 610-124=486 → gap=172px ✓
+      { id: 'mf_ex1', type: 'wall', x: 190, y: 2260, w: 260, h: 20, rotation: 15, friction: 0.07 },
+      { id: 'mf_ex2', type: 'wall', x: 610, y: 2260, w: 260, h: 20, rotation: -15, friction: 0.07 },
+      // 검산: 가장자리 inner_end = 80+69=149, 720-69=651 → 중앙벽과 겹침 없음
       { id: 'mf_ex3', type: 'wall', x: 80, y: 2220, w: 160, h: 16, rotation: 30, friction: 0.07 },
       { id: 'mf_ex4', type: 'wall', x: 720, y: 2220, w: 160, h: 16, rotation: -30, friction: 0.07 },
     ],

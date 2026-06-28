@@ -91,7 +91,7 @@ export default function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLea
 
   return (
     // 전체 우측 패널: 순위보드(상단 ~67%) + 스킬 로그(하단 ~33%)를 세로로 나눈다.
-    <div className="absolute top-4 right-4 z-50 flex flex-col pointer-events-auto w-72 max-w-[40vw]"
+    <div className="absolute top-4 right-4 z-50 flex flex-col pointer-events-auto w-56 max-w-[30vw]"
       style={{ height: 'calc(100vh - 2rem)' }}
     >
       {/* ═══════════════ 순위보드 영역 (상단 67%) ═══════════════ */}
@@ -120,7 +120,7 @@ export default function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLea
                     // ── 글자 잘림 및 2줄 방지 핵심 로직 ──
                     // overflow-hidden: 내부 요소가 박스를 넘어가는 것을 차단
                     // 높이(py-1.5): 기존 py-3에서 축소하여 컴팩트하게
-                    "relative flex items-center gap-2 px-3 py-1.5 rounded-xl overflow-hidden",
+                    "relative flex items-center gap-2 px-2 py-1 rounded-xl overflow-hidden",
                     "shadow-md border backdrop-blur-xl transition-all duration-300",
                     isFinished 
                       ? "bg-black/70 border-white/20 shadow-[0_2px_12px_rgba(0,0,0,0.5)] z-10" 

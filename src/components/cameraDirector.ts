@@ -67,9 +67,9 @@ export class CameraDirector {
   private readonly PACK_BAND = 700;      // 선두에서 이 거리(px) 안쪽을 '선두 그룹'으로 본다
   private readonly LEAD_BATTLE_AT = 0.86; // 진행도 이 이상이면 결착 줌인 시작
   private readonly SLOWMO_AT = 0.93;     // 진행도 이 이상이면 슬로모션
-  private readonly MAX_ZOOM = 2.3;
-  private readonly BATTLE_ZOOM = 1.95;
-  private readonly WINNER_ZOOM = 2.15;
+  private readonly MAX_ZOOM = 2.0;
+  private readonly BATTLE_ZOOM = 1.75;
+  private readonly WINNER_ZOOM = 2.0;
 
   constructor(vp: Viewport, opts: CameraDirectorOpts) {
     this.vp = vp;
@@ -348,7 +348,7 @@ export class CameraDirector {
 
   // 트랙 폭이 화면에 들어오는 줌(여백 포함)
   private fitWidthZoom(): number {
-    return this.screenW / (this.worldW + 120);
+    return this.screenW / (this.worldW + 300);
   }
 
   private clampZoom(z: number): number {

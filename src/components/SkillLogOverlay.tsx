@@ -75,7 +75,7 @@ export default function SkillLogOverlay() {
                 animate={{ opacity: 1, x: 0, scale: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                className="py-1 text-base leading-snug whitespace-normal break-keep drop-shadow-md flex items-start gap-2"
+                className="py-1 text-sm leading-snug whitespace-normal break-keep drop-shadow-md flex items-start gap-2"
                 // 멀리서도 잘 보이도록 글씨를 키우고 줄바꿈(whitespace-normal)을 허용함
               >
                 {/* 플레이어 아이콘 (순위보드와 동일한 색상 도트) */}
