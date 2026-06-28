@@ -43,10 +43,15 @@ interface GameState {
   globalSkin: string
   setGlobalSkin: (skin: string) => void
 
-  gameMode: 'speed' | 'turtle' | 'lucky'
-  setGameMode: (mode: 'speed' | 'turtle' | 'lucky') => void
+  gameMode: 'speed' | 'turtle' | 'custom' | 'random'
+  setGameMode: (mode: 'speed' | 'turtle' | 'custom' | 'random') => void
   customWinningRank: number
   setCustomWinningRank: (rank: number) => void
+
+  // ── 랜덤 레이스 ──
+  // 컴퓨터가 무작위로 뽑은 당첨 등수 배열 (예: [3, 7] → 3등과 7등이 우승)
+  randomWinningRanks: number[]
+  setRandomWinningRanks: (ranks: number[]) => void
   
   isSkillEnabled: boolean
   setSkillEnabled: (enabled: boolean) => void
@@ -92,6 +97,10 @@ export const useGameStore = create<GameState>()(
       setGameMode: (gameMode) => set({ gameMode }),
       customWinningRank: 1,
       setCustomWinningRank: (customWinningRank) => set({ customWinningRank }),
+
+      // ── 랜덤 레이스: 컴퓨터가 뽑은 당첨 등수 목록 ──
+      randomWinningRanks: [],
+      setRandomWinningRanks: (randomWinningRanks) => set({ randomWinningRanks }),
       isSkillEnabled: true,
       setSkillEnabled: (isSkillEnabled) => set({ isSkillEnabled }),
 

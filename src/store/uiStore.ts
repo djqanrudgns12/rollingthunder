@@ -15,6 +15,8 @@ interface UIState {
   
   customMapData: EditorItem[] | null
   setCustomMapData: (data: EditorItem[] | null) => void
+  customMapTitle: string | null
+  setCustomMapTitle: (title: string | null) => void
 
   isBroadcasterMode: boolean
   setBroadcasterMode: (isMode: boolean) => void
@@ -37,6 +39,8 @@ export const useUIStore = create<UIState>()(
 
       customMapData: null,
       setCustomMapData: (customMapData) => set({ customMapData }),
+      customMapTitle: null,
+      setCustomMapTitle: (customMapTitle) => set({ customMapTitle }),
 
       isBroadcasterMode: false,
       setBroadcasterMode: (isBroadcasterMode) => set({ isBroadcasterMode }),
@@ -50,7 +54,8 @@ export const useUIStore = create<UIState>()(
       partialize: (state) => ({ 
         isBroadcasterMode: state.isBroadcasterMode, 
         isAnonymized: state.isAnonymized,
-        customMapData: state.customMapData
+        customMapData: state.customMapData,
+        customMapTitle: state.customMapTitle
       }),
     }
   )

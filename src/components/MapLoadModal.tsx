@@ -13,7 +13,7 @@ interface MapLoadModalProps {
 }
 
 // id 는 반드시 MapPresets.ts 의 프리셋 키와 일치해야 한다('random' 은 랜덤 생성).
-const DEFAULT_MAPS = [
+export const DEFAULT_MAPS = [
   { id: 'random', title: '랜덤 맵', type: '매번 새로운 배치', length: '', complexity: '' },
   { id: 'neon_arcade', title: '네온 아케이드', type: '범퍼·부스터·풍차', length: '미들', complexity: '중간' },
   { id: 'gravity_abyss', title: '블랙홀의 함정', type: '블랙홀·화이트홀·핀', length: '미들', complexity: '복잡' },
@@ -31,7 +31,7 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
   const [activeTab, setActiveTab] = useState<'default' | 'custom'>('default')
   const [mapCode, setMapCode] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const { setCustomMapData } = useUIStore()
+  const { setCustomMapData, setCustomMapTitle } = useUIStore()
   const { setSelectedMapPreset } = useGameStore()
 
   if (!isOpen) return null
@@ -53,6 +53,7 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
     }
     
     setCustomMapData(data.map_data)
+    setCustomMapTitle(data.title)
     toast.success(`[${data.title}] 맵을 성공적으로 불러왔습니다!`)
     onClose()
   }
@@ -60,6 +61,7 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
   const handleLoadDefaultMap = (mapId: string) => {
     // 커스텀 맵 데이터를 비우고(워커는 customMapData를 우선시함), 선택한 프리셋 키를 gameStore에 저장
     setCustomMapData(null)
+    setCustomMapTitle(null)
     setSelectedMapPreset(mapId)
     const selected = DEFAULT_MAPS.find(m => m.id === mapId)
     toast.success(`[${selected?.title ?? '기본 맵'}] 맵이 선택되었습니다.`)

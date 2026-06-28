@@ -28,8 +28,9 @@ export default function PhysicsCanvas() {
   const [gameState, setGameState] = useState<'idle' | 'playing' | 'finished'>('idle')
   const [gameOverResult, setGameOverResult] = useState<{winners: any[], mode: string} | null>(null)
   const [isAutoFollow, setIsAutoFollow] = useState(true)
+  const [showRandomPopup, setShowRandomPopup] = useState(false)
   
-  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs } = useGameStore()
+  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks } = useGameStore()
   const { setGameStage, customMapData, isBroadcasterMode } = useUIStore()
   const workerRef = useRef<Worker | null>(null)
   
@@ -53,10 +54,11 @@ export default function PhysicsCanvas() {
 
   const handleStart = useCallback(() => {
     if (workerRef.current && gameState === 'idle') {
+      clearSkillLogs(); // 새 게임 시작 시 이전 스킬 로그 초기화
       workerRef.current.postMessage({ type: 'START' });
       setGameState('playing');
     }
-  }, [gameState])
+  }, [gameState, clearSkillLogs])
 
   const handleShuffle = useCallback(() => {
     if (workerRef.current && gameState === 'idle') {
@@ -577,11 +579,12 @@ export default function PhysicsCanvas() {
               iconWrapper.filters = [...(iconWrapper.filters || []), glow];
             }
 
-            // 동심원 (자기장 범위)
+            // 동심원 (자기장 범위) — 물리 엔진 MAGNET_RADIUS=400과 동일
+            const MAGNET_VFX_RADIUS = 400;
             const field = new PIXI.Graphics();
-            field.circle(0, 0, 150);
+            field.circle(0, 0, MAGNET_VFX_RADIUS);
             field.stroke({ width: 2, color: 0x3B82F6, alpha: 0.5 });
-            field.fill({ color: 0x3B82F6, alpha: 0.1 });
+            field.fill({ color: 0x3B82F6, alpha: 0.05 });
             container.addChildAt(field, 0);
 
             const fieldPulse = gsap.to(field, { alpha: 0.5, duration: 1, yoyo: true, repeat: -1 });
@@ -600,13 +603,14 @@ export default function PhysicsCanvas() {
               const myPos = container.position;
               let drawnCount = 0;
               
-              // 최대 4개까지만 선을 그음
+              // 최대 4개까지만 선을 그음 (물리 범위와 동일한 400px)
+              const MAGNET_LINE_RADIUS_SQ = MAGNET_VFX_RADIUS * MAGNET_VFX_RADIUS;
               for (const [otherId, pos] of chipPositions.entries()) {
                 if (otherId === chipId) continue;
                 const dx = pos.x - myPos.x;
                 const dy = pos.y - myPos.y;
                 const distSq = dx * dx + dy * dy;
-                if (distSq < 150 * 150) {
+                if (distSq < MAGNET_LINE_RADIUS_SQ) {
                   // 점선 효과 (점선은 stroke 텍스처나 dash를 써야하지만 기본 그래픽스는 지원이 빈약하므로 알파로 느낌만 줌)
                   attractionLines.moveTo(myPos.x, myPos.y);
                   attractionLines.lineTo(pos.x, pos.y);
@@ -702,10 +706,20 @@ export default function PhysicsCanvas() {
             }
 
             // teleport는 duration이 없으므로 자동 정리
+            // 경합 방지: setTimeout 실행 시점에 activeVFXMap에 남아있는 VFX가
+            // 여전히 teleport 전용인지 확인 후에만 제거
+            const teleportVfxRef = {}; // 고유 참조 토큰
+            cleanupTasks.push(() => { /* teleport cleanup은 이미 위에서 처리됨 */ });
+            const currentVfx = { cleanup: () => cleanupTasks.forEach(fn => fn()), _token: teleportVfxRef };
+            activeVFXMap.set(chipId, currentVfx as any);
             setTimeout(() => {
-              removeSkillVFX(chipId);
+              const existing = activeVFXMap.get(chipId) as any;
+              // 같은 토큰일 때만 제거 (다른 스킬이 이미 덮어썼으면 무시)
+              if (existing && existing._token === teleportVfxRef) {
+                activeVFXMap.delete(chipId);
+              }
             }, 500);
-            break;
+            return; // teleport는 아래 activeVFXMap.set을 건너뜀 (위에서 직접 등록)
           }
         }
 
@@ -730,6 +744,12 @@ export default function PhysicsCanvas() {
         
         if (type === 'INIT_DONE') {
           activeChipsCount = payload.activeChipsCount;
+
+          // 랜덤 레이스: 게임 초기화 완료 시 당첨 등수 팝업을 3초간 표시
+          if (gameMode === 'random' && randomWinningRanks.length > 0) {
+            setShowRandomPopup(true);
+            setTimeout(() => setShowRandomPopup(false), 3000);
+          }
           
           if (payload.mapData) {
             const staticContainer = new PIXI.Container();
@@ -1277,6 +1297,7 @@ export default function PhysicsCanvas() {
             targetCount: targetWinnerCount,
             mode: gameMode,
             customRank: customWinningRank,
+            randomRanks: randomWinningRanks,
             isSkillEnabled
           }
         });
@@ -1287,6 +1308,9 @@ export default function PhysicsCanvas() {
 
     return () => {
       isMounted = false;
+      // VFX 자원 정리: gsap 트윈, ticker 콜백 등 GC 불가 자원 해제
+      activeVFXMap.forEach((vfx) => { try { vfx.cleanup(); } catch {} });
+      activeVFXMap.clear();
       if (typeof window !== 'undefined' && app) {
         if ((app as any)._bgResizeHandler) {
           window.removeEventListener('resize', (app as any)._bgResizeHandler);
@@ -1316,7 +1340,7 @@ export default function PhysicsCanvas() {
         });
       }
     }
-  }, [survivors, targetWinnerCount, gimmickDensity, setSurvivors, setGameStage, customMapData, gameMode, customWinningRank, isSkillEnabled])
+  }, [survivors, targetWinnerCount, gimmickDensity, setSurvivors, setGameStage, customMapData, gameMode, customWinningRank, isSkillEnabled, randomWinningRanks])
 
   return (
     <div className={`relative w-full h-full flex flex-col items-center justify-center overflow-hidden ${isBroadcasterMode ? 'bg-[#00ff00]' : 'bg-black'}`}>
@@ -1339,12 +1363,16 @@ export default function PhysicsCanvas() {
           <span className="text-white/80 text-xl font-bold mb-4 ml-1 tracking-wider drop-shadow-md">
             {gameMode === 'speed' ? '스피드 레이스' : 
              gameMode === 'turtle' ? '거북이 레이스' : 
-             gameMode === 'lucky' ? '운빨 레이스' : 
-             gameMode === 'custom' ? '커스텀 레이스' : gameMode}
+             gameMode === 'custom' ? '커스텀 레이스' : 
+             gameMode === 'random' ? '랜덤 레이스' : gameMode}
           </span>
           <div className="flex flex-col items-start gap-3 w-full ml-1">
             {gameOverResult.winners.map((w: any, idx: number) => (
               <div key={idx} className="flex items-center justify-start gap-3 bg-black/40 backdrop-blur-sm px-4 py-2 rounded-2xl border border-white/10">
+                {/* 순위 메달/번호 — 1등🥇, 2등🥈, 3등🥉, 4등~ 숫자 */}
+                <span className="text-2xl font-black min-w-[40px] text-center">
+                  {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}`}
+                </span>
                 <div className="w-10 h-10 rounded-full shadow-[0_0_15px_currentColor] border-[2px] border-white/50" style={{ backgroundColor: w.color, color: w.color }}></div>
                 <span className="text-3xl font-black drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] truncate max-w-[200px]" style={{ color: w.color || '#fff' }}>
                   {w.name}
@@ -1359,6 +1387,19 @@ export default function PhysicsCanvas() {
           >
             NEXT MATCH
           </button>
+        </div>
+      )}
+
+      {/* 랜덤 레이스: 게임 시작 직후 당첨 등수를 화면 중앙에 팝업으로 공개 */}
+      {showRandomPopup && (
+        <div className="absolute inset-0 z-[60] flex items-center justify-center pointer-events-none">
+          <div className="bg-black/80 backdrop-blur-md px-12 py-8 rounded-3xl border border-orange-500/30 shadow-[0_0_40px_rgba(249,115,22,0.3)] animate-in zoom-in fade-in duration-500 text-center">
+            <p className="text-white/80 text-2xl font-bold mb-3">🎲 이번 레이스 승자는</p>
+            <p className="text-[#FFD700] text-5xl font-black drop-shadow-[0_0_15px_rgba(255,215,0,0.6)]" style={{ textShadow: '0 0 10px #FFD700' }}>
+              {randomWinningRanks.map(r => `${r}등`).join(', ')}
+            </p>
+            <p className="text-white/80 text-2xl font-bold mt-3">입니다</p>
+          </div>
         </div>
       )}
 

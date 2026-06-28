@@ -125,7 +125,7 @@ self.onmessage = async (e) => {
 
     const {
       width, height, customMapData, selectedMapPreset, gimmickDensity,
-      survivors, targetCount, mode, customRank, isSkillEnabled: isSkill,
+      survivors, targetCount, mode, customRank, randomRanks, isSkillEnabled: isSkill,
     } = payload;
 
     const presetMeta = selectedMapPreset && selectedMapPreset !== 'random' ? getPresetMeta(selectedMapPreset) : null;
@@ -140,7 +140,7 @@ self.onmessage = async (e) => {
     core.init({
       width, height, worldHeight, wallStyle,
       mapItems, gimmickDensity,
-      survivors, targetCount, mode, customRank,
+      survivors, targetCount, mode, customRank, randomRanks,
     });
 
     positionsBuffer = new Float32Array(core.activeChips.length * 5);

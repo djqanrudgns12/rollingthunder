@@ -44,8 +44,8 @@ export default function ResultScreen() {
           <span className="text-white/80 text-xl md:text-2xl font-bold mt-2 tracking-wider drop-shadow-md">
             {gameMode === 'speed' ? '스피드 레이스' : 
              gameMode === 'turtle' ? '거북이 레이스' : 
-             gameMode === 'lucky' ? '운빨 레이스' : 
-             gameMode === 'custom' ? '커스텀 레이스' : gameMode}
+             gameMode === 'custom' ? '커스텀 레이스' : 
+             gameMode === 'random' ? '랜덤 레이스' : gameMode}
           </span>
         </div>
         

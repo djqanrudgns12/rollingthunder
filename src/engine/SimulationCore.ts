@@ -30,8 +30,9 @@ export interface SimInitConfig {
   gimmickDensity: number;
   survivors: any[];
   targetCount: number;
-  mode: string;            // 'speed' | 'turtle' | 'lucky'
+  mode: string;            // 'speed' | 'turtle' | 'custom' | 'random'
   customRank: number;
+  randomRanks?: number[];   // 랜덤 모드에서 컴퓨터가 뽑은 당첨 등수 배열
   rng?: () => number;      // 결정론적 재현을 위한 난수 주입(스폰 위치). 기본 Math.random
 }
 
@@ -70,6 +71,8 @@ export class SimulationCore {
   private survivorsData: any[] = [];
   private targetCount = 1;
   private gameMode = 'speed';
+  private randomRanks: number[] = [];     // 랜덤 모드 당첨 등수 목록
+  private randomWinners: any[] = [];      // 랜덤 모드에서 당첨된 참가자 누적 배열
   private customWinningRank = 1;
   private worldHeight = 1200;
   private rng: () => number = Math.random;
@@ -118,6 +121,8 @@ export class SimulationCore {
     this.worldHeight = config.worldHeight;
     this.targetCount = config.targetCount;
     this.gameMode = config.mode;
+    this.randomRanks = config.randomRanks || [];
+    this.randomWinners = [];
     this.customWinningRank = config.customRank;
     this.survivorsData = config.survivors;
     this.rng = config.rng ?? Math.random;
@@ -459,10 +464,21 @@ export class SimulationCore {
             const finishedSet = new Set(this.finishOrder);
             winners = this.survivorsData.filter((s: any) => !finishedSet.has(s.id));
           }
-        } else if (this.gameMode === 'lucky') {
+        } else if (this.gameMode === 'custom') {
+          // 커스텀 레이스: 지정한 N번째 완주자가 단독 우승
           if (this.finishOrder.length === this.customWinningRank) {
             isGameOver = true;
             winners = [survivor];
+          }
+        } else if (this.gameMode === 'random') {
+          // 랜덤 레이스: 컴퓨터가 미리 뽑아둔 등수에 해당하는 참가자를 수집
+          if (this.randomRanks.includes(this.finishOrder.length)) {
+            this.randomWinners.push(survivor);
+          }
+          // 모든 당첨 등수가 채워졌으면 게임 오버
+          if (this.randomWinners.length === this.targetCount) {
+            isGameOver = true;
+            winners = this.randomWinners;
           }
         }
 

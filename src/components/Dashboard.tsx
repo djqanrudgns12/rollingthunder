@@ -4,7 +4,7 @@ import { useGameStore } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
 import { useState, useEffect } from 'react'
 import { createSession } from '@/actions/db'
-import MapLoadModal from './MapLoadModal'
+import MapLoadModal, { DEFAULT_MAPS } from './MapLoadModal'
 import { Tv, Shield, ShieldOff, Video, Map } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -15,8 +15,8 @@ function getRandomAnimal() {
 }
 
 export default function Dashboard() {
-  const { participants, addParticipant, removeParticipant, clearParticipants, setGimmickDensity, gimmickDensity, setSurvivors, targetWinnerCount, setTargetWinnerCount, setSessionId, gameMode, setGameMode, customWinningRank, setCustomWinningRank, globalSkin, setGlobalSkin, setParticipants, isSkillEnabled, setSkillEnabled } = useGameStore()
-  const { setGameStage, customMapData, isBroadcasterMode, setBroadcasterMode, isAnonymized, setAnonymized } = useUIStore()
+  const { participants, addParticipant, removeParticipant, clearParticipants, setGimmickDensity, gimmickDensity, setSurvivors, targetWinnerCount, setTargetWinnerCount, setSessionId, gameMode, setGameMode, customWinningRank, setCustomWinningRank, globalSkin, setGlobalSkin, setParticipants, isSkillEnabled, setSkillEnabled, selectedMapPreset, setRandomWinningRanks } = useGameStore()
+  const { setGameStage, customMapData, customMapTitle, isBroadcasterMode, setBroadcasterMode, isAnonymized, setAnonymized } = useUIStore()
   
   const [nameInput, setNameInput] = useState('')
 
@@ -58,9 +58,23 @@ export default function Dashboard() {
       toast.error('최소 2명 이상의 참가자가 필요합니다.')
       return
     }
-    if (gameMode !== 'lucky' && localWinnerCount >= participants.length) {
+    if (gameMode !== 'custom' && localWinnerCount >= participants.length) {
       toast.error('당첨/생존자 수는 참가자 수보다 적어야 합니다.')
       return
+    }
+
+    // 랜덤 모드일 때: 1~참가자수 범위에서 겨치지 않는 등수를 당첨자수만큼 무작위 추출
+    if (gameMode === 'random') {
+      const totalParticipants = participants.length
+      const count = localWinnerCount
+      // Fisher-Yates 셔플로 1~N 중 count개 배열 추출
+      const pool = Array.from({ length: totalParticipants }, (_, i) => i + 1)
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]]
+      }
+      const picked = pool.slice(0, count).sort((a, b) => a - b)
+      setRandomWinningRanks(picked)
     }
 
     // Set Chroma Key background if Broadcaster Mode is on
@@ -126,13 +140,40 @@ export default function Dashboard() {
             />
           </div>
           
-          <div className="flex gap-2 shrink-0">
+          <div className="flex flex-col gap-2 shrink-0">
             <button 
               onClick={() => setIsMapModalOpen(true)} 
-              className="w-full bg-black/50 border border-white/10 hover:border-[var(--accent-primary)] text-white/80 font-bold px-6 py-3 rounded-xl transition-all flex items-center justify-center gap-2 group shadow-inner"
+              className="relative w-full overflow-hidden bg-black/40 backdrop-blur-md border border-white/10 hover:border-[var(--accent-primary)] rounded-xl transition-all duration-300 group shadow-[0_4px_20px_rgba(0,0,0,0.5)] hover:shadow-[0_0_20px_var(--accent-primary)] hover:scale-[1.01]"
             >
-              <Map className="w-5 h-5 group-hover:text-[var(--accent-primary)] transition-colors" />
-              {customMapData ? '커스텀/기본 맵 적용됨 (클릭하여 변경)' : '맵 로드 (기본/커스텀)'}
+              {/* Animated gradient background on hover */}
+              <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent-primary)]/0 via-[var(--accent-primary)]/10 to-[var(--accent-primary)]/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+              
+              <div className="relative p-4 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:border-[var(--accent-primary)] group-hover:bg-[var(--accent-primary)]/10 transition-colors">
+                    <Map className="w-6 h-6 text-white/70 group-hover:text-[var(--accent-primary)] transition-colors" />
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <div className="flex items-center gap-2 mb-1">
+                      {customMapData ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30">커스텀 맵</span>
+                      ) : (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">기본 맵</span>
+                      )}
+                    </div>
+                    <h3 className="text-lg font-bold text-white group-hover:text-[var(--accent-primary)] transition-colors text-shadow-sm truncate max-w-[200px] md:max-w-[300px]">
+                      {customMapData ? (customMapTitle || '이름 없는 커스텀 맵') : (DEFAULT_MAPS.find(m => m.id === selectedMapPreset)?.title || '랜덤 맵')}
+                    </h3>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2 text-white/40 group-hover:text-[var(--accent-primary)] transition-colors">
+                  <span className="text-xs font-bold uppercase tracking-wider hidden md:block">변경하기</span>
+                  <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-[var(--accent-primary)]/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                  </div>
+                </div>
+              </div>
             </button>
           </div>
 
@@ -209,14 +250,20 @@ export default function Dashboard() {
                   거북이 레이스
                 </button>
                 <button 
-                  onClick={() => setGameMode('lucky')}
-                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${gameMode === 'lucky' ? 'bg-purple-500 text-white shadow-[0_0_10px_#a855f7]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                  onClick={() => setGameMode('custom')}
+                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${gameMode === 'custom' ? 'bg-purple-500 text-white shadow-[0_0_10px_#a855f7]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                 >
-                  행운의 등수
+                  커스텀 레이스
+                </button>
+                <button 
+                  onClick={() => setGameMode('random')}
+                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${gameMode === 'random' ? 'bg-orange-500 text-white shadow-[0_0_10px_#f97316]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                >
+                  랜덤 레이스
                 </button>
               </div>
               
-              {gameMode === 'lucky' && (
+              {gameMode === 'custom' && (
                 <div className="flex items-center gap-3 bg-black/40 p-3 rounded-lg border border-purple-500/30 animate-in fade-in slide-in-from-top-2">
                   <span className="text-sm text-purple-300 font-bold">몇 번째로 들어온 사람을 당첨시킬까요?</span>
                   <div className="flex items-center bg-black rounded-lg overflow-hidden border border-white/10 ml-auto">
@@ -231,14 +278,21 @@ export default function Dashboard() {
                   </div>
                 </div>
               )}
+
+              {gameMode === 'random' && (
+                <div className="flex items-center gap-3 bg-black/40 p-3 rounded-lg border border-orange-500/30 animate-in fade-in slide-in-from-top-2">
+                  <span className="text-sm text-orange-300 font-bold">🎲 컴퓨터가 당첨 등수를 랜덤으로 결정합니다</span>
+                  <span className="text-xs text-orange-400/60 ml-auto">(시작 시 공개)</span>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-6 pt-2">
               <div className="flex flex-col gap-2">
                 <label className="text-xs text-[var(--accent-primary)] font-bold tracking-widest uppercase">
-                  {gameMode === 'speed' ? '당첨자 수 (명)' : gameMode === 'turtle' ? '최후의 생존자 수 (명)' : '당첨 등수 (등)'}
+                  {gameMode === 'speed' ? '당첨자 수 (명)' : gameMode === 'turtle' ? '최후의 생존자 수 (명)' : gameMode === 'random' ? '당첨자 수 (명)' : '당첨 등수 (등)'}
                 </label>
-                {gameMode === 'lucky' ? (
+                {gameMode === 'custom' ? (
                   <div className="flex items-center bg-black/50 rounded-xl overflow-hidden border border-white/10 mt-1">
                     <input 
                       type="number" 
