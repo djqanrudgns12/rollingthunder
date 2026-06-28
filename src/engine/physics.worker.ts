@@ -91,9 +91,11 @@ function flushEvents() {
 // 각 칩의 쿨타임을 1씩 증가시키고, max에 도달하면 스킬을 발동한 뒤 즉시 초기화한다.
 // 이 방식은 게임 속도(dtMultiplier)에 영향을 받지 않으며, 순수 프레임 카운트 기반이다.
 function processSkillCooldowns() {
-  if (!core || !isSkillEnabled) return;
+  if (!core || !isSkillEnabled || core.gameOver) return;
 
   for (const cd of chipCooldowns) {
+    if (core.finishedChips.has(cd.chipId)) continue;
+
     cd.currentCooldown++;
 
     if (cd.currentCooldown >= cd.maxCooldown) {

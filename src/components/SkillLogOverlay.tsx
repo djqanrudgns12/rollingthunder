@@ -53,14 +53,14 @@ export default function SkillLogOverlay() {
   return (
     <div className="flex flex-col h-full">
       {/* 헤더: 전투 로그 타이틀 */}
-      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-white/10 shrink-0">
-        <span className="text-[10px] font-bold tracking-[0.2em] text-white/50 uppercase">⚔ Skill Log</span>
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 shrink-0 bg-black/40">
+        <span className="text-xs font-bold tracking-[0.2em] text-white/50 uppercase">⚔ Skill Log</span>
       </div>
 
       {/* 로그 본체: 스크롤 가능한 대화창 영역 */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-1.5 custom-scrollbar"
+        className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2 custom-scrollbar"
         style={{
           // 스타크래프트 대화창처럼 하단부터 로그가 쌓이게끔 역방향 정렬
           display: 'flex',
@@ -80,8 +80,8 @@ export default function SkillLogOverlay() {
                 animate={{ opacity: 1, x: 0, scale: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                className="py-[3px] text-[11px] leading-tight whitespace-nowrap overflow-hidden text-ellipsis"
-                // 왜 whitespace-nowrap인가: 한 줄 표시를 보장해야 로그 밀도가 유지되고 가독성이 올라감
+                className="py-1 text-base leading-snug whitespace-normal break-keep drop-shadow-md"
+                // 멀리서도 잘 보이도록 글씨를 키우고 줄바꿈(whitespace-normal)을 허용함
               >
                 {/* 플레이어 이름: 플레이어 고유 색상 */}
                 <span

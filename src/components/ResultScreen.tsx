@@ -7,7 +7,7 @@ import { saveResults } from '@/actions/db'
 import { useEffect, useState } from 'react'
 
 export default function ResultScreen() {
-  const { survivors, sessionId } = useGameStore()
+  const { survivors, sessionId, gameMode } = useGameStore()
   const setGameStage = useUIStore(state => state.setGameStage)
   
   const [windowDim, setWindowDim] = useState({ width: typeof window !== 'undefined' ? window.innerWidth : 0, height: typeof window !== 'undefined' ? window.innerHeight : 0 })
@@ -36,16 +36,24 @@ export default function ResultScreen() {
         />
       )}
       
-      <div className="glass-panel-heavy p-8 md:p-12 rounded-3xl w-full flex flex-col items-center gap-8 shadow-2xl border-2 border-[var(--accent-primary)]/50 bg-black/60 backdrop-blur-md">
-        <h1 className="text-5xl md:text-7xl font-outfit font-black italic text-glow-primary text-[var(--accent-primary)] uppercase tracking-widest text-center">
-          Winner!
-        </h1>
+      <div className="glass-panel-heavy p-8 md:p-12 rounded-3xl w-full flex flex-col items-center gap-6 shadow-2xl border-2 border-[#FFD700]/50 bg-black/60 backdrop-blur-md">
+        <div className="flex flex-col items-center">
+          <h1 className="text-6xl md:text-8xl font-outfit font-black italic uppercase tracking-widest text-center text-[#FFD700] drop-shadow-[0_0_15px_rgba(255,215,0,0.8)]" style={{ textShadow: '0 0 10px #FFD700, 0 0 20px #FFD700' }}>
+            Victory!
+          </h1>
+          <span className="text-white/80 text-xl md:text-2xl font-bold mt-2 tracking-wider drop-shadow-md">
+            {gameMode === 'speed' ? '스피드 레이스' : 
+             gameMode === 'turtle' ? '거북이 레이스' : 
+             gameMode === 'lucky' ? '운빨 레이스' : 
+             gameMode === 'custom' ? '커스텀 레이스' : gameMode}
+          </span>
+        </div>
         
-        <div className="flex flex-wrap justify-center gap-4 my-6">
+        <div className="flex flex-wrap justify-center gap-4 my-4">
           {survivors.map(winner => (
-            <div key={winner.id} className="flex flex-col items-center gap-3 bg-white/10 px-8 py-6 rounded-2xl border border-white/20 hover:scale-105 transition-transform">
-              <div className="w-16 h-16 rounded-full border-4 border-white shadow-[0_0_20px_rgba(255,255,255,0.5)]" style={{ backgroundColor: winner.color }}></div>
-              <span className="text-2xl font-bold text-[var(--text-primary)] truncate-1-line max-w-[150px]">{winner.name}</span>
+            <div key={winner.id} className="flex items-center gap-3 bg-white/10 px-6 py-4 rounded-2xl border border-white/20 hover:scale-105 transition-transform">
+              <div className="w-10 h-10 rounded-full border-[2px] border-white/50 shadow-[0_0_15px_currentColor]" style={{ backgroundColor: winner.color, color: winner.color }}></div>
+              <span className="text-2xl font-black text-white drop-shadow-md truncate max-w-[200px]" style={{ color: winner.color || '#fff' }}>{winner.name}</span>
             </div>
           ))}
         </div>

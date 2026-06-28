@@ -12,7 +12,8 @@ import LiveLeaderboard from './LiveLeaderboard'
 import { generateSkillMessage } from './SkillLogOverlay'
 import { Hand, Volume2, VolumeX, Maximize, Video } from 'lucide-react'
 import confetti from 'canvas-confetti'
-import { GlowFilter, MotionBlurFilter, ShockwaveFilter } from 'pixi-filters'
+import gsap from 'gsap'
+import { GlowFilter, MotionBlurFilter, ShockwaveFilter, ColorOverlayFilter } from 'pixi-filters'
 import { getPresetMeta, MapPresets } from '@/engine/MapPresets'
 // 맵 가로 폭은 고정 (물리엔진·카메라·미니맵 공유)
 const WORLD_WIDTH = 800;
@@ -91,6 +92,9 @@ export default function PhysicsCanvas() {
     // v5 Protagonist Lock-on & Time Dilation
     let lockedProtagonistId: string | null = null;
     let isSlowMotionActive = false;
+    
+    // Skill VFX Map
+    const activeVFXMap = new Map<string, { cleanup: () => void }>();
     
     // 'random' 맵 처리 로직: 10개 맵 중 하나를 무작위로 선택
     const actualMapPreset = selectedMapPreset === 'random' ? 
@@ -412,6 +416,312 @@ export default function PhysicsCanvas() {
         errDiv.style.zIndex = '9999';
         errDiv.innerText = "Worker Error: " + err.message;
         document.body.appendChild(errDiv);
+      };
+
+      const applySkillVFX = (chipId: string, skill: string) => {
+        const container = graphicsMap.get(chipId);
+        if (!container) return;
+
+        // 기존 이펙트 정리
+        removeSkillVFX(chipId);
+
+        const iconWrapper = container.getChildByLabel('icon');
+        const cleanupTasks: (() => void)[] = [];
+
+        switch (skill) {
+          case 'tank': {
+            const glow = new GlowFilter({ color: 0xFF8C00, outerStrength: 3, innerStrength: 1, quality: 0.5 });
+            if (iconWrapper) {
+              iconWrapper.filters = [...(iconWrapper.filters || []), glow];
+              gsap.to(iconWrapper.scale, { x: 1.3, y: 1.3, duration: 0.3 });
+            }
+            
+            let frameCount = 0;
+            const trailTicker = () => {
+              frameCount++;
+              if (frameCount % 5 === 0) {
+                const trail = new PIXI.Graphics();
+                trail.circle(0, 0, 10);
+                trail.fill({ color: 0xFF8C00, alpha: 0.4 });
+                trail.position.copyFrom(container.position);
+                viewport.addChildAt(trail, 0); // 배경 위에
+                
+                gsap.to(trail, {
+                  alpha: 0,
+                  duration: 0.4,
+                  onComplete: () => trail.destroy()
+                });
+              }
+            };
+            app.ticker.add(trailTicker);
+
+            cleanupTasks.push(() => {
+              app.ticker.remove(trailTicker);
+              if (iconWrapper) {
+                iconWrapper.filters = (iconWrapper.filters as any[])?.filter(f => f !== glow) || null;
+                gsap.to(iconWrapper.scale, { x: 1.0, y: 1.0, duration: 0.3 });
+              }
+            });
+            break;
+          }
+          case 'booster': {
+            const glow = new GlowFilter({ color: 0x00FFD0, outerStrength: 3, quality: 0.5 });
+            if (iconWrapper) {
+              iconWrapper.filters = [...(iconWrapper.filters || []), glow];
+            }
+
+            // 스피드라인 2개
+            const lines: PIXI.Graphics[] = [];
+            [-15, 15].forEach(xOff => {
+              const line = new PIXI.Graphics();
+              line.rect(-0.5, -10, 1, 20);
+              line.fill({ color: 0x00FFD0, alpha: 0.8 });
+              line.position.set(xOff, 0);
+              container.addChild(line);
+              lines.push(line);
+
+              gsap.fromTo(line.position, 
+                { y: 30 }, 
+                { y: -30, duration: 0.2 + Math.random() * 0.1, repeat: -1, ease: 'none' }
+              );
+            });
+
+            let frameCount = 0;
+            const trailTicker = () => {
+              frameCount++;
+              if (frameCount % 5 === 0) {
+                const trail = new PIXI.Graphics();
+                trail.circle(0, 0, 4 + Math.random() * 4);
+                trail.fill({ color: 0x00FFD0, alpha: 0.5 });
+                // 진행 방향 반대(위쪽)에 불꽃
+                trail.position.set(container.position.x + (Math.random() * 10 - 5), container.position.y - 15 - Math.random() * 10);
+                viewport.addChildAt(trail, 0);
+                
+                gsap.to(trail, {
+                  y: trail.position.y - 20,
+                  alpha: 0,
+                  scale: { x: 0.5, y: 0.5 },
+                  duration: 0.3,
+                  onComplete: () => trail.destroy()
+                });
+              }
+            };
+            app.ticker.add(trailTicker);
+
+            cleanupTasks.push(() => {
+              app.ticker.remove(trailTicker);
+              if (iconWrapper) iconWrapper.filters = (iconWrapper.filters as any[])?.filter(f => f !== glow) || null;
+              lines.forEach(l => {
+                gsap.killTweensOf(l.position);
+                l.destroy();
+              });
+            });
+            break;
+          }
+          case 'ghost': {
+            const glow = new GlowFilter({ color: 0xC084FC, outerStrength: 2, quality: 0.5 });
+            if (iconWrapper) {
+              iconWrapper.filters = [...(iconWrapper.filters || []), glow];
+            }
+            gsap.to(container, { alpha: 0.35, duration: 0.3 });
+            const pulse = gsap.to(glow, { outerStrength: 4, duration: 0.8, yoyo: true, repeat: -1 });
+            cleanupTasks.push(() => {
+              if (iconWrapper) iconWrapper.filters = (iconWrapper.filters as any[])?.filter(f => f !== glow) || null;
+              gsap.to(container, { alpha: 1.0, duration: 0.3 });
+              pulse.kill();
+            });
+            break;
+          }
+          case 'slime': {
+            const colorOverlay = new ColorOverlayFilter({ color: [0.22, 1.0, 0.08], alpha: 0.35 });
+            let pulse: any;
+            if (iconWrapper) {
+              iconWrapper.filters = [...(iconWrapper.filters || []), colorOverlay];
+              pulse = gsap.to(iconWrapper.scale, { x: 1.15, y: 0.85, duration: 0.6, yoyo: true, repeat: -1 });
+            }
+            
+            // 슬라임 방울 4개
+            const drops: PIXI.Graphics[] = [];
+            const dropOffsets = [{x: 10, y: 10}, {x: -10, y: 10}, {x: 10, y: -10}, {x: -10, y: -10}];
+            dropOffsets.forEach(off => {
+              const drop = new PIXI.Graphics();
+              drop.circle(0, 0, 2 + Math.random() * 2);
+              drop.fill({ color: 0x39FF14, alpha: 0.8 });
+              drop.position.set(off.x, off.y);
+              container.addChild(drop);
+              drops.push(drop);
+              
+              gsap.to(drop.position, {
+                y: off.y + (Math.random() * 6 - 3),
+                duration: 0.5 + Math.random() * 0.5,
+                yoyo: true,
+                repeat: -1,
+                ease: 'sine.inOut'
+              });
+            });
+
+            cleanupTasks.push(() => {
+              if (iconWrapper) iconWrapper.filters = (iconWrapper.filters as any[])?.filter(f => f !== colorOverlay) || null;
+              if (pulse) pulse.kill();
+              if (iconWrapper) gsap.to(iconWrapper.scale, { x: 1.0, y: 1.0, duration: 0.3 });
+              drops.forEach(d => {
+                gsap.killTweensOf(d.position);
+                d.destroy();
+              });
+            });
+            break;
+          }
+          case 'magnet': {
+            const glow = new GlowFilter({ color: 0x3B82F6, outerStrength: 3, quality: 0.5 });
+            if (iconWrapper) {
+              iconWrapper.filters = [...(iconWrapper.filters || []), glow];
+            }
+
+            // 동심원 (자기장 범위)
+            const field = new PIXI.Graphics();
+            field.circle(0, 0, 150);
+            field.stroke({ width: 2, color: 0x3B82F6, alpha: 0.5 });
+            field.fill({ color: 0x3B82F6, alpha: 0.1 });
+            container.addChildAt(field, 0);
+
+            const fieldPulse = gsap.to(field, { alpha: 0.5, duration: 1, yoyo: true, repeat: -1 });
+
+            // 인력선 (단일 Graphics 재사용)
+            const attractionLines = new PIXI.Graphics();
+            viewport.addChild(attractionLines);
+
+            let frameCount = 0;
+            const lineTicker = () => {
+              frameCount++;
+              // 성능 최적화: 10프레임마다 갱신
+              if (frameCount % 10 !== 0) return;
+              
+              attractionLines.clear();
+              const myPos = container.position;
+              let drawnCount = 0;
+              
+              // 최대 4개까지만 선을 그음
+              for (const [otherId, pos] of chipPositions.entries()) {
+                if (otherId === chipId) continue;
+                const dx = pos.x - myPos.x;
+                const dy = pos.y - myPos.y;
+                const distSq = dx * dx + dy * dy;
+                if (distSq < 150 * 150) {
+                  // 점선 효과 (점선은 stroke 텍스처나 dash를 써야하지만 기본 그래픽스는 지원이 빈약하므로 알파로 느낌만 줌)
+                  attractionLines.moveTo(myPos.x, myPos.y);
+                  attractionLines.lineTo(pos.x, pos.y);
+                  drawnCount++;
+                  if (drawnCount >= 4) break;
+                }
+              }
+              if (drawnCount > 0) {
+                attractionLines.stroke({ width: 1.5, color: 0x3B82F6, alpha: 0.6 });
+              }
+            };
+            app.ticker.add(lineTicker);
+
+            cleanupTasks.push(() => {
+              app.ticker.remove(lineTicker);
+              attractionLines.destroy();
+              if (iconWrapper) iconWrapper.filters = (iconWrapper.filters as any[])?.filter(f => f !== glow) || null;
+              fieldPulse.kill();
+              field.destroy();
+            });
+            break;
+          }
+          case 'teleport': {
+            // 잔상 폭발
+            if (iconWrapper) {
+              const ghost = new PIXI.Container();
+              // iconWrapper의 자식(스프라이트)들을 복제하여 잔상 생성
+              iconWrapper.children.forEach(child => {
+                if (child instanceof PIXI.Sprite) {
+                  const clone = new PIXI.Sprite(child.texture);
+                  clone.anchor.copyFrom(child.anchor);
+                  clone.width = child.width;
+                  clone.height = child.height;
+                  clone.tint = child.tint;
+                  ghost.addChild(clone);
+                }
+              });
+              ghost.position.copyFrom(container.position);
+              viewport.addChild(ghost);
+              gsap.to(ghost.scale, { x: 2, y: 2, duration: 0.3 });
+              gsap.to(ghost, { alpha: 0, duration: 0.3, onComplete: () => ghost.destroy() });
+            }
+
+            // 번개선 이펙트 (지그재그 8~12 세그먼트)
+            const lightning = new PIXI.Graphics();
+            viewport.addChild(lightning);
+            
+            // 순간이동은 이동 전/후 위치가 필요하지만, SKILL_FIRED 발생 시점엔 이미 목적지에 도착해 있음.
+            // 위쪽(y - 300)에서 떨어지는 듯한 번개를 그림
+            const startX = container.position.x + (Math.random() * 100 - 50);
+            const startY = container.position.y - 300;
+            const endX = container.position.x;
+            const endY = container.position.y;
+            
+            const drawLightning = () => {
+              lightning.clear();
+              lightning.moveTo(startX, startY);
+              let currX = startX;
+              let currY = startY;
+              const segments = 8 + Math.floor(Math.random() * 4);
+              for (let i = 1; i <= segments; i++) {
+                const targetX = startX + (endX - startX) * (i / segments);
+                const targetY = startY + (endY - startY) * (i / segments);
+                currX = targetX + (Math.random() * 40 - 20);
+                currY = targetY + (Math.random() * 40 - 20);
+                if (i === segments) {
+                  currX = endX;
+                  currY = endY;
+                }
+                lightning.lineTo(currX, currY);
+              }
+              lightning.stroke({ width: 3, color: 0xFACC15, alpha: 0.8 });
+              lightning.stroke({ width: 6, color: 0xFACC15, alpha: 0.4 });
+            };
+            
+            // 번개 번쩍임 (0.08초 간격으로 3번)
+            let flashes = 0;
+            const flashInterval = setInterval(() => {
+              drawLightning();
+              flashes++;
+              if (flashes >= 3) {
+                clearInterval(flashInterval);
+                lightning.destroy();
+              }
+            }, 80);
+
+            // 목적지 쇼크웨이브
+            if (shockwaveRef.current) {
+              const globalPos = viewport.toGlobal(container.position);
+              shockwaveRef.current.center = [globalPos.x, globalPos.y];
+              shockwaveRef.current.time = 0;
+              shockwaveRef.current.enabled = true;
+            }
+
+            // teleport는 duration이 없으므로 자동 정리
+            setTimeout(() => {
+              removeSkillVFX(chipId);
+            }, 500);
+            break;
+          }
+        }
+
+        activeVFXMap.set(chipId, {
+          cleanup: () => {
+            cleanupTasks.forEach(fn => fn());
+          }
+        });
+      };
+
+      const removeSkillVFX = (chipId: string) => {
+        const vfx = activeVFXMap.get(chipId);
+        if (vfx) {
+          vfx.cleanup();
+          activeVFXMap.delete(chipId);
+        }
       };
 
       workerRef.current!.onmessage = (e) => {
@@ -920,6 +1230,12 @@ export default function PhysicsCanvas() {
           });
           // 가벼운 진동 피드백만 유지 (게임 흐름 방해 없음)
           if (navigator.vibrate) navigator.vibrate(50);
+          
+          // VFX 적용
+          applySkillVFX(payload.chipId, payload.skill);
+        } else if (type === 'SKILL_EXPIRED') {
+          // VFX 해제
+          removeSkillVFX(payload.chipId);
         } else if (type === 'COOLDOWN_UPDATE') {
           // ── 워커에서 보내온 개별 쿨타임 진행률을 store에 반영 ──
           setSkillCooldowns(payload);
@@ -1017,14 +1333,20 @@ export default function PhysicsCanvas() {
 
       {gameState === 'finished' && gameOverResult && (
         <div className="absolute top-6 left-6 z-50 flex flex-col items-start animate-in slide-in-from-left fade-in duration-700 pointer-events-none">
-          <h2 className="text-white font-black text-6xl tracking-tighter drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] mb-2">
-            Winner
+          <h2 className="font-black text-6xl tracking-tighter drop-shadow-[0_0_15px_rgba(255,215,0,0.8)] text-[#FFD700] mb-0" style={{ textShadow: '0 0 10px #FFD700, 0 0 20px #FFD700' }}>
+            Victory!
           </h2>
-          <div className="flex flex-col items-start gap-2 w-full">
+          <span className="text-white/80 text-xl font-bold mb-4 ml-1 tracking-wider drop-shadow-md">
+            {gameMode === 'speed' ? '스피드 레이스' : 
+             gameMode === 'turtle' ? '거북이 레이스' : 
+             gameMode === 'lucky' ? '운빨 레이스' : 
+             gameMode === 'custom' ? '커스텀 레이스' : gameMode}
+          </span>
+          <div className="flex flex-col items-start gap-3 w-full ml-1">
             {gameOverResult.winners.map((w: any, idx: number) => (
-              <div key={idx} className="flex items-center justify-start gap-4">
-                <div className="w-16 h-16 rounded-full shadow-[0_0_15px_currentColor] border-[3px] border-white/50" style={{ backgroundColor: w.color, color: w.color }}></div>
-                <span className="text-5xl font-black drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)]" style={{ color: w.color || '#fff' }}>
+              <div key={idx} className="flex items-center justify-start gap-3 bg-black/40 backdrop-blur-sm px-4 py-2 rounded-2xl border border-white/10">
+                <div className="w-10 h-10 rounded-full shadow-[0_0_15px_currentColor] border-[2px] border-white/50" style={{ backgroundColor: w.color, color: w.color }}></div>
+                <span className="text-3xl font-black drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] truncate max-w-[200px]" style={{ color: w.color || '#fff' }}>
                   {w.name}
                 </span>
               </div>

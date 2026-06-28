@@ -164,8 +164,9 @@ export class SkillSystem {
     world: RAPIER.World,
     currentFrame: number,
     activeChips: RAPIER.RigidBody[],
-  ) {
-    if (this.activeEntries.length === 0) return;
+  ): { expiredChipIds: { chipId: string; skill: SkillType }[] } {
+    const expired: { chipId: string; skill: SkillType }[] = [];
+    if (this.activeEntries.length === 0) return { expiredChipIds: expired };
 
     const remaining: ActiveSkillEntry[] = [];
 
@@ -173,6 +174,7 @@ export class SkillSystem {
       // 만료 체크
       if (currentFrame >= entry.expireFrame) {
         this.deactivateSkill(entry, activeChips);
+        expired.push({ chipId: entry.chipId, skill: entry.skill });
         continue;
       }
 
@@ -205,6 +207,7 @@ export class SkillSystem {
     }
 
     this.activeEntries = remaining;
+    return { expiredChipIds: expired };
   }
 
   // ── 스킬 해제: 원본 물리 속성 복구 ─────────────────────────────────

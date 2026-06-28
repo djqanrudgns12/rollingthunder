@@ -74,7 +74,7 @@ export class SimulationCore {
   private worldHeight = 1200;
   private rng: () => number = Math.random;
 
-  private finishedChips = new Set<string>();
+  finishedChips = new Set<string>();
   private finishOrder: string[] = [];
 
   // 프레임 기반 쿨다운/스케줄
@@ -205,7 +205,12 @@ export class SimulationCore {
     this.processHoleRespawns();
 
     // 스킬 프레임루프: 매 프레임 활성 스킬의 지속 효과 적용 + 만료 해제
-    SkillSystem.step(this.world, this.frame, this.activeChips);
+    const { expiredChipIds } = SkillSystem.step(this.world, this.frame, this.activeChips);
+    if (expiredChipIds.length > 0) {
+      for (const expired of expiredChipIds) {
+        this.events.push({ type: 'SKILL_EXPIRED', payload: { chipId: expired.chipId, skill: expired.skill } });
+      }
+    }
 
     const totalSpeed = this.scanChipsAndFinish();
 

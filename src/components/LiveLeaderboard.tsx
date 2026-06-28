@@ -91,7 +91,7 @@ export default function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLea
 
   return (
     // 전체 우측 패널: 순위보드(상단 ~67%) + 스킬 로그(하단 ~33%)를 세로로 나눈다.
-    <div className="absolute top-4 right-4 z-50 flex flex-col pointer-events-auto w-56 max-w-[35vw]"
+    <div className="absolute top-4 right-4 z-50 flex flex-col pointer-events-auto w-72 max-w-[40vw]"
       style={{ height: 'calc(100vh - 2rem)' }}
     >
       {/* ═══════════════ 순위보드 영역 (상단 67%) ═══════════════ */}
@@ -135,19 +135,16 @@ export default function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLea
                     )} />
                   )}
 
-                  {/* ── 쿨타임 게이지 (배경 로딩 바) ── */}
-                  {/* 왜 배경 전체를 채우는가: 별도 선형 바보다 게임에서 훨씬 직관적이고
-                      시각적으로 '에너지가 차오르는' 느낌을 줄 수 있다. */}
+                  {/* ── 쿨타임 게이지 (하단 프로그레스 바) ── */}
                   {!isFinished && cooldownProgress > 0 && (
                     <div 
-                      className="absolute inset-0 rounded-xl transition-[width] duration-100 ease-linear"
+                      className="absolute bottom-0 left-0 h-1 rounded-bl-xl transition-[width] duration-100 ease-linear z-20"
                       style={{
                         width: `${cooldownProgress * 100}%`,
-                        background: `linear-gradient(90deg, ${color}15, ${color}30)`,
-                        // 쿨타임 90% 이상 시 더 밝게 빛나서 "곧 터진다!"는 시각적 힌트
+                        background: color,
                         boxShadow: cooldownProgress > 0.9 
-                          ? `inset 0 0 20px ${color}40, 0 0 8px ${color}30`
-                          : 'none',
+                          ? `0 0 10px ${color}, 0 0 20px ${color}`
+                          : `0 0 4px ${color}`,
                       }}
                     />
                   )}
