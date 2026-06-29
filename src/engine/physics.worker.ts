@@ -222,10 +222,10 @@ self.onmessage = async (e) => {
       if (postFinishFrames === 1) {
         self.postMessage({ type: 'ALL_FINISHED' });
       }
+      // "다 끝났더라도 진행환경은 유지. 사진처럼 멈추지 말라는거야"라는 요청에 따라
+      // 물리 루프를 완전히 끄지 않고 계속 백그라운드 환경이 살아있도록 유지합니다.
       if (postFinishFrames > 120) {
         chipCooldowns = [];
-        isRunning = false;
-        return;
       }
     }
 

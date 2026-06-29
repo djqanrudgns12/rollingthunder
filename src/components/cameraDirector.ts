@@ -402,8 +402,8 @@ export class CameraDirector {
     let secondY = -Infinity, secondX = this.smCentroidX;
     let racingCount = 0;
     for (const [id, p] of chips) {
-      if (p.y <= finishLineY) racingCount++; // 아직 결승선 통과 전 = 레이싱 중
-      if (p.y < racingCap) {
+      if (p.y <= finishLineY) {
+        racingCount++; // 아직 결승선 통과 전 = 레이싱 중
         if (p.y > leaderY) {
           secondY = leaderY; secondX = leaderX;
           leaderY = p.y; leaderX = p.x; leaderId = id;

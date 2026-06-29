@@ -16,6 +16,12 @@ export default function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLea
   const survivors = useGameStore(state => state.survivors)
   const skillCooldowns = useGameStore(state => state.skillCooldowns)
   
+  const gameMode = useGameStore(state => state.gameMode)
+  const targetWinnerCount = useGameStore(state => state.targetWinnerCount)
+  const customWinningRank = useGameStore(state => state.customWinningRank)
+  const randomWinningRanks = useGameStore(state => state.randomWinningRanks)
+  const totalParticipantsCount = useGameStore(state => state.participants.length)
+
   // ── 순위 목록 구성 ──
   // 완주자(finished)를 맨 위에, 그 아래에 레이스 진행 중인 참가자를 현재 순위대로 표시한다.
   const finishedItems = finishedFeed.map(f => ({
@@ -42,51 +48,44 @@ export default function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLea
 
   const combinedRankings = [...finishedItems, ...activeItems]
 
-  const getRankIcon = (rank: number) => {
-    if (rank === 1) return <Crown className="w-4 h-4 text-[#FFD700]" />
-    if (rank === 2) return <Medal className="w-4 h-4 text-[#C0C0C0]" />
-    if (rank === 3) return <Medal className="w-4 h-4 text-[#CD7F32]" />
-    return <Award className="w-4 h-4 text-[#00ffcc]" />
+  const getOrdinalSuffix = (i: number) => {
+    const j = i % 10, k = i % 100;
+    if (j === 1 && k !== 11) return "st";
+    if (j === 2 && k !== 12) return "nd";
+    if (j === 3 && k !== 13) return "rd";
+    return "th";
   }
 
-  const getRankGradient = (rank: number) => {
-    if (rank === 1) return "from-[#FFD700] to-[#FFA500]"
-    if (rank === 2) return "from-[#E0E0E0] to-[#A0A0A0]"
-    if (rank === 3) return "from-[#CD7F32] to-[#A0522D]"
-    return "from-[#00ffcc] to-[#00b3ff]"
-  }
-
-  // ── 등수 표시 로직 ──
-  // 1~3등은 아이콘(왕관/메달)으로, 4등 이후는 숫자로 표시한다.
-  // 왜 이렇게 분리하나: 숫자가 너무 작으면 큰 화면에서 안 보이고,
-  // 너무 크면 2자리 수에서 잘린다. 따라서 아이콘 사용 시와 숫자 표기 시의
-  // 최소 폭(min-width)을 다르게 설정하여 가독성을 보장한다.
   const getRankDisplay = (rank: number, isFinished: boolean) => {
-    // 완주자 + 1~3등: 아이콘 표시
-    if (isFinished && rank <= 3) {
-      return (
-        <div className="drop-shadow-[0_0_6px_currentColor]">
-          {getRankIcon(rank)}
-        </div>
-      )
-    }
-
-    // 4등 이후 또는 진행 중: 숫자 표시
-    // font-size를 고정(text-lg ≈ 18px)하여 큰 화면에서도 잘 보이면서
-    // 2자리 수(10, 20)에도 잘리지 않도록 min-w를 넉넉히 잡는다.
+    const isWin = isFinished && isWinner(rank)
     return (
       <span className={cn(
-        // text-lg: 큰 화면에서도 충분히 읽히는 크기 (18px)
-        // font-black: 두꺼운 폰트로 시인성 확보
-        // tabular-nums: 숫자 폭을 고정해 등수 변동 시 레이아웃 흔들림 방지
-        "text-lg font-black font-mono tabular-nums leading-none",
+        "text-lg font-black font-mono tabular-nums leading-none tracking-tighter whitespace-nowrap",
         isFinished 
-          ? (rank === 1 ? "text-[#FFD700]" : rank === 2 ? "text-[#C0C0C0]" : rank === 3 ? "text-[#CD7F32]" : "text-[#00ffcc]")
+          ? (isWin ? "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" : "text-white/80")
           : "text-white/60"
       )}>
-        {rank}
+        {rank}<span className="text-[10px] ml-[1px] opacity-80">{getOrdinalSuffix(rank)}</span>
       </span>
     )
+  }
+
+  const isWinner = (rank: number) => {
+    if (gameMode === 'speed') return rank <= targetWinnerCount;
+    if (gameMode === 'custom') return rank <= customWinningRank;
+    if (gameMode === 'turtle') return rank > totalParticipantsCount - targetWinnerCount;
+    if (gameMode === 'random') return randomWinningRanks.includes(rank);
+    return false;
+  }
+
+  // 참가자 수에 따른 기본 패딩 조절
+  const compactMode = totalParticipantsCount > 15;
+
+  // 이름 길이에 따른 폰트 크기 계산 (동적 폰트 스케일링)
+  const getDynamicFontSize = (name: string) => {
+    const baseSize = compactMode ? 13 : 14;
+    const lengthPenalty = Math.max(0, name.length - 4) * 0.7; // 4글자 초과시 크기 감소
+    return Math.max(9, baseSize - lengthPenalty); // 최소 9px 보장
   }
 
   return (
@@ -98,42 +97,65 @@ export default function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLea
       <div className="flex-[2] min-h-0 bg-black/30 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden flex flex-col">
         <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-1.5 flex flex-col gap-[3px]">
           <AnimatePresence mode="popLayout">
-            {combinedRankings.map((p) => {
+            {combinedRankings.map((p, index) => {
               const isFinished = p.isFinished;
+              const isWin = isFinished && isWinner(p.rank);
               const color = p.survivor.color || '#fff';
-              // 쿨타임 진행률 (0.0 ~ 1.0). 키가 없으면 0(초기 상태)
               const cooldownProgress = skillCooldowns[p.id] ?? 0;
+              const prevRank = index > 0 ? combinedRankings[index - 1].rank : 0;
+              
+              // 컷오프 라인 (Danger Line) 로직
+              const showCutoff = (gameMode === 'custom' || gameMode === 'speed') 
+                && prevRank === (gameMode === 'custom' ? customWinningRank : targetWinnerCount) 
+                && p.rank === prevRank + 1;
 
               return (
-                <motion.div
-                  key={p.id}
-                  layout
-                  initial={{ opacity: 0, x: 16, scale: 0.95 }}
-                  animate={{ 
-                    opacity: 1, 
-                    x: 0, 
-                    scale: 1, 
-                  }}
-                  exit={{ opacity: 0, scale: 0.85 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-                  className={cn(
-                    // ── 글자 잘림 및 2줄 방지 핵심 로직 ──
-                    // overflow-hidden: 내부 요소가 박스를 넘어가는 것을 차단
-                    // 높이(py-1.5): 기존 py-3에서 축소하여 컴팩트하게
-                    "relative flex items-center gap-2 px-2 py-1 rounded-xl overflow-hidden",
-                    "shadow-md border backdrop-blur-xl transition-all duration-300",
-                    isFinished 
-                      ? "bg-black/70 border-white/20 shadow-[0_2px_12px_rgba(0,0,0,0.5)] z-10" 
-                      : "bg-black/30 border-white/5"
+                <div key={p.id} className="relative">
+                  {showCutoff && (
+                    <motion.div 
+                      initial={{ opacity: 0, scaleX: 0 }}
+                      animate={{ opacity: 1, scaleX: 1 }}
+                      className="absolute -top-[1.5px] left-0 right-0 h-[2px] bg-red-500 shadow-[0_0_8px_#ef4444] z-20 origin-left" 
+                    />
                   )}
-                >
-                  {/* 완주자 배경 그라데이션 글로우 */}
-                  {isFinished && (
-                    <div className={cn(
-                      "absolute inset-0 opacity-10 bg-gradient-to-r",
-                      getRankGradient(p.rank)
-                    )} />
-                  )}
+                  <motion.div
+                    layout
+                    initial={{ opacity: 0, x: 16, scale: 0.95 }}
+                    animate={
+                      isWin ? { 
+                        opacity: 1, x: 0, scale: [1, 1.05, 1],
+                        transition: { scale: { duration: 0.4, ease: "easeOut" } } 
+                      } : { 
+                        opacity: 1, x: 0, scale: 1 
+                      }
+                    }
+                    exit={{ opacity: 0, scale: 0.85 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                    className={cn(
+                      "relative flex items-center gap-2 px-2 rounded-xl overflow-hidden shadow-md border transition-all duration-300",
+                      compactMode ? "py-0.5" : "py-1",
+                      isWin ? "bg-black/80 border-[#00ffcc] shadow-[0_0_15px_rgba(0,255,204,0.5)] z-10" :
+                      isFinished ? "bg-[#2a2a2a]/90 border-white/20 shadow-[0_2px_12px_rgba(0,0,0,0.5)] z-10" : 
+                      "bg-black/30 border-white/5 backdrop-blur-xl"
+                    )}
+                  >
+                    {/* Light Sweep Effect for Winners */}
+                    {isWin && (
+                      <motion.div
+                        initial={{ left: '-100%' }}
+                        animate={{ left: '200%' }}
+                        transition={{ duration: 1.2, ease: "easeInOut", delay: 0.1 }}
+                        className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-20deg] z-20 pointer-events-none"
+                      />
+                    )}
+                    
+                    {/* 완주자 배경 그라데이션 글로우 */}
+                    {isFinished && (
+                      <div className={cn(
+                        "absolute inset-0 opacity-20 bg-gradient-to-r",
+                        isWin ? "from-[#00ffcc] to-[#00b3ff]" : "from-white/20 to-transparent"
+                      )} />
+                    )}
 
                   {/* ── 쿨타임 게이지 (하단 프로그레스 바) ── */}
                   {!isFinished && cooldownProgress > 0 && (
@@ -157,15 +179,14 @@ export default function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLea
                   </div>
 
                   {/* ── 이름 + 색상 도트 ── */}
-                  {/* min-w-0: Flexbox에서 자식의 text-overflow가 작동하려면 필수.
-                      없으면 텍스트가 부모를 밀어내서 레이아웃이 깨진다. */}
                   <div className="relative z-10 flex-1 flex items-center justify-between min-w-0">
-                    <span className={cn(
-                      // truncate = overflow-hidden + text-ellipsis + whitespace-nowrap 의 축약형
-                      // → 어떤 길이의 이름이든 1줄로 표시하고 넘치면 "..." 처리
-                      "font-bold text-[13px] truncate drop-shadow-sm flex-1",
-                      isFinished ? "text-white" : "text-white/80"
-                    )}>
+                    <span 
+                      className={cn(
+                        "font-bold drop-shadow-sm flex-1 whitespace-nowrap overflow-hidden",
+                        isWin ? "text-white" : isFinished ? "text-white/90" : "text-white/80"
+                      )}
+                      style={{ fontSize: `${getDynamicFontSize(p.survivor.name)}px` }}
+                    >
                       {p.survivor.name}
                     </span>
                     
@@ -179,17 +200,15 @@ export default function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLea
                     />
                   </div>
 
-                  {/* 완주자 우측 라인 강조 */}
-                  {isFinished && p.rank > 3 && (
-                    <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-[#00ffcc] shadow-[0_0_10px_#00ffcc]" />
-                  )}
-                  {isFinished && p.rank <= 3 && (
+                  {/* 우측 라인 강조 */}
+                  {isFinished && (
                     <div className={cn(
                       "absolute right-0 top-0 bottom-0 w-1 shadow-[0_0_10px_currentColor]",
-                      p.rank === 1 ? "bg-[#FFD700]" : p.rank === 2 ? "bg-[#C0C0C0]" : "bg-[#CD7F32]"
+                      isWin ? "bg-[#00ffcc]" : "bg-white/30"
                     )} />
                   )}
                 </motion.div>
+                </div>
               )
             })}
           </AnimatePresence>
