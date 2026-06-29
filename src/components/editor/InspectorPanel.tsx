@@ -4,16 +4,15 @@ import React from 'react'
 import { useEditorStore, EditorItem } from '@/store/editorStore'
 
 export default function InspectorPanel() {
-  const { isEditorMode, items, selectedItemId, updateItem } = useEditorStore()
-
-  if (!isEditorMode) return null
+  const { items, selectedItemId, updateItem } = useEditorStore()
 
   const selectedItem = items.find(it => it.id === selectedItemId)
 
   if (!selectedItem) {
     return (
-      <div className="absolute top-20 right-6 w-72 bg-black/80 backdrop-blur-md border border-white/20 rounded-2xl shadow-2xl z-[100] p-6 flex items-center justify-center pointer-events-auto">
-        <p className="text-white/50 text-sm font-bold">선택된 기물이 없습니다.</p>
+      <div className="absolute top-16 right-4 w-72 bg-[#1a1a1a] border border-[#333] rounded-xl shadow-2xl p-6 flex flex-col items-center justify-center pointer-events-auto h-32 z-10">
+        <p className="text-gray-500 text-sm font-semibold">선택된 요소가 없습니다.</p>
+        <p className="text-gray-600 text-xs mt-1">캔버스에서 항목을 선택하세요.</p>
       </div>
     )
   }
@@ -25,58 +24,66 @@ export default function InspectorPanel() {
     }
   }
 
-  // 필드 렌더러
-  const renderField = (label: string, field: keyof EditorItem, step = 1) => {
-    const val = selectedItem[field]
-    if (val === undefined) return null
+  const handleToggle = (field: keyof EditorItem) => {
+    updateItem(selectedItem.id, { [field]: !selectedItem[field] })
+  }
 
+  const renderNumberField = (label: string, field: keyof EditorItem, step = 1) => {
+    const val = selectedItem[field] as number | undefined
     return (
-      <div className="flex items-center justify-between gap-4">
-        <label className="text-sm font-bold text-gray-300 w-16">{label}</label>
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">{label}</label>
         <input
           type="number"
           step={step}
-          value={val as number}
+          value={val ?? 0}
           onChange={(e) => handleChange(e, field)}
-          className="flex-1 bg-black/50 border border-white/20 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-purple-500"
+          className="w-full bg-[#252525] border border-[#333] hover:border-[#444] rounded p-2 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors font-mono"
         />
       </div>
     )
   }
 
   return (
-    <div className="absolute top-20 right-6 w-72 bg-black/80 backdrop-blur-md border border-white/20 rounded-2xl shadow-2xl z-[100] flex flex-col pointer-events-auto">
-      <div className="p-4 border-b border-white/10 bg-white/5 rounded-t-2xl">
-        <h2 className="font-bold text-white tracking-widest text-lg">INSPECTOR</h2>
-        <p className="text-xs text-white/50 mt-1">{selectedItem.type}</p>
+    <div className="absolute top-16 right-4 w-72 bg-[#1a1a1a] border border-[#333] rounded-xl shadow-2xl flex flex-col pointer-events-auto max-h-[calc(100vh-5rem)] z-10 overflow-hidden">
+      <div className="p-4 border-b border-[#333] bg-[#222]">
+        <h2 className="font-bold text-white text-sm">Properties</h2>
+        <p className="text-xs text-blue-400 mt-1 font-mono break-all">{selectedItem.id}</p>
       </div>
       
-      <div className="p-4 flex flex-col gap-3 overflow-y-auto max-h-[70vh]">
-        {renderField('X 좌표', 'x', 0.1)}
-        {renderField('Y 좌표', 'y', 0.1)}
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
         
-        {/* 선택적 속성들 */}
-        {selectedItem.w !== undefined && renderField('너비 (W)', 'w', 0.1)}
-        {selectedItem.h !== undefined && renderField('높이 (H)', 'h', 0.1)}
-        {selectedItem.radius !== undefined && renderField('반경 (R)', 'radius', 0.1)}
-        {selectedItem.rotation !== undefined && renderField('회전각', 'rotation', 0.1)}
-        {selectedItem.restitution !== undefined && renderField('반발력', 'restitution', 0.05)}
-        {selectedItem.friction !== undefined && renderField('마찰력', 'friction', 0.05)}
-        
-        {/* 특수 기믹 속성들 */}
-        {selectedItem.power !== undefined && renderField('파워', 'power', 0.1)}
-        {selectedItem.speed !== undefined && renderField('속도', 'speed', 0.1)}
-        {selectedItem.force !== undefined && renderField('인력/척력', 'force', 0.1)}
-        
-        {selectedItem.hp !== undefined && renderField('현재 HP', 'hp')}
-        {selectedItem.maxHp !== undefined && renderField('최대 HP', 'maxHp')}
-        
-        {selectedItem.windAngle !== undefined && renderField('바람 각도', 'windAngle')}
-        {selectedItem.windForce !== undefined && renderField('바람 세기', 'windForce', 0.1)}
-        
-        {selectedItem.length !== undefined && renderField('길이', 'length', 0.1)}
-        {selectedItem.restAngle !== undefined && renderField('대기 각도', 'restAngle', 0.1)}
-        {selectedItem.swingAngle !== undefined && renderField('스윙 각도', 'swingAngle', 0.1)}
+        {/* Transform Group */}
+        <div>
+          <h3 className="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider border-b border-[#333] pb-1">Transform</h3>
+          <div className="grid grid-cols-2 gap-3">
+            {renderNumberField('X', 'x', 1)}
+            {renderNumberField('Y', 'y', 1)}
+            {renderNumberField('W', 'w', 1)}
+            {renderNumberField('H', 'h', 1)}
+            {renderNumberField('Angle', 'angle', 1)}
+          </div>
+        </div>
+
+        {/* Physics / Dynamic Group */}
+        <div>
+          <h3 className="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider border-b border-[#333] pb-1">Physics / Dynamic</h3>
+          <div className="space-y-3">
+            {renderNumberField('Speed', 'speed', 0.1)}
+            {renderNumberField('Bounciness', 'restitution', 0.1)}
+            {renderNumberField('Friction', 'friction', 0.1)}
+            
+            <div className="flex items-center justify-between bg-[#252525] border border-[#333] p-3 rounded-lg mt-2">
+              <span className="text-sm font-semibold text-gray-300">Flip (반전)</span>
+              <button 
+                onClick={() => handleToggle('flip')}
+                className={`w-10 h-5 rounded-full relative transition-colors ${selectedItem.flip ? 'bg-blue-500' : 'bg-[#444]'}`}
+              >
+                <div className={`w-3 h-3 bg-white rounded-full absolute top-1 transition-transform ${selectedItem.flip ? 'left-6' : 'left-1'}`} />
+              </button>
+            </div>
+          </div>
+        </div>
 
       </div>
     </div>

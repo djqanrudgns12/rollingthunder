@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { login, signup } from '@/app/actions'
 import { useUIStore } from '@/store/uiStore'
 import { X, LogIn, UserPlus } from 'lucide-react'
-import { isRedirectError } from 'next/dist/client/components/redirect'
 
 export default function AuthModal() {
   const { activeModal, setActiveModal, authMode } = useUIStore()
@@ -61,7 +60,7 @@ export default function AuthModal() {
         if (result?.error) setError(result.error)
       }
     } catch (err) {
-      if (isRedirectError(err)) {
+      if (err instanceof Error && err.message === 'NEXT_REDIRECT') {
         throw err;
       }
       setError("오류가 발생했습니다. 다시 시도해주세요.")

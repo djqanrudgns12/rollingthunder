@@ -11,10 +11,10 @@ export interface ThemeWeights {
   whitehole: number;
   hole: number;
   windmill: number;
-  iceblock: number;
-  windcannon: number;
-  luckygate: number;
-  flipper: number;
+  iceblock?: number;
+  windcannon?: number;
+  luckygate?: number;
+  flipper?: number;
 }
 
 export const DEFAULT_THEME_WEIGHTS: ThemeWeights = {
@@ -727,7 +727,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     name: '혼돈의 거울',
     description: '극강의 혼돈과 비대칭, 쉴 새 없는 튕김과 지름길 포탈 워프가 난무하는 운명의 시련',
     lengthType: 'Long',
-    complexity: 'High',
+    complexity: 'Complex',
     worldHeight: 4200,
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_bounce_mirror.png',

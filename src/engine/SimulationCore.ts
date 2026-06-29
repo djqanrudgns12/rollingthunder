@@ -32,6 +32,7 @@ export interface SimInitConfig {
   gimmickDensity: number;
   isCustomMap?: boolean;   // 커스텀 맵 여부 (밀도 조절 무시)
   themeWeights?: ThemeWeights; // 맵별 추가 기믹 가중치
+  layoutConfig?: any;      // 맵별 레이아웃 설정
   mapKey?: string;         // 프리셋 ID (시드 생성용)
   survivors: any[];
   targetCount: number;
@@ -235,7 +236,7 @@ export class SimulationCore {
     });
   }
 
-  private generateSlots(count: number, width: number, layoutConfig?: { startMarginPercent: number, endMarginPercent: number, spawnGap: number }, worldHeight: number = 3300): {x: number, y: number}[] {
+  private generateSlots(count: number, width: number, layoutConfig?: any, worldHeight: number = 3300): {x: number, y: number}[] {
     const slots: {x: number, y: number}[] = [];
     const spacingX = 85;  // PRD v5.1: 65 → 85 (이름 겹침 방지)
     const availableWidth = width * 0.92;  // PRD v5.1: 0.8 → 0.92 (양쪽 측면 공간 활용)
@@ -274,7 +275,7 @@ export class SimulationCore {
   }
 
   // PRD v4: Store layoutConfig for shuffle
-  private layoutConfig?: { startMarginPercent: number, endMarginPercent: number, spawnGap: number };
+  private layoutConfig?: any;
 
   shuffle(width: number) {
     if (!this.world) return;

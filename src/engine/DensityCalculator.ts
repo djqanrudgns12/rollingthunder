@@ -4,7 +4,7 @@ import { ThemeWeights } from './MapPresets';
 export interface DensityResult {
   survivalRate: number;
   injectionCount: number;
-  injectionMix: Record<EditorItemType, number>;
+  injectionMix: Partial<Record<EditorItemType, number>>;
 }
 
 export function calculateDensity(
@@ -15,7 +15,7 @@ export function calculateDensity(
 ): DensityResult {
   let survivalRate = 1.0;
   let injectionCount = 0;
-  const injectionMix: Record<EditorItemType, number> = {
+  const injectionMix: Partial<Record<EditorItemType, number>> = {
     pin: 0, bumper: 0, booster: 0, portal: 0, blackhole: 0, whitehole: 0, hole: 0, windmill: 0, wall: 0, piston: 0, spinner: 0
   };
 

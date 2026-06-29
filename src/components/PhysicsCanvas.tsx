@@ -1630,15 +1630,15 @@ export default function PhysicsCanvas() {
             soundManager.playSfx('gimmick_domino', payload.impulse * 0.5, payload.x);
           }
         } else if (type === 'FLIPPER_SWING') {
-          const target = staticContainer.children.find(c => (c as any).label === payload.id);
+          const target = viewport.getChildAt(0).children.find(c => (c as any).label === payload.id);
           if (target) {
             import('gsap').then(({ gsap }) => {
-              gsap.fromTo(target.scale, { x: 1.2, y: 1.2 }, { x: 1, y: 1, duration: 0.3, ease: 'elastic.out(1, 0.3)' });
+              gsap.fromTo(target.scale as any, { x: 1.2, y: 1.2 }, { x: 1, y: 1, duration: 0.3, ease: 'elastic.out(1, 0.3)' });
             });
           }
         } else if (type === 'ICE_CRACK') {
           soundManager.playSfx('gimmick_domino', 30, payload.x);
-          const target = staticContainer.children.find(c => (c as any).label === payload.id);
+          const target = viewport.getChildAt(0).children.find(c => (c as any).label === payload.id);
           if (target) {
             import('gsap').then(({ gsap }) => {
               gsap.fromTo(target, { alpha: 1 }, { alpha: 0.5 + payload.remainingHp * 0.15, duration: 0.1 });
@@ -1658,7 +1658,7 @@ export default function PhysicsCanvas() {
           }
         } else if (type === 'ICE_DESTROY') {
           soundManager.playSfx('warp', 0, payload.x);
-          const target = staticContainer.children.find(c => (c as any).label === payload.id);
+          const target = viewport.getChildAt(0).children.find(c => (c as any).label === payload.id);
           if (target) {
             import('gsap').then(({ gsap }) => {
               gsap.to(target.scale, { x: 0, y: 0, duration: 0.2, ease: 'back.in(1.5)', onComplete: () => target.destroy() });
@@ -1691,7 +1691,7 @@ export default function PhysicsCanvas() {
               gsap.to(p, { rotation: Math.random()*Math.PI*4, duration: 0.6, onComplete: () => p.destroy() });
             });
           }
-          const gate = staticContainer.children.find(c => (c as any).label === payload.gateId);
+          const gate = viewport.getChildAt(0).children.find(c => (c as any).label === payload.gateId);
           if (gate) {
             import('gsap').then(({ gsap }) => {
               gsap.fromTo(gate.scale, { x: 1.5, y: 1.5 }, { x: 1, y: 1, duration: 0.4, ease: 'bounce.out' });

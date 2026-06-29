@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 // 하이엔드 기믹 타입 추가
-export type EditorItemType = 'pin' | 'bumper' | 'wall' | 'hole' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole' | 'spinner' | 'iceblock' | 'windcannon' | 'luckygate' | 'flipper';
+export type EditorItemType = 'pin' | 'bumper' | 'wall' | 'hole' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole' | 'spinner' | 'iceblock' | 'windcannon' | 'luckygate' | 'flipper' | 'startline' | 'endline';
 
 export interface EditorItem {
   id: string;
@@ -13,8 +13,10 @@ export interface EditorItem {
   radius?: number;
   restitution?: number;
   friction?: number;
+  angle?: number;         // 통합된 각도 속성
+  rotation?: number;      // 기존 호환성 유지용
+  flip?: boolean;         // 좌우/상하 반전
   // --- 하이엔드 기믹 전용 속성들 ---
-  rotation?: number;      // 회전각 (Booster, Windmill, Wall 등에 사용)
   power?: number;         // 가속 강도 (Booster 전용: 1~5 등)
   speed?: number;         // 이동/회전 속도 (Windmill, Piston 전용)
   force?: number;         // 인력/척력 (Blackhole, Whitehole 전용)
@@ -35,35 +37,115 @@ export interface EditorItem {
 
 interface EditorState {
   items: EditorItem[];
-  selectedItemId: string | null; // 속성 패널(Inspector)용 선택된 아이템 ID
+  history: EditorItem[][];
+  historyIndex: number;
+  selectedItemId: string | null;
   isEditorMode: boolean;
   mapId: string | null;
+  
   addItem: (item: EditorItem) => void;
   updateItem: (id: string, updates: Partial<EditorItem>) => void;
   removeItem: (id: string) => void;
   clearItems: () => void;
+  setItems: (items: EditorItem[]) => void;
+  
   setSelectedItemId: (id: string | null) => void;
   setEditorMode: (isEditor: boolean) => void;
   setMapId: (id: string | null) => void;
-  setItems: (items: EditorItem[]) => void;
+  
+  clipboard: EditorItem | null;
+  setClipboard: (item: EditorItem | null) => void;
+  
+  gridSnap: boolean;
+  setGridSnap: (snap: boolean) => void;
+  
+  undo: () => void;
+  redo: () => void;
+  pushHistory: (newItems: EditorItem[]) => void;
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
   items: [],
+  history: [[]],
+  historyIndex: 0,
   selectedItemId: null,
   isEditorMode: false,
   mapId: null,
-  addItem: (item) => set((state) => ({ items: [...state.items, item] })),
-  updateItem: (id, updates) => set((state) => ({
-    items: state.items.map((it) => (it.id === id ? { ...it, ...updates } : it))
-  })),
-  removeItem: (id) => set((state) => ({
-    items: state.items.filter((it) => it.id !== id),
-    selectedItemId: state.selectedItemId === id ? null : state.selectedItemId
-  })),
-  clearItems: () => set({ items: [], selectedItemId: null }),
+  clipboard: null,
+  gridSnap: false,
+
+  setClipboard: (item) => set({ clipboard: item }),
+  setGridSnap: (snap) => set({ gridSnap: snap }),
+
+  pushHistory: (newItems) => set((state) => {
+    const newHistory = state.history.slice(0, state.historyIndex + 1);
+    newHistory.push(newItems);
+    // 최대 50개의 히스토리만 유지
+    if (newHistory.length > 50) newHistory.shift();
+    return { history: newHistory, historyIndex: newHistory.length - 1, items: newItems };
+  }),
+
+  addItem: (item) => set((state) => {
+    const newItems = [...state.items, item];
+    const newHistory = state.history.slice(0, state.historyIndex + 1);
+    newHistory.push(newItems);
+    if (newHistory.length > 50) newHistory.shift();
+    return { items: newItems, history: newHistory, historyIndex: newHistory.length - 1 };
+  }),
+
+  updateItem: (id, updates) => set((state) => {
+    const newItems = state.items.map((it) => (it.id === id ? { ...it, ...updates } : it));
+    const newHistory = state.history.slice(0, state.historyIndex + 1);
+    newHistory.push(newItems);
+    if (newHistory.length > 50) newHistory.shift();
+    return { items: newItems, history: newHistory, historyIndex: newHistory.length - 1 };
+  }),
+
+  removeItem: (id) => set((state) => {
+    const newItems = state.items.filter((it) => it.id !== id);
+    const newHistory = state.history.slice(0, state.historyIndex + 1);
+    newHistory.push(newItems);
+    if (newHistory.length > 50) newHistory.shift();
+    return {
+      items: newItems,
+      history: newHistory,
+      historyIndex: newHistory.length - 1,
+      selectedItemId: state.selectedItemId === id ? null : state.selectedItemId
+    };
+  }),
+
+  clearItems: () => set((state) => {
+    const newItems: EditorItem[] = [];
+    const newHistory = state.history.slice(0, state.historyIndex + 1);
+    newHistory.push(newItems);
+    if (newHistory.length > 50) newHistory.shift();
+    return { items: newItems, history: newHistory, historyIndex: newHistory.length - 1, selectedItemId: null };
+  }),
+
+  setItems: (items) => set((state) => {
+    const newHistory = state.history.slice(0, state.historyIndex + 1);
+    newHistory.push(items);
+    if (newHistory.length > 50) newHistory.shift();
+    return { items, history: newHistory, historyIndex: newHistory.length - 1 };
+  }),
+
   setSelectedItemId: (id) => set({ selectedItemId: id }),
   setEditorMode: (isEditor) => set({ isEditorMode: isEditor }),
   setMapId: (id) => set({ mapId: id }),
-  setItems: (items) => set({ items }),
+
+  undo: () => set((state) => {
+    if (state.historyIndex > 0) {
+      const prevIndex = state.historyIndex - 1;
+      return { historyIndex: prevIndex, items: state.history[prevIndex], selectedItemId: null };
+    }
+    return state;
+  }),
+
+  redo: () => set((state) => {
+    if (state.historyIndex < state.history.length - 1) {
+      const nextIndex = state.historyIndex + 1;
+      return { historyIndex: nextIndex, items: state.history[nextIndex], selectedItemId: null };
+    }
+    return state;
+  }),
 }))
