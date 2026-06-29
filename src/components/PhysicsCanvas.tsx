@@ -1399,7 +1399,8 @@ export default function PhysicsCanvas() {
               staticContainer.addChild(g);
             };
 
-            const initialItems = (payload.mapData && payload.mapData.items) ? payload.mapData.items : useEditorStore.getState().items;
+            const mapDataArr = Array.isArray(payload.mapData) ? payload.mapData : (payload.mapData && payload.mapData.items ? payload.mapData.items : null);
+            const initialItems = mapDataArr || useEditorStore.getState().items;
             if (Array.isArray(initialItems)) {
               initialItems.forEach((item: any) => createEditorItemGraphic(item));
             }
