@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react'
 
 import { useUIStore } from '@/store/uiStore'
+import { useGameStore } from '@/store/gameStore'
 import Dashboard from './Dashboard'
 import dynamic from 'next/dynamic';
 const PhysicsCanvas = dynamic(() => import('./PhysicsCanvas'), { ssr: false });
 
 export default function GameManager() {
   const gameStage = useUIStore(state => state.gameStage)
+  const isMuted = useGameStore(state => state.isMuted)
   const [assetsLoaded, setAssetsLoaded] = useState(false)
   const [loadError, setLoadError] = useState(false)
 
@@ -71,6 +73,37 @@ export default function GameManager() {
       </div>
     )
   }
+
+  useEffect(() => {
+    // 🎧 BGM 제어 연동
+    import('@/engine/AudioEngine').then(({ soundManager }) => {
+      soundManager.setMuted(isMuted);
+      if (gameStage === 'dashboard') {
+        soundManager.playStandbyBgm();
+      } else if (gameStage === 'playing') {
+        soundManager.playGameBgm();
+      }
+    });
+  }, [gameStage, isMuted]);
+
+  useEffect(() => {
+    // 🎧 브라우저 Autoplay 정책 우회 (최초 클릭 시 오디오 컨텍스트 강제 활성화)
+    const unlockAudio = () => {
+      import('howler').then(({ Howler }) => {
+        if (Howler.ctx && Howler.ctx.state === 'suspended') {
+          Howler.ctx.resume();
+        }
+      });
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+    };
+    window.addEventListener('click', unlockAudio);
+    window.addEventListener('touchstart', unlockAudio);
+    return () => {
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+    };
+  }, []);
 
   return (
     <>

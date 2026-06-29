@@ -168,9 +168,17 @@ class AudioEngine {
     if (this.currentBgm) this.currentBgm.volume(bgm);
   }
 
-  toggleMute() {
-    this.isMuted = !this.isMuted;
+  setMuted(muted: boolean) {
+    this.isMuted = muted;
     Howler.mute(this.isMuted);
+  }
+
+  getMuted(): boolean {
+    return this.isMuted;
+  }
+
+  toggleMute() {
+    this.setMuted(!this.isMuted);
     return this.isMuted;
   }
 }

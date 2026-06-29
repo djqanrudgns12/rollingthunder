@@ -168,15 +168,20 @@ export class SimulationCore {
           );
       finalItems.forEach((item: any) => {
         if (item.type === 'pin') {
-          MapBuilder.createPin(this.world!, item.x, item.y, item.radius || 15, false, item.restitution, item.friction);
+          const body = MapBuilder.createPin(this.world!, item.x, item.y, item.radius || 15, false, item.restitution, item.friction);
+          if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
         } else if (item.type === 'bumper') {
-          MapBuilder.createPin(this.world!, item.x, item.y, item.radius || 15, true, item.restitution, item.friction);
+          const body = MapBuilder.createPin(this.world!, item.x, item.y, item.radius || 15, true, item.restitution, item.friction);
+          if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
         } else if (item.type === 'wall') {
-          MapBuilder.createRect(this.world!, item.x, item.y, item.w || 100, item.h || 20, 'wall', item.rotation || 0, item.restitution, item.friction);
+          const body = MapBuilder.createRect(this.world!, item.x, item.y, item.w || 100, item.h || 20, 'wall', item.rotation || 0, item.restitution, item.friction);
+          if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
         } else if (item.type === 'windmill' || item.type === 'piston') {
-          MapBuilder.createKinematic(this.world!, item);
+          const body = MapBuilder.createKinematic(this.world!, item);
+          if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
         } else if (item.type === 'portal' || item.type === 'booster' || item.type === 'blackhole' || item.type === 'whitehole' || item.type === 'hole') {
-          MapBuilder.createSensor(this.world!, item);
+          const body = MapBuilder.createSensor(this.world!, item);
+          if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
         }
       });
     } else {
@@ -274,7 +279,8 @@ export class SimulationCore {
     if (!this.world || !this.eventQueue) return;
     this.events = [];
 
-    this.world.integrationParameters.dt = (1 / 60) * dtMultiplier;
+    const rawDt = (1 / 60) * dtMultiplier;
+    this.world.integrationParameters.dt = Math.min(rawDt, 4 / 60);
     this.world.step(this.eventQueue);
 
     this.handleCollisions();
@@ -373,8 +379,11 @@ export class SimulationCore {
 
       if (impactV > 50) {
         const isBumper = d1?.type === 'bumper' || d2?.type === 'bumper';
+        const soundTag = d1?.soundTag || d2?.soundTag;
         const x = (b1.translation().x + b2.translation().x) / 2;
-        if (isBumper) {
+        if (soundTag) {
+          this.events.push({ type: 'SOUND_EFFECT', payload: { type: soundTag, impulse: impactV * 10, x } });
+        } else if (isBumper) {
           this.events.push({ type: 'SOUND_EFFECT', payload: { type: 'bumperHit', impulse: impactV * 10, x } });
         } else {
           this.events.push({ type: 'SOUND_EFFECT', payload: { type: 'wallHit', impulse: impactV * 5, x } });

@@ -21,4 +21,5 @@ export interface UserData {
   speed?: number;
   force?: number;
   color?: string;
+  soundTag?: string;
 }

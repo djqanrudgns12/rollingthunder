@@ -20,6 +20,7 @@ export interface EditorItem {
   force?: number;         // 인력/척력 (Blackhole, Whitehole 전용)
   color?: string;         // 포탈 색상 짝맞춤용 (Portal 전용)
   waypointB?: { x: number, y: number }; // 피스톤 도착점 (Piston 전용)
+  soundTag?: string;      // 특정 장애물 전용 오디오 태그 (예: 'funnel')
 }
 
 interface EditorState {

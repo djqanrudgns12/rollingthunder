@@ -10,7 +10,7 @@ import { useUIStore } from '@/store/uiStore'
 import type { EditorItem } from '@/store/editorStore'
 import LiveLeaderboard from './LiveLeaderboard'
 import { generateSkillMessage } from './SkillLogOverlay'
-import { Hand, Volume2, VolumeX, Maximize, Video } from 'lucide-react'
+import { Hand, Maximize, Video } from 'lucide-react'
 import gsap from 'gsap'
 import { GlowFilter, MotionBlurFilter, ShockwaveFilter, ColorOverlayFilter } from 'pixi-filters'
 import { getPresetMeta, MapPresets } from '@/engine/MapPresets'
@@ -23,7 +23,7 @@ export default function PhysicsCanvas() {
   const containerRef = useRef<HTMLDivElement>(null)
   
   const [rankings, setRankings] = useState<ParticipantRank[]>([])
-  const [isMuted, setIsMuted] = useState(false)
+
   const [finishedFeed, setFinishedFeed] = useState<{ rank: number, survivor: any }[]>([])
   const [gameState, setGameState] = useState<'idle' | 'playing' | 'winner_declared' | 'all_finished'>('idle')
   const [isWorkerReady, setIsWorkerReady] = useState(false)
@@ -38,7 +38,7 @@ export default function PhysicsCanvas() {
   const finishedFeedRef = useRef(finishedFeed);
   useEffect(() => { finishedFeedRef.current = finishedFeed; }, [finishedFeed]);
   
-  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks } = useGameStore()
+  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks, baseTimeScale } = useGameStore()
   const { setGameStage, customMapData, isBroadcasterMode, gameTitle } = useUIStore()
   const workerRef = useRef<Worker | null>(null)
   
@@ -96,6 +96,12 @@ export default function PhysicsCanvas() {
       import('pixi.js').then((PIXI) => PIXI.Ticker.shared.start());
     }
   }, [isPaused]);
+
+  useEffect(() => {
+    if (workerRef.current && isWorkerReady) {
+      workerRef.current.postMessage({ type: 'SET_BASE_TIME_SCALE', payload: { scale: baseTimeScale } });
+    }
+  }, [baseTimeScale, isWorkerReady]);
 
   // WebGL Filters ref
   const shockwaveRef = useRef<any>(null)
@@ -1301,6 +1307,15 @@ export default function PhysicsCanvas() {
                 const textureUrl = `/images/assets/skins/${skinKey}.png`;
                 const R = 18; // Physics radius
                 
+                // 에셋별 렌더링 스케일 조정 (시각적 밸런스 패치)
+                let renderDiameter = R * 2;
+                const isLargeAsset = skinKey.startsWith('chip_base_') || 
+                                     skinKey === 'blackhole' || 
+                                     skinKey === 'shuriken';
+                if (isLargeAsset) {
+                  renderDiameter = R * 1.3;
+                }
+                
                 const iconWrapper = new PIXI.Container();
                 iconWrapper.label = 'icon';
                 container.addChild(iconWrapper);
@@ -1311,8 +1326,8 @@ export default function PhysicsCanvas() {
                     // subtle drop shadow
                     const shadow = new PIXI.Sprite(tex);
                     shadow.anchor.set(0.5);
-                    shadow.width = R * 2;
-                    shadow.height = R * 2;
+                    shadow.width = renderDiameter;
+                    shadow.height = renderDiameter;
                     shadow.tint = 0x000000;
                     shadow.alpha = 0.5;
                     shadow.y = 3;
@@ -1320,8 +1335,8 @@ export default function PhysicsCanvas() {
 
                     const sprite = new PIXI.Sprite(tex);
                     sprite.anchor.set(0.5); // 완벽한 무결성을 위한 중앙 앵커 정렬
-                    sprite.width = R * 2;   // 물리 반경(12)과 스케일 완벽 동기화
-                    sprite.height = R * 2;
+                    sprite.width = renderDiameter;   // 시각적 사이즈 조정 적용
+                    sprite.height = renderDiameter;
                     sprite.tint = colNum;   // 참가자 고유 색상 무한 지원
                     iconWrapper.addChild(sprite);
                   } else {
@@ -1463,6 +1478,8 @@ export default function PhysicsCanvas() {
             soundManager.playSfx('gimmick_funnel', payload.impulse, payload.x);
           } else if (payload.type === 'pipe') {
             soundManager.playSfx('gimmick_pipe', payload.impulse, payload.x);
+          } else if (payload.type === 'holeTrapped') {
+            soundManager.playSfx('env_wormhole', 0, 400);
           }
         } else if (type === 'SKILL_FIRED') {
           // ═══════════════════════════════════════════════════════════════════

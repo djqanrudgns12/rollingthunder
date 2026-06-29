@@ -106,8 +106,8 @@ function funnel(y: number, opts: { gap?: number; deg?: number; len?: number } = 
   const deg = opts.deg ?? 22;
   const len = opts.len ?? 260;
   return [
-    { id: kid('fn'), type: 'wall', x: 400 - gap / 2 - len * 0.36, y, w: len, h: 20, rotation: deg, friction: 0.1 },
-    { id: kid('fn'), type: 'wall', x: 400 + gap / 2 + len * 0.36, y, w: len, h: 20, rotation: -deg, friction: 0.1 },
+    { id: kid('fn'), type: 'wall', x: 400 - gap / 2 - len * 0.36, y, w: len, h: 20, rotation: deg, friction: 0.1, soundTag: 'funnel' },
+    { id: kid('fn'), type: 'wall', x: 400 + gap / 2 + len * 0.36, y, w: len, h: 20, rotation: -deg, friction: 0.1, soundTag: 'funnel' },
   ];
 }
 

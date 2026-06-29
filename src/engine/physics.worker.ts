@@ -20,7 +20,8 @@ let postFinishFrames = 0;
 let positionsBuffer: Float32Array;
 let bufferPool: ArrayBuffer[] = [];
 let isSkillEnabled = true;
-let dtMultiplier = 1.0; // 결승 슬로모션(SET_TIME_SCALE)만 사용. 스킬 발동으로 변경하지 않음.
+let baseTimeScale = 1.0; // 환경설정에서 지정한 기본 배속
+let effectTimeScale = 1.0; // 카메라 연출용 (슬로모션, 스냅 등)
 
 // ── 개별 쿨타임 관리 ──
 // 각 마블(칩)마다 독립적인 쿨타임을 가지며, 쿨타임이 차면 스킬이 자동 발동된다.
@@ -146,6 +147,7 @@ self.onmessage = async (e) => {
     const {
       width, height, customMapData, selectedMapPreset, gimmickDensity,
       survivors, targetCount, mode, customRank, randomRanks, isSkillEnabled: isSkill,
+      baseTimeScale: initBaseTimeScale
     } = payload;
 
     const presetMeta = selectedMapPreset && selectedMapPreset !== 'random' ? getPresetMeta(selectedMapPreset) : null;
@@ -156,7 +158,10 @@ self.onmessage = async (e) => {
     const isCustomMap = !!(customMapData && customMapData.length > 0);
 
     isSkillEnabled = isSkill ?? true;
-    dtMultiplier = 1.0;
+    if (initBaseTimeScale !== undefined) {
+      baseTimeScale = initBaseTimeScale;
+    }
+    effectTimeScale = 1.0;
 
     if (!core) core = new SimulationCore();
     core.init({
@@ -193,7 +198,7 @@ self.onmessage = async (e) => {
   } else if (type === 'START') {
     if (!core) return;
     isRunning = true;
-    dtMultiplier = 1.0;
+    effectTimeScale = 1.0;
     postFinishFrames = 0;
 
     // 스킬 쿨타임 초기화 (게임 재시작 시)
@@ -204,7 +209,7 @@ self.onmessage = async (e) => {
 
   } else if (type === 'STEP') {
     if (!core || !isRunning) return;
-    core.step(dtMultiplier);
+    core.step(baseTimeScale * effectTimeScale);
     flushEvents();
     broadcastFrame();
 
@@ -244,7 +249,10 @@ self.onmessage = async (e) => {
     }
   } else if (type === 'SET_TIME_SCALE') {
     // 결승 슬로모션 등 외부 제어용 (스킬과 무관)
-    dtMultiplier = payload.scale;
+    effectTimeScale = payload.scale;
+  } else if (type === 'SET_BASE_TIME_SCALE') {
+    // 환경 설정용
+    baseTimeScale = payload.scale;
   } else if (type === 'STOP') {
     isRunning = false;
     chipCooldowns = [];

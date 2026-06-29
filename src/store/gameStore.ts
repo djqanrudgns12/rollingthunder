@@ -66,6 +66,16 @@ interface GameState {
   // 각 마블의 스킬 쿨타임 진행률 (0.0 ~ 1.0). 키는 chipId
   skillCooldowns: Record<string, number>
   setSkillCooldowns: (cooldowns: Record<string, number>) => void
+
+  // ── 환경 설정 ──
+  isMuted: boolean
+  setMuted: (muted: boolean) => void
+  baseTimeScale: number
+  setBaseTimeScale: (scale: number) => void
+  theme: 'dark' | 'light'
+  setTheme: (theme: 'dark' | 'light') => void
+  fontFamily: string
+  setFontFamily: (font: string) => void
 }
 
 export const useGameStore = create<GameState>()(
@@ -117,9 +127,33 @@ export const useGameStore = create<GameState>()(
       // ── 개별 쿨타임: 워커로부터 매 프레임 갱신되는 진행률 맵 ──
       skillCooldowns: {},
       setSkillCooldowns: (skillCooldowns) => set({ skillCooldowns }),
+
+      // ── 환경 설정 ──
+      isMuted: false,
+      setMuted: (isMuted) => set({ isMuted }),
+      baseTimeScale: 1.0,
+      setBaseTimeScale: (baseTimeScale) => set({ baseTimeScale }),
+      theme: 'dark',
+      setTheme: (theme) => set({ theme }),
+      fontFamily: 'pretendard',
+      setFontFamily: (fontFamily) => set({ fontFamily }),
     }),
     {
       name: 'rt-game-storage',
+      partialize: (state) => ({
+        isMuted: state.isMuted,
+        baseTimeScale: state.baseTimeScale,
+        theme: state.theme,
+        fontFamily: state.fontFamily,
+        participants: state.participants,
+        gimmickDensity: state.gimmickDensity,
+        targetWinnerCount: state.targetWinnerCount,
+        selectedMapPreset: state.selectedMapPreset,
+        globalSkin: state.globalSkin,
+        gameMode: state.gameMode,
+        customWinningRank: state.customWinningRank,
+        isSkillEnabled: state.isSkillEnabled,
+      }),
     }
   )
 )
