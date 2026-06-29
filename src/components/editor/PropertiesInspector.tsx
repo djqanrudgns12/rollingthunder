@@ -224,6 +224,87 @@ export default function PropertiesInspector() {
             </p>
           </div>
         )}
+        {/* 신규 장애물들 */}
+        {item.type === 'iceblock' && (
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold text-blue-300 uppercase">Ice Block</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Width</label>
+                <input type="number" value={item.w || 60} onChange={(e) => handleChange('w', Number(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-sm text-white" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Height</label>
+                <input type="number" value={item.h || 25} onChange={(e) => handleChange('h', Number(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-sm text-white" />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">Durability (HP)</label>
+              <input type="number" value={item.hp || 3} onChange={(e) => handleChange('hp', Number(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-sm text-white" />
+            </div>
+          </div>
+        )}
+
+        {item.type === 'windcannon' && (
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold text-slate-300 uppercase">Wind Cannon</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Angle (deg)</label>
+                <input type="number" value={item.windAngle || 90} onChange={(e) => handleChange('windAngle', Number(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-sm text-white" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Force</label>
+                <input type="number" value={item.windForce || 300} onChange={(e) => handleChange('windForce', Number(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-sm text-white" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">On Frames</label>
+                <input type="number" value={item.onFrames || 180} onChange={(e) => handleChange('onFrames', Number(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-sm text-white" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Off Frames</label>
+                <input type="number" value={item.offFrames || 120} onChange={(e) => handleChange('offFrames', Number(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-sm text-white" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {item.type === 'luckygate' && (
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold text-yellow-400 uppercase">Lucky Gate</h4>
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">Width</label>
+              <input type="number" value={item.w || 140} onChange={(e) => handleChange('w', Number(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-sm text-white" />
+            </div>
+          </div>
+        )}
+
+        {item.type === 'flipper' && (
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold text-red-400 uppercase">Auto Flipper</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Length</label>
+                <input type="number" value={item.length || 90} onChange={(e) => handleChange('length', Number(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-sm text-white" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Side</label>
+                <select value={item.side || 'left'} onChange={(e) => handleChange('side', e.target.value)} className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-sm text-white">
+                  <option value="left">Left</option>
+                  <option value="right">Right</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Rest Angle</label>
+                <input type="number" value={item.restAngle ?? 20} onChange={(e) => handleChange('restAngle', Number(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-sm text-white" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Swing Angle</label>
+                <input type="number" value={item.swingAngle ?? -40} onChange={(e) => handleChange('swingAngle', Number(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-sm text-white" />
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
       

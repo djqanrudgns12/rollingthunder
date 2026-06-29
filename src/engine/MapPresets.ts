@@ -11,10 +11,15 @@ export interface ThemeWeights {
   whitehole: number;
   hole: number;
   windmill: number;
+  iceblock: number;
+  windcannon: number;
+  luckygate: number;
+  flipper: number;
 }
 
 export const DEFAULT_THEME_WEIGHTS: ThemeWeights = {
-  pin: 0.1, bumper: 0.3, booster: 0.1, portal: 0.05, blackhole: 0.05, whitehole: 0.05, hole: 0.05, windmill: 0.3
+  pin: 0.1, bumper: 0.3, booster: 0.1, portal: 0.05, blackhole: 0.05, whitehole: 0.05, hole: 0.05, windmill: 0.3,
+  iceblock: 0, windcannon: 0, luckygate: 0, flipper: 0
 };
 
 export interface MapPresetMeta {
@@ -631,8 +636,6 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       { id: 'rf_wm4', type: 'windmill', x: 620, y: 1330, speed: -7 },
       { id: 'rf_wm5', type: 'windmill', x: 180, y: 2080, speed: 7 },
       { id: 'rf_wm6', type: 'windmill', x: 620, y: 2110, speed: -7 },
-      { id: 'rf_wm_new1', type: 'windmill', x: 620, y: 1020, speed: -8 },
-      { id: 'rf_wm_new2', type: 'windmill', x: 620, y: 1780, speed: -8 },
 
       // 사이드 보강: arc 사발 바깥쪽 사이드 직낙 차단
       sideKicker(450, 'left', { deg: 22 }), sideKicker(400, 'right', { deg: 22 }),

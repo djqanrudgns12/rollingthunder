@@ -1272,6 +1272,88 @@ export default function PhysicsCanvas() {
 
                 mg.rect(-w / 2, -h / 2, w, h);
                 mg.fill({ color: 0xffcc00, alpha: 0.6 });
+              } else if (item.type === 'iceblock') {
+                const w = item.w || 60;
+                const h = item.h || 25;
+                const block = new PIXI.Graphics();
+                block.roundRect(-w/2, -h/2, w, h, 4);
+                block.fill({ color: 0x88ccff, alpha: 0.8 });
+                block.stroke({ color: 0xffffff, width: 2, alpha: 0.9 });
+                
+                // 얼음 텍스처 느낌의 파티클 조금 추가
+                for(let i=0; i<3; i++) {
+                  block.moveTo(-w/2 + Math.random()*w, -h/2 + Math.random()*h);
+                  block.lineTo(-w/2 + Math.random()*w, -h/2 + Math.random()*h);
+                }
+                block.stroke({ color: 0xffffff, width: 1, alpha: 0.4 });
+                
+                g.addChild(block);
+                mg.rect(-w/2, -h/2, w, h);
+                mg.fill({ color: 0x88ccff, alpha: 0.8 });
+              } else if (item.type === 'windcannon') {
+                const w = item.w || 120;
+                const h = item.h || 120;
+                const cannon = new PIXI.Graphics();
+                cannon.rect(-w/2, -h/2, w, h);
+                cannon.fill({ color: 0x334455, alpha: 0.3 });
+                cannon.stroke({ color: 0x55aaff, width: 2, alpha: 0.5 });
+                
+                const angleRad = (item.windAngle || 90) * (Math.PI / 180);
+                const dirX = Math.sin(angleRad);
+                const dirY = -Math.cos(angleRad);
+                
+                // Draw wind arrows
+                for (let i = 0; i < 3; i++) {
+                  const arrow = new PIXI.Graphics();
+                  arrow.poly([
+                    {x: -10, y: -10}, {x: 0, y: -20}, {x: 10, y: -10},
+                    {x: 0, y: -15}
+                  ]);
+                  arrow.fill({ color: 0xaaccff, alpha: 0.6 });
+                  arrow.rotation = angleRad;
+                  arrow.position.set(dirX * (i * 20 - 20), dirY * (i * 20 - 20));
+                  cannon.addChild(arrow);
+                  
+                  import('gsap').then(({ gsap }) => {
+                    gsap.to(arrow.position, {
+                      x: dirX * (i * 20 + 20),
+                      y: dirY * (i * 20 + 20),
+                      alpha: 0,
+                      duration: 0.5,
+                      repeat: -1,
+                      ease: 'none'
+                    });
+                  });
+                }
+                
+                g.addChild(cannon);
+                mg.rect(-w/2, -h/2, w, h);
+                mg.fill({ color: 0x55aaff, alpha: 0.3 });
+              } else if (item.type === 'luckygate') {
+                const w = item.w || 140;
+                const h = 15;
+                const gate = new PIXI.Graphics();
+                gate.roundRect(-w/2, -h/2, w, h, h/2);
+                gate.fill({ color: 0xffd700, alpha: 0.8 });
+                gate.stroke({ color: 0xffaa00, width: 3 });
+                
+                import('pixi-filters').then(({ GlowFilter }) => {
+                  gate.filters = [new GlowFilter({ distance: 10, outerStrength: 2, innerStrength: 0, color: 0xffaa00, quality: 0.5 })];
+                }).catch(() => {});
+                
+                g.addChild(gate);
+                mg.rect(-w/2, -h/2, w, h);
+                mg.fill({ color: 0xffd700, alpha: 0.8 });
+              } else if (item.type === 'flipper') {
+                const length = item.length || 90;
+                const thickness = item.h || 12;
+                const flip = new PIXI.Graphics();
+                flip.roundRect(0, -thickness/2, length, thickness, thickness/2);
+                flip.fill({ color: 0xff4444 });
+                flip.stroke({ color: 0xffaaaa, width: 2 });
+                g.addChild(flip);
+                mg.roundRect(0, -thickness/2, length, thickness, thickness/2);
+                mg.fill({ color: 0xff4444, alpha: 0.8 });
               }
               
               if (item.type === 'piston' && item.waypointB) {
@@ -1532,6 +1614,76 @@ export default function PhysicsCanvas() {
           } else if (payload.type === 'spinner_whoosh') {
             soundManager.playSfx('gimmick_domino', payload.impulse * 0.5, payload.x);
           }
+        } else if (type === 'FLIPPER_SWING') {
+          const target = staticContainer.children.find(c => (c as any).label === payload.id);
+          if (target) {
+            import('gsap').then(({ gsap }) => {
+              gsap.fromTo(target.scale, { x: 1.2, y: 1.2 }, { x: 1, y: 1, duration: 0.3, ease: 'elastic.out(1, 0.3)' });
+            });
+          }
+        } else if (type === 'ICE_CRACK') {
+          soundManager.playSfx('gimmick_domino', 30, payload.x);
+          const target = staticContainer.children.find(c => (c as any).label === payload.id);
+          if (target) {
+            import('gsap').then(({ gsap }) => {
+              gsap.fromTo(target, { alpha: 1 }, { alpha: 0.5 + payload.remainingHp * 0.15, duration: 0.1 });
+              gsap.fromTo(target.scale, { x: 1.1, y: 1.1 }, { x: 1, y: 1, duration: 0.2 });
+            });
+            for(let i=0; i<3; i++) {
+              const p = new PIXI.Graphics();
+              p.circle(0, 0, 3);
+              p.fill({ color: 0xffffff, alpha: 0.8 });
+              p.position.set(payload.x, payload.y);
+              viewport.addChild(p);
+              import('gsap').then(({ gsap }) => {
+                gsap.to(p.position, { x: payload.x + (Math.random()-0.5)*40, y: payload.y + (Math.random()-0.5)*40, duration: 0.3 });
+                gsap.to(p, { alpha: 0, duration: 0.3, onComplete: () => p.destroy() });
+              });
+            }
+          }
+        } else if (type === 'ICE_DESTROY') {
+          soundManager.playSfx('warp', 0, payload.x);
+          const target = staticContainer.children.find(c => (c as any).label === payload.id);
+          if (target) {
+            import('gsap').then(({ gsap }) => {
+              gsap.to(target.scale, { x: 0, y: 0, duration: 0.2, ease: 'back.in(1.5)', onComplete: () => target.destroy() });
+            });
+          }
+          for(let i=0; i<15; i++) {
+            const p = new PIXI.Graphics();
+            p.circle(0, 0, Math.random()*4+2);
+            p.fill({ color: 0x88ccff, alpha: 0.9 });
+            p.position.set(payload.x, payload.y);
+            viewport.addChild(p);
+            import('gsap').then(({ gsap }) => {
+              gsap.to(p.position, { x: payload.x + (Math.random()-0.5)*100, y: payload.y + (Math.random()-0.5)*100, duration: 0.5 + Math.random()*0.3, ease: 'power2.out' });
+              gsap.to(p, { alpha: 0, duration: 0.5, delay: 0.2, onComplete: () => p.destroy() });
+            });
+          }
+        } else if (type === 'LUCKY_EFFECT') {
+          soundManager.playSfx('env_wormhole', 0, payload.x);
+          const colorMap: any = { boost: 0xff0000, bounce: 0x00ff00, stun: 0x888888, repel: 0x0000ff };
+          const c = colorMap[payload.effect] || 0xffffff;
+          for(let i=0; i<20; i++) {
+            const p = new PIXI.Graphics();
+            p.star(0, 0, 5, 6, 3);
+            p.fill({ color: c, alpha: 1 });
+            p.position.set(payload.x, payload.y);
+            viewport.addChild(p);
+            import('gsap').then(({ gsap }) => {
+              gsap.to(p.position, { x: payload.x + (Math.random()-0.5)*150, y: payload.y - Math.random()*150, duration: 0.6, ease: 'power2.out' });
+              gsap.to(p.scale, { x: 0, y: 0, duration: 0.6 });
+              gsap.to(p, { rotation: Math.random()*Math.PI*4, duration: 0.6, onComplete: () => p.destroy() });
+            });
+          }
+          const gate = staticContainer.children.find(c => (c as any).label === payload.gateId);
+          if (gate) {
+            import('gsap').then(({ gsap }) => {
+              gsap.fromTo(gate.scale, { x: 1.5, y: 1.5 }, { x: 1, y: 1, duration: 0.4, ease: 'bounce.out' });
+            });
+          }
+        } else if (type === 'WIND_ON' || type === 'WIND_OFF') {
+          // Not strictly required since graphics loop handles it
         } else if (type === 'SKILL_FIRED') {
           // ═══════════════════════════════════════════════════════════════════
           // ██ PROTECTED: 완주자의 스킬 발동은 UI에서도 이중 차단 ██

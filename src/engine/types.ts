@@ -11,7 +11,7 @@ export interface PhysicComponent {
 }
 
 export interface UserData {
-  type: 'chip' | 'wall' | 'pin' | 'bumper' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole' | 'hole' | 'spinner';
+  type: 'chip' | 'wall' | 'pin' | 'bumper' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole' | 'hole' | 'spinner' | 'iceblock' | 'windcannon' | 'luckygate' | 'flipper';
   id?: string;
   radius?: number;
   w?: number;
@@ -22,4 +22,18 @@ export interface UserData {
   force?: number;
   color?: string;
   soundTag?: string;
+  hp?: number;
+  maxHp?: number;
+  windAngle?: number;
+  windForce?: number;
+  onFrames?: number;
+  offFrames?: number;
+  length?: number;
+  restAngle?: number;
+  swingAngle?: number;
+  state?: string;
+  stateFrame?: number;
+  swingSpeed?: number;
+  returnSpeed?: number;
+  side?: string;
 }

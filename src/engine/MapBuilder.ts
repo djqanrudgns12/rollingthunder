@@ -163,6 +163,108 @@ export class MapBuilder {
     return body;
   }
 
+  static createBreakableBlock(world: RAPIER.World, item: any) {
+    const desc = RAPIER.RigidBodyDesc.fixed().setTranslation(item.x, item.y);
+    const body = world.createRigidBody(desc);
+    
+    const w = item.w || 60;
+    const h = item.h || 25;
+    const colliderDesc = RAPIER.ColliderDesc.cuboid(w / 2, h / 2)
+      .setRestitution(0.1)
+      .setFriction(0.05)
+      .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+    
+    world.createCollider(colliderDesc, body);
+    body.userData = {
+      type: 'iceblock',
+      id: item.id,
+      w, h,
+      hp: item.hp || 3,
+      maxHp: item.hp || 3,
+    } as UserData;
+    return body;
+  }
+
+  static createWindCannon(world: RAPIER.World, item: any) {
+    const desc = RAPIER.RigidBodyDesc.fixed().setTranslation(item.x, item.y);
+    const body = world.createRigidBody(desc);
+    
+    const w = item.w || 120;
+    const h = item.h || 120;
+    const colliderDesc = RAPIER.ColliderDesc.cuboid(w / 2, h / 2)
+      .setSensor(true)
+      .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+      
+    world.createCollider(colliderDesc, body);
+    body.userData = {
+      type: 'windcannon',
+      id: item.id,
+      w, h,
+      windAngle: item.windAngle || 90,
+      windForce: item.force || 300,
+      onFrames: item.onFrames || 180,
+      offFrames: item.offFrames || 120,
+    } as UserData;
+    return body;
+  }
+
+  static createLuckyGate(world: RAPIER.World, item: any) {
+    const desc = RAPIER.RigidBodyDesc.fixed().setTranslation(item.x, item.y);
+    const body = world.createRigidBody(desc);
+    
+    const w = item.w || 140;
+    const h = 15;
+    const colliderDesc = RAPIER.ColliderDesc.cuboid(w / 2, h / 2)
+      .setSensor(true)
+      .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+    
+    world.createCollider(colliderDesc, body);
+    body.userData = {
+      type: 'luckygate',
+      id: item.id,
+      w, h,
+    } as UserData;
+    return body;
+  }
+
+  static createFlipper(world: RAPIER.World, item: any) {
+    const desc = RAPIER.RigidBodyDesc.kinematicVelocityBased()
+      .setTranslation(item.x, item.y)
+      .setRotation((item.restAngle || 20) * (Math.PI / 180))
+      .setCcdEnabled(true);
+    
+    const body = world.createRigidBody(desc);
+    
+    const length = item.length || 90;
+    const thickness = item.h || 12;
+    const colliderDesc = RAPIER.ColliderDesc.cuboid(length / 2, thickness / 2)
+      .setTranslation(length / 2, 0)
+      .setRestitution(1.6)
+      .setFriction(0.3);
+    
+    world.createCollider(colliderDesc, body);
+    
+    const sensorDesc = RAPIER.ColliderDesc.cuboid(length / 2 + 10, 30)
+      .setTranslation(length / 2, 25)
+      .setSensor(true)
+      .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+    world.createCollider(sensorDesc, body);
+    
+    body.userData = {
+      type: 'flipper',
+      id: item.id,
+      length,
+      restAngle: item.restAngle || 20,
+      swingAngle: item.swingAngle || -40,
+      state: 'idle',
+      stateFrame: 0,
+      swingSpeed: 30,
+      returnSpeed: 8,
+      side: item.side || 'left',
+    } as UserData;
+    return body;
+  }
+
   static buildRandomMap(world: RAPIER.World, width: number, height: number, density: number) {
     // 스마트 분산 배치:
     //  1) 구조물(램프/풍차/블랙홀/범퍼 클러스터)을 ~560px 구간마다 "골격"으로 먼저 배치하고

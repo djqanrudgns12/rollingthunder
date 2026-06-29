@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 // 하이엔드 기믹 타입 추가
-export type EditorItemType = 'pin' | 'bumper' | 'wall' | 'hole' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole' | 'spinner';
+export type EditorItemType = 'pin' | 'bumper' | 'wall' | 'hole' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole' | 'spinner' | 'iceblock' | 'windcannon' | 'luckygate' | 'flipper';
 
 export interface EditorItem {
   id: string;
@@ -21,6 +21,16 @@ export interface EditorItem {
   color?: string;         // 포탈 색상 짝맞춤용 (Portal 전용)
   waypointB?: { x: number, y: number }; // 피스톤 도착점 (Piston 전용)
   soundTag?: string;      // 특정 장애물 전용 오디오 태그 (예: 'funnel')
+  hp?: number;            // 얼음블록 파괴 가능 횟수
+  maxHp?: number;
+  windAngle?: number;     // 송풍기 바람 방향 (degree)
+  windForce?: number;     // 송풍기 바람 세기
+  onFrames?: number;      // 주기적인 활성화 (프레임)
+  offFrames?: number;
+  length?: number;        // 플리퍼 길이
+  restAngle?: number;     // 플리퍼 대기 각도
+  swingAngle?: number;    // 플리퍼 스윙 각도
+  side?: string;          // 플리퍼 방향 ('left' | 'right')
 }
 
 interface EditorState {

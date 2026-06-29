@@ -100,6 +100,8 @@ export class SimulationCore {
   // 프레임 기반 쿨다운/스케줄
   private lastWarpFrame = new Map<string, number>();
   private holeRespawns: { body: RAPIER.RigidBody; chipId: string; atFrame: number; x: number; y: number }[] = [];
+  private luckyEffects: { body: RAPIER.RigidBody; chipId: string; atFrame: number; restore: () => void }[] = [];
+  private pendingRemovals: RAPIER.RigidBody[] = [];
 
   // Anti-Stuck 상태
   private chipMaxY = new Map<string, number>();
@@ -132,6 +134,8 @@ export class SimulationCore {
     this.finishOrder.length = 0;
     this.lastWarpFrame.clear();
     this.holeRespawns.length = 0;
+    this.luckyEffects.length = 0;
+    this.pendingRemovals.length = 0;
     this.chipMaxY.clear();
     this.chipLastProgressFrame.clear();
     this.events = [];
@@ -173,14 +177,22 @@ export class SimulationCore {
         } else if (item.type === 'bumper') {
           const body = MapBuilder.createPin(this.world!, item.x, item.y, item.radius || 15, true, item.restitution, item.friction);
           if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
-        } else if (item.type === 'wall') {
-          const body = MapBuilder.createRect(this.world!, item.x, item.y, item.w || 100, item.h || 20, 'wall', item.rotation || 0, item.restitution, item.friction);
+        } else if (item.type === 'wall' || item.type === 'iceblock') {
+          const body = item.type === 'iceblock' 
+            ? MapBuilder.createBreakableBlock(this.world!, item) 
+            : MapBuilder.createRect(this.world!, item.x, item.y, item.w || 100, item.h || 20, 'wall', item.rotation || 0, item.restitution, item.friction);
           if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
-        } else if (item.type === 'windmill' || item.type === 'piston' || item.type === 'spinner') {
-          const body = MapBuilder.createKinematic(this.world!, item);
+        } else if (item.type === 'windmill' || item.type === 'piston' || item.type === 'spinner' || item.type === 'flipper') {
+          const body = item.type === 'flipper'
+            ? MapBuilder.createFlipper(this.world!, item)
+            : MapBuilder.createKinematic(this.world!, item);
           if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
-        } else if (item.type === 'portal' || item.type === 'booster' || item.type === 'blackhole' || item.type === 'whitehole' || item.type === 'hole') {
-          const body = MapBuilder.createSensor(this.world!, item);
+        } else if (item.type === 'portal' || item.type === 'booster' || item.type === 'blackhole' || item.type === 'whitehole' || item.type === 'hole' || item.type === 'windcannon' || item.type === 'luckygate') {
+          const body = item.type === 'windcannon' 
+            ? MapBuilder.createWindCannon(this.world!, item)
+            : item.type === 'luckygate'
+            ? MapBuilder.createLuckyGate(this.world!, item)
+            : MapBuilder.createSensor(this.world!, item);
           if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
         }
       });
@@ -286,7 +298,11 @@ export class SimulationCore {
     this.handleCollisions();
     this.applyGravityWells();
     this.applyPistons();
+    this.applyWindCannons();
+    this.applyFlippers();
     this.processHoleRespawns();
+    this.processLuckyEffects();
+    this.processPendingRemovals();
 
     // 스킬 프레임루프: 매 프레임 활성 스킬의 지속 효과 적용 + 만료 해제
     const { expiredChipIds } = SkillSystem.step(this.world, this.frame, this.activeChips, this.finishedChips);
@@ -393,8 +409,31 @@ export class SimulationCore {
       let chipBody: RAPIER.RigidBody | null = null;
       let sensorBody: RAPIER.RigidBody | null = null;
 
-      if (d1?.type === 'chip' && ['portal', 'booster', 'hole'].includes(d2?.type)) { chipBody = b1; sensorBody = b2; }
-      if (d2?.type === 'chip' && ['portal', 'booster', 'hole'].includes(d1?.type)) { chipBody = b2; sensorBody = b1; }
+      if (d1?.type === 'chip' && ['portal', 'booster', 'hole', 'luckygate', 'flipper', 'windcannon'].includes(d2?.type)) { chipBody = b1; sensorBody = b2; }
+      if (d2?.type === 'chip' && ['portal', 'booster', 'hole', 'luckygate', 'flipper', 'windcannon'].includes(d1?.type)) { chipBody = b2; sensorBody = b1; }
+
+      // 얼음 블록 충돌 로직
+      if (d1?.type === 'iceblock' || d2?.type === 'iceblock') {
+        const iceBody = d1?.type === 'iceblock' ? b1 : b2;
+        const iceData = iceBody.userData as any;
+        const theChip = d1?.type === 'chip' ? b1 : (d2?.type === 'chip' ? b2 : null);
+        
+        if (theChip && iceData.hp > 0 && impactV > 20) {
+          iceData.hp--;
+          this.events.push({ 
+            type: 'ICE_CRACK', 
+            payload: { id: iceData.id, remainingHp: iceData.hp, x: iceBody.translation().x, y: iceBody.translation().y } 
+          });
+          
+          if (iceData.hp <= 0) {
+            this.pendingRemovals.push(iceBody);
+            this.events.push({ 
+              type: 'ICE_DESTROY', 
+              payload: { id: iceData.id, x: iceBody.translation().x, y: iceBody.translation().y } 
+            });
+          }
+        }
+      }
 
       if (chipBody && sensorBody) {
         const chipData = chipBody.userData as any;
@@ -443,6 +482,182 @@ export class SimulationCore {
             });
           }
         }
+        } else if (sensorData.type === 'flipper') {
+          const flipperData = sensorBody.userData as any;
+          if (flipperData.state === 'idle') {
+            flipperData.state = 'swinging';
+            flipperData.stateFrame = this.frame;
+            this.events.push({ type: 'FLIPPER_SWING', payload: { id: flipperData.id } });
+            this.events.push({ type: 'SOUND_EFFECT', payload: { type: 'bumperHit', impulse: 50, x: sensorBody.translation().x } });
+          }
+        } else if (sensorData.type === 'luckygate') {
+          const gateId = sensorData.id;
+          const cooldownKey = `lucky_${chipData.id}_${gateId}`;
+          const lastTrigger = this.lastWarpFrame.get(cooldownKey) || -99999;
+          if (this.frame - lastTrigger > 120) {
+            this.lastWarpFrame.set(cooldownKey, this.frame);
+            const roll = this.rng();
+            let effect: 'boost' | 'bounce' | 'stun' | 'repel';
+            if (roll < 0.30) effect = 'boost';
+            else if (roll < 0.60) effect = 'bounce';
+            else if (roll < 0.85) effect = 'stun';
+            else effect = 'repel';
+            this.applyLuckyEffect(chipBody, chipData, effect, sensorData);
+          }
+        }
+      }
+    });
+  }
+
+  private applyLuckyEffect(chip: RAPIER.RigidBody, chipData: any, effect: string, gate: any) {
+    switch (effect) {
+      case 'boost':
+        this.applyDeltaV(chip, 0, -400);
+        break;
+      case 'bounce': {
+        const collider = chip.collider(0);
+        const origRestitution = collider.restitution();
+        collider.setRestitution(2.0);
+        this.luckyEffects.push({
+          body: chip, chipId: chipData.id,
+          atFrame: this.frame + 180,
+          restore: () => { try { collider.setRestitution(origRestitution); } catch {} }
+        });
+        break;
+      }
+      case 'stun':
+        chip.setGravityScale(0, true);
+        chip.setLinvel({ x: 0, y: 0 }, true);
+        this.luckyEffects.push({
+          body: chip, chipId: chipData.id,
+          atFrame: this.frame + 90,
+          restore: () => {
+            try {
+              chip.setGravityScale(1, true);
+              this.applyDeltaV(chip, 0, 80);
+            } catch {}
+          }
+        });
+        break;
+      case 'repel': {
+        const chipPos = chip.translation();
+        for (const other of this.activeChips) {
+          if (other === chip) continue;
+          const od = other.userData as any;
+          if (od?.finished) continue;
+          const oPos = other.translation();
+          const dx = oPos.x - chipPos.x;
+          const dy = oPos.y - chipPos.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 100 && dist > 1) {
+            this.applyDeltaV(other, (dx / dist) * 200, (dy / dist) * 200);
+          }
+        }
+        break;
+      }
+    }
+    this.events.push({
+      type: 'LUCKY_EFFECT',
+      payload: { chipId: chipData.id, effect, gateId: gate.id, x: chip.translation().x, y: chip.translation().y }
+    });
+  }
+
+  private processLuckyEffects() {
+    if (this.luckyEffects.length === 0) return;
+    const remaining: typeof this.luckyEffects = [];
+    for (const eff of this.luckyEffects) {
+      if (this.frame >= eff.atFrame) {
+        eff.restore();
+      } else {
+        remaining.push(eff);
+      }
+    }
+    this.luckyEffects = remaining;
+  }
+
+  private processPendingRemovals() {
+    if (this.pendingRemovals.length === 0) return;
+    for (const body of this.pendingRemovals) {
+      try { 
+        this.world!.removeRigidBody(body); 
+        this.events.push({ type: 'SOUND_EFFECT', payload: { type: 'warp', impulse: 10 } }); // 얼음 파괴 효과음 대용
+      } catch {}
+    }
+    this.pendingRemovals = [];
+  }
+
+  private applyWindCannons() {
+    const world = this.world!;
+    const cannons: RAPIER.RigidBody[] = [];
+    world.forEachRigidBody((b) => {
+      const d = b.userData as any;
+      if (d?.type === 'windcannon') cannons.push(b);
+    });
+    
+    for (const cannon of cannons) {
+      const cd = cannon.userData as any;
+      const cyclePeriod = cd.onFrames + cd.offFrames;
+      const phase = this.frame % cyclePeriod;
+      const isActive = phase < cd.onFrames;
+      
+      if (phase === 0) {
+        this.events.push({ type: 'WIND_ON', payload: { id: cd.id } });
+      } else if (phase === cd.onFrames) {
+        this.events.push({ type: 'WIND_OFF', payload: { id: cd.id } });
+      }
+      
+      if (!isActive) continue;
+      
+      const angleRad = (cd.windAngle || 0) * (Math.PI / 180);
+      const dirX = Math.sin(angleRad);
+      const dirY = -Math.cos(angleRad);
+      
+      const cannonPos = cannon.translation();
+      const halfW = (cd.w || 120) / 2;
+      const halfH = (cd.h || 120) / 2;
+      
+      for (const chip of this.activeChips) {
+        const chipData = chip.userData as any;
+        if (chipData?.finished) continue;
+        const cPos = chip.translation();
+        
+        if (Math.abs(cPos.x - cannonPos.x) < halfW && Math.abs(cPos.y - cannonPos.y) < halfH) {
+          const force = cd.windForce || 300;
+          this.applyDeltaV(chip, dirX * force * (1/60), dirY * force * (1/60));
+        }
+      }
+    }
+  }
+
+  private applyFlippers() {
+    const world = this.world!;
+    world.forEachRigidBody((b) => {
+      const d = b.userData as any;
+      if (d?.type !== 'flipper') return;
+      
+      const restRad = (d.restAngle || 20) * (Math.PI / 180);
+      const swingRad = (d.swingAngle || -40) * (Math.PI / 180);
+      const currentRot = b.rotation();
+      
+      if (d.state === 'swinging') {
+        const sideMul = d.side === 'right' ? -1 : 1;
+        if ((sideMul > 0 && currentRot <= swingRad) || (sideMul < 0 && currentRot >= -swingRad)) {
+          d.state = 'returning';
+          d.stateFrame = this.frame;
+        } else {
+          b.setAngvel(-d.swingSpeed * sideMul, true);
+        }
+      } else if (d.state === 'returning') {
+        const diff = Math.abs(currentRot - restRad * (d.side === 'right' ? -1 : 1));
+        if (diff < 0.05 || this.frame - d.stateFrame > 30) {
+          d.state = 'idle';
+          b.setAngvel(0, true);
+          b.setRotation(restRad * (d.side === 'right' ? -1 : 1), true);
+        } else {
+          b.setAngvel(d.returnSpeed * (d.side === 'right' ? -1 : 1), true);
+        }
+      } else {
+        b.setAngvel(0, true);
       }
     });
   }

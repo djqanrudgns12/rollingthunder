@@ -15,6 +15,10 @@ const tools: { id: string; type: EditorItemType; label: string; color: string }[
   { id: 'tool-whitehole', type: 'whitehole', label: '화이트홀 (척력)', color: 'bg-pink-200 border-pink-400' },
   { id: 'tool-hole', type: 'hole', label: '함정 구멍', color: 'bg-red-900 border-red-500' },
   { id: 'tool-piston', type: 'piston', label: '피스톤', color: 'bg-yellow-900 border-yellow-500' },
+  { id: 'tool-iceblock', type: 'iceblock', label: '얼음 블록', color: 'bg-blue-300/50 border-blue-400' },
+  { id: 'tool-windcannon', type: 'windcannon', label: '송풍기', color: 'bg-slate-700 border-blue-300' },
+  { id: 'tool-luckygate', type: 'luckygate', label: '럭키 게이트', color: 'bg-yellow-400/80 border-yellow-200' },
+  { id: 'tool-flipper', type: 'flipper', label: '오토 플리퍼', color: 'bg-red-500 border-red-300' },
 ]
 
 function PaletteItem({ tool }: { tool: typeof tools[0] }) {
