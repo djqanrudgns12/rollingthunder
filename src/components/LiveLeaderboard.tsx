@@ -57,13 +57,12 @@ export default function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLea
   }
 
   const getRankDisplay = (rank: number, isFinished: boolean) => {
-    const isWin = isFinished && isWinner(rank)
+    const isTargetRank = isWinner(rank)
     return (
       <span className={cn(
         "text-lg font-black font-mono tabular-nums leading-none tracking-tighter whitespace-nowrap",
-        isFinished 
-          ? (isWin ? "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" : "text-white/80")
-          : "text-white/60"
+        isTargetRank ? "text-[#00ffcc] drop-shadow-[0_0_8px_rgba(0,255,204,0.8)]" : 
+        isFinished ? "text-white/80" : "text-white/60"
       )}>
         {rank}<span className="text-[10px] ml-[1px] opacity-80">{getOrdinalSuffix(rank)}</span>
       </span>
@@ -72,7 +71,7 @@ export default function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLea
 
   const isWinner = (rank: number) => {
     if (gameMode === 'speed') return rank <= targetWinnerCount;
-    if (gameMode === 'custom') return rank <= customWinningRank;
+    if (gameMode === 'custom') return rank === customWinningRank;
     if (gameMode === 'turtle') return rank > totalParticipantsCount - targetWinnerCount;
     if (gameMode === 'random') return randomWinningRanks.includes(rank);
     return false;
@@ -99,14 +98,15 @@ export default function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLea
           <AnimatePresence mode="popLayout">
             {combinedRankings.map((p, index) => {
               const isFinished = p.isFinished;
-              const isWin = isFinished && isWinner(p.rank);
+              const isTargetRank = isWinner(p.rank);
+              const isWinFinished = isFinished && isTargetRank;
               const color = p.survivor.color || '#fff';
               const cooldownProgress = skillCooldowns[p.id] ?? 0;
               const prevRank = index > 0 ? combinedRankings[index - 1].rank : 0;
               
-              // 컷오프 라인 (Danger Line) 로직
-              const showCutoff = (gameMode === 'custom' || gameMode === 'speed') 
-                && prevRank === (gameMode === 'custom' ? customWinningRank : targetWinnerCount) 
+              // 컷오프 라인 (Danger Line) 로직: 커스텀은 단일 타겟이므로 제외
+              const showCutoff = gameMode === 'speed'
+                && prevRank === targetWinnerCount 
                 && p.rank === prevRank + 1;
 
               return (
@@ -122,7 +122,7 @@ export default function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLea
                     layout
                     initial={{ opacity: 0, x: 16, scale: 0.95 }}
                     animate={
-                      isWin ? { 
+                      isWinFinished ? { 
                         opacity: 1, x: 0, scale: [1, 1.05, 1],
                         transition: { scale: { duration: 0.4, ease: "easeOut" } } 
                       } : { 
@@ -134,13 +134,15 @@ export default function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLea
                     className={cn(
                       "relative flex items-center gap-2 px-2 rounded-xl overflow-hidden shadow-md border transition-all duration-300",
                       compactMode ? "py-0.5" : "py-1",
-                      isWin ? "bg-black/80 border-[#00ffcc] shadow-[0_0_15px_rgba(0,255,204,0.5)] z-10" :
-                      isFinished ? "bg-[#2a2a2a]/90 border-white/20 shadow-[0_2px_12px_rgba(0,0,0,0.5)] z-10" : 
-                      "bg-black/30 border-white/5 backdrop-blur-xl"
+                      isTargetRank ? "border-[#00ffcc] shadow-[0_0_15px_rgba(0,255,204,0.5)] z-10" :
+                      isFinished ? "border-white/20 shadow-[0_2px_12px_rgba(0,0,0,0.5)] z-10" : 
+                      "border-white/5 backdrop-blur-xl",
+                      isWinFinished ? "bg-black/80" :
+                      isFinished ? "bg-[#2a2a2a]/90" : "bg-black/30"
                     )}
                   >
-                    {/* Light Sweep Effect for Winners */}
-                    {isWin && (
+                    {/* Light Sweep Effect for Winners ONLY WHEN FINISHED */}
+                    {isWinFinished && (
                       <motion.div
                         initial={{ left: '-100%' }}
                         animate={{ left: '200%' }}
@@ -153,7 +155,7 @@ export default function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLea
                     {isFinished && (
                       <div className={cn(
                         "absolute inset-0 opacity-20 bg-gradient-to-r",
-                        isWin ? "from-[#00ffcc] to-[#00b3ff]" : "from-white/20 to-transparent"
+                        isTargetRank ? "from-[#00ffcc] to-[#00b3ff]" : "from-white/20 to-transparent"
                       )} />
                     )}
 
@@ -183,7 +185,7 @@ export default function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLea
                     <span 
                       className={cn(
                         "font-bold drop-shadow-sm flex-1 whitespace-nowrap overflow-hidden",
-                        isWin ? "text-white" : isFinished ? "text-white/90" : "text-white/80"
+                        isTargetRank ? "text-white" : isFinished ? "text-white/90" : "text-white/80"
                       )}
                       style={{ fontSize: `${getDynamicFontSize(p.survivor.name)}px` }}
                     >
@@ -201,10 +203,10 @@ export default function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLea
                   </div>
 
                   {/* 우측 라인 강조 */}
-                  {isFinished && (
+                  {(isTargetRank || isFinished) && (
                     <div className={cn(
                       "absolute right-0 top-0 bottom-0 w-1 shadow-[0_0_10px_currentColor]",
-                      isWin ? "bg-[#00ffcc]" : "bg-white/30"
+                      isTargetRank ? "bg-[#00ffcc]" : "bg-white/30"
                     )} />
                   )}
                 </motion.div>

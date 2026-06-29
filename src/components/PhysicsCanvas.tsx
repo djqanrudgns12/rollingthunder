@@ -1750,6 +1750,18 @@ export default function PhysicsCanvas() {
         </div>
       )}
 
+      {/* 실시간 타겟 랭크 상시 안내 (Custom / Random Mode) */}
+      {gameState === 'playing' && (gameMode === 'custom' || gameMode === 'random') && (
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-40 pointer-events-none animate-in fade-in slide-in-from-top-4 duration-1000 delay-1000 fill-mode-both">
+          <div className="bg-black/50 backdrop-blur-md px-6 py-2 rounded-full border border-[#00ffcc]/20 shadow-[0_0_20px_rgba(0,255,204,0.15)] flex items-center gap-3">
+            <span className="text-white/70 text-sm font-bold tracking-widest uppercase">Target Rank</span>
+            <span className="text-[#00ffcc] text-xl font-black drop-shadow-[0_0_10px_rgba(0,255,204,0.8)] tabular-nums">
+              {gameMode === 'custom' ? `${customWinningRank}TH` : randomWinningRanks.map(r => `${r}TH`).join(', ')}
+            </span>
+          </div>
+        </div>
+      )}
+
       {gameState === 'idle' && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex gap-4 animate-in slide-in-from-bottom fade-in duration-500">
           <button 

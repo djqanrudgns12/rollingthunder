@@ -586,13 +586,25 @@ export class CameraDirector {
       this.camY = damp(this.camY, targetY, effectivePanK, dt);
       this.camZoom = damp(this.camZoom, targetZoom, effectiveZoomK, dt);
 
+      // ZOOMING/HOLDING: 댐핑 후 userZoom으로 스냅 (미세 오차 축적 방지)
+      if ((this.userZoomState === 'ZOOMING' || this.userZoomState === 'HOLDING')
+          && Math.abs(this.camZoom - this.userZoom) < 0.001) {
+        this.camZoom = this.userZoom;
+      }
+
       // RETURNING 완료 체크: 줌이 목표에 충분히 수렴하면 INACTIVE로
       if (isReturning && Math.abs(this.camZoom - targetZoom) < 0.01) {
         this.userZoomState = 'INACTIVE';
       }
     }
 
-    const appliedZoom = this.clampZoom(this.camZoom + this.zoomPunch);
+    // 사용자 줌이 활성일 때는 USER_ZOOM 범위(0.25~3.5) 사용, 비활성일 때는 자동 카메라 범위(clampZoom)
+    let appliedZoom: number;
+    if (this.userZoomState !== 'INACTIVE') {
+      appliedZoom = Math.min(this.USER_ZOOM_MAX, Math.max(this.USER_ZOOM_MIN, this.camZoom + this.zoomPunch));
+    } else {
+      appliedZoom = this.clampZoom(this.camZoom + this.zoomPunch);
+    }
 
     // 셰이크 적용
     let finalX = this.camX;
