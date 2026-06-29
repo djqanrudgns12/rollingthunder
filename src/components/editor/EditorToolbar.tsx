@@ -101,6 +101,14 @@ export default function EditorToolbar() {
           <Save className="w-4 h-4" />
           <span>저장</span>
         </button>
+
+        <a 
+          href="/"
+          className="flex items-center gap-1 bg-gray-600 hover:bg-gray-500 text-white text-sm font-medium px-4 py-1.5 rounded ml-2 transition-colors shadow-sm"
+          title="대기화면으로 돌아가기"
+        >
+          로비 복귀
+        </a>
       </div>
     </div>
   )

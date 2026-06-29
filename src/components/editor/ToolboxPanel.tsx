@@ -113,23 +113,30 @@ export default function ToolboxPanel() {
         {CATEGORIES[activeTab].map(it => {
           const Icon = it.icon
           return (
-            <button
+            <div
               key={it.type}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData('application/x-editor-item', it.type);
+                e.dataTransfer.effectAllowed = 'copy';
+              }}
+              // 클릭으로 추가하는 기능도 남겨두기 (기존 기능)
               onClick={() => handleAddItem(it.type)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 bg-[#252525] hover:bg-[#333] border border-[#333] hover:border-[#555] rounded-lg transition-colors text-left group"
+              className="w-full flex items-center gap-3 px-3 py-2.5 bg-[#252525] hover:bg-[#333] border border-[#333] hover:border-[#555] rounded-lg transition-colors text-left group cursor-grab active:cursor-grabbing"
+              title="클릭 시 추가되거나 캔버스로 드래그하세요"
             >
-              <div className="w-12 h-12 bg-[#1a1a1a] border border-[#333] rounded flex items-center justify-center shrink-0 p-1">
+              <div className="w-12 h-12 bg-[#1a1a1a] border border-[#333] rounded flex items-center justify-center shrink-0 p-1 pointer-events-none">
                 {it.imagePath ? (
                   <img src={it.imagePath} alt={it.label} className="w-full h-full object-contain filter drop-shadow-md" />
                 ) : Icon && (
                   <Icon className={`w-6 h-6 ${it.color}`} />
                 )}
               </div>
-              <div className="flex-1">
+              <div className="flex-1 pointer-events-none">
                 <div className="text-sm font-semibold text-gray-200 group-hover:text-white">{it.label}</div>
               </div>
-              <Plus className="w-4 h-4 text-gray-500 group-hover:text-blue-400" />
-            </button>
+              <Plus className="w-4 h-4 text-gray-500 group-hover:text-blue-400 pointer-events-none" />
+            </div>
           )
         })}
       </div>

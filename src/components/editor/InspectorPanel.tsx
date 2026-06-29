@@ -55,26 +55,26 @@ export default function InspectorPanel() {
         
         {/* Transform Group */}
         <div>
-          <h3 className="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider border-b border-[#333] pb-1">Transform</h3>
+          <h3 className="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider border-b border-[#333] pb-1">변환 (Transform)</h3>
           <div className="grid grid-cols-2 gap-3">
-            {renderNumberField('X', 'x', 1)}
-            {renderNumberField('Y', 'y', 1)}
-            {renderNumberField('W', 'w', 1)}
-            {renderNumberField('H', 'h', 1)}
-            {renderNumberField('Angle', 'angle', 1)}
+            {renderNumberField('X좌표', 'x', 1)}
+            {renderNumberField('Y좌표', 'y', 1)}
+            {renderNumberField('너비(W)', 'w', 1)}
+            {renderNumberField('높이(H)', 'h', 1)}
+            {renderNumberField('각도', 'angle', 1)}
           </div>
         </div>
 
         {/* Physics / Dynamic Group */}
         <div>
-          <h3 className="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider border-b border-[#333] pb-1">Physics / Dynamic</h3>
+          <h3 className="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider border-b border-[#333] pb-1">물리 / 동적 속성</h3>
           <div className="space-y-3">
-            {renderNumberField('Speed', 'speed', 0.1)}
-            {renderNumberField('Bounciness', 'restitution', 0.1)}
-            {renderNumberField('Friction', 'friction', 0.1)}
+            {renderNumberField('속도', 'speed', 0.1)}
+            {renderNumberField('탄성력(Bounciness)', 'restitution', 0.1)}
+            {renderNumberField('마찰력', 'friction', 0.1)}
             
             <div className="flex items-center justify-between bg-[#252525] border border-[#333] p-3 rounded-lg mt-2">
-              <span className="text-sm font-semibold text-gray-300">Flip (반전)</span>
+              <span className="text-sm font-semibold text-gray-300">좌우 반전 (Flip)</span>
               <button 
                 onClick={() => handleToggle('flip')}
                 className={`w-10 h-5 rounded-full relative transition-colors ${selectedItem.flip ? 'bg-blue-500' : 'bg-[#444]'}`}
