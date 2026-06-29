@@ -1,7 +1,6 @@
 import { SimulationCore } from './SimulationCore';
 import { SkillSystem, type SkillType } from './SkillSystem';
 import { NudgeSystem } from './NudgeSystem';
-import { getPresetMeta } from './MapPresets';
 import type { WallStyle } from './MapBuilder';
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -145,12 +144,11 @@ self.onmessage = async (e) => {
     await SimulationCore.ensureRapier();
 
     const {
-      width, height, customMapData, selectedMapPreset, gimmickDensity,
+      width, height, customMapData, presetMeta, gimmickDensity,
       survivors, targetCount, mode, customRank, randomRanks, isSkillEnabled: isSkill,
       baseTimeScale: initBaseTimeScale
     } = payload;
 
-    const presetMeta = selectedMapPreset && selectedMapPreset !== 'random' ? getPresetMeta(selectedMapPreset) : null;
     const worldHeight = presetMeta ? presetMeta.worldHeight : height;
     const wallStyle: WallStyle = presetMeta ? presetMeta.wallStyle : 'zigzag';
     const presetData = presetMeta ? presetMeta.items : null;

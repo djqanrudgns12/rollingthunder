@@ -40,6 +40,10 @@ interface GameState {
   selectedMapPreset: string
   setSelectedMapPreset: (preset: string) => void
 
+  // ── 맵 데이터 캐시 (Supabase Fetch 결과) ──
+  mapDataCache: Record<string, any> | null
+  setMapDataCache: (cache: Record<string, any>) => void
+
   globalSkin: string
   setGlobalSkin: (skin: string) => void
 
@@ -99,6 +103,9 @@ export const useGameStore = create<GameState>()(
       
       selectedMapPreset: 'random',
       setSelectedMapPreset: (selectedMapPreset) => set({ selectedMapPreset }),
+      
+      mapDataCache: null,
+      setMapDataCache: (mapDataCache) => set({ mapDataCache }),
       
       globalSkin: '',
       setGlobalSkin: (globalSkin) => set({ globalSkin }),

@@ -7,24 +7,27 @@ interface UIState {
   setSidebarOpen: (isOpen: boolean) => void
   toggleSidebar: () => void
   
-  activeModal: 'none' | 'login' | 'settings' | 'preset'
-  setActiveModal: (modal: 'none' | 'login' | 'settings' | 'preset') => void
+  activeModal: 'none' | 'mapLoad' | 'listManager' | 'settings'
+  setActiveModal: (modal: 'none' | 'mapLoad' | 'listManager' | 'settings') => void
 
-  gameStage: 'dashboard' | 'playing' | 'results'
-  setGameStage: (stage: 'dashboard' | 'playing' | 'results') => void
+  gameStage: 'dashboard' | 'playing' | 'winner_declared' | 'all_finished'
+  setGameStage: (stage: 'dashboard' | 'playing' | 'winner_declared' | 'all_finished') => void
   
   customMapData: EditorItem[] | null
-  setCustomMapData: (data: EditorItem[] | null) => void
+  setCustomMapData: (data: any[] | null) => void
   customMapTitle: string | null
   setCustomMapTitle: (title: string | null) => void
 
   isBroadcasterMode: boolean
-  setBroadcasterMode: (isMode: boolean) => void
+  setBroadcasterMode: (isBroadcaster: boolean) => void
   isAnonymized: boolean
-  setAnonymized: (isAnon: boolean) => void
+  setAnonymized: (isAnonymized: boolean) => void
   
   gameTitle: string | null
-  setGameTitle: (title: string | null) => void
+  setGameTitle: (title: string) => void
+
+  isAdmin: boolean
+  setIsAdmin: (isAdmin: boolean) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -34,25 +37,22 @@ export const useUIStore = create<UIState>()(
       setSidebarOpen: (isSidebarOpen) => set({ isSidebarOpen }),
       toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
       
-      activeModal: 'none',
-      setActiveModal: (activeModal) => set({ activeModal }),
-
-      gameStage: 'dashboard',
-      setGameStage: (gameStage) => set({ gameStage }),
-
       customMapData: null,
-      setCustomMapData: (customMapData) => set({ customMapData }),
       customMapTitle: null,
-      setCustomMapTitle: (customMapTitle) => set({ customMapTitle }),
-
       isBroadcasterMode: false,
-      setBroadcasterMode: (isBroadcasterMode) => set({ isBroadcasterMode }),
-      
       isAnonymized: false,
-      setAnonymized: (isAnonymized) => set({ isAnonymized }),
-
-      gameTitle: null,
-      setGameTitle: (gameTitle) => set({ gameTitle }),
+      gameTitle: '롤링 썬더!',
+      activeModal: 'none',
+      isAdmin: false,
+      gameStage: 'dashboard',
+      setGameStage: (stage) => set({ gameStage: stage }),
+      setCustomMapData: (data) => set({ customMapData: data }),
+      setCustomMapTitle: (title) => set({ customMapTitle: title }),
+      setBroadcasterMode: (isBroadcaster) => set({ isBroadcasterMode: isBroadcaster }),
+      setAnonymized: (isAnonymized) => set({ isAnonymized: isAnonymized }),
+      setGameTitle: (title) => set({ gameTitle: title }),
+      setActiveModal: (modal) => set({ activeModal: modal }),
+      setIsAdmin: (isAdmin) => set({ isAdmin: isAdmin }),
     }),
     {
       name: 'rt-ui-storage',

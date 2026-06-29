@@ -36,16 +36,23 @@ export interface EditorItem {
 interface EditorState {
   items: EditorItem[];
   selectedItemId: string | null; // 속성 패널(Inspector)용 선택된 아이템 ID
+  isEditorMode: boolean;
+  mapId: string | null;
   addItem: (item: EditorItem) => void;
   updateItem: (id: string, updates: Partial<EditorItem>) => void;
   removeItem: (id: string) => void;
   clearItems: () => void;
   setSelectedItemId: (id: string | null) => void;
+  setEditorMode: (isEditor: boolean) => void;
+  setMapId: (id: string | null) => void;
+  setItems: (items: EditorItem[]) => void;
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
   items: [],
   selectedItemId: null,
+  isEditorMode: false,
+  mapId: null,
   addItem: (item) => set((state) => ({ items: [...state.items, item] })),
   updateItem: (id, updates) => set((state) => ({
     items: state.items.map((it) => (it.id === id ? { ...it, ...updates } : it))
@@ -56,4 +63,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   })),
   clearItems: () => set({ items: [], selectedItemId: null }),
   setSelectedItemId: (id) => set({ selectedItemId: id }),
+  setEditorMode: (isEditor) => set({ isEditorMode: isEditor }),
+  setMapId: (id) => set({ mapId: id }),
+  setItems: (items) => set({ items }),
 }))

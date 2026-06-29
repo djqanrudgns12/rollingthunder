@@ -4,13 +4,18 @@ import { useEffect, useState } from 'react'
 
 import { useUIStore } from '@/store/uiStore'
 import { useGameStore } from '@/store/gameStore'
+import { fetchMapPresets } from '@/lib/supabase/mapFetcher'
+import { createClient } from '@/lib/supabase/client'
 import Dashboard from './Dashboard'
 import dynamic from 'next/dynamic';
 const PhysicsCanvas = dynamic(() => import('./PhysicsCanvas'), { ssr: false });
+const EditorPanel = dynamic(() => import('./editor/EditorPanel'), { ssr: false });
 
 export default function GameManager() {
   const gameStage = useUIStore(state => state.gameStage)
   const isMuted = useGameStore(state => state.isMuted)
+  const setMapDataCache = useGameStore(state => state.setMapDataCache)
+  const setIsAdmin = useUIStore(state => state.setIsAdmin)
   const [assetsLoaded, setAssetsLoaded] = useState(false)
   const [loadError, setLoadError] = useState(false)
 
@@ -23,7 +28,22 @@ export default function GameManager() {
           setLoadError(true);
         }, 10000); // 10 seconds timeout
 
-        const PIXI = await import('pixi.js');
+        // 병렬 로딩: PIXI 라이브러리 및 Supabase 맵 데이터 페칭, 그리고 세션 확인
+        const supabase = createClient();
+        const [PIXI, dynamicMaps, { data: { session } }] = await Promise.all([
+          import('pixi.js'),
+          fetchMapPresets(),
+          supabase.auth.getSession()
+        ]);
+        
+        // 개발자 여부 세팅 (username이 admin 이면 어드민)
+        const username = session?.user?.user_metadata?.username;
+        if (username === 'admin') {
+          setIsAdmin(true);
+        }
+        
+        // 캐시에 저장
+        setMapDataCache(dynamicMaps);
         await PIXI.Assets.load([
           '/images/assets/chip_obsidian_gold.png',
           '/images/assets/chip_neon_plasma.png',
@@ -115,6 +135,7 @@ export default function GameManager() {
     <>
       {gameStage === 'dashboard' && <Dashboard />}
       {gameStage === 'playing' && <PhysicsCanvas />}
+      <EditorPanel />
     </>
   )
 }

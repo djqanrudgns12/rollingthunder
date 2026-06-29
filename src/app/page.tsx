@@ -1,13 +1,134 @@
 'use client'
 
-import dynamic from 'next/dynamic'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { login, signup } from './actions'
 
-const GameManager = dynamic(() => import('@/components/GameManager'), { ssr: false })
+export default function LoginPage() {
+  const router = useRouter()
+  const [isLogin, setIsLogin] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
-export default function Home() {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    
+    const formData = new FormData(e.currentTarget)
+    const username = formData.get('username') as string
+    
+    // 엄격한 아이디 유효성 검사 (정규식)
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+      setError("아이디는 영문, 숫자, 밑줄(_) 3~20자로 입력해주세요.")
+      setLoading(false)
+      return
+    }
+
+    try {
+      if (isLogin) {
+        const result = await login(formData)
+        if (result?.error) setError(result.error)
+      } else {
+        const result = await signup(formData)
+        if (result?.error) setError(result.error)
+      }
+    } catch (err) {
+      setError("오류가 발생했습니다. 다시 시도해주세요.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGuestLogin = () => {
+    // 비회원은 바로 대시보드로 이동
+    router.push('/dashboard')
+  }
+
   return (
-    <main className="flex-1 w-full h-[100dvh] overflow-hidden bg-[var(--bg-primary)]">
-      <GameManager />
-    </main>
-  );
+    <div className="flex-1 w-full h-[100dvh] flex flex-col items-center justify-center p-4 bg-[var(--bg-primary)]">
+      <div className="glass-panel-heavy w-full max-w-sm p-8 flex flex-col gap-6 relative overflow-hidden">
+        {/* 네온 장식 효과 */}
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--accent-primary)] to-transparent opacity-50" />
+        
+        <div className="text-center">
+          <h1 className="text-3xl font-outfit font-bold text-glow-primary text-[var(--accent-primary)] mb-2">
+            {isLogin ? '로그인' : '회원가입'}
+          </h1>
+          <p className="text-[var(--text-secondary)] text-sm leading-relaxed">
+            {isLogin ? 'Rolling Thunder 세션을 불러옵니다.' : '나만의 계정을 생성하고 전적을 기록하세요.'}
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="username" className="text-sm font-medium text-[var(--text-primary)]">
+              아이디 <span className="text-[var(--text-secondary)] text-xs font-normal">(이메일 아님)</span>
+            </label>
+            <input
+              id="username"
+              name="username"
+              type="text"
+              required
+              className="bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/50 transition-all"
+              placeholder="dhrcjswh29"
+            />
+          </div>
+          
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="password" className="text-sm font-medium text-[var(--text-primary)]">
+              비밀번호
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              className="bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/50 transition-all"
+              placeholder="••••••••"
+            />
+          </div>
+
+          {error && (
+            <div className="text-[var(--accent-warning)] text-sm p-3 bg-[var(--accent-warning)]/10 rounded-lg border border-[var(--accent-warning)]/20 flex items-start gap-2">
+              <span className="mt-0.5">⚠️</span>
+              <span className="truncate-1-line whitespace-normal leading-tight">{error}</span>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/80 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold py-3.5 rounded-lg transition-colors mt-2"
+          >
+            {loading ? '처리 중...' : (isLogin ? '로그인' : '계정 생성')}
+          </button>
+        </form>
+
+        <div className="flex flex-col gap-3">
+          <div className="text-center text-sm text-[var(--text-secondary)] pt-4 border-t border-white/5">
+            {isLogin ? '계정이 없으신가요?' : '이미 계정이 있으신가요?'}
+            <button 
+              onClick={() => {
+                setIsLogin(!isLogin)
+                setError(null)
+              }} 
+              type="button"
+              className="ml-2 text-[var(--accent-secondary)] hover:text-white transition-colors font-medium hover:underline"
+            >
+              {isLogin ? '회원가입' : '로그인'}
+            </button>
+          </div>
+
+          <button
+            onClick={handleGuestLogin}
+            type="button"
+            className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium py-3 rounded-lg transition-colors"
+          >
+            비회원으로 계속하기
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }

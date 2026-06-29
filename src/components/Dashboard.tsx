@@ -9,6 +9,7 @@ import ListManagerModal from './ListManagerModal'
 import SettingsModal from './SettingsModal'
 import { Tv, Shield, ShieldOff, Video, Map, Circle, Car, Rocket, Zap, Cat, Target, Volume2, VolumeX, Settings } from 'lucide-react'
 import { toast } from 'sonner'
+import { useEditorStore } from '@/store/editorStore'
 
 // Skin Preview Helper Component
 function SkinPreviewIcon({ skinId }: { skinId: string }) {
@@ -31,7 +32,8 @@ function getRandomAnimal() {
 
 export default function Dashboard() {
   const { participants, addParticipant, removeParticipant, clearParticipants, setGimmickDensity, gimmickDensity, setSurvivors, targetWinnerCount, setTargetWinnerCount, setSessionId, gameMode, setGameMode, customWinningRank, setCustomWinningRank, globalSkin, setGlobalSkin, setParticipants, isSkillEnabled, setSkillEnabled, selectedMapPreset, setRandomWinningRanks, clearSkillLogs, isMuted, setMuted } = useGameStore()
-  const { setGameStage, customMapData, customMapTitle, isBroadcasterMode, setBroadcasterMode, isAnonymized, setAnonymized, setGameTitle } = useUIStore()
+  const { setGameStage, customMapData, customMapTitle, isBroadcasterMode, setBroadcasterMode, isAnonymized, setAnonymized, setGameTitle, isAdmin } = useUIStore()
+  const setEditorMode = useEditorStore(state => state.setEditorMode)
   
   const [nameInput, setNameInput] = useState('')
 
@@ -270,6 +272,20 @@ export default function Dashboard() {
                 </div>
               </div>
             </button>
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  setEditorMode(true)
+                  setGameStage('playing')
+                }}
+                className="relative shrink-0 w-full md:w-auto bg-black/40 backdrop-blur-md border border-white/10 hover:border-purple-500 rounded-xl px-4 py-3 flex items-center justify-center gap-2 transition-all duration-300 group shadow-[0_4px_20px_rgba(0,0,0,0.5)] hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] hover:scale-[1.01]"
+              >
+                <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:border-purple-500 group-hover:bg-purple-500/10 transition-colors shrink-0">
+                  <Settings className="w-4 h-4 text-white/70 group-hover:text-purple-400 transition-colors" />
+                </div>
+                <span className="text-sm font-bold text-white group-hover:text-purple-400 transition-colors whitespace-nowrap">맵 에디터 열기</span>
+              </button>
+            )}
           </div>
 
           {/* 그룹 2: 게임 모드 설정 */}

@@ -32,7 +32,8 @@ export async function saveParticipants(sessionId: string, participants: any[]) {
         session_id: sessionId,
         name: p.name,
         color: p.color,
-        icon_url: p.iconUrl
+        icon_url: p.iconUrl,
+        skin_id: p.skinId
       }))
     )
 

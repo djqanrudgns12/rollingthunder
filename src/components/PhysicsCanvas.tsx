@@ -15,6 +15,7 @@ import gsap from 'gsap'
 import { GlowFilter, MotionBlurFilter, ShockwaveFilter, ColorOverlayFilter } from 'pixi-filters'
 import { getPresetMeta, MapPresets } from '@/engine/MapPresets'
 import { CameraDirector } from './cameraDirector'
+import { useEditorStore } from '@/store/editorStore'
 // 맵 가로 폭은 고정 (물리엔진·카메라·미니맵 공유)
 const WORLD_WIDTH = 800;
 // WORLD_HEIGHT는 맵 프리셋에 따라 동적으로 결정됨 (기본값 2400)
@@ -38,7 +39,7 @@ export default function PhysicsCanvas() {
   const finishedFeedRef = useRef(finishedFeed);
   useEffect(() => { finishedFeedRef.current = finishedFeed; }, [finishedFeed]);
   
-  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, setSelectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks, baseTimeScale, isMuted, setMuted } = useGameStore()
+  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, setSelectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks, baseTimeScale, isMuted, setMuted, mapDataCache } = useGameStore()
   const { setGameStage, customMapData, isBroadcasterMode, gameTitle } = useUIStore()
   const workerRef = useRef<Worker | null>(null)
   
@@ -47,6 +48,8 @@ export default function PhysicsCanvas() {
   const [isFastForward, setIsFastForward] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [isMapMenuOpen, setIsMapMenuOpen] = useState(false);
+
+  const { isEditorMode, setSelectedItemId, updateItem } = useEditorStore()
 
   useEffect(() => {
     soundManager.setMuted(isMuted);
@@ -212,13 +215,14 @@ export default function PhysicsCanvas() {
       }
     };
 
-    // 'random' 맵 처리 로직: 10개 맵 중 하나를 무작위로 선택
+    // 'random' 맵 처리 로직
+    const safeMapDataCache = mapDataCache || MapPresets;
     const actualMapPreset = selectedMapPreset === 'random' ? 
-      Object.keys(MapPresets)[Math.floor(Math.random() * Object.keys(MapPresets).length)] : 
+      Object.keys(safeMapDataCache)[Math.floor(Math.random() * Object.keys(safeMapDataCache).length)] : 
       selectedMapPreset;
       
     // 맵 프리셋에 따른 동적 월드 높이 결정
-    const presetMeta = actualMapPreset ? getPresetMeta(actualMapPreset) : null;
+    const presetMeta = actualMapPreset ? (safeMapDataCache[actualMapPreset] || getPresetMeta(actualMapPreset)) : null;
     const WORLD_HEIGHT = presetMeta ? presetMeta.worldHeight : 2400;
     let initPromise: Promise<void> | null = null;
     
@@ -1083,7 +1087,7 @@ export default function PhysicsCanvas() {
             minimapStatic = new PIXI.Container();
             pipViewport.addChildAt(minimapStatic, 1);
 
-            payload.mapData.forEach((item: any) => {
+            const createEditorItemGraphic = (item: any) => {
               const g = new PIXI.Container();
               const mg = new PIXI.Graphics(); // Minimap Graphic
 
@@ -1372,10 +1376,60 @@ export default function PhysicsCanvas() {
                 };
                 app.ticker.add(pistonTick);
                 tickers.push(pistonTick);
-              } else {
-                g.position.set(item.x, item.y);
-                mg.position.set(item.x, item.y);
+                mg.fill({ color: 0xffffff });
               }
+
+              // Editor Mode Interaction
+              if (isEditorMode) {
+                g.eventMode = 'dynamic';
+                g.cursor = 'pointer';
+                let isDragging = false;
+                let dragStartPos = { x: 0, y: 0 };
+                let initialPos = { x: 0, y: 0 };
+                
+                g.on('pointerdown', (e: PIXI.FederatedPointerEvent) => {
+                  e.stopPropagation();
+                  isDragging = true;
+                  dragStartPos = { x: e.globalX, y: e.globalY };
+                  initialPos = { x: g.x, y: g.y };
+                  setSelectedItemId(item.id);
+                  g.alpha = 0.7;
+                  
+                  // 물리 엔진 일시정지 (선택적)
+                  if (workerRef.current) workerRef.current.postMessage({ type: 'SET_TIME_SCALE', payload: { scale: 0 } });
+                });
+                
+                g.on('globalpointermove', (e: PIXI.FederatedPointerEvent) => {
+                  if (isDragging) {
+                    const dx = (e.globalX - dragStartPos.x) / viewport.scale.x;
+                    const dy = (e.globalY - dragStartPos.y) / viewport.scale.y;
+                    
+                    // 소수점 미세 조정 위해 Round 제거 (정밀한 자유 이동)
+                    g.x = initialPos.x + dx;
+                    g.y = initialPos.y + dy;
+                  }
+                });
+                
+                g.on('pointerup', () => {
+                  if (isDragging) {
+                    isDragging = false;
+                    g.alpha = 1.0;
+                    
+                    // Zustand Store 업데이트
+                    updateItem(item.id, { x: g.x, y: g.y });
+                  }
+                });
+                g.on('pointerupoutside', () => {
+                  if (isDragging) {
+                    isDragging = false;
+                    g.alpha = 1.0;
+                    updateItem(item.id, { x: g.x, y: g.y });
+                  }
+                });
+              }
+
+              g.position.set(item.x, item.y);
+              mg.position.set(item.x, item.y);
               
               g.rotation = item.rotation || 0;
               mg.rotation = item.rotation || 0;
@@ -1388,6 +1442,38 @@ export default function PhysicsCanvas() {
               }
               staticContainer.addChild(g);
             });
+            // EditorStore 실시간 동기화 (새로운 아이템 추가 및 위치 업데이트 반영)
+            const unsubEditor = useEditorStore.subscribe((state, prevState) => {
+              if (!isEditorMode) return;
+              
+              // 1. 기존 아이템 업데이트
+              state.items.forEach(item => {
+                const g = graphicsMap.get(item.id);
+                if (g && !g.destroyed) {
+                  g.position.set(item.x, item.y);
+                  g.rotation = item.rotation || 0;
+                } else if (!g) {
+                  // 2. 새로운 아이템 렌더링
+                  createEditorItemGraphic(item);
+                }
+              });
+              
+              // 3. 삭제된 아이템 처리
+              const currentIds = new Set(state.items.map(i => i.id));
+              prevState.items.forEach(oldItem => {
+                if (!currentIds.has(oldItem.id)) {
+                  const g = graphicsMap.get(oldItem.id);
+                  if (g) {
+                    g.destroy();
+                    graphicsMap.delete(oldItem.id);
+                  }
+                }
+              });
+            });
+
+            // Cleanup에 등록
+            (app as any)._editorUnsub = unsubEditor;
+            
           }
 
           // NOTE: 자동 시작 제거. 칩은 출발선(y=50)에 정지 상태로 렌더링되며,
@@ -1861,7 +1947,7 @@ export default function PhysicsCanvas() {
             width: WORLD_WIDTH,
             height: WORLD_HEIGHT,
             customMapData,
-            selectedMapPreset: actualMapPreset, // 여기서 실제 맵으로 치환된 값을 보냄
+            presetMeta, // DB에서 Fetch된 실제 맵 메타데이터를 통째로 전달
             gimmickDensity,
             survivors,
             targetCount: targetWinnerCount,
@@ -1881,6 +1967,12 @@ export default function PhysicsCanvas() {
       // VFX 자원 정리: gsap 트윈, ticker 콜백 등 GC 불가 자원 해제
       activeVFXMap.forEach((vfx) => { try { vfx.cleanup(); } catch {} });
       activeVFXMap.clear();
+
+      // editorStore 실시간 구독 해제
+      if (app && (app as any)._editorUnsub) {
+        (app as any)._editorUnsub();
+      }
+
       if (typeof window !== 'undefined' && app) {
         if ((app as any)._bgResizeHandler) {
           window.removeEventListener('resize', (app as any)._bgResizeHandler);
@@ -2091,7 +2183,7 @@ export default function PhysicsCanvas() {
             >
               <MapIcon className="w-[18px] h-[18px] text-blue-400 group-hover:text-blue-300 transition-colors" />
               <span className="font-bold text-sm tracking-wide text-gray-200 group-hover:text-white transition-colors">
-                {selectedMapPreset === 'random' ? '랜덤 맵' : (getPresetMeta(selectedMapPreset)?.name || '맵 선택')}
+                {selectedMapPreset === 'random' ? '랜덤 맵' : ((mapDataCache && mapDataCache[selectedMapPreset])?.name || getPresetMeta(selectedMapPreset)?.name || '맵 선택')}
               </span>
               <ChevronUp className={`w-[18px] h-[18px] text-gray-500 group-hover:text-white ml-1 transition-transform ${isMapMenuOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -2100,9 +2192,9 @@ export default function PhysicsCanvas() {
             {isMapMenuOpen && (
               <div className="absolute bottom-[110%] left-0 mb-2 w-56 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 shadow-[0_10px_40px_rgba(0,0,0,0.8)] animate-in slide-in-from-bottom-4 fade-in duration-300 z-[100]">
                 <div className="flex flex-col gap-1 max-h-[350px] overflow-y-auto scrollbar-hide">
-                  {Object.keys(MapPresets).map((presetKey) => {
+                  {Object.keys(mapDataCache || MapPresets).map((presetKey) => {
                     const isSelected = selectedMapPreset === presetKey;
-                    const meta = getPresetMeta(presetKey);
+                    const meta = (mapDataCache && mapDataCache[presetKey]) || getPresetMeta(presetKey);
                     if (!meta) return null;
                     return (
                       <button
