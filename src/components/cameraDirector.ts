@@ -108,7 +108,7 @@ export class CameraDirector {
   private readonly USER_ZOOM_MIN = 0.25;      // 사용자 줌 최소 (맵 전체 조감)
   private readonly USER_ZOOM_MAX = 3.5;       // 사용자 줌 최대 (극대 확대)
   private readonly ZOOM_DEBOUNCE_MS = 300;    // ZOOMING→HOLDING 전환 대기
-  private readonly ZOOM_HOLD_S = 3.0;         // HOLDING 유지 시간 (playing)
+  private readonly ZOOM_HOLD_S = 5.0;         // HOLDING 유지 시간 (playing)
   private readonly ZOOM_HOLD_IDLE_S = 2.0;    // HOLDING 유지 시간 (idle)
   private readonly ZOOM_RETURN_K = 1.5;       // 복귀 줌 댐핑 (ZOOM_K=3.0보다 느림)
   private readonly PAN_RETURN_K = 2.0;        // 복귀 위치 댐핑 (PAN_K=5.0보다 느림)
@@ -148,6 +148,7 @@ export class CameraDirector {
 
   setGameState(state: 'idle' | 'playing' | 'winner_declared' | 'all_finished') {
     const prev = this.gameState;
+    if (prev === state) return; // 동일 상태 재호출 무시 — 매 프레임 setGameState('playing') 호출에 의한 줌 강제 복귀 방지
     this.gameState = state;
     if (state === 'idle') {
       if (this.mode !== 'finisher_focus' && this.mode !== 'manual') {
@@ -228,12 +229,9 @@ export class CameraDirector {
     this.userZoomState = 'ZOOMING';
     this.lastUserZoomMs = performance.now();
 
-    // ── 기존 freeManual/manual 모드 동기화 ──
-    if (this.mode !== 'manual' || !this.freeManual) {
-      this.mode = 'manual';
-      this.freeManual = true;
-      this.focusChipId = null;
-    }
+    // 휠 줌은 위치 추적을 멈추지 않음 (줌만 오버라이드)
+    // 단, manualExpireMs 타이머는 갱신하여 드래그 타이머와 동기화
+    this.manualExpireMs = performance.now() + (this.ZOOM_HOLD_S * 1000);
 
     // ── 슬로모션 해제 ──
     this.anticipating = false;
@@ -327,70 +325,42 @@ export class CameraDirector {
     this.overtakeCooldownT = Math.max(0, this.overtakeCooldownT - dt);
     this.establishingT = Math.max(0, this.establishingT - dt);
 
-    // 자유 수동(메인 화면 직접 조작) 중에는 카메라가 손을 뗀다.
-    // 줌 상태머신(ZOOMING/HOLDING/RETURNING)으로 세밀하게 제어한다.
+    // ── 0) 사용자 줌 상태머신 (모드와 독립적으로 구동) ──
+    const now = performance.now();
+    if (this.userZoomState === 'ZOOMING') {
+      if (now - this.lastUserZoomMs > this.ZOOM_DEBOUNCE_MS) {
+        this.userZoomState = 'HOLDING';
+        this.holdStartMs = now;
+      }
+    } else if (this.userZoomState === 'HOLDING') {
+      if (this.gameState === 'all_finished') {
+        // 완주 후: 무제한 유지 (복귀 안 함)
+      } else {
+        const holdMs = this.gameState === 'idle'
+          ? this.ZOOM_HOLD_IDLE_S * 1000
+          : this.ZOOM_HOLD_S * 1000;
+        if (now - this.holdStartMs > holdMs) {
+          this.userZoomState = 'RETURNING';
+        }
+      }
+    }
+    // RETURNING/INACTIVE: 댐핑 섹션에서 수렴 체크
+
+    // ── 0.1) 자유 수동 모드 (화면 드래그) — 줌과 분리 ──
     if (this.mode === 'manual' && this.freeManual) {
       this.timeScaleTarget = 1.0; // 수동 중엔 항상 정상 속도
-
-      const now = performance.now();
+      if (this.vp.scale.x < 0.3) this.vp.scale.set(0.3);
+      if (this.vp.scale.x > 3.0) this.vp.scale.set(3.0);
       const leaderYNow = this.frontRunnerY(chips);
       const nearFinish = leaderYNow / this.worldH >= this.LEAD_BATTLE_AT;
-
-      // ── 사용자 줌 상태머신 구동 ──
-      switch (this.userZoomState) {
-        case 'ZOOMING':
-          // 디바운스: 마지막 줌 입력 후 ZOOM_DEBOUNCE_MS 경과 → HOLDING
-          if (now - this.lastUserZoomMs > this.ZOOM_DEBOUNCE_MS) {
-            this.userZoomState = 'HOLDING';
-            this.holdStartMs = now;
-          }
-          // ZOOMING 중: 줌/위치 모두 사용자 값 유지, update()가 덮어쓰지 않음
-          return;
-
-        case 'HOLDING': {
-          // finished 상태: 무제한 유지 (복귀 안 함)
-          if (this.gameState === 'all_finished') return;
-
-          // 결착 직전: 즉시 복귀 (드라마 우선)
-          if (nearFinish && (this.gameState === 'playing' || this.gameState === 'winner_declared')) {
-            this.camX = this.vp.center.x; this.camY = this.vp.center.y; this.camZoom = this.vp.scale.x;
-            this.userZoomState = 'INACTIVE';
-            this.mode = 'race'; this.freeManual = false;
-            break; // update() 나머지 로직 실행
-          }
-
-          // 타이머 만료: RETURNING으로 전환
-          const holdDuration = this.gameState === 'idle'
-            ? this.ZOOM_HOLD_IDLE_S * 1000
-            : this.ZOOM_HOLD_S * 1000;
-          if (now - this.holdStartMs > holdDuration) {
-            this.userZoomState = 'RETURNING';
-            // camZoom/camX/camY는 현재 값 유지 (RETURNING에서 damp 시작점)
-            this.mode = 'race'; // race 모드로 전환하여 targetZoom 계산 가능
-            this.freeManual = false;
-            break; // update() 나머지 로직에서 RETURNING damp 실행
-          }
-
-          // HOLDING 중: 줌/위치 유지
-          return;
-        }
-
-        case 'RETURNING':
-          // RETURNING은 freeManual=false이므로 여기 도달하지 않음
-          // (아래 race 모드 로직에서 처리)
-          break;
-
-        case 'INACTIVE':
-        default:
-          // 드래그 등 비-줌 수동 조작: 기존 로직
-          if (this.vp.scale.x < 0.3) this.vp.scale.set(0.3);
-          if (this.vp.scale.x > 3.0) this.vp.scale.set(3.0);
-          if (now > this.manualExpireMs || nearFinish) {
-            this.camX = this.vp.center.x; this.camY = this.vp.center.y; this.camZoom = this.vp.scale.x;
-            this.mode = 'race'; this.freeManual = false;
-          } else {
-            return; // 손 뗌
-          }
+      if (now > this.manualExpireMs || nearFinish) {
+        this.camX = this.vp.center.x;
+        this.camY = this.vp.center.y;
+        this.camZoom = this.vp.scale.x;
+        this.mode = 'race';
+        this.freeManual = false;
+      } else {
+        return; // 드래그 중 — 위치 업데이트 스킵 (줌은 applyUserZoom에서 이미 적용)
       }
     }
 
@@ -596,6 +566,12 @@ export class CameraDirector {
       // 다음 주자로 빠르게 스냅(휘프팬)
       currentPanK = this.HANDOFF_PAN_K;
       currentZoomK = this.HANDOFF_ZOOM_K;
+    }
+
+    // ── 사용자 줌 오버라이드: 추적 위치는 유지하되, 줌만 사용자 값으로 덮어씀 ──
+    if (this.userZoomState === 'ZOOMING' || this.userZoomState === 'HOLDING') {
+      targetZoom = this.userZoom;
+      currentZoomK = 15.0; // 사용자 줌 입력은 지연 없이 즉각 반응
     }
 
     // ── 단일 댐핑 후 적용 ──
