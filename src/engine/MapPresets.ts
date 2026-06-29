@@ -704,10 +704,13 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       { id: 'tc_bh2', type: 'blackhole', x: 400, y: 2080, radius: 130, force: 3 },
       { id: 'tc_wm7', type: 'windmill', x: 250, y: 2100, speed: 9 },
       { id: 'tc_wm8', type: 'windmill', x: 550, y: 2100, speed: -9 },
-      { id: 'tc_sp1', type: 'spinner', x: 300, y: 2280, w: 140, h: 16, speed: 5, soundTag: 'spinner_whoosh' },
-      { id: 'tc_sp2', type: 'spinner', x: 550, y: 2280, w: 140, h: 16, speed: -5, soundTag: 'spinner_whoosh' },
+      // 기존 스피너(tc_sp1, tc_sp2) 제거됨
       { id: 'tc_b1', type: 'booster', x: 110, y: 2280, rotation: 170, power: 2 },
       { id: 'tc_b2', type: 'booster', x: 690, y: 2280, rotation: 190, power: 2 },
+      // 병목 구간 윈드밀 추가
+      { id: 'tc_wm_bottle', type: 'windmill', x: 230, y: 2300, speed: 6 },
+      // 우측 하단 입구 차단용 신규 스피너 (튕겨내는 힘 최소화)
+      { id: 'tc_sp_new', type: 'spinner', x: 680, y: 2450, w: 130, h: 16, speed: -4, restitution: 0.1, soundTag: 'spinner_whoosh' },
       // 사이드 보강: 가쪽 직낙 차단
       sideBumper(700, 'left'), sideBumper(750, 'right'),
       sideKicker(1220, 'left', { deg: 18 }), sideKicker(1250, 'right', { deg: 18 }),
