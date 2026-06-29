@@ -2,12 +2,12 @@
 
 import React, { useState } from 'react'
 import { useEditorStore } from '@/store/editorStore'
-import { Save, Undo, Redo, Magnet, Plus, Map as MapIcon } from 'lucide-react'
+import { Save, Undo, Redo, Magnet, Plus, Map as MapIcon, Play, Pause } from 'lucide-react'
 import { MapPresets } from '@/engine/MapPresets'
 import Link from 'next/link'
 
 export default function EditorToolbar() {
-  const { undo, redo, items, historyIndex, history, gridSnap, setGridSnap, mapId, loadMapPreset } = useEditorStore()
+  const { undo, redo, items, historyIndex, history, gridSnap, setGridSnap, mapId, loadMapPreset, previewAnimating, setPreviewAnimating } = useEditorStore()
   const [mapName, setMapName] = useState('새 맵')
 
   const handleSave = () => {
@@ -16,10 +16,11 @@ export default function EditorToolbar() {
   }
 
   const handleNewMap = () => {
-    useEditorStore.getState().setItems([
-      { id: `startline_${Date.now()}`, type: 'startline', x: 400, y: 100, w: 200, h: 20 },
-      { id: `endline_${Date.now()}`, type: 'endline', x: 400, y: 800, w: 200, h: 20 }
-    ])
+    // 시작/종료선은 layoutConfig 로 관리되므로 빈 맵 + 기본 레이아웃으로 초기화
+    const st = useEditorStore.getState()
+    st.setItems([])
+    st.setWorldHeight(2400)
+    useEditorStore.setState({ layoutConfig: { startLineY: 100, endMarginPercent: 0.02, spawnGap: 50 } })
   }
 
   return (
@@ -86,12 +87,20 @@ export default function EditorToolbar() {
         
         <div className="w-px h-6 bg-[#444] mx-1"></div>
         
-        <button 
+        <button
           onClick={() => setGridSnap(!gridSnap)}
           className={`p-1.5 rounded transition-colors ${gridSnap ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-[#333] text-gray-400'}`}
           title="자석 (Grid Snap 10px)"
         >
           <Magnet className="w-5 h-5" />
+        </button>
+
+        <button
+          onClick={() => setPreviewAnimating(!previewAnimating)}
+          className={`p-1.5 rounded transition-colors ${previewAnimating ? 'bg-[#00ffcc]/20 text-[#00ffcc]' : 'hover:bg-[#333] text-gray-400'}`}
+          title={previewAnimating ? '기물 애니메이션 정지(정밀 편집)' : '기물 애니메이션 재생'}
+        >
+          {previewAnimating ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
         </button>
 
         <button 

@@ -3,6 +3,9 @@ import { create } from 'zustand'
 // 하이엔드 기믹 타입 추가
 export type EditorItemType = 'pin' | 'bumper' | 'wall' | 'hole' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole' | 'spinner' | 'iceblock' | 'windcannon' | 'luckygate' | 'flipper' | 'startline' | 'endline' | 'polygon';
 
+// 외벽 스타일 (MapPresets.WallStyle 과 동일 — 순환 import 회피 위해 로컬 정의)
+export type EditorWallStyle = 'straight' | 'zigzag' | 'narrow' | 'wide';
+
 export interface EditorItem {
   id: string;
   type: EditorItemType;
@@ -46,9 +49,13 @@ interface EditorState {
   bgImage: string | null;
   worldHeight: number;
   layoutConfig: any;
-  
+  wallStyle: EditorWallStyle;       // 외벽 스타일 (배경 너비/외벽 가이드에 사용)
+  previewAnimating: boolean;        // 에디터 캔버스 기물 애니메이션 ON/OFF
+
   addItem: (item: EditorItem) => void;
   updateItem: (id: string, updates: Partial<EditorItem>) => void;
+  updateItemSilent: (id: string, updates: Partial<EditorItem>) => void; // 히스토리 미기록(드래그/리사이즈 중)
+  commitHistory: () => void;                                            // 현재 items 를 히스토리에 1회 커밋
   removeItem: (id: string) => void;
   clearItems: () => void;
   setItems: (items: EditorItem[]) => void;
@@ -57,6 +64,8 @@ interface EditorState {
   setEditorMode: (isEditor: boolean) => void;
   setMapId: (id: string | null) => void;
   setWorldHeight: (height: number) => void;
+  setWallStyle: (style: EditorWallStyle) => void;
+  setPreviewAnimating: (on: boolean) => void;
   loadMapPreset: (mapId: string) => void;
   
   clipboard: EditorItem | null;
@@ -80,12 +89,16 @@ export const useEditorStore = create<EditorState>((set) => ({
   bgImage: null,
   worldHeight: 3300,
   layoutConfig: null,
+  wallStyle: 'straight',
+  previewAnimating: true,
   clipboard: null,
   gridSnap: false,
 
   setClipboard: (item) => set({ clipboard: item }),
   setGridSnap: (snap) => set({ gridSnap: snap }),
   setWorldHeight: (height) => set({ worldHeight: height }),
+  setWallStyle: (style) => set({ wallStyle: style }),
+  setPreviewAnimating: (on) => set({ previewAnimating: on }),
 
   loadMapPreset: (mapId) => set((state) => {
     // 동적 임포트로 MapPresets를 가져와서 적용
@@ -97,6 +110,7 @@ export const useEditorStore = create<EditorState>((set) => ({
           bgImage: preset.bgImage || null,
           worldHeight: preset.worldHeight || 3300,
           layoutConfig: preset.layoutConfig || null,
+          wallStyle: (preset.wallStyle as EditorWallStyle) || 'straight',
           items: preset.items ? [...preset.items] : [],
           history: preset.items ? [[...preset.items]] : [[]],
           historyIndex: 0
@@ -128,6 +142,19 @@ export const useEditorStore = create<EditorState>((set) => ({
     newHistory.push(newItems);
     if (newHistory.length > 50) newHistory.shift();
     return { items: newItems, history: newHistory, historyIndex: newHistory.length - 1 };
+  }),
+
+  // 드래그/리사이즈 중에는 히스토리를 남기지 않고 items 만 갱신 (히스토리 스팸 방지)
+  updateItemSilent: (id, updates) => set((state) => ({
+    items: state.items.map((it) => (it.id === id ? { ...it, ...updates } : it)),
+  })),
+
+  // 드래그/리사이즈 종료 시 1회 호출하여 현재 상태를 히스토리에 커밋
+  commitHistory: () => set((state) => {
+    const newHistory = state.history.slice(0, state.historyIndex + 1);
+    newHistory.push(state.items);
+    if (newHistory.length > 50) newHistory.shift();
+    return { history: newHistory, historyIndex: newHistory.length - 1 };
   }),
 
   removeItem: (id) => set((state) => {

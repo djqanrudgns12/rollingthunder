@@ -16,6 +16,9 @@ import { GlowFilter, MotionBlurFilter, ShockwaveFilter, ColorOverlayFilter } fro
 import { getPresetMeta, MapPresets } from '@/engine/MapPresets'
 import { CameraDirector } from './cameraDirector'
 import { useEditorStore } from '@/store/editorStore'
+import { createAppRenderContext } from '@/lib/render/RenderContext'
+import { createObstacleGraphic } from '@/lib/render/ObstacleRenderer'
+import { createBackground, createStartEndLines } from '@/lib/render/StageChrome'
 // 맵 가로 폭은 고정 (물리엔진·카메라·미니맵 공유)
 const WORLD_WIDTH = 800;
 // WORLD_HEIGHT는 맵 프리셋에 따라 동적으로 결정됨 (기본값 2400)
@@ -197,6 +200,8 @@ export default function PhysicsCanvas() {
     const activeVFXMap = new Map<string, { cleanup: () => void }>();
     let intervals: ReturnType<typeof setInterval>[] = [];
     let tickers: Array<(ticker: PIXI.Ticker) => void> = [];
+    // 공유 ObstacleRenderer 가 등록한 ticker/gsap 해제자 (cleanup 시 호출)
+    const itemDisposers: Array<() => void> = [];
 
     // 완주 등수가 "우승/드라마 슬롯"인지 모드별로 판정 → 카메라 결승 연출(슬로우/락온) 게이팅용.
     // 게임 로직(모드·목표 등수)을 아는 메인 스레드가 계산해, CameraDirector에는 boolean만 넘긴다.
@@ -307,46 +312,15 @@ export default function PhysicsCanvas() {
         app.stage.addChild(viewport);
         
         // 맵별 배경 이미지 렌더링 (viewport 내부에 붙여 스크롤/줌 연동)
-        const bgUrl = presetMeta?.bgImage;
-        if (bgUrl) {
-          const bgTex = PIXI.Assets.get(bgUrl);
-          if (bgTex) {
-            // wallStyle에 따른 배경 배치 및 너비 결정
-            const wallStyle = presetMeta?.wallStyle || 'straight';
-            let visibleWidth = 800;
-            let bgX = 0;
-            
-            if (wallStyle === 'narrow') {
-              visibleWidth = 600;
-              bgX = 100;
-            } else if (wallStyle === 'wide') {
-              visibleWidth = 900;
-              bgX = -50;
-            }
-            
-            // 카메라가 이동 가능한 전체 범위를 빈틈없이 커버
-            const BG_PAD_TOP = 500;    // clamp top: -500
-            const BG_PAD_BOTTOM = 200; // clamp bottom: WORLD_HEIGHT + 200
-            const totalHeight = BG_PAD_TOP + WORLD_HEIGHT + BG_PAD_BOTTOM;
-
-            // TilingSprite: 이미지를 원본 비율로 반복 배치 (늘어짐 없음)
-            bgSprite = new PIXI.TilingSprite({
-              texture: bgTex,
-              width: visibleWidth,
-              height: totalHeight,
-            });
-
-            // 가시 너비에 맞게 타일 스케일 설정 (가로=맵 너비, 세로=비율 유지)
-            const scale = visibleWidth / bgTex.width;
-            (bgSprite as PIXI.TilingSprite).tileScale.set(scale, scale);
-
-            bgSprite.x = bgX;
-            bgSprite.y = -BG_PAD_TOP; // 카메라 상단 한계점부터 시작
-            bgSprite.alpha = 0.4;
-            bgSprite.zIndex = -100;
-            
-            viewport.addChild(bgSprite); // 제일 바닥에 렌더링
-          }
+        // 공유 모듈(StageChrome)로 게임/에디터 동일 배경 렌더
+        const bg = createBackground(
+          createAppRenderContext(app),
+          presetMeta?.bgImage,
+          { worldHeight: WORLD_HEIGHT, wallStyle: presetMeta?.wallStyle }
+        );
+        if (bg) {
+          bgSprite = bg;
+          viewport.addChild(bgSprite); // 제일 바닥에 렌더링
         }
         // 줌(wheel/pinch)은 CameraDirector가 단독 소유 — pixi-viewport 플러그인은 drag/decelerate만 사용
         viewport.drag().decelerate()
@@ -1057,367 +1031,23 @@ export default function PhysicsCanvas() {
             floorContainer.zIndex = -20; // staticContainer보다 더 아래에(배경(-100) 바로 위)
             viewport.addChild(floorContainer);
             
-            const endMargin = presetMeta?.layoutConfig?.endMarginPercent ?? 0.02;
-            
-            // PRD v6.0: startLineY 절대 좌표 우선 적용 (렌더링)
-            const startLineY = presetMeta?.layoutConfig?.startLineY ?? 
-                               (presetMeta?.layoutConfig?.startMarginPercent ? WORLD_HEIGHT * presetMeta.layoutConfig.startMarginPercent : 70);
-            const startLine = new PIXI.Graphics();
-            startLine.rect(0, startLineY - 10, WORLD_WIDTH, 20); // 두께 20
-            startLine.fill({ color: 0x00FFD0, alpha: 0.3 }); // 네온 색상 1
-            startLine.stroke({ width: 2, color: 0x00FFD0, alpha: 0.8 });
-            // 체크무늬 패턴 (간단한 선)
-            for (let i = 0; i < WORLD_WIDTH; i += 40) {
-              startLine.moveTo(i, startLineY - 10);
-              startLine.lineTo(i + 20, startLineY + 10);
-              startLine.stroke({ width: 2, color: 0xFFFFFF, alpha: 0.5 });
-            }
-            floorContainer.addChild(startLine);
-
-            // End Line 그리기
-            const endLineY = WORLD_HEIGHT * (1 - endMargin);
-            const endLine = new PIXI.Graphics();
-            endLine.rect(0, endLineY - 10, WORLD_WIDTH, 20);
-            endLine.fill({ color: 0xFF00FF, alpha: 0.3 }); // 네온 색상 2
-            endLine.stroke({ width: 2, color: 0xFF00FF, alpha: 0.8 });
-            for (let i = 0; i < WORLD_WIDTH; i += 40) {
-              endLine.moveTo(i, endLineY - 10);
-              endLine.lineTo(i + 20, endLineY + 10);
-              endLine.stroke({ width: 2, color: 0xFFFFFF, alpha: 0.5 });
-            }
-            floorContainer.addChild(endLine);
+            // 시작선/종료선: 공유 모듈(StageChrome)로 게임/에디터 동일 렌더
+            floorContainer.addChild(createStartEndLines({
+              worldHeight: WORLD_HEIGHT,
+              layoutConfig: presetMeta?.layoutConfig,
+            }));
 
             // Minimap static layer
             minimapStatic = new PIXI.Container();
             pipViewport.addChildAt(minimapStatic, 1);
 
+            const obsCtx = createAppRenderContext(app, { animated: true, quality: 'full' });
             const createEditorItemGraphic = (item: any) => {
-              const g = new PIXI.Container();
-              const mg = new PIXI.Graphics(); // Minimap Graphic
-
-              if (item.type === 'wall') {
-                const texture = PIXI.Assets.get('/images/assets/obstacles/obstacle_wall.png') || PIXI.Texture.from('/images/assets/obstacles/obstacle_wall.png');
-                const sprite = new PIXI.TilingSprite({
-                  texture: texture,
-                  width: item.w || 100,
-                  height: item.h || 20,
-                });
-                sprite.anchor.set(0.5);
-                g.addChild(sprite);
-
-                mg.rect(-item.w / 2, -item.h / 2, item.w, item.h);
-                mg.fill({ color: 0x8888aa, alpha: 0.5 });
-              } else if (item.type === 'pin') {
-                const sprite = PIXI.Sprite.from('/images/assets/obstacles/obstacle_pin.png');
-                sprite.anchor.set(0.5);
-                sprite.width = (item.radius || 15) * 2.5;
-                sprite.height = (item.radius || 15) * 2.5;
-                g.addChild(sprite);
-
-                mg.circle(0, 0, item.radius || 15);
-                mg.fill({ color: 0x00ffcc, alpha: 0.7 });
-              } else if (item.type === 'bumper') {
-                const sprite = PIXI.Sprite.from('/images/assets/obstacles/obstacle_bumper.png');
-                sprite.anchor.set(0.5);
-                sprite.width = (item.radius || 15) * 2.5;
-                sprite.height = (item.radius || 15) * 2.5;
-                g.addChild(sprite);
-
-                mg.circle(0, 0, item.radius || 15);
-                mg.fill({ color: 0xffaa55, alpha: 0.8 });
-              } else if (item.type === 'booster') {
-                const sprite = PIXI.Sprite.from('/images/assets/obstacles/obstacle_booster.png');
-                sprite.anchor.set(0.5);
-                sprite.width = 60;
-                sprite.height = 60;
-                g.addChild(sprite);
-
-                mg.rect(-25, -25, 50, 50);
-                mg.fill({ color: 0x55ff55, alpha: 0.8 });
-              } else if (item.type === 'windmill') {
-                const sprite = PIXI.Sprite.from('/images/assets/obstacles/obstacle_windmill.png');
-                sprite.anchor.set(0.5);
-                sprite.width = 110;
-                sprite.height = 110;
-                g.addChild(sprite);
-
-                const speed = item.speed || 3;
-                const windTick = (ticker: PIXI.Ticker) => {
-                  if (g.destroyed || mg.destroyed) return;
-                  g.rotation += speed * (ticker.deltaMS / 1000);
-                  mg.rotation += speed * (ticker.deltaMS / 1000);
-                };
-                app.ticker.add(windTick);
-                tickers.push(windTick);
-                mg.rect(-50, -5, 100, 10);
-                mg.rect(-5, -50, 10, 100);
-                mg.fill({ color: 0x00ffff, alpha: 0.6 });
-              } else if (item.type === 'spinner') {
-                const w = item.w || 200;
-                const h = item.h || 20;
-                const speed = item.speed || 5;
-                const isClockwise = speed > 0;
-                const baseColor = isClockwise ? 0xff3333 : 0xaa33ff;
-                const glowColor = isClockwise ? 0xff0000 : 0x8800ff;
-
-                // 0. Trails (Motion Blur)
-                for (let i = 1; i <= 3; i++) {
-                  const trail = new PIXI.Graphics();
-                  trail.roundRect(-w/2, -h/2, w, h, h/2);
-                  trail.fill({ color: baseColor, alpha: 0.3 - i * 0.08 });
-                  trail.rotation = -Math.sign(speed) * 0.15 * i;
-                  g.addChild(trail);
-                }
-
-                // 1. Draw the neon bar
-                const bar = new PIXI.Graphics();
-                // Core
-                bar.roundRect(-w/2, -h/2, w, h, h/2);
-                bar.fill({ color: 0xffffff, alpha: 1.0 });
-                // Inner glow
-                bar.stroke({ color: baseColor, width: 4, alpha: 0.8 });
-                // Drop shadow / Outer glow using filters
-                import('pixi-filters').then(({ GlowFilter }) => {
-                  bar.filters = [new GlowFilter({ distance: 15, outerStrength: 2, innerStrength: 0, color: glowColor, quality: 0.5 })];
-                }).catch(() => { /* fallback if filter fails */ });
-                g.addChild(bar);
-
-                // 2. Draw the core pulse & direction arrow
-                const core = new PIXI.Graphics();
-                core.circle(0, 0, h/1.5);
-                core.fill({ color: 0xffffff });
-                core.stroke({ color: baseColor, width: 4 });
-                
-                // Direction Arrow
-                const dirDir = isClockwise ? 1 : -1;
-                core.poly([
-                  {x: -dirDir * h/4, y: -h/3},
-                  {x: dirDir * h/3, y: 0},
-                  {x: -dirDir * h/4, y: h/3}
-                ]);
-                core.fill({ color: baseColor });
-
-                g.addChild(core);
-
-                let time = 0;
-                const windTick = (ticker: PIXI.Ticker) => {
-                  if (g.destroyed || mg.destroyed) return;
-                  const dt = ticker.deltaMS / 1000;
-                  // The physics engine updates the rotation, but for the static map background we animate it purely visually here
-                  // if this is static rendering. Wait, MapBuilder creates it as a kinematic body.
-                  // Will the frame update handle rotation? In `physics.worker.ts`, kinematics are NOT sent in `FRAME` event (only chips).
-                  // So we MUST animate it here.
-                  g.rotation += speed * dt;
-                  mg.rotation += speed * dt;
-                  
-                  // Pulse animation for core
-                  time += dt;
-                  core.scale.set(1 + Math.sin(time * 10) * 0.1);
-                };
-                app.ticker.add(windTick);
-                tickers.push(windTick);
-
-                // Minimap drawing
-                mg.roundRect(-w/2, -h/2, w, h, h/2);
-                mg.fill({ color: baseColor, alpha: 0.8 });
-
-              } else if (item.type === 'blackhole' || item.type === 'whitehole') {
-                const isWhite = item.type === 'whitehole';
-                const r = item.radius || 100;
-                const sprite = PIXI.Sprite.from(isWhite ? '/images/assets/obstacles/obstacle_whitehole.png' : '/images/assets/obstacles/obstacle_blackhole.png');
-                sprite.anchor.set(0.5);
-                sprite.width = r * 2.5;
-                sprite.height = r * 2.5;
-                if (isWhite) sprite.blendMode = 'add';
-                g.addChild(sprite);
-
-                import('gsap').then(({ gsap }) => {
-                  gsap.to(sprite, { rotation: Math.PI * 2 * (isWhite ? -1 : 1), duration: 6, repeat: -1, ease: 'none' });
-                });
-              } else if (item.type === 'portal') {
-                const r = item.radius || 40;
-                const sprite = PIXI.Sprite.from('/images/assets/obstacles/obstacle_portal.png');
-                sprite.anchor.set(0.5);
-                sprite.width = r * 2.5;
-                sprite.height = r * 2.5;
-                if (item.color) sprite.tint = parseInt(item.color.replace('#', '0x'));
-                sprite.blendMode = 'add';
-                g.addChild(sprite);
-
-                import('gsap').then(({ gsap }) => {
-                  gsap.to(sprite, { rotation: Math.PI * 2, duration: 5, repeat: -1, ease: 'none' });
-                  gsap.to(sprite.scale, { x: 1.1, y: 1.1, duration: 1, yoyo: true, repeat: -1, ease: 'sine.inOut' });
-                });
-
-                mg.circle(0, 0, r * 1.5);
-                if (item.color) mg.fill({ color: parseInt(item.color.replace('#', '0x')), alpha: 0.6 });
-                else mg.fill({ color: 0x8888ff, alpha: 0.6 });
-              } else if (item.type === 'hole') {
-                const r = item.radius || 30;
-                const sprite = PIXI.Sprite.from('/images/assets/obstacles/obstacle_hole.png');
-                sprite.anchor.set(0.5);
-                sprite.width = r * 2.5;
-                sprite.height = r * 2.5;
-                g.addChild(sprite);
-
-                import('gsap').then(({ gsap }) => {
-                  gsap.to(sprite, { rotation: Math.PI * 2, duration: 4, repeat: -1, ease: 'none' });
-                });
-
-                mg.circle(0, 0, r);
-                mg.fill({ color: 0xff2222, alpha: 0.7 });
-              } else if (item.type === 'piston') {
-                const w = item.w || 100;
-                const h = item.h || 20;
-                const texture = PIXI.Assets.get('/images/assets/obstacles/obstacle_piston.png') || PIXI.Texture.from('/images/assets/obstacles/obstacle_piston.png');
-                const sprite = new PIXI.TilingSprite({
-                  texture: texture,
-                  width: w,
-                  height: h,
-                });
-                sprite.anchor.set(0.5);
-                g.addChild(sprite);
-
-                mg.rect(-w / 2, -h / 2, w, h);
-                mg.fill({ color: 0xffcc00, alpha: 0.6 });
-              } else if (item.type === 'iceblock') {
-                const w = item.w || 60;
-                const h = item.h || 25;
-                const block = new PIXI.Graphics();
-                block.roundRect(-w/2, -h/2, w, h, 4);
-                block.fill({ color: 0x88ccff, alpha: 0.8 });
-                block.stroke({ color: 0xffffff, width: 2, alpha: 0.9 });
-                
-                // 얼음 텍스처 느낌의 파티클 조금 추가
-                for(let i=0; i<3; i++) {
-                  block.moveTo(-w/2 + Math.random()*w, -h/2 + Math.random()*h);
-                  block.lineTo(-w/2 + Math.random()*w, -h/2 + Math.random()*h);
-                }
-                block.stroke({ color: 0xffffff, width: 1, alpha: 0.4 });
-                
-                g.addChild(block);
-                mg.rect(-w/2, -h/2, w, h);
-                mg.fill({ color: 0x88ccff, alpha: 0.8 });
-              } else if (item.type === 'polygon' && item.vertices && item.vertices.length > 2) {
-                const poly = new PIXI.Graphics();
-                // MapBuilder에서 x, y 기준 상대 좌표로 생성했으므로, 여기에서도 x, y 기준 local vertices로 렌더링
-                poly.moveTo(item.vertices[0].x, item.vertices[0].y);
-                for (let i = 1; i < item.vertices.length; i++) {
-                  poly.lineTo(item.vertices[i].x, item.vertices[i].y);
-                }
-                poly.lineTo(item.vertices[0].x, item.vertices[0].y);
-                poly.stroke({ color: 0xbbbbdd, width: 4 });
-                poly.fill({ color: 0x8888aa, alpha: 0.4 });
-                g.addChild(poly);
-
-                // 미니맵용 간단한 윤곽
-                mg.moveTo(item.vertices[0].x, item.vertices[0].y);
-                for (let i = 1; i < item.vertices.length; i++) {
-                  mg.lineTo(item.vertices[i].x, item.vertices[i].y);
-                }
-                mg.lineTo(item.vertices[0].x, item.vertices[0].y);
-                mg.stroke({ color: 0xbbbbdd, width: 4 });
-                mg.fill({ color: 0x8888aa, alpha: 0.6 });
-              } else if (item.type === 'windcannon') {
-                const w = item.w || 120;
-                const h = item.h || 120;
-                const cannon = new PIXI.Graphics();
-                cannon.rect(-w/2, -h/2, w, h);
-                cannon.fill({ color: 0x334455, alpha: 0.3 });
-                cannon.stroke({ color: 0x55aaff, width: 2, alpha: 0.5 });
-                
-                const angleRad = (item.windAngle || 90) * (Math.PI / 180);
-                const dirX = Math.sin(angleRad);
-                const dirY = -Math.cos(angleRad);
-                
-                // Draw wind arrows
-                for (let i = 0; i < 3; i++) {
-                  const arrow = new PIXI.Graphics();
-                  arrow.poly([
-                    {x: -10, y: -10}, {x: 0, y: -20}, {x: 10, y: -10},
-                    {x: 0, y: -15}
-                  ]);
-                  arrow.fill({ color: 0xaaccff, alpha: 0.6 });
-                  arrow.rotation = angleRad;
-                  arrow.position.set(dirX * (i * 20 - 20), dirY * (i * 20 - 20));
-                  cannon.addChild(arrow);
-                  
-                  import('gsap').then(({ gsap }) => {
-                    gsap.to(arrow.position, {
-                      x: dirX * (i * 20 + 20),
-                      y: dirY * (i * 20 + 20),
-                      alpha: 0,
-                      duration: 0.5,
-                      repeat: -1,
-                      ease: 'none'
-                    });
-                  });
-                }
-                
-                g.addChild(cannon);
-                mg.rect(-w/2, -h/2, w, h);
-                mg.fill({ color: 0x55aaff, alpha: 0.3 });
-              } else if (item.type === 'luckygate') {
-                const w = item.w || 140;
-                const h = 15;
-                const gate = new PIXI.Graphics();
-                gate.roundRect(-w/2, -h/2, w, h, h/2);
-                gate.fill({ color: 0xffd700, alpha: 0.8 });
-                gate.stroke({ color: 0xffaa00, width: 3 });
-                
-                import('pixi-filters').then(({ GlowFilter }) => {
-                  gate.filters = [new GlowFilter({ distance: 10, outerStrength: 2, innerStrength: 0, color: 0xffaa00, quality: 0.5 })];
-                }).catch(() => {});
-                
-                g.addChild(gate);
-                mg.rect(-w/2, -h/2, w, h);
-                mg.fill({ color: 0xffd700, alpha: 0.8 });
-              } else if (item.type === 'flipper') {
-                const length = item.length || 90;
-                const thickness = item.h || 12;
-                const flip = new PIXI.Graphics();
-                flip.roundRect(0, -thickness/2, length, thickness, thickness/2);
-                flip.fill({ color: 0xff4444 });
-                flip.stroke({ color: 0xffaaaa, width: 2 });
-                g.addChild(flip);
-                mg.roundRect(0, -thickness/2, length, thickness, thickness/2);
-                mg.fill({ color: 0xff4444, alpha: 0.8 });
-              }
-              
-              if (item.type === 'piston' && item.waypointB) {
-                const speed = item.speed || 2;
-                const ax = item.x, ay = item.y;
-                const bx = item.waypointB.x, by = item.waypointB.y;
-                let t = 0;
-                const pistonTick = (ticker: PIXI.Ticker) => {
-                  if (g.destroyed || mg.destroyed) return;
-                  t += (ticker.deltaMS * 60 / 1000);
-                  const phase = (Math.sin(t * speed * 0.01) + 1) / 2;
-                  g.x = ax + (bx - ax) * phase;
-                  g.y = ay + (by - ay) * phase;
-                  mg.x = ax + (bx - ax) * phase;
-                  mg.y = ay + (by - ay) * phase;
-                };
-                app.ticker.add(pistonTick);
-                tickers.push(pistonTick);
-                mg.fill({ color: 0xffffff });
-              }
-
-
-              g.position.set(item.x, item.y);
-              mg.position.set(item.x, item.y);
-              
-              g.rotation = item.rotation || 0;
-              mg.rotation = item.rotation || 0;
-              mg.scale.set(1.5);
-              minimapStatic.addChild(mg);
-
-              // Provide an ID to the graphic object for animations
-              if (item.id) {
-                g.label = item.id;
-                graphicsMap.set(item.id, g);
-              }
-              staticContainer.addChild(g);
+              const r = createObstacleGraphic(item, obsCtx);
+              itemDisposers.push(r.dispose);
+              minimapStatic.addChild(r.minimap);
+              if (item.id) { r.node.label = item.id; graphicsMap.set(item.id, r.node); }
+              staticContainer.addChild(r.node);
             };
 
             if (Array.isArray(payload.mapData) && payload.mapData.length > 0) {
@@ -1953,6 +1583,7 @@ export default function PhysicsCanvas() {
       }
       intervals.forEach(i => clearInterval(i));
       tickers.forEach(t => app.ticker.remove(t));
+      itemDisposers.forEach(d => { try { d() } catch {} });
       if (initPromise) {
         initPromise.then(() => {
           if (viewport) viewport.destroy();

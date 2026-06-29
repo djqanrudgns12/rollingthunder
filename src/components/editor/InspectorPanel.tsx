@@ -4,7 +4,7 @@ import React from 'react'
 import { useEditorStore, EditorItem } from '@/store/editorStore'
 
 export default function InspectorPanel() {
-  const { items, selectedItemId, updateItem, worldHeight, setWorldHeight } = useEditorStore()
+  const { items, selectedItemId, updateItem, worldHeight, setWorldHeight, wallStyle, setWallStyle, layoutConfig } = useEditorStore()
 
   const selectedItem = items.find(it => it.id === selectedItemId)
 
@@ -16,24 +16,62 @@ export default function InspectorPanel() {
       }
     };
 
+    // layoutConfig(시작/종료선) 갱신 헬퍼 — 시작/종료선은 layoutConfig 로 통합 관리한다.
+    const lc = layoutConfig || {}
+    const startLineY = lc.startLineY ?? (lc.startMarginPercent ? Math.round((worldHeight || 3300) * lc.startMarginPercent) : 70)
+    const endMarginPct = Math.round(((lc.endMarginPercent ?? 0.02) * 100) * 10) / 10
+    const setLayout = (patch: any) => useEditorStore.setState({ layoutConfig: { ...lc, ...patch } })
+
     return (
       <div className="absolute top-16 right-4 w-72 bg-[#1a1a1a] border border-[#333] rounded-xl shadow-2xl flex flex-col pointer-events-auto z-10 overflow-hidden">
         <div className="p-4 border-b border-[#333] bg-[#222]">
-          <h2 className="font-bold text-white text-sm">맵 속성 (Map Properties)</h2>
+          <h2 className="font-bold text-white text-sm">스테이지 속성 (Stage)</h2>
+          <p className="text-xs text-gray-500 mt-1">기물 미선택 시 맵 전체 설정</p>
         </div>
         <div className="p-4 space-y-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">세로 길이 (World Height)</label>
             <input
-              type="number"
-              step={100}
-              value={worldHeight}
+              type="number" step={100} value={worldHeight}
               onChange={handleWorldHeightChange}
               className="w-full bg-[#252525] border border-[#333] hover:border-[#444] rounded p-2 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors font-mono"
             />
-            <p className="text-xs text-gray-600 mt-1">기본값: 3000</p>
           </div>
-          <p className="text-gray-500 text-xs mt-4 text-center">기물을 선택하면 개별 속성이 표시됩니다.</p>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-[#00FFD0] uppercase tracking-wider">시작선 Y (Start Line)</label>
+            <input
+              type="number" step={10} value={startLineY}
+              onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) setLayout({ startLineY: v, startMarginPercent: undefined }) }}
+              className="w-full bg-[#252525] border border-[#333] hover:border-[#444] rounded p-2 text-white text-sm focus:outline-none focus:border-[#00FFD0] transition-colors font-mono"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-fuchsia-400 uppercase tracking-wider">종료 여백 % (End Margin)</label>
+            <input
+              type="number" step={0.5} value={endMarginPct}
+              onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) setLayout({ endMarginPercent: v / 100 }) }}
+              className="w-full bg-[#252525] border border-[#333] hover:border-[#444] rounded p-2 text-white text-sm focus:outline-none focus:border-fuchsia-500 transition-colors font-mono"
+            />
+            <p className="text-[10px] text-gray-600">종료선 Y ≈ {Math.round((worldHeight || 3300) * (1 - (lc.endMarginPercent ?? 0.02)))}</p>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-cyan-400 uppercase tracking-wider">외벽 스타일 (Wall Style)</label>
+            <select
+              value={wallStyle}
+              onChange={(e) => setWallStyle(e.target.value as any)}
+              className="w-full bg-[#252525] border border-[#333] hover:border-[#444] rounded p-2 text-white text-sm focus:outline-none focus:border-cyan-500 transition-colors"
+            >
+              <option value="straight">일자 (straight)</option>
+              <option value="zigzag">지그재그 (zigzag)</option>
+              <option value="narrow">좁게 (narrow 600px)</option>
+              <option value="wide">넓게 (wide 900px)</option>
+            </select>
+          </div>
+
+          <p className="text-gray-500 text-xs mt-2 text-center">기물을 선택하면 개별 속성이 표시됩니다.</p>
         </div>
       </div>
     )
