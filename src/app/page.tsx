@@ -18,6 +18,25 @@ export default function LoginPage() {
     const formData = new FormData(e.currentTarget)
     const username = formData.get('username') as string
     
+    // 회원가입일 경우 추가 검증
+    if (!isLogin) {
+      const password = formData.get('password') as string
+      const passwordConfirm = formData.get('passwordConfirm') as string
+      const name = formData.get('name') as string
+
+      if (!name || name.trim() === '') {
+        setError("이름을 입력해주세요.")
+        setLoading(false)
+        return
+      }
+
+      if (password !== passwordConfirm) {
+        setError("비밀번호가 일치하지 않습니다.")
+        setLoading(false)
+        return
+      }
+    }
+
     // 엄격한 아이디 유효성 검사 (정규식)
     if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
       setError("아이디는 영문, 숫자, 밑줄(_) 3~20자로 입력해주세요.")
@@ -61,9 +80,26 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          {/* 이름 입력창 (회원가입 시에만 표시) */}
+          {!isLogin && (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="name" className="text-sm font-medium text-[var(--text-primary)]">
+                이름
+              </label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                required={!isLogin}
+                className="bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/50 transition-all"
+                placeholder="홍길동"
+              />
+            </div>
+          )}
+
           <div className="flex flex-col gap-1.5">
             <label htmlFor="username" className="text-sm font-medium text-[var(--text-primary)]">
-              아이디 <span className="text-[var(--text-secondary)] text-xs font-normal">(이메일 아님)</span>
+              아이디
             </label>
             <input
               id="username"
@@ -88,6 +124,23 @@ export default function LoginPage() {
               placeholder="••••••••"
             />
           </div>
+
+          {/* 비밀번호 확인 입력창 (회원가입 시에만 표시) */}
+          {!isLogin && (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="passwordConfirm" className="text-sm font-medium text-[var(--text-primary)]">
+                비밀번호 확인
+              </label>
+              <input
+                id="passwordConfirm"
+                name="passwordConfirm"
+                type="password"
+                required={!isLogin}
+                className="bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/50 transition-all"
+                placeholder="••••••••"
+              />
+            </div>
+          )}
 
           {error && (
             <div className="text-[var(--accent-warning)] text-sm p-3 bg-[var(--accent-warning)]/10 rounded-lg border border-[var(--accent-warning)]/20 flex items-start gap-2">

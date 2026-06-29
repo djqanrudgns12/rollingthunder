@@ -29,6 +29,7 @@ export async function signup(formData: FormData) {
   const supabase = await createClient()
   const username = formData.get('username') as string
   const password = formData.get('password') as string
+  const name = formData.get('name') as string
 
   const { error } = await supabase.auth.signUp({
     email: `${username}${FAKE_DOMAIN}`,
@@ -36,6 +37,7 @@ export async function signup(formData: FormData) {
     options: {
       data: {
         username: username, // 메타데이터에 실제 username 저장
+        name: name, // 이름 저장
       }
     }
   })
