@@ -5,6 +5,7 @@ import { useUIStore } from '@/store/uiStore'
 import { X, Moon, Sun, Type, Gauge, Zap, LogOut, UserX } from 'lucide-react'
 import { useState } from 'react'
 import { logout, deleteAccount } from '@/app/actions'
+import { LogIn, UserPlus } from 'lucide-react'
 
 const FONTS = [
   { id: 'pretendard', name: 'Pretendard (기본)' },
@@ -34,7 +35,7 @@ export default function SettingsModal() {
     fontFamily, setFontFamily
   } = useGameStore()
   
-  const { activeModal, setActiveModal } = useUIStore()
+  const { activeModal, setActiveModal, isLoggedIn } = useUIStore()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -161,22 +162,43 @@ export default function SettingsModal() {
 
         {/* Account Actions */}
         <div className="p-6 pt-0 flex gap-3">
-          <button
-            onClick={handleLogout}
-            disabled={isLoggingOut || isDeleting}
-            className="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            <LogOut className="w-4 h-4" />
-            {isLoggingOut ? '로그아웃 중...' : '로그아웃'}
-          </button>
-          <button
-            onClick={handleDeleteAccount}
-            disabled={isLoggingOut || isDeleting}
-            className="flex-1 py-3 px-4 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            <UserX className="w-4 h-4" />
-            {isDeleting ? '처리 중...' : '회원탈퇴'}
-          </button>
+          {isLoggedIn ? (
+            <>
+              <button
+                onClick={handleLogout}
+                disabled={isLoggingOut || isDeleting}
+                className="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <LogOut className="w-4 h-4" />
+                {isLoggingOut ? '로그아웃 중...' : '로그아웃'}
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={isLoggingOut || isDeleting}
+                className="flex-1 py-3 px-4 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <UserX className="w-4 h-4" />
+                {isDeleting ? '처리 중...' : '회원탈퇴'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setActiveModal('auth')}
+                className="flex-1 py-3 px-4 bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/20 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
+              >
+                <LogIn className="w-4 h-4" />
+                로그인
+              </button>
+              <button
+                onClick={() => setActiveModal('auth')}
+                className="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
+              >
+                <UserPlus className="w-4 h-4" />
+                회원가입
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

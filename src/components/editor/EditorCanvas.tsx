@@ -17,13 +17,26 @@ export default function EditorCanvas() {
   useEffect(() => {
     if (!canvasRef.current) return
 
+    let isDestroyed = false;
+
     const initPixi = async () => {
-      const app = new PIXI.Application({
-        view: canvasRef.current!,
+      const app = new PIXI.Application()
+      
+      // Fix for Strict mode early destroy error:
+      ;(app as any)._cancelResize = () => {};
+
+      await app.init({
+        canvas: canvasRef.current!,
         resizeTo: window,
         backgroundColor: 0x111111,
         antialias: true
       })
+      
+      if (isDestroyed) {
+        app.destroy(true, { children: true });
+        return;
+      }
+      
       appRef.current = app
 
       const viewport = new Viewport({
@@ -60,8 +73,16 @@ export default function EditorCanvas() {
     initPixi()
 
     return () => {
+      isDestroyed = true;
+      if (viewportRef.current) {
+        viewportRef.current.destroy();
+        viewportRef.current = null;
+      }
       if (appRef.current) {
-        appRef.current.destroy(false, { children: true })
+        try {
+          appRef.current.destroy(false, { children: true });
+        } catch (e) {}
+        appRef.current = null;
       }
     }
   }, [])

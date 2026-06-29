@@ -15,7 +15,7 @@ export default function GameManager() {
   const gameStage = useUIStore(state => state.gameStage)
   const isMuted = useGameStore(state => state.isMuted)
   const setMapDataCache = useGameStore(state => state.setMapDataCache)
-  const setIsAdmin = useUIStore(state => state.setIsAdmin)
+  const { setIsAdmin, setIsLoggedIn } = useUIStore()
   const [assetsLoaded, setAssetsLoaded] = useState(false)
   const [loadError, setLoadError] = useState(false)
 
@@ -36,11 +36,10 @@ export default function GameManager() {
           supabase.auth.getSession()
         ]);
         
-        // 개발자 여부 세팅 (username이 admin 이면 어드민)
+        // 개발자 여부 세팅 및 로그인 상태 세팅
         const username = session?.user?.user_metadata?.username;
-        if (username === 'admin') {
-          setIsAdmin(true);
-        }
+        setIsAdmin(username === 'admin');
+        setIsLoggedIn(!!session);
         
         // 캐시에 저장
         setMapDataCache(dynamicMaps);

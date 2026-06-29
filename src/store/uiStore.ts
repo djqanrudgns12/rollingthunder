@@ -7,8 +7,8 @@ interface UIState {
   setSidebarOpen: (isOpen: boolean) => void
   toggleSidebar: () => void
   
-  activeModal: 'none' | 'mapLoad' | 'listManager' | 'settings'
-  setActiveModal: (modal: 'none' | 'mapLoad' | 'listManager' | 'settings') => void
+  activeModal: 'none' | 'mapLoad' | 'listManager' | 'settings' | 'auth'
+  setActiveModal: (modal: 'none' | 'mapLoad' | 'listManager' | 'settings' | 'auth') => void
 
   gameStage: 'dashboard' | 'playing' | 'winner_declared' | 'all_finished' | 'editor'
   setGameStage: (stage: 'dashboard' | 'playing' | 'winner_declared' | 'all_finished' | 'editor') => void
@@ -28,6 +28,8 @@ interface UIState {
 
   isAdmin: boolean
   setIsAdmin: (isAdmin: boolean) => void
+  isLoggedIn: boolean
+  setIsLoggedIn: (isLoggedIn: boolean) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -44,6 +46,7 @@ export const useUIStore = create<UIState>()(
       gameTitle: '롤링 썬더!',
       activeModal: 'none',
       isAdmin: false,
+      isLoggedIn: false,
       gameStage: 'dashboard',
       setGameStage: (stage) => set({ gameStage: stage }),
       setCustomMapData: (data) => set({ customMapData: data }),
@@ -53,6 +56,7 @@ export const useUIStore = create<UIState>()(
       setGameTitle: (title) => set({ gameTitle: title }),
       setActiveModal: (modal) => set({ activeModal: modal }),
       setIsAdmin: (isAdmin) => set({ isAdmin: isAdmin }),
+      setIsLoggedIn: (isLoggedIn) => set({ isLoggedIn: isLoggedIn }),
     }),
     {
       name: 'rt-ui-storage',
