@@ -107,7 +107,7 @@ export default function LoginPage() {
               type="text"
               required
               className="bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/50 transition-all"
-              placeholder="dhrcjswh29"
+              placeholder="아이디를 입력해주세요"
             />
           </div>
           
