@@ -10,10 +10,17 @@ let zzfxX: AudioContext | null = null;
 export const initZzfx = () => {
   if (typeof window === 'undefined') return;
   if (!zzfxX) {
-    zzfxX = new (window.AudioContext || (window as any).webkitAudioContext)();
+    // 💡 핵심 픽스: Howler.js가 사용자 클릭 시 자동으로 AudioContext의 잠금을 풀어주므로,
+    // ZzFX가 자체 Context를 만들지 않고 Howler의 Context를 빌려 쓰도록 강제 연결합니다.
+    if (Howler.ctx) {
+      zzfxX = Howler.ctx as AudioContext;
+    } else {
+      zzfxX = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
   }
+  // User Gesture 없이 Resume 시도 시 나는 에러 무시
   if (zzfxX.state === 'suspended') {
-    zzfxX.resume();
+    zzfxX.resume().catch(() => {});
   }
 };
 
@@ -24,7 +31,8 @@ const zzfxP = (...t: any[]) => {
   let e = zzfxX.createBufferSource(), f = zzfxX.createBuffer(t.length, t[0].length, 44100);
   t.map((t, e) => f.getChannelData(e).set(t));
   e.buffer = f; 
-  e.connect(zzfxX.destination); 
+  // Howler의 마스터 게인에 연결하여 전체 볼륨 및 뮤트 상태 공유
+  e.connect((Howler as any).masterGain ? (Howler as any).masterGain : zzfxX.destination); 
   e.start(); 
   return e;
 };
@@ -32,11 +40,12 @@ const zzfxG = (q=1,k=.05,c=220,e=0,t=0,u=.1,r=0,F=1,v=0,z=0,w=0,A=0,l=0,B=0,x=0,
   let b=2*Math.PI,H=v*=500*b/44100**2,I=(0<x?1:-1)*b/4,D=c*=(1+2*k*Math.random()-k)*b/44100,Z=[],g=0,E=0,a=0,n_=1,J=0,K=0,f=0,p,h;e=99+44100*e;m*=44100;t*=44100;u*=44100;d*=44100;y*=500*b/44100**3;x*=b/44100;w*=b/44100;A*=44100;l=44100*l|0;for(h=e+t+u+m+d,p=0;p<h;p++)Z[p]=0;for(p=0;p<h;p++){Z[p]=0;a=++a%100,a=r?a>n?1:-1:Math.sin(a*b/100),g+=D+=v+=y,E=g+I*Math.sin(E*x),f=(p<e?p/e:p<e+t?1:p<e+t+u?1-(p-e-t)/u:p<e+t+u+m?0:p<e+t+u+m+d?1-(p-e-t-u-m)/d:0)*Math.abs(Math.sin(E)),f=B?f*(1-B+B*Math.sin(b*p/C)):f,f=C?f*(1-C+C*Math.sin(b*p/l)):f,J+=f,K+=f,n_=p?Math.min(1,n_+A):0;Z[p]=a*f*n_*q;D+=H;}return[Z]
 };
 
-// 14종의 엄선된 알고리즘 사운드 파라미터 매핑 (간결하고 펀치력 있는 소리)
+// 15종의 엄선된 알고리즘 사운드 파라미터 매핑
 const zzfxData: Record<string, any[]> = {
   gimmick_funnel: [1.2, undefined, 200, undefined, .05, .2, 1, 1.5, undefined, undefined, -100, undefined, .05, undefined, undefined, undefined, undefined, undefined, .5],
   gimmick_pipe: [1.5, undefined, 150, .01, .1, .2, 1, 2, -1, -5, .1, .05, undefined, undefined, undefined, undefined, undefined, undefined, .1],
   gimmick_domino: [1.5, undefined, 400, undefined, .02, .15, 1, 1, 5, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, .1],
+  spinner_whoosh: [1.2, undefined, 300, .1, .1, .2, 1, 0, -1, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, .1], // 새로 추가된 스피너 붕붕 소리
   env_wormhole: [1.5, undefined, 300, .2, .2, .3, 1, 0.5, -5, 5, .1, .1, undefined, .5, undefined, undefined, undefined, .5, .5],
   skill_tank: [2, undefined, 80, .01, .05, .4, 3, 1.5, -5, undefined, undefined, undefined, -0.1, .1, .8, undefined, undefined, undefined, .2],
   skill_slime: [1.5, undefined, 400, .02, .1, .3, 2, 2, -2, 10, .05, .1, .1, undefined, undefined, undefined, .1],
