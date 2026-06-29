@@ -227,10 +227,10 @@ export class SimulationCore {
     const rows = Math.ceil(count / maxPerRow);
     let slotIdx = 0;
     
-    // PRD v5.1: 스타트라인 상향 + 스폰갭 축소
-    const startMargin = layoutConfig ? layoutConfig.startMarginPercent : 0.04;
-    const spawnGap = layoutConfig ? layoutConfig.spawnGap : 50;
-    const startLineY = worldHeight * startMargin; // Starts from top down
+    // PRD v6.0: 절대 좌표 기반 스타트라인 고정 (우선 적용)
+    const startLineY = layoutConfig?.startLineY ?? 
+                       (layoutConfig?.startMarginPercent ? worldHeight * layoutConfig.startMarginPercent : 70);
+    const spawnGap = layoutConfig?.spawnGap ?? 50;
     const rowSpacingY = 75;  // PRD v5.1: 65 → 75 (이름 텍스트 높이 고려)
     
     for (let r = 0; r < rows; r++) {

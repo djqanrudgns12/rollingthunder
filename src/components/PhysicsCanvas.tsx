@@ -959,11 +959,11 @@ export default function PhysicsCanvas() {
             const floorContainer = new PIXI.Container();
             viewport.addChildAt(floorContainer, 0); // staticContainer보다 더 아래에(배경 바로 위)
             
-            const startMargin = presetMeta?.layoutConfig?.startMarginPercent ?? 0.04;
             const endMargin = presetMeta?.layoutConfig?.endMarginPercent ?? 0.02;
             
-            // Start Line 그리기
-            const startLineY = WORLD_HEIGHT * startMargin;
+            // PRD v6.0: startLineY 절대 좌표 우선 적용 (렌더링)
+            const startLineY = presetMeta?.layoutConfig?.startLineY ?? 
+                               (presetMeta?.layoutConfig?.startMarginPercent ? WORLD_HEIGHT * presetMeta.layoutConfig.startMarginPercent : 70);
             const startLine = new PIXI.Graphics();
             startLine.rect(0, startLineY - 10, WORLD_WIDTH, 20); // 두께 20
             startLine.fill({ color: 0x00FFD0, alpha: 0.3 }); // 네온 색상 1

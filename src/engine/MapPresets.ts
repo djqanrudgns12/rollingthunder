@@ -26,8 +26,9 @@ export interface MapPresetMeta {
   wallStyle: WallStyle;                      // 외벽 스타일 (straight/zigzag/narrow/wide)
   bgImage?: string;                          // 맵별 전용 배경 이미지 경로
   themeWeights: ThemeWeights;                // 밀도 증가 시 추가 주입 비율
-  layoutConfig?: {                           // PRD v4: 라인 배치 및 스폰 설정
-    startMarginPercent: number;
+  layoutConfig?: {                           // PRD v6.0: 절대 좌표 배치 지원
+    startLineY?: number;                     // 절대 좌표 (우선 적용)
+    startMarginPercent?: number;             // 기존 비율 (하위 호환용)
     endMarginPercent: number;
     spawnGap: number;
   };
@@ -203,7 +204,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_neon_arcade.png',
     themeWeights: { pin: 0.15, bumper: 0.35, booster: 0.20, portal: 0.05, blackhole: 0.00, whitehole: 0.00, hole: 0.05, windmill: 0.20 },
-    layoutConfig: { startMarginPercent: 0.04, endMarginPercent: 0.02, spawnGap: 50 },
+    layoutConfig: { startLineY: 70, endMarginPercent: 0.02, spawnGap: 50 },
     items: [
       // 골격: 핀볼 테이블. 개방 베이마다 범퍼 군집 + 측벽 킥커(가쪽 칩을 안으로 튕김)
       // + 각진 부스터(플런저)로 칩이 사방 난반사. 지그재그 슬로프 없음.
@@ -279,7 +280,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_gravity_abyss.png',
     themeWeights: { pin: 0.25, bumper: 0.05, booster: 0.00, portal: 0.00, blackhole: 0.35, whitehole: 0.30, hole: 0.00, windmill: 0.05 },
-    layoutConfig: { startMarginPercent: 0.04, endMarginPercent: 0.02, spawnGap: 50 },
+    layoutConfig: { startLineY: 70, endMarginPercent: 0.02, spawnGap: 50 },
     items: [
       // 골격: 중력 우물 체인. 베이마다 가쪽 킥커가 칩을 중앙으로 보내면 좌우로 엇갈린
       // 블랙홀(인력)·화이트홀(척력)이 사선으로 당기고 밀어 곡선 궤적을 만든다.
@@ -336,7 +337,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_mechanical_factory.png',
     themeWeights: { pin: 0.15, bumper: 0.10, booster: 0.10, portal: 0.00, blackhole: 0.00, whitehole: 0.00, hole: 0.10, windmill: 0.55 },
-    layoutConfig: { startMarginPercent: 0.04, endMarginPercent: 0.02, spawnGap: 50 },
+    layoutConfig: { startLineY: 70, endMarginPercent: 0.02, spawnGap: 50 },
     items: [
       // 골격: 조립 라인. 수평 컨베이어 피스톤(좌우 왕복 플랫폼) + 대형 톱니(풍차) +
       // 저마찰 캐치 렛지가 칩을 다음 층으로 넘긴다. 피스톤을 놓쳐도 렛지가 흐름을 보장.
@@ -383,7 +384,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_boost_highway.png',
     themeWeights: { pin: 0.40, bumper: 0.10, booster: 0.40, portal: 0.00, blackhole: 0.00, whitehole: 0.00, hole: 0.00, windmill: 0.10 },
-    layoutConfig: { startMarginPercent: 0.04, endMarginPercent: 0.02, spawnGap: 50 },
+    layoutConfig: { startLineY: 70, endMarginPercent: 0.02, spawnGap: 50 },
     items: [
       // 골격: 수직 레인 스피드웨이. 세로벽으로 나뉜 평행 레인을 하향 부스터로 직진 질주,
       // 레인 사이 틈에서 확률적으로 차선 변경(운). 핀 산란대로 순위 셔플.
@@ -438,7 +439,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_portal_labyrinth.png',
     themeWeights: { pin: 0.10, bumper: 0.20, booster: 0.00, portal: 0.00, blackhole: 0.00, whitehole: 0.00, hole: 0.00, windmill: 0.10 },
-    layoutConfig: { startMarginPercent: 0.04, endMarginPercent: 0.02, spawnGap: 50 },
+    layoutConfig: { startLineY: 70, endMarginPercent: 0.02, spawnGap: 50 },
     items: [
       // ========== Zone 1: 환영의 십자로 (Crossroads of Illusion) ==========
       // 좌우 비대칭 진입로. 좌측은 핀밭을 지나 주황 포탈로, 우측은 중앙으로 하강
@@ -525,7 +526,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_plinko_cascade.png',
     themeWeights: { pin: 0.70, bumper: 0.25, booster: 0.00, portal: 0.00, blackhole: 0.00, whitehole: 0.00, hole: 0.00, windmill: 0.05 },
-    layoutConfig: { startMarginPercent: 0.04, endMarginPercent: 0.02, spawnGap: 50 },
+    layoutConfig: { startLineY: 70, endMarginPercent: 0.02, spawnGap: 50 },
     items: ((): EditorItem[] => {
       // 골격: 골턴 보드(삼각 핀밭). 좁은 한 점에서 떨어뜨려 아래로 갈수록 넓어지는 삼각형
       // 핀밭으로 칩을 퍼뜨린다(순수 운). 삼각 변을 따라 측벽이 가쪽 이탈을 막는다.
@@ -588,7 +589,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_roulette_of_fate.png',
     themeWeights: { pin: 0.30, bumper: 0.10, booster: 0.00, portal: 0.10, blackhole: 0.00, whitehole: 0.35, hole: 0.00, windmill: 0.15 },
-    layoutConfig: { startMarginPercent: 0.04, endMarginPercent: 0.02, spawnGap: 50 },
+    layoutConfig: { startLineY: 70, endMarginPercent: 0.02, spawnGap: 50 },
     items: [
       // 골격: 원형 룰렛 볼. 마주보는 호(arc) 측벽이 사발을 이루고(상단 진입·하단 배출 열림),
       // 중심 화이트홀이 칩을 림으로 밀어 돌린 뒤 하단 gap 으로 떨어뜨린다.
@@ -653,7 +654,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_tornado_canyon.png',
     themeWeights: { pin: 0.10, bumper: 0.05, booster: 0.10, portal: 0.00, blackhole: 0.25, whitehole: 0.00, hole: 0.00, windmill: 0.50 },
-    layoutConfig: { startMarginPercent: 0.04, endMarginPercent: 0.02, spawnGap: 50 },
+    layoutConfig: { startLineY: 70, endMarginPercent: 0.02, spawnGap: 50 },
     items: [
       // 골격: 토네이도 컬럼. 중앙에 거대 블랙홀을 세로로 쌓아 칩을 빨아들이며 휘감고(가쪽 칩도
       // 중앙으로 당겨 직낙 차단), 양옆 역회전 풍차가 가른다. 호(arc)가 층을 나눈다.
@@ -710,7 +711,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_bounce_mirror.png',
     themeWeights: { pin: 0.15, bumper: 0.40, booster: 0.15, portal: 0.10, blackhole: 0.05, whitehole: 0.05, hole: 0.00, windmill: 0.10 },
-    layoutConfig: { startMarginPercent: 0.04, endMarginPercent: 0.02, spawnGap: 50 },
+    layoutConfig: { startLineY: 70, endMarginPercent: 0.02, spawnGap: 50 },
     items: [
       // 1구간: 혼돈의 소용돌이 (y: 150 ~ 900)
       // 입구 스플리터 (비대칭) - 틈새 간격을 대폭 확장하고 경사를 가파르게 하여 빠른 낙하 유도
@@ -797,7 +798,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
     wallStyle: 'straight',
     bgImage: '/images/assets/map_bg_meteor_field.png',
     themeWeights: { pin: 0.10, bumper: 0.70, booster: 0.05, portal: 0.00, blackhole: 0.00, whitehole: 0.00, hole: 0.00, windmill: 0.15 },
-    layoutConfig: { startMarginPercent: 0.04, endMarginPercent: 0.02, spawnGap: 50 },
+    layoutConfig: { startLineY: 70, endMarginPercent: 0.02, spawnGap: 50 },
     items: [
       // 골격: 개활 소행성대. 흩어진 대형 둥근 운석(범퍼) 사이를 칩이 핀볼처럼 튕기며 내려간다.
       // 범퍼 골(cusp) 정체를 막기 위해 가쪽 킥커와 저마찰 "레스큐 렛지"를 군데군데 깔았다.
