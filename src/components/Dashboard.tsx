@@ -7,6 +7,7 @@ import { createSession } from '@/actions/db'
 import MapLoadModal, { DEFAULT_MAPS } from './MapLoadModal'
 import ListManagerModal from './ListManagerModal'
 import SettingsModal from './SettingsModal'
+import AuthModal from './AuthModal'
 import { Tv, Shield, ShieldOff, Video, Map, Circle, Car, Rocket, Zap, Cat, Target, Volume2, VolumeX, Settings } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEditorStore } from '@/store/editorStore'
@@ -496,6 +497,7 @@ export default function Dashboard() {
         onLoadList={(names) => setNameInput(names)}
       />
       <SettingsModal />
+      <AuthModal />
     </div>
   )
 }
