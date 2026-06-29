@@ -122,10 +122,10 @@ export default function PhysicsCanvas() {
   useEffect(() => {
     if (isPaused) {
       gsap.globalTimeline.pause();
-      appRef.current?.ticker.stop();
+      appRef.current?.ticker?.stop();
     } else {
       gsap.globalTimeline.play();
-      appRef.current?.ticker.start();
+      appRef.current?.ticker?.start();
     }
   }, [isPaused]);
 
