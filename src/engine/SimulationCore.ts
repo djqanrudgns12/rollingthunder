@@ -176,7 +176,7 @@ export class SimulationCore {
         } else if (item.type === 'wall') {
           const body = MapBuilder.createRect(this.world!, item.x, item.y, item.w || 100, item.h || 20, 'wall', item.rotation || 0, item.restitution, item.friction);
           if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
-        } else if (item.type === 'windmill' || item.type === 'piston') {
+        } else if (item.type === 'windmill' || item.type === 'piston' || item.type === 'spinner') {
           const body = MapBuilder.createKinematic(this.world!, item);
           if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
         } else if (item.type === 'portal' || item.type === 'booster' || item.type === 'blackhole' || item.type === 'whitehole' || item.type === 'hole') {

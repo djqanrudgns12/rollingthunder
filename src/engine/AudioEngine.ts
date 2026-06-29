@@ -1,29 +1,69 @@
-import { Howl, Howler } from 'howler'
+import { Howl, Howler } from 'howler';
 
-const MAX_POLYPHONY = 4;
-const THROTTLE_MS = 200;
+const MAX_POLYPHONY = 6;
+const THROTTLE_MS = 150;
 
-interface ActiveSound {
-  id: number;
-  sound: Howl;
-}
+// ============================================================================
+// 🎹 ZzFX Micro Synthesizer Engine
+// ============================================================================
+let zzfxX: AudioContext | null = null;
+export const initZzfx = () => {
+  if (typeof window === 'undefined') return;
+  if (!zzfxX) {
+    zzfxX = new (window.AudioContext || (window as any).webkitAudioContext)();
+  }
+  if (zzfxX.state === 'suspended') {
+    zzfxX.resume();
+  }
+};
+
+const zzfx = (...t: any[]) => zzfxP(zzfxG(...t));
+const zzfxP = (...t: any[]) => {
+  if (!zzfxX) initZzfx();
+  if (!zzfxX) return;
+  let e = zzfxX.createBufferSource(), f = zzfxX.createBuffer(t.length, t[0].length, 44100);
+  t.map((t, e) => f.getChannelData(e).set(t));
+  e.buffer = f; 
+  e.connect(zzfxX.destination); 
+  e.start(); 
+  return e;
+};
+const zzfxG = (q=1,k=.05,c=220,e=0,t=0,u=.1,r=0,F=1,v=0,z=0,w=0,A=0,l=0,B=0,x=0,m=0,d=0,y=1,n=0,C=0) => {
+  let b=2*Math.PI,H=v*=500*b/44100**2,I=(0<x?1:-1)*b/4,D=c*=(1+2*k*Math.random()-k)*b/44100,Z=[],g=0,E=0,a=0,n_=1,J=0,K=0,f=0,p,h;e=99+44100*e;m*=44100;t*=44100;u*=44100;d*=44100;y*=500*b/44100**3;x*=b/44100;w*=b/44100;A*=44100;l=44100*l|0;for(h=e+t+u+m+d,p=0;p<h;p++)Z[p]=0;for(p=0;p<h;p++){Z[p]=0;a=++a%100,a=r?a>n?1:-1:Math.sin(a*b/100),g+=D+=v+=y,E=g+I*Math.sin(E*x),f=(p<e?p/e:p<e+t?1:p<e+t+u?1-(p-e-t)/u:p<e+t+u+m?0:p<e+t+u+m+d?1-(p-e-t-u-m)/d:0)*Math.abs(Math.sin(E)),f=B?f*(1-B+B*Math.sin(b*p/C)):f,f=C?f*(1-C+C*Math.sin(b*p/l)):f,J+=f,K+=f,n_=p?Math.min(1,n_+A):0;Z[p]=a*f*n_*q;D+=H;}return[Z]
+};
+
+// 14종의 엄선된 알고리즘 사운드 파라미터 매핑 (간결하고 펀치력 있는 소리)
+const zzfxData: Record<string, any[]> = {
+  gimmick_funnel: [1.2, undefined, 200, undefined, .05, .2, 1, 1.5, undefined, undefined, -100, undefined, .05, undefined, undefined, undefined, undefined, undefined, .5],
+  gimmick_pipe: [1.5, undefined, 150, .01, .1, .2, 1, 2, -1, -5, .1, .05, undefined, undefined, undefined, undefined, undefined, undefined, .1],
+  gimmick_domino: [1.5, undefined, 400, undefined, .02, .15, 1, 1, 5, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, .1],
+  env_wormhole: [1.5, undefined, 300, .2, .2, .3, 1, 0.5, -5, 5, .1, .1, undefined, .5, undefined, undefined, undefined, .5, .5],
+  skill_tank: [2, undefined, 80, .01, .05, .4, 3, 1.5, -5, undefined, undefined, undefined, -0.1, .1, .8, undefined, undefined, undefined, .2],
+  skill_slime: [1.5, undefined, 400, .02, .1, .3, 2, 2, -2, 10, .05, .1, .1, undefined, undefined, undefined, .1],
+  skill_ghost: [1.5, undefined, 800, .1, .3, .5, 1, 0.5, undefined, undefined, -50, undefined, .05, undefined, .5, undefined, .1, .8],
+  skill_magnet: [1.5, undefined, 200, .05, .2, .2, 3, 1, -5, 5, .1, .1, .8, undefined, .1],
+  skill_teleport: [1.5, undefined, 600, .01, .05, .3, 1, 2, -10, undefined, .1, .05, undefined, undefined, undefined, undefined, .5],
+  skill_booster: [1.5, undefined, 100, .05, .1, .3, 3, 2, 10, -5, .05, .05, .2, undefined, .1],
+  ui_click: [1.5, undefined, 800, undefined, .01, .02, 1, 0, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, .1],
+  ui_nudge: [1.5, undefined, 150, undefined, .01, .05, 3, 0, -2, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, .1],
+  ui_door_slam: [1.5, undefined, 80, undefined, .02, .2, 3, 0, -1, undefined, undefined, undefined, .1, undefined, .5],
+  ui_fanfare: [1.5, undefined, 600, .05, .2, .5, 0, 1, 1, -1, undefined, .05, undefined, .1, undefined, .5]
+};
+// ============================================================================
 
 class AudioEngine {
   private static instance: AudioEngine;
   
-  // BGM
+  // BGM (사용자 제공 .mp3 파일은 Howler로 정상 재생)
   private standbyBgm: Howl;
   private playgameBgm: Howl;
   private currentBgm: Howl | null = null;
-
-  // SFX Groups
-  private sounds: Record<string, Howl> = {};
   
   // Throttling state
   private lastPlayed: Record<string, number> = {};
   
-  // Polyphony state
-  private activeSfx: ActiveSound[] = [];
+  // Polyphony state (간이 폴리포니 트래커)
+  private activeCount: number = 0;
 
   private isMuted: boolean = false;
   
@@ -37,25 +77,6 @@ class AudioEngine {
 
     this.standbyBgm = new Howl({ src: ['/sounds/bgm/Standby.mp3'], loop: true, volume: this.bgmVol, preload: true });
     this.playgameBgm = new Howl({ src: ['/sounds/bgm/Playgame.mp3'], loop: true, volume: this.bgmVol, preload: true });
-
-    const sfxList = [
-      'gimmick_funnel', 'gimmick_pipe', 'gimmick_domino', 'env_wormhole',
-      'skill_tank', 'skill_slime', 'skill_ghost', 'skill_magnet', 'skill_teleport', 'skill_booster',
-      'ui_click', 'ui_nudge', 'ui_door_slam', 'ui_fanfare'
-    ];
-    
-    sfxList.forEach(name => {
-      let folder = 'sfx';
-      if (name.startsWith('skill_')) folder = 'skills';
-      if (name.startsWith('ui_')) folder = 'ui';
-      
-      this.sounds[name] = new Howl({
-        src: [`/sounds/${folder}/${name}.mp3`],
-        volume: this.sfxVol,
-        preload: true,
-        onend: (id) => this.removeActiveSfx(id)
-      });
-    });
   }
 
   static getInstance(): AudioEngine {
@@ -104,10 +125,12 @@ class AudioEngine {
     }, durationMs);
   }
 
-  // --- SFX Methods ---
+  // --- SFX Methods (ZzFX 연동) ---
   playSfx(name: string, impulse: number = 0, x: number = 400, isSkill: boolean = false) {
-    const sound = this.sounds[name];
-    if (!sound) return;
+    if (this.isMuted) return;
+    
+    const paramArray = zzfxData[name];
+    if (!paramArray) return;
 
     const now = Date.now();
     // 1. Throttling (동일 사운드 단기 중복 재생 방지)
@@ -116,47 +139,38 @@ class AudioEngine {
     }
     this.lastPlayed[name] = now;
 
-    // 2. Polyphony control (동시 채널 제한)
-    // 배경음/UI음 제외 물리/스킬음만 폴리포니 제한 적용
+    // 2. Polyphony control (동시 재생 수 제한)
     if (!name.startsWith('ui_')) {
-      if (this.activeSfx.length >= MAX_POLYPHONY) {
-        const oldest = this.activeSfx.shift();
-        if (oldest) {
-          oldest.sound.fade(oldest.sound.volume(oldest.id) as number, 0, 100, oldest.id);
-          setTimeout(() => oldest.sound.stop(oldest.id), 100);
-        }
-      }
+      if (this.activeCount >= MAX_POLYPHONY) return;
+      this.activeCount++;
+      setTimeout(() => this.activeCount--, 300); // 300ms 후 동시재생 카운트 해제
     }
 
-    // 3. Velocity-based volume (충돌 강도 비례 볼륨)
-    let volume = this.sfxVol;
+    // 3. Velocity-based volume (충돌 강도 비례 볼륨 조정)
+    let dynamicVolume = this.masterVol * this.sfxVol;
     if (impulse > 0) {
-      volume = Math.min(Math.max(impulse / 1000, 0.2), 1.0) * this.sfxVol;
+      dynamicVolume *= Math.min(Math.max(impulse / 1000, 0.3), 1.2);
     }
 
-    // 4. Stereo Panning (좌우 위치 기반 패닝)
-    const pan = Math.min(Math.max((x / 400) - 1.0, -1.0), 1.0);
+    // ZzFX 초기화 보장
+    initZzfx();
 
-    // 5. Pitch Randomization (피치 무작위화 ±5%)
-    const rate = 0.95 + Math.random() * 0.1;
+    // 원본 파라미터 복사 후 첫 번째 인자(Volume) 변경
+    const finalParams = [...paramArray];
+    finalParams[0] = (finalParams[0] || 1) * dynamicVolume;
 
-    const id = sound.play();
-    sound.volume(volume, id);
-    sound.stereo(pan, id);
-    sound.rate(rate, id);
-
-    if (!name.startsWith('ui_')) {
-      this.activeSfx.push({ id, sound });
+    // 4. 피치 랜덤화: 주파수(Frequency, 세번째 인자) 미세 변조
+    if (finalParams[2]) {
+      finalParams[2] *= (0.9 + Math.random() * 0.2); // ±10%
     }
+
+    // ZzFX 실행 (사운드 발사)
+    zzfx(...finalParams);
 
     // 스킬 발동 시 더킹 효과
     if (isSkill) {
-      this.duckBgm(1000);
+      this.duckBgm(800);
     }
-  }
-
-  private removeActiveSfx(id: number) {
-    this.activeSfx = this.activeSfx.filter(s => s.id !== id);
   }
 
   // --- Controls ---

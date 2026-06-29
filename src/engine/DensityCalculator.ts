@@ -16,7 +16,7 @@ export function calculateDensity(
   let survivalRate = 1.0;
   let injectionCount = 0;
   const injectionMix: Record<EditorItemType, number> = {
-    pin: 0, bumper: 0, booster: 0, portal: 0, blackhole: 0, whitehole: 0, hole: 0, windmill: 0, wall: 0, piston: 0
+    pin: 0, bumper: 0, booster: 0, portal: 0, blackhole: 0, whitehole: 0, hole: 0, windmill: 0, wall: 0, piston: 0, spinner: 0
   };
 
   const clampedDensity = Math.max(10, Math.min(90, density));

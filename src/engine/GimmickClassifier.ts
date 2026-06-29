@@ -8,7 +8,7 @@ export function classifyItems(items: EditorItem[]): {
   const fillers: EditorItem[] = [];
 
   for (const item of items) {
-    if (item.type === 'wall' || item.type === 'piston') {
+    if (item.type === 'wall' || item.type === 'piston' || item.type === 'spinner') {
       skeleton.push(item);
     } else if (
       item.id && (
@@ -17,7 +17,8 @@ export function classifyItems(items: EditorItem[]): {
         item.id.startsWith('cv_') ||
         item.id.startsWith('fn_') ||
         item.id.startsWith('sp_') ||
-        item.id.startsWith('ln_')
+        item.id.startsWith('ln_') ||
+        item.id.includes('_new')
       )
     ) {
       skeleton.push(item);

@@ -38,7 +38,7 @@ export default function PhysicsCanvas() {
   const finishedFeedRef = useRef(finishedFeed);
   useEffect(() => { finishedFeedRef.current = finishedFeed; }, [finishedFeed]);
   
-  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks, baseTimeScale } = useGameStore()
+  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, setSelectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks, baseTimeScale } = useGameStore()
   const { setGameStage, customMapData, isBroadcasterMode, gameTitle } = useUIStore()
   const workerRef = useRef<Worker | null>(null)
   
@@ -47,6 +47,7 @@ export default function PhysicsCanvas() {
   const [isFastForward, setIsFastForward] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [isBgmOn, setIsBgmOn] = useState(true);
+  const [isMapMenuOpen, setIsMapMenuOpen] = useState(false);
 
   const handleToggleBgm = () => {
     setIsBgmOn(prev => {
@@ -1527,6 +1528,8 @@ export default function PhysicsCanvas() {
             soundManager.playSfx('gimmick_pipe', payload.impulse, payload.x);
           } else if (payload.type === 'holeTrapped') {
             soundManager.playSfx('env_wormhole', 0, 400);
+          } else if (payload.type === 'spinner_whoosh') {
+            soundManager.playSfx('gimmick_domino', payload.impulse * 0.5, payload.x);
           }
         } else if (type === 'SKILL_FIRED') {
           // ═══════════════════════════════════════════════════════════════════
@@ -1916,17 +1919,69 @@ export default function PhysicsCanvas() {
         {/* 그룹 1: 게임 설정 (게임 시작 시 숨김 처리) */}
         <div className={`flex items-center gap-3 overflow-hidden transition-all duration-700 ease-in-out origin-left ${gameState !== 'idle' ? 'max-w-[0px] opacity-0 m-0 p-0 !gap-0' : 'max-w-[600px] opacity-100'}`}>
           
-          {/* 맵 교체 버튼 */}
-          <button 
-            onClick={() => setGameStage('dashboard')}
-            className="flex items-center gap-2 px-5 py-3 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.1)] transition-all group"
-          >
-            <MapIcon className="w-[18px] h-[18px] text-blue-400 group-hover:text-blue-300 transition-colors" />
-            <span className="font-bold text-sm tracking-wide text-gray-200 group-hover:text-white transition-colors">
-              {selectedMapPreset === 'random' ? '랜덤 맵' : (getPresetMeta(selectedMapPreset)?.name || '맵 선택')}
-            </span>
-            <ChevronUp className="w-[18px] h-[18px] text-gray-500 group-hover:text-white ml-1 transition-colors" />
-          </button>
+          {/* 맵 교체 버튼 및 드롭업 */}
+          <div className="relative">
+            {/* Click-away backdrop */}
+            {isMapMenuOpen && (
+              <div 
+                className="fixed inset-0 z-[90] cursor-default" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMapMenuOpen(false);
+                }}
+              ></div>
+            )}
+
+            <button 
+              onClick={() => setIsMapMenuOpen(!isMapMenuOpen)}
+              className="relative z-[95] flex items-center gap-2 px-5 py-3 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.1)] transition-all group"
+            >
+              <MapIcon className="w-[18px] h-[18px] text-blue-400 group-hover:text-blue-300 transition-colors" />
+              <span className="font-bold text-sm tracking-wide text-gray-200 group-hover:text-white transition-colors">
+                {selectedMapPreset === 'random' ? '랜덤 맵' : (getPresetMeta(selectedMapPreset)?.name || '맵 선택')}
+              </span>
+              <ChevronUp className={`w-[18px] h-[18px] text-gray-500 group-hover:text-white ml-1 transition-transform ${isMapMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* 드롭업 (팝오버) 메뉴 */}
+            {isMapMenuOpen && (
+              <div className="absolute bottom-[110%] left-0 mb-2 w-56 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 shadow-[0_10px_40px_rgba(0,0,0,0.8)] animate-in slide-in-from-bottom-4 fade-in duration-300 z-[100]">
+                <div className="flex flex-col gap-1 max-h-[350px] overflow-y-auto scrollbar-hide">
+                  {Object.keys(MapPresets).map((presetKey) => {
+                    const isSelected = selectedMapPreset === presetKey;
+                    const meta = getPresetMeta(presetKey);
+                    if (!meta) return null;
+                    return (
+                      <button
+                        key={presetKey}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedMapPreset(presetKey);
+                          setIsMapMenuOpen(false);
+                        }}
+                        className={`flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all ${isSelected ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : 'text-gray-300 hover:bg-white/10 hover:text-white border border-transparent'}`}
+                      >
+                        {meta.name}
+                        {isSelected && <span className="text-blue-400 text-xs text-shadow-glow">✓</span>}
+                      </button>
+                    )
+                  })}
+                  <div className="h-px bg-white/10 my-1 mx-2"></div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedMapPreset('random');
+                      setIsMapMenuOpen(false);
+                    }}
+                    className={`flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all ${selectedMapPreset === 'random' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'text-gray-300 hover:bg-white/10 hover:text-white border border-transparent'}`}
+                  >
+                    🎲 랜덤 맵
+                    {selectedMapPreset === 'random' && <span className="text-purple-400 text-xs text-shadow-glow">✓</span>}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* 자리 섞기 버튼 */}
           <button 
