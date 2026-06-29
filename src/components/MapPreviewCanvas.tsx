@@ -110,9 +110,9 @@ export default function MapPreviewCanvas({ mapData, worldHeight, className = '' 
           break
         case 'spinner':
           ctx.fillStyle = '#FF00FF'
-          ctx.beginPath()
-          ctx.arc(0, 0, item.radius || 20, 0, Math.PI * 2)
-          ctx.fill()
+          const sw = item.w || 200
+          const sh = item.h || 20
+          ctx.fillRect(-sw / 2, -sh / 2, sw, sh)
           break
         default:
           break

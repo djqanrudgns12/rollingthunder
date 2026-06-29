@@ -313,6 +313,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       { id: 'g_wh4', type: 'whitehole', x: 250, y: 2560, radius: 120, force: 4 },
       // 피날레 우물
       { id: 'g_bh5', type: 'blackhole', x: 400, y: 2920, radius: 150, force: 4 },
+      { id: 'g_sp1', type: 'spinner', x: 400, y: 3050, w: 160, h: 18, speed: 6, soundTag: 'spinner_whoosh' },
       // 사이드 보강: 가쪽 직낙 차단
       sideKicker(800, 'left', { deg: 25 }), sideKicker(750, 'right', { deg: 25 }),
       sideBumper(1400, 'left'), sideBumper(1350, 'right'),
@@ -350,6 +351,8 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       { id: 'm_ent4', type: 'wall', x: 540, y: 210, w: 120, h: 16, rotation: -22, friction: 0.07 },
       { id: 'm_ps1', type: 'piston', x: 300, y: 440, w: 220, h: 20, speed: 2, waypointB: { x: 520, y: 440 } },
       { id: 'm_l1', type: 'wall', x: 680, y: 580, w: 240, h: 16, rotation: -14, friction: 0.07 },
+      { id: 'm_sp1', type: 'spinner', x: 280, y: 620, w: 140, h: 16, speed: 5, soundTag: 'spinner_whoosh' },
+      { id: 'm_sp2', type: 'spinner', x: 520, y: 620, w: 140, h: 16, speed: -5, soundTag: 'spinner_whoosh' },
       { id: 'm_wm1', type: 'windmill', x: 400, y: 780, speed: 7 },
       { id: 'm_ps2', type: 'piston', x: 500, y: 1000, w: 220, h: 20, speed: 2, waypointB: { x: 280, y: 1000 } },
       { id: 'm_l2', type: 'wall', x: 120, y: 1140, w: 240, h: 16, rotation: 14, friction: 0.07 },
@@ -468,6 +471,8 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       { id: 'pl_z2_b4', type: 'bumper', x: 300, y: 800, radius: 15, restitution: 1.6 },
       { id: 'pl_z2_b5', type: 'bumper', x: 500, y: 800, radius: 15, restitution: 1.6 },
       { id: 'pl_z2_b6', type: 'bumper', x: 400, y: 850, radius: 18, restitution: 1.6 },
+      { id: 'pl_sp1', type: 'spinner', x: 300, y: 720, w: 120, h: 16, speed: -6, soundTag: 'spinner_whoosh' },
+      { id: 'pl_sp2', type: 'spinner', x: 500, y: 720, w: 120, h: 16, speed: 6, soundTag: 'spinner_whoosh' },
       
       // 포탈 맹점 배치
       { id: 'pl_pb_in', type: 'portal', x: 220, y: 880, color: '#00FF66' }, // 초록 입구 (함정 - 상단 회귀)
@@ -500,6 +505,8 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       // 외곽 이탈 방지 가드레일 (포탈 존으로 칩을 유도)
       { id: 'pl_z4_w1', type: 'wall', x: 150, y: 1900, w: 300, h: 20, rotation: 60, friction: 0.0 },
       { id: 'pl_z4_w2', type: 'wall', x: 650, y: 1900, w: 300, h: 20, rotation: -60, friction: 0.0 },
+      { id: 'pl_sp3', type: 'spinner', x: 300, y: 2250, w: 120, h: 16, speed: 5, soundTag: 'spinner_whoosh' },
+      { id: 'pl_sp4', type: 'spinner', x: 500, y: 2300, w: 120, h: 16, speed: -5, soundTag: 'spinner_whoosh' },
       
       // ========== 포탈 출구 매핑 (Outlets) ==========
       { id: 'pl_pa_out', type: 'portal', x: 400, y: 1080, color: '#FF6600' }, // 주황 출구 (Zone 1 -> Zone 3 직행)
@@ -567,7 +574,11 @@ export const MapPresets: Record<string, MapPresetMeta> = {
         { id: kid('wm'), type: 'windmill', x: 40, y: 1750, speed: 7 },
         { id: kid('wm'), type: 'windmill', x: 760, y: 1750, speed: -7 },
         { id: kid('wm'), type: 'windmill', x: 40, y: 2150, speed: 7 },
-        { id: kid('wm'), type: 'windmill', x: 760, y: 2150, speed: -7 }
+        { id: kid('wm'), type: 'windmill', x: 760, y: 2150, speed: -7 },
+        { id: 'pl_cs1', type: 'spinner', x: 180, y: 2350, w: 100, h: 14, speed: 6, soundTag: 'spinner_whoosh' },
+        { id: 'pl_cs2', type: 'spinner', x: 340, y: 2400, w: 100, h: 14, speed: -6, soundTag: 'spinner_whoosh' },
+        { id: 'pl_cs3', type: 'spinner', x: 500, y: 2350, w: 100, h: 14, speed: 6, soundTag: 'spinner_whoosh' },
+        { id: 'pl_cs4', type: 'spinner', x: 660, y: 2400, w: 100, h: 14, speed: -6, soundTag: 'spinner_whoosh' }
       );
       // 출구: 다중 갈퀴 바닥 — 짧은 경사벽 7개로 여러 틈새로 배출 (h:35, 약간 기울여 갈림 방지)
       const rakeY = top + rows * rowH + 70;
@@ -620,6 +631,8 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       { id: 'rf_wm4', type: 'windmill', x: 620, y: 1330, speed: -7 },
       { id: 'rf_wm5', type: 'windmill', x: 180, y: 2080, speed: 7 },
       { id: 'rf_wm6', type: 'windmill', x: 620, y: 2110, speed: -7 },
+      { id: 'rf_wm_new1', type: 'windmill', x: 620, y: 1020, speed: -8 },
+      { id: 'rf_wm_new2', type: 'windmill', x: 620, y: 1780, speed: -8 },
 
       // 사이드 보강: arc 사발 바깥쪽 사이드 직낙 차단
       sideKicker(450, 'left', { deg: 22 }), sideKicker(400, 'right', { deg: 22 }),
@@ -664,6 +677,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       // 입구: 다운버스트 — 극단 비대칭. 입구 좁음 문제 해결 위해 좌측 벽 길이 축소 (560 -> 480)
       { id: 'tc_ent1', type: 'wall', x: 240, y: 180, w: 480, h: 20, rotation: 8, friction: 0.07 },
       { id: 'tc_ent2', type: 'wall', x: 700, y: 200, w: 200, h: 20, rotation: -35, friction: 0.07 },
+      { id: 'tc_wm_new', type: 'windmill', x: 400, y: 380, speed: 7 },
       // Bay 1
       { id: 'tc_k1', type: 'wall', x: 110, y: 460, w: 230, h: 16, rotation: 22, friction: 0.07 },
       { id: 'tc_k2', type: 'wall', x: 690, y: 460, w: 230, h: 16, rotation: -22, friction: 0.07 },
@@ -687,6 +701,8 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       { id: 'tc_bh2', type: 'blackhole', x: 400, y: 2080, radius: 130, force: 3 },
       { id: 'tc_wm7', type: 'windmill', x: 250, y: 2100, speed: 9 },
       { id: 'tc_wm8', type: 'windmill', x: 550, y: 2100, speed: -9 },
+      { id: 'tc_sp1', type: 'spinner', x: 300, y: 2280, w: 140, h: 16, speed: 5, soundTag: 'spinner_whoosh' },
+      { id: 'tc_sp2', type: 'spinner', x: 550, y: 2280, w: 140, h: 16, speed: -5, soundTag: 'spinner_whoosh' },
       { id: 'tc_b1', type: 'booster', x: 110, y: 2280, rotation: 170, power: 2 },
       { id: 'tc_b2', type: 'booster', x: 690, y: 2280, rotation: 190, power: 2 },
       // 사이드 보강: 가쪽 직낙 차단
@@ -727,6 +743,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       // 왼쪽 로또 공간 (막혀있는 듯 하나 포탈 존재)
       { id: kid('wl'), type: 'wall', x: 180, y: 900, w: 260, h: 16, rotation: -25, restitution: 0.5, friction: 0.07 }, // 왼쪽 가장자리로 유도
       // 가장자리 구석에 포탈 (안쪽으로 120px 여유 공간)
+      { id: 'bm_sp_new1', type: 'spinner', x: 150, y: 1000, w: 120, h: 16, speed: -8, soundTag: 'spinner_whoosh' },
       { id: kid('pt'), type: 'portal', x: 90, y: 1050, color: '#FF33CC' }, // 워프 진입점 A (하단 역전용)
       // 포탈 밑을 받쳐주는 벽 (구석 형성하되 완전히 막히지 않게 조심, 포탈이 흡수함)
       sideKicker(1150, 'left', { w: 200, deg: 35 }), 
@@ -768,6 +785,7 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       { id: kid('bp'), type: 'bumper', x: 600, y: 3350, radius: 30, restitution: 1.5 },
       { id: kid('bp'), type: 'bumper', x: 300, y: 3500, radius: 40, restitution: 1.5 },
       { id: kid('bp'), type: 'bumper', x: 500, y: 3650, radius: 35, restitution: 1.5 },
+      { id: 'bm_sp1', type: 'spinner', x: 400, y: 3600, w: 160, h: 18, speed: 7, soundTag: 'spinner_whoosh' },
 
       // 최후의 방해꾼 초고속 풍차
       { id: kid('wm'), type: 'windmill', x: 400, y: 3850, speed: 12 },
@@ -819,7 +837,9 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       { id: 'mf_k2', type: 'wall', x: 690, y: 1040, w: 230, h: 16, rotation: -22, friction: 0.07 },
       { id: 'mf_b7', type: 'bumper', x: 350, y: 1100, radius: 30, restitution: 1.4 },
       { id: 'mf_b8', type: 'bumper', x: 560, y: 1160, radius: 22, restitution: 1.4 },
+      { id: 'mf_sp1', type: 'spinner', x: 320, y: 1230, w: 180, h: 18, speed: 4, soundTag: 'spinner_whoosh' },
       { id: 'mf_l2', type: 'wall', x: 140, y: 1300, w: 260, h: 16, rotation: 16, friction: 0.07 },
+      { id: 'mf_sp2', type: 'spinner', x: 560, y: 1330, w: 180, h: 18, speed: -4, soundTag: 'spinner_whoosh' },
       { id: 'mf_b9', type: 'bumper', x: 450, y: 1360, radius: 26, restitution: 1.4 },
       { id: 'mf_b10', type: 'bumper', x: 640, y: 1420, radius: 24, restitution: 1.4 },
       { id: 'mf_k3', type: 'wall', x: 110, y: 1560, w: 230, h: 16, rotation: 22, friction: 0.07 },

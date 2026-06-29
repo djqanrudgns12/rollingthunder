@@ -115,14 +115,15 @@ export default function Dashboard() {
     })))
   }
 
-  const handleAdd = () => {
-    if (!nameInput.trim()) return
+  const handleAdd = (customInput?: string) => {
+    const textToProcess = customInput !== undefined ? customInput : nameInput
+    if (!textToProcess.trim()) return
     
-    saveStateForUndo(participants, nameInput)
+    saveStateForUndo(participants, textToProcess)
     isTypingRef.current = false
 
     // Support parsing multiple inputs separated by comma, newline, or spaces
-    const names = nameInput.split(/[,\s]+/).map(n => n.trim()).filter(n => n !== '')
+    const names = textToProcess.split(/[,\s]+/).map(n => n.trim()).filter(n => n !== '')
     const newParticipants = [...participants]
     names.forEach(name => {
       const newId = `chip-${crypto.randomUUID()}`
@@ -134,7 +135,9 @@ export default function Dashboard() {
       newParticipants.push({ id: newId, name: finalName, color: `hsl(${Math.random() * 360}, 80%, 50%)`, skinId: finalSkinId })
     })
     setParticipants(newParticipants)
-    setNameInput('')
+    if (customInput === undefined || customInput === nameInput) {
+      setNameInput('')
+    }
   }
 
   const handleRemoveParticipant = (id: string) => {
@@ -401,30 +404,42 @@ export default function Dashboard() {
 
           {/* 그룹 4: 참가자 입력 및 목록 */}
           <div className="flex flex-col gap-3 bg-black/20 p-4 rounded-2xl border border-white/5 shrink-0">
-            <div className="flex gap-2 items-stretch">
-              <textarea 
-                placeholder="참가자 이름 (쉼표/공백/줄바꿈 다중입력)" 
-                className="flex-[3] bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-secondary)] transition-colors text-sm resize-none scrollbar-hide h-[52px]"
-                value={nameInput}
-                onChange={(e) => {
-                  setNameInput(e.target.value)
-                  isTypingRef.current = true
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    handleAdd()
-                  }
-                }}
-              />
-              <div className="flex gap-2 shrink-0">
-                <button onClick={handleAdd} className="w-16 bg-[var(--accent-secondary)] text-black font-bold rounded-xl hover:opacity-90 transition-opacity text-sm shadow-[0_0_15px_rgba(0,255,204,0.3)] whitespace-nowrap">
-                  추가
-                </button>
-                <button onClick={() => setIsListModalOpen(true)} className="w-16 bg-white/10 text-white/70 font-bold rounded-xl hover:bg-white/20 hover:text-white transition-colors text-xs border border-white/5 whitespace-nowrap" title="명단 관리">
-                  명단
-                </button>
+            <div className="flex flex-col gap-1">
+              <div className="flex gap-2 items-stretch">
+                <textarea 
+                  placeholder="참가자 이름 (쉼표/공백/줄바꿈 다중입력)" 
+                  className="flex-[3] bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-secondary)] transition-colors text-sm resize-none scrollbar-hide h-[52px]"
+                  value={nameInput}
+                  onChange={(e) => {
+                    setNameInput(e.target.value)
+                    isTypingRef.current = true
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      handleAdd()
+                    }
+                  }}
+                  onPaste={(e) => {
+                    const pastedText = e.clipboardData.getData('text');
+                    // 여러 명이 포함된 데이터(탭, 줄바꿈, 쉼표 등)인지 확인
+                    if (pastedText && /[\n\t,]/.test(pastedText)) {
+                      e.preventDefault();
+                      handleAdd(nameInput + " " + pastedText);
+                      setNameInput('');
+                    }
+                  }}
+                />
+                <div className="flex gap-2 shrink-0">
+                  <button onClick={() => handleAdd()} className="w-16 bg-[var(--accent-secondary)] text-black font-bold rounded-xl hover:opacity-90 transition-opacity text-sm shadow-[0_0_15px_rgba(0,255,204,0.3)] whitespace-nowrap">
+                    추가
+                  </button>
+                  <button onClick={() => setIsListModalOpen(true)} className="w-16 bg-white/10 text-white/70 font-bold rounded-xl hover:bg-white/20 hover:text-white transition-colors text-xs border border-white/5 whitespace-nowrap" title="명단 관리">
+                    명단
+                  </button>
+                </div>
               </div>
+              <p className="text-[11px] text-white/40 ml-1 mt-0.5">💡 엑셀, 한글 등 표에서 여러 이름을 복사하여 붙여넣어 보세요!</p>
             </div>
 
             <div className="flex flex-col gap-2">

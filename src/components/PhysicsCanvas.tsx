@@ -10,7 +10,7 @@ import { useUIStore } from '@/store/uiStore'
 import type { EditorItem } from '@/store/editorStore'
 import LiveLeaderboard from './LiveLeaderboard'
 import { generateSkillMessage } from './SkillLogOverlay'
-import { Hand, Maximize, Video } from 'lucide-react'
+import { Hand, Maximize, Video, Map as MapIcon, Dices, Rocket, Music4, Pause, FastForward, ChevronUp, Play, VolumeX } from 'lucide-react'
 import gsap from 'gsap'
 import { GlowFilter, MotionBlurFilter, ShockwaveFilter, ColorOverlayFilter } from 'pixi-filters'
 import { getPresetMeta, MapPresets } from '@/engine/MapPresets'
@@ -42,9 +42,32 @@ export default function PhysicsCanvas() {
   const { setGameStage, customMapData, isBroadcasterMode, gameTitle } = useUIStore()
   const workerRef = useRef<Worker | null>(null)
   
+  const appRef = useRef<PIXI.Application | null>(null);
   const cameraDirectorRef = useRef<any>(null);
   const [isFastForward, setIsFastForward] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isBgmOn, setIsBgmOn] = useState(true);
+
+  const handleToggleBgm = () => {
+    setIsBgmOn(prev => {
+      const next = !prev;
+      soundManager.setVolumes(1, next ? 0.6 : 0, 1);
+      return next;
+    });
+  };
+
+  const handleTogglePause = () => {
+    setIsPaused(prev => !prev);
+  };
+
+  const handleToggleFastForward = () => {
+    setIsFastForward(prev => {
+      const next = !prev;
+      cameraDirectorRef.current?.setFastForward(next);
+      if (workerRef.current) workerRef.current.postMessage({ type: 'SET_TIME_SCALE', payload: { scale: next ? 2.0 : 1.0 } });
+      return next;
+    });
+  };
 
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => e.preventDefault();
@@ -52,17 +75,20 @@ export default function PhysicsCanvas() {
       if (e.button === 2) { // Right click
         setIsFastForward(true);
         cameraDirectorRef.current?.setFastForward(true);
+        if (workerRef.current) workerRef.current.postMessage({ type: 'SET_TIME_SCALE', payload: { scale: 2.0 } });
       }
     };
     const handlePointerUp = (e: PointerEvent) => {
       if (e.button === 2) {
         setIsFastForward(false);
         cameraDirectorRef.current?.setFastForward(false);
+        if (workerRef.current) workerRef.current.postMessage({ type: 'SET_TIME_SCALE', payload: { scale: 1.0 } });
       }
     };
     const handlePointerCancel = () => {
       setIsFastForward(false);
       cameraDirectorRef.current?.setFastForward(false);
+      if (workerRef.current) workerRef.current.postMessage({ type: 'SET_TIME_SCALE', payload: { scale: 1.0 } });
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
@@ -72,28 +98,29 @@ export default function PhysicsCanvas() {
       }
     };
 
-    window.addEventListener('contextmenu', handleContextMenu);
-    window.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('pointerup', handlePointerUp);
-    window.addEventListener('pointercancel', handlePointerCancel);
-    window.addEventListener('keydown', handleKeyDown);
+    // capture: true 를 사용하여 Pixi나 다른 DOM 요소가 이벤트를 삼키기 전에 강제로 가로챔
+    window.addEventListener('contextmenu', handleContextMenu, { capture: true });
+    window.addEventListener('pointerdown', handlePointerDown, { capture: true });
+    window.addEventListener('pointerup', handlePointerUp, { capture: true });
+    window.addEventListener('pointercancel', handlePointerCancel, { capture: true });
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
 
     return () => {
-      window.removeEventListener('contextmenu', handleContextMenu);
-      window.removeEventListener('pointerdown', handlePointerDown);
-      window.removeEventListener('pointerup', handlePointerUp);
-      window.removeEventListener('pointercancel', handlePointerCancel);
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('contextmenu', handleContextMenu, { capture: true });
+      window.removeEventListener('pointerdown', handlePointerDown, { capture: true });
+      window.removeEventListener('pointerup', handlePointerUp, { capture: true });
+      window.removeEventListener('pointercancel', handlePointerCancel, { capture: true });
+      window.removeEventListener('keydown', handleKeyDown, { capture: true });
     };
   }, []);
 
   useEffect(() => {
     if (isPaused) {
-      import('gsap').then(({ gsap }) => gsap.globalTimeline.pause());
-      import('pixi.js').then((PIXI) => PIXI.Ticker.shared.stop());
+      gsap.globalTimeline.pause();
+      appRef.current?.ticker.stop();
     } else {
-      import('gsap').then(({ gsap }) => gsap.globalTimeline.play());
-      import('pixi.js').then((PIXI) => PIXI.Ticker.shared.start());
+      gsap.globalTimeline.play();
+      appRef.current?.ticker.start();
     }
   }, [isPaused]);
 
@@ -196,6 +223,7 @@ export default function PhysicsCanvas() {
     const initPixi = async () => {
       try {
         app = new PIXI.Application();
+        appRef.current = app;
         (app as any)._cancelResize = () => {}; // Hotfix for Pixi v8 / pixi-viewport compatibility crash
         await app.init({
           width: window.innerWidth,
@@ -1122,6 +1150,15 @@ export default function PhysicsCanvas() {
                 const baseColor = isClockwise ? 0xff3333 : 0xaa33ff;
                 const glowColor = isClockwise ? 0xff0000 : 0x8800ff;
 
+                // 0. Trails (Motion Blur)
+                for (let i = 1; i <= 3; i++) {
+                  const trail = new PIXI.Graphics();
+                  trail.roundRect(-w/2, -h/2, w, h, h/2);
+                  trail.fill({ color: baseColor, alpha: 0.3 - i * 0.08 });
+                  trail.rotation = -Math.sign(speed) * 0.15 * i;
+                  g.addChild(trail);
+                }
+
                 // 1. Draw the neon bar
                 const bar = new PIXI.Graphics();
                 // Core
@@ -1135,11 +1172,21 @@ export default function PhysicsCanvas() {
                 }).catch(() => { /* fallback if filter fails */ });
                 g.addChild(bar);
 
-                // 2. Draw the core pulse
+                // 2. Draw the core pulse & direction arrow
                 const core = new PIXI.Graphics();
                 core.circle(0, 0, h/1.5);
                 core.fill({ color: 0xffffff });
                 core.stroke({ color: baseColor, width: 4 });
+                
+                // Direction Arrow
+                const dirDir = isClockwise ? 1 : -1;
+                core.poly([
+                  {x: -dirDir * h/4, y: -h/3},
+                  {x: dirDir * h/3, y: 0},
+                  {x: -dirDir * h/4, y: h/3}
+                ]);
+                core.fill({ color: baseColor });
+
                 g.addChild(core);
 
                 let time = 0;
@@ -1863,23 +1910,90 @@ export default function PhysicsCanvas() {
         </div>
       )}
 
-      {gameState === 'idle' && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex gap-4 animate-in slide-in-from-bottom fade-in duration-500">
+      {/* 메인 하단 독 (Dock) - PRD 반영 */}
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-black/40 backdrop-blur-xl border border-white/10 px-4 py-3 rounded-[2rem] shadow-[0_4px_30px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] transition-all duration-700 ease-in-out">
+        
+        {/* 그룹 1: 게임 설정 (게임 시작 시 숨김 처리) */}
+        <div className={`flex items-center gap-3 overflow-hidden transition-all duration-700 ease-in-out origin-left ${gameState !== 'idle' ? 'max-w-[0px] opacity-0 m-0 p-0 !gap-0' : 'max-w-[600px] opacity-100'}`}>
+          
+          {/* 맵 교체 버튼 */}
+          <button 
+            onClick={() => setGameStage('dashboard')}
+            className="flex items-center gap-2 px-5 py-3 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.1)] transition-all group"
+          >
+            <MapIcon className="w-[18px] h-[18px] text-blue-400 group-hover:text-blue-300 transition-colors" />
+            <span className="font-bold text-sm tracking-wide text-gray-200 group-hover:text-white transition-colors">
+              {selectedMapPreset === 'random' ? '랜덤 맵' : (getPresetMeta(selectedMapPreset)?.name || '맵 선택')}
+            </span>
+            <ChevronUp className="w-[18px] h-[18px] text-gray-500 group-hover:text-white ml-1 transition-colors" />
+          </button>
+
+          {/* 자리 섞기 버튼 */}
           <button 
             onClick={handleShuffle}
-            className="bg-black/50 border border-white/20 hover:border-purple-400 text-purple-300 font-bold px-6 py-4 rounded-2xl transition-all shadow-[0_0_15px_rgba(168,85,247,0.2)] hover:shadow-[0_0_25px_rgba(168,85,247,0.4)] flex items-center gap-2 group backdrop-blur-md"
+            className="flex items-center gap-2 px-5 py-3 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.1)] transition-all group"
           >
-            <span className="group-hover:rotate-180 transition-transform duration-500">🎲</span> 자리 섞기
+            <Dices className="w-[18px] h-[18px] text-pink-400 group-hover:text-pink-300 group-hover:rotate-180 transition-all duration-500" />
+            <span className="font-bold text-sm tracking-wide text-gray-200 group-hover:text-white transition-colors">자리 섞기</span>
           </button>
+
+          {/* 게임 시작 버튼 */}
           <button 
             onClick={handleStart}
             disabled={!isWorkerReady}
-            className={`bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-black font-extrabold text-xl tracking-widest px-10 py-4 rounded-2xl transition-all shadow-[0_0_30px_var(--accent-primary)] flex items-center gap-3 ${!isWorkerReady ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90 hover:scale-105 animate-pulse hover:animate-none'}`}
+            className={`flex items-center gap-2 px-8 py-3 rounded-full ml-1 bg-gradient-to-r from-indigo-500 to-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] transition-all group ${!isWorkerReady ? 'opacity-50 cursor-not-allowed' : 'hover:-translate-y-[2px] hover:scale-105 hover:shadow-[0_0_30px_rgba(168,85,247,0.6),inset_0_1px_0_rgba(255,255,255,0.3)]'}`}
           >
-            {isWorkerReady ? "🚀 게임 시작" : "⚙️ 엔진 로딩중..."}
+            {isWorkerReady ? (
+              <>
+                <Rocket className="w-[18px] h-[18px] text-white group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" />
+                <span className="font-bold tracking-widest text-sm text-white drop-shadow-md">게임 시작</span>
+              </>
+            ) : (
+              <span className="font-bold tracking-widest text-sm text-white drop-shadow-md">엔진 로딩중...</span>
+            )}
+          </button>
+          
+          {/* 구분선 */}
+          <div className="w-px h-8 bg-white/10 mx-1 rounded-full"></div>
+        </div>
+
+        {/* 그룹 2: 게임 진행 컨트롤 (항상 노출됨) */}
+        <div className="flex items-center gap-2">
+          {/* BGM 토글 */}
+          <button 
+            onClick={handleToggleBgm}
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2)] transition-all group"
+            title="BGM 끄기/켜기"
+          >
+            {isBgmOn ? 
+              <Music4 className="w-[22px] h-[22px] text-emerald-400 group-hover:text-emerald-300 transition-colors" /> :
+              <VolumeX className="w-[22px] h-[22px] text-gray-500 group-hover:text-gray-400 transition-colors" />
+            }
+          </button>
+
+          {/* 일시정지 / 재생 */}
+          <button 
+            onClick={handleTogglePause}
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2)] transition-all group"
+            title="일시정지/재생"
+          >
+            {isPaused ? 
+              <Play className="w-[22px] h-[22px] text-amber-400 group-hover:text-amber-300 transition-colors ml-1" /> :
+              <Pause className="w-[22px] h-[22px] text-amber-400 group-hover:text-amber-300 transition-colors" />
+            }
+          </button>
+
+          {/* 2배속 */}
+          <button 
+            onClick={handleToggleFastForward}
+            className={`w-12 h-12 flex items-center justify-center rounded-full border transition-all group ${isFastForward ? 'bg-cyan-500/20 border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.4)]' : 'bg-white/5 border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2)]'}`}
+            title="2배속 설정"
+          >
+            <FastForward className={`w-[22px] h-[22px] transition-colors ${isFastForward ? 'text-cyan-300' : 'text-cyan-400 group-hover:text-cyan-300'}`} />
           </button>
         </div>
-      )}
+
+      </div>
 
 
 
