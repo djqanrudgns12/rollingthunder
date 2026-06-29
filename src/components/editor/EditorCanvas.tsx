@@ -5,19 +5,32 @@ import * as PIXI from 'pixi.js'
 import { useEditorStore, EditorItem } from '@/store/editorStore'
 import { Viewport } from 'pixi-viewport'
 
+// 에셋 맵핑
+const ASSET_MAP: Record<string, string> = {
+  pin: '/images/assets/obstacles/obstacle_pin.png',
+  bumper: '/images/assets/obstacles/obstacle_bumper.png',
+  wall: '/images/assets/obstacles/obstacle_wall.png',
+  booster: '/images/assets/obstacles/obstacle_booster.png',
+  windmill: '/images/assets/obstacles/obstacle_windmill.png',
+  piston: '/images/assets/obstacles/obstacle_piston.png',
+  hole: '/images/assets/obstacles/obstacle_hole.png',
+  portal: '/images/assets/obstacles/obstacle_portal.png',
+  blackhole: '/images/assets/obstacles/obstacle_blackhole.png',
+  whitehole: '/images/assets/obstacles/obstacle_whitehole.png'
+};
+
 export default function EditorCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const appRef = useRef<PIXI.Application | null>(null)
   const viewportRef = useRef<Viewport | null>(null)
   const containerRef = useRef<PIXI.Container | null>(null)
-  const graphicsMapRef = useRef<Map<string, PIXI.Graphics>>(new Map())
-  const gizmoRef = useRef<PIXI.Graphics | null>(null)
+  const containerMapRef = useRef<Map<string, PIXI.Container>>(new Map())
+  const bgSpriteRef = useRef<PIXI.TilingSprite | null>(null)
 
-  const { items, selectedItemId, setSelectedItemId, updateItem, gridSnap, undo, redo, removeItem, clipboard, setClipboard, addItem } = useEditorStore()
+  const { items, selectedItemId, setSelectedItemId, updateItem, gridSnap, bgImage, worldHeight } = useEditorStore()
 
   useEffect(() => {
     if (!canvasRef.current) return
-
     let isDestroyed = false;
 
     const initPixi = async () => {
@@ -35,7 +48,6 @@ export default function EditorCanvas() {
         app.destroy(true, { children: true });
         return;
       }
-      
       appRef.current = app
 
       const viewport = new Viewport({
@@ -52,6 +64,13 @@ export default function EditorCanvas() {
 
       viewport.moveCenter(400, 400)
 
+      // Background
+      const bgSprite = new PIXI.TilingSprite(PIXI.Texture.WHITE, 1600, 4000)
+      bgSprite.tint = 0x111111;
+      bgSprite.position.set(-400, -1000)
+      viewport.addChild(bgSprite)
+      bgSpriteRef.current = bgSprite
+
       const container = new PIXI.Container()
       viewport.addChild(container)
       containerRef.current = container
@@ -65,12 +84,11 @@ export default function EditorCanvas() {
       for (let i = -1000; i <= 4000; i += 50) {
         grid.moveTo(-1000, i).lineTo(2000, i)
       }
-      viewport.addChildAt(grid, 0)
+      viewport.addChild(grid)
 
-      // Gizmo Container
-      const gizmo = new PIXI.Graphics()
-      viewport.addChild(gizmo)
-      gizmoRef.current = gizmo
+      // Preload assets
+      const assetsToLoad = Object.values(ASSET_MAP);
+      await Promise.all(assetsToLoad.map(url => PIXI.Assets.load(url).catch(() => null)));
     }
 
     initPixi()
@@ -90,14 +108,23 @@ export default function EditorCanvas() {
     }
   }, [])
 
+  // 배경 업데이트
+  useEffect(() => {
+    if (bgSpriteRef.current && bgImage) {
+      PIXI.Assets.load(bgImage).then(tex => {
+        if (bgSpriteRef.current) {
+          bgSpriteRef.current.texture = tex;
+          bgSpriteRef.current.tint = 0xffffff;
+        }
+      }).catch(() => {});
+    }
+  }, [bgImage])
+
   // 키보드 단축키
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Input 창에서는 무시
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-
       const ctrlCmd = e.ctrlKey || e.metaKey
-
       if (e.key === 'Delete' || e.key === 'Backspace') {
         const state = useEditorStore.getState()
         if (state.selectedItemId) state.removeItem(state.selectedItemId)
@@ -139,124 +166,144 @@ export default function EditorCanvas() {
         }
       }
     }
-
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // 아이템 렌더링 동기화
+  // 아이템 렌더링
   useEffect(() => {
     if (!containerRef.current || !viewportRef.current) return
 
     const container = containerRef.current
     const currentIds = new Set(items.map(it => it.id))
 
-    for (const [id, g] of graphicsMapRef.current.entries()) {
+    for (const [id, c] of containerMapRef.current.entries()) {
       if (!currentIds.has(id)) {
-        container.removeChild(g)
-        g.destroy()
-        graphicsMapRef.current.delete(id)
+        container.removeChild(c)
+        c.destroy({ children: true })
+        containerMapRef.current.delete(id)
       }
     }
 
     items.forEach(item => {
-      let g = graphicsMapRef.current.get(item.id)
-      if (!g) {
-        g = new PIXI.Graphics()
-        g.eventMode = 'dynamic'
-        g.cursor = 'pointer'
+      let c = containerMapRef.current.get(item.id)
+      let sprite: PIXI.Sprite | PIXI.Graphics | null = null;
+      let selectionG: PIXI.Graphics | null = null;
+
+      if (!c) {
+        c = new PIXI.Container()
+        c.eventMode = 'dynamic'
+        c.cursor = 'pointer'
         
         let isDragging = false
         let offset = { x: 0, y: 0 }
 
-        g.on('pointerdown', (e) => {
+        c.on('pointerdown', (e) => {
           e.stopPropagation()
           setSelectedItemId(item.id)
-          
-          if (viewportRef.current) {
-             viewportRef.current.pause = true
-          }
+          if (viewportRef.current) viewportRef.current.pause = true
           isDragging = true
           const pos = e.data.getLocalPosition(container)
-          offset = { x: g!.x - pos.x, y: g!.y - pos.y }
+          offset = { x: c!.x - pos.x, y: c!.y - pos.y }
         })
 
         const onUp = () => {
           isDragging = false
           if (viewportRef.current) viewportRef.current.pause = false
         }
-        g.on('pointerup', onUp)
-        g.on('pointerupoutside', onUp)
+        c.on('pointerup', onUp)
+        c.on('pointerupoutside', onUp)
 
-        g.on('pointermove', (e) => {
+        c.on('pointermove', (e) => {
           if (isDragging) {
             const pos = e.data.getLocalPosition(container)
             let newX = pos.x + offset.x
             let newY = pos.y + offset.y
             
-            // Grid Snap 및 Shift 고정 처리는 useEditorStore.getState().gridSnap 참조
             const snap = useEditorStore.getState().gridSnap
             if (snap) {
               newX = Math.round(newX / 10) * 10
               newY = Math.round(newY / 10) * 10
             }
 
-            // Shift키를 누르면 수평/수직 고정 (시작점 기준 - 여기서는 단순화하여 생략하거나 별도 구현 가능)
-            if (e.shiftKey) {
-              // 수평 수직 고정 로직 (옵션)
-            }
-
-            g!.position.set(newX, newY)
+            c!.position.set(newX, newY)
             updateItem(item.id, { x: newX, y: newY })
           }
         })
 
-        container.addChild(g)
-        graphicsMapRef.current.set(item.id, g)
+        // Create inner sprite or graphics
+        if (ASSET_MAP[item.type]) {
+          const tex = PIXI.Assets.get(ASSET_MAP[item.type]) || PIXI.Texture.from(ASSET_MAP[item.type]);
+          sprite = new PIXI.Sprite(tex);
+          sprite.anchor.set(0.5);
+          sprite.name = 'sprite';
+          c.addChild(sprite);
+        } else {
+          sprite = new PIXI.Graphics();
+          sprite.name = 'sprite';
+          c.addChild(sprite);
+        }
+
+        // Selection graphic
+        selectionG = new PIXI.Graphics();
+        selectionG.name = 'selection';
+        c.addChild(selectionG);
+
+        container.addChild(c)
+        containerMapRef.current.set(item.id, c)
+      } else {
+        sprite = c.getChildByName('sprite') as any;
+        selectionG = c.getChildByName('selection') as any;
       }
 
-      g.clear()
       const isSelected = selectedItemId === item.id
-      g.alpha = item.flip ? 0.8 : 1 // 반전 시각적 표시 (임시)
+      c.alpha = item.flip ? 0.8 : 1
 
-      // 그리기 로직
-      g.lineStyle(2, isSelected ? 0x00ffff : 0xffffff, 1)
-      g.beginFill(0x444444, 0.8)
+      c.position.set(item.x, item.y)
+      c.rotation = (item.angle || 0) * Math.PI / 180
 
       let drawW = item.w || 40
       let drawH = item.h || 40
 
-      if (item.type === 'startline') {
-        g.lineStyle(2, 0x00ff00)
-        g.drawRect(-drawW/2, -drawH/2, drawW, drawH)
-      } else if (item.type === 'endline') {
-        g.lineStyle(2, 0xff0000)
-        g.drawRect(-drawW/2, -drawH/2, drawW, drawH)
-      } else if (item.type === 'wall' || item.type === 'iceblock' || item.type === 'luckygate' || item.type === 'piston') {
-        g.drawRect(-drawW/2, -drawH/2, drawW, drawH)
-      } else if (item.type === 'flipper') {
-        const len = item.length || 90
-        g.drawRect(item.side === 'left' ? 0 : -len, -10, len, 20)
-      } else {
-        const r = item.radius || drawW/2
-        g.drawCircle(0, 0, r)
+      if (sprite instanceof PIXI.Sprite) {
+        sprite.width = drawW;
+        sprite.height = item.radius ? drawW : drawH;
+        if (item.type === 'pin' || item.type === 'bumper' || item.type === 'portal') {
+            sprite.width = sprite.height = (item.radius || drawW/2) * 2;
+        }
+      } else if (sprite instanceof PIXI.Graphics) {
+        sprite.clear();
+        sprite.beginFill(0x444444, 0.8)
+        if (item.type === 'startline') {
+          sprite.lineStyle(2, 0x00ff00)
+          sprite.drawRect(-drawW/2, -drawH/2, drawW, drawH)
+        } else if (item.type === 'endline') {
+          sprite.lineStyle(2, 0xff0000)
+          sprite.drawRect(-drawW/2, -drawH/2, drawW, drawH)
+        } else if (item.type === 'iceblock' || item.type === 'luckygate') {
+          sprite.drawRect(-drawW/2, -drawH/2, drawW, drawH)
+        } else if (item.type === 'flipper') {
+          const len = item.length || 90
+          sprite.drawRect(item.side === 'left' ? 0 : -len, -10, len, 20)
+        } else {
+          const r = item.radius || drawW/2
+          sprite.drawCircle(0, 0, r)
+        }
+        sprite.endFill()
       }
-      
-      g.endFill()
 
-      g.removeChildren()
-      const label = new PIXI.Text(item.type, { fill: 0xffffff, fontSize: 10 })
-      label.anchor.set(0.5)
-      label.rotation = -(item.angle || 0) * Math.PI / 180 // 글자는 항상 정면을 보게 할 수도 있음
-      g.addChild(label)
-
-      g.position.set(item.x, item.y)
-      g.rotation = (item.angle || 0) * Math.PI / 180
-
+      selectionG!.clear();
+      if (isSelected) {
+        selectionG!.lineStyle(2, 0x00ffff, 1);
+        if (item.type === 'pin' || item.type === 'bumper' || item.type === 'portal') {
+            selectionG!.drawCircle(0, 0, (item.radius || drawW/2) + 2);
+        } else {
+            selectionG!.drawRect(-drawW/2 - 2, -drawH/2 - 2, drawW + 4, drawH + 4);
+        }
+      }
     })
   }, [items, selectedItemId, setSelectedItemId, updateItem])
 
-  // 바탕 클릭 시 선택 해제
   useEffect(() => {
     if (!viewportRef.current) return
     const vp = viewportRef.current

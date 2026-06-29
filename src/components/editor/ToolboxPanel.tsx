@@ -9,28 +9,29 @@ type TabType = 'obstacles' | 'frames' | 'skeleton'
 interface ItemDef {
   type: EditorItemType;
   label: string;
-  icon: React.FC<any>;
+  icon?: React.FC<any>;
+  imagePath?: string;
   color: string;
 }
 
 const CATEGORIES: Record<TabType, ItemDef[]> = {
   obstacles: [
-    { type: 'pin', label: '핀 (Pin)', icon: MapPin, color: 'text-gray-300' },
-    { type: 'bumper', label: '범퍼 (Bumper)', icon: CircleDashed, color: 'text-yellow-400' },
-    { type: 'booster', label: '부스터 (Booster)', icon: Zap, color: 'text-orange-500' },
-    { type: 'windmill', label: '풍차 (Windmill)', icon: Fan, color: 'text-blue-400' },
-    { type: 'piston', label: '피스톤 (Piston)', icon: ArrowDownToLine, color: 'text-red-400' },
+    { type: 'pin', label: '핀 (Pin)', imagePath: '/images/assets/obstacles/obstacle_pin.png', color: 'text-gray-300' },
+    { type: 'bumper', label: '범퍼 (Bumper)', imagePath: '/images/assets/obstacles/obstacle_bumper.png', color: 'text-yellow-400' },
+    { type: 'booster', label: '부스터 (Booster)', imagePath: '/images/assets/obstacles/obstacle_booster.png', color: 'text-orange-500' },
+    { type: 'windmill', label: '풍차 (Windmill)', imagePath: '/images/assets/obstacles/obstacle_windmill.png', color: 'text-blue-400' },
+    { type: 'piston', label: '피스톤 (Piston)', imagePath: '/images/assets/obstacles/obstacle_piston.png', color: 'text-red-400' },
     { type: 'spinner', label: '스피너 (Spinner)', icon: Loader, color: 'text-indigo-400' },
     { type: 'windcannon', label: '송풍기 (WindCannon)', icon: Wind, color: 'text-teal-300' },
     { type: 'luckygate', label: '럭키게이트 (LuckyGate)', icon: Trophy, color: 'text-yellow-500' },
     { type: 'flipper', label: '플리퍼 (Flipper)', icon: MoveDiagonal, color: 'text-pink-400' },
-    { type: 'hole', label: '구멍 (Hole)', icon: Circle, color: 'text-black' },
-    { type: 'portal', label: '포탈 (Portal)', icon: Waypoints, color: 'text-purple-500' },
-    { type: 'blackhole', label: '블랙홀 (Blackhole)', icon: Aperture, color: 'text-gray-600' },
-    { type: 'whitehole', label: '화이트홀 (Whitehole)', icon: Sun, color: 'text-white' },
+    { type: 'hole', label: '구멍 (Hole)', imagePath: '/images/assets/obstacles/obstacle_hole.png', color: 'text-black' },
+    { type: 'portal', label: '포탈 (Portal)', imagePath: '/images/assets/obstacles/obstacle_portal.png', color: 'text-purple-500' },
+    { type: 'blackhole', label: '블랙홀 (Blackhole)', imagePath: '/images/assets/obstacles/obstacle_blackhole.png', color: 'text-gray-600' },
+    { type: 'whitehole', label: '화이트홀 (Whitehole)', imagePath: '/images/assets/obstacles/obstacle_whitehole.png', color: 'text-white' },
   ],
   frames: [
-    { type: 'wall', label: '벽 (Wall)', icon: Square, color: 'text-gray-500' },
+    { type: 'wall', label: '벽 (Wall)', imagePath: '/images/assets/obstacles/obstacle_wall.png', color: 'text-gray-500' },
     { type: 'iceblock', label: '얼음블록 (IceBlock)', icon: Box, color: 'text-cyan-200' },
   ],
   skeleton: [
@@ -117,8 +118,12 @@ export default function ToolboxPanel() {
               onClick={() => handleAddItem(it.type)}
               className="w-full flex items-center gap-3 px-3 py-2.5 bg-[#252525] hover:bg-[#333] border border-[#333] hover:border-[#555] rounded-lg transition-colors text-left group"
             >
-              <div className="w-10 h-10 bg-[#1a1a1a] border border-[#333] rounded flex items-center justify-center shrink-0">
-                <Icon className={`w-6 h-6 ${it.color}`} />
+              <div className="w-12 h-12 bg-[#1a1a1a] border border-[#333] rounded flex items-center justify-center shrink-0 p-1">
+                {it.imagePath ? (
+                  <img src={it.imagePath} alt={it.label} className="w-full h-full object-contain filter drop-shadow-md" />
+                ) : Icon && (
+                  <Icon className={`w-6 h-6 ${it.color}`} />
+                )}
               </div>
               <div className="flex-1">
                 <div className="text-sm font-semibold text-gray-200 group-hover:text-white">{it.label}</div>

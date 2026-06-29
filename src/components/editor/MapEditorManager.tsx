@@ -5,6 +5,7 @@ import EditorCanvas from './EditorCanvas'
 import ToolboxPanel from './ToolboxPanel'
 import InspectorPanel from './InspectorPanel'
 import EditorToolbar from './EditorToolbar'
+import MinimapOverlay from './MinimapOverlay'
 
 export default function MapEditorManager() {
   return (
@@ -20,6 +21,9 @@ export default function MapEditorManager() {
 
       {/* 3. 우측 인스펙터 패널 */}
       <InspectorPanel />
+
+      {/* 4. 미니맵 오버레이 */}
+      <MinimapOverlay />
     </div>
   )
 }

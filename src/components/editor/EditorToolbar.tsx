@@ -3,9 +3,10 @@
 import React, { useState } from 'react'
 import { useEditorStore } from '@/store/editorStore'
 import { Save, Undo, Redo, Magnet, Plus, Map as MapIcon } from 'lucide-react'
+import { MapPresets } from '@/engine/MapPresets'
 
 export default function EditorToolbar() {
-  const { undo, redo, items, historyIndex, history, gridSnap, setGridSnap } = useEditorStore()
+  const { undo, redo, items, historyIndex, history, gridSnap, setGridSnap, mapId, loadMapPreset } = useEditorStore()
   const [mapName, setMapName] = useState('새 맵')
 
   const handleSave = () => {
@@ -25,9 +26,23 @@ export default function EditorToolbar() {
       {/* 좌측: 맵 선택 및 추가 */}
       <div className="flex items-center gap-3">
         <MapIcon className="w-5 h-5 text-gray-400" />
-        <select className="bg-[#2a2a2a] text-white text-sm rounded px-3 py-1.5 border border-[#444] focus:outline-none focus:border-blue-500">
-          <option>기본 맵 1</option>
-          <option>기본 맵 2</option>
+        <select 
+          value={mapId || ''} 
+          onChange={(e) => {
+            const newMapId = e.target.value;
+            if (newMapId) {
+              setMapName(MapPresets[newMapId]?.name || '새 맵');
+              loadMapPreset(newMapId);
+            }
+          }}
+          className="bg-[#2a2a2a] text-white text-sm rounded px-3 py-1.5 border border-[#444] focus:outline-none focus:border-blue-500"
+        >
+          <option value="" disabled>맵을 선택하세요</option>
+          {Object.keys(MapPresets).map((key) => (
+            <option key={key} value={key}>
+              {MapPresets[key].name}
+            </option>
+          ))}
         </select>
         <button 
           onClick={handleNewMap}

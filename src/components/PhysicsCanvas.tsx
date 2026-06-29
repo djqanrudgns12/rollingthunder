@@ -302,6 +302,7 @@ export default function PhysicsCanvas() {
           worldHeight: WORLD_HEIGHT,
           events: patchedEvents
         });
+        viewport.sortableChildren = true;
 
         app.stage.addChild(viewport);
         
@@ -1047,11 +1048,13 @@ export default function PhysicsCanvas() {
           
           if (payload.mapData) {
             const staticContainer = new PIXI.Container();
-            viewport.addChildAt(staticContainer, 0);
+            staticContainer.zIndex = -10;
+            viewport.addChild(staticContainer);
 
             // PRD v4: Floor 레이어 추가 (라인 렌더링)
             const floorContainer = new PIXI.Container();
-            viewport.addChildAt(floorContainer, 0); // staticContainer보다 더 아래에(배경 바로 위)
+            floorContainer.zIndex = -20; // staticContainer보다 더 아래에(배경(-100) 바로 위)
+            viewport.addChild(floorContainer);
             
             const endMargin = presetMeta?.layoutConfig?.endMarginPercent ?? 0.02;
             
@@ -1795,8 +1798,11 @@ export default function PhysicsCanvas() {
                   gsap.to(particle.position, {
                     x: tx, y: ty, duration: 0.6 + Math.random() * 0.4, ease: 'power2.out'
                   });
+                  gsap.to(particle.scale, {
+                    x: 0, y: 0, duration: 0.6 + Math.random() * 0.4, ease: 'power2.in'
+                  });
                   gsap.to(particle, {
-                    alpha: 0, scale: { x: 0, y: 0 }, duration: 0.6 + Math.random() * 0.4, ease: 'power2.in',
+                    alpha: 0, duration: 0.6 + Math.random() * 0.4, ease: 'power2.in',
                     onComplete: () => particle.destroy()
                   });
                 });

@@ -42,6 +42,9 @@ interface EditorState {
   selectedItemId: string | null;
   isEditorMode: boolean;
   mapId: string | null;
+  bgImage: string | null;
+  worldHeight: number;
+  layoutConfig: any;
   
   addItem: (item: EditorItem) => void;
   updateItem: (id: string, updates: Partial<EditorItem>) => void;
@@ -52,6 +55,7 @@ interface EditorState {
   setSelectedItemId: (id: string | null) => void;
   setEditorMode: (isEditor: boolean) => void;
   setMapId: (id: string | null) => void;
+  loadMapPreset: (mapId: string) => void;
   
   clipboard: EditorItem | null;
   setClipboard: (item: EditorItem | null) => void;
@@ -71,11 +75,33 @@ export const useEditorStore = create<EditorState>((set) => ({
   selectedItemId: null,
   isEditorMode: false,
   mapId: null,
+  bgImage: null,
+  worldHeight: 3300,
+  layoutConfig: null,
   clipboard: null,
   gridSnap: false,
 
   setClipboard: (item) => set({ clipboard: item }),
   setGridSnap: (snap) => set({ gridSnap: snap }),
+
+  loadMapPreset: (mapId) => set((state) => {
+    // 동적 임포트로 MapPresets를 가져와서 적용
+    import('@/engine/MapPresets').then(({ MapPresets }) => {
+      const preset = MapPresets[mapId];
+      if (preset) {
+        useEditorStore.setState({
+          mapId,
+          bgImage: preset.bgImage || null,
+          worldHeight: preset.worldHeight || 3300,
+          layoutConfig: preset.layoutConfig || null,
+          items: preset.items ? [...preset.items] : [],
+          history: preset.items ? [[...preset.items]] : [[]],
+          historyIndex: 0
+        });
+      }
+    });
+    return {};
+  }),
 
   pushHistory: (newItems) => set((state) => {
     const newHistory = state.history.slice(0, state.historyIndex + 1);
