@@ -633,9 +633,9 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       { id: 'rf_wm1', type: 'windmill', x: 180, y: 480, speed: 7 },
       { id: 'rf_wm2', type: 'windmill', x: 620, y: 430, speed: -7 },
       { id: 'rf_wm3', type: 'windmill', x: 180, y: 1300, speed: 7 },
-      { id: 'rf_wm4', type: 'windmill', x: 620, y: 1330, speed: -7 },
+      { id: 'rf_wm4', type: 'windmill', x: 652, y: 1317, speed: -7 },
       { id: 'rf_wm5', type: 'windmill', x: 180, y: 2080, speed: 7 },
-      { id: 'rf_wm6', type: 'windmill', x: 620, y: 2110, speed: -7 },
+      { id: 'rf_wm6', type: 'windmill', x: 660, y: 2096, speed: -7 },
 
       // 사이드 보강: arc 사발 바깥쪽 사이드 직낙 차단
       sideKicker(450, 'left', { deg: 22 }), sideKicker(400, 'right', { deg: 22 }),
@@ -705,21 +705,20 @@ export const MapPresets: Record<string, MapPresetMeta> = {
       { id: 'tc_wm7', type: 'windmill', x: 250, y: 2100, speed: 9 },
       { id: 'tc_wm8', type: 'windmill', x: 550, y: 2100, speed: -9 },
       // 기존 스피너(tc_sp1, tc_sp2) 제거됨
-      { id: 'tc_b1', type: 'booster', x: 110, y: 2280, rotation: 170, power: 2 },
-      { id: 'tc_b2', type: 'booster', x: 690, y: 2280, rotation: 190, power: 2 },
-      // 병목 구간 윈드밀 추가
-      { id: 'tc_wm_bottle', type: 'windmill', x: 230, y: 2300, speed: 6 },
+      // 기존 부스터(tc_b1, tc_b2) 제거됨
+      // 병목 구간 윈드밀 (부스터를 제거하고 진짜 윈드밀을 병목 지점에 배치)
+      { id: 'tc_wm_bottle', type: 'windmill', x: 280, y: 2350, speed: 6 },
       // 우측 하단 입구 차단용 신규 스피너 (튕겨내는 힘 최소화)
       { id: 'tc_sp_new', type: 'spinner', x: 680, y: 2450, w: 130, h: 16, speed: -4, restitution: 0.1, soundTag: 'spinner_whoosh' },
       // 사이드 보강: 가쪽 직낙 차단
       sideBumper(700, 'left'), sideBumper(750, 'right'),
       sideKicker(1220, 'left', { deg: 18 }), sideKicker(1250, 'right', { deg: 18 }),
       sideBumper(1650, 'left'), sideBumper(1700, 'right'),
-      // 출구: 소용돌이 꼬리 — 겹침 현상 방지를 위해 우측 출구 틈새(tc_ex2와 tc_ex4 사이) 확장
+      // 출구: 소용돌이 꼬리 — 스피너 양 옆 프레임 길이 축소 (tc_ex2, tc_ex4)
       { id: 'tc_ex1', type: 'wall', x: 200, y: 2380, w: 400, h: 20, rotation: 18, friction: 0.07 },
-      { id: 'tc_ex2', type: 'wall', x: 500, y: 2420, w: 300, h: 20, rotation: 12, friction: 0.07 },
+      { id: 'tc_ex2', type: 'wall', x: 470, y: 2414, w: 240, h: 20, rotation: 12, friction: 0.07 },
       { id: 'tc_ex3', type: 'wall', x: 80, y: 2350, w: 160, h: 16, rotation: 30, friction: 0.07 },
-      { id: 'tc_ex4', type: 'wall', x: 760, y: 2450, w: 80, h: 16, rotation: -25, friction: 0.07 },
+      { id: 'tc_ex4', type: 'wall', x: 775, y: 2444, w: 50, h: 16, rotation: -25, friction: 0.07 },
     ],
   },
 
