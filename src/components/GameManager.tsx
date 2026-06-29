@@ -54,28 +54,13 @@ export default function GameManager() {
     return () => clearTimeout(timeoutId);
   }, [])
 
-  if (!assetsLoaded) {
-    return (
-      <div className="flex flex-col items-center justify-center w-full h-screen bg-black text-white gap-4">
-        <div className="w-16 h-16 border-4 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-xl font-bold tracking-widest animate-pulse text-[var(--accent-primary)]">LOADING MASTERPIECE ASSETS...</p>
-        
-        {loadError && (
-          <div className="flex flex-col items-center gap-4 mt-8 animate-in fade-in slide-in-from-bottom">
-            <p className="text-red-400 font-bold">⚠️ 에셋을 불러오는데 시간이 너무 오래 걸리거나 오류가 발생했습니다.</p>
-            <p className="text-red-300 text-sm mt-1 mb-2">강제 시작 시 일부 텍스쳐가 깨지거나 투명하게 보일 수 있습니다.</p>
-            <div className="flex gap-4">
-              <button onClick={() => window.location.reload()} className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors font-bold border border-white/20">새로고침</button>
-              <button onClick={() => setAssetsLoaded(true)} className="px-6 py-2 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded-xl transition-colors font-bold border border-red-500/50">강제 시작</button>
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
+  // 🎧 BGM 제어 연동
+  // ⚠️ 왜 여기에 있는가: React의 "Rules of Hooks" 규칙 상, 모든 Hook은 
+  // 조건부 return 문보다 반드시 앞에 위치해야 합니다. 그렇지 않으면 
+  // 렌더링마다 Hook 호출 횟수가 달라져 React 310 에러가 발생합니다.
   useEffect(() => {
-    // 🎧 BGM 제어 연동
+    // 에셋 로딩이 아직 안 되었으면 BGM을 재생하지 않음
+    if (!assetsLoaded) return;
     import('@/engine/AudioEngine').then(({ soundManager }) => {
       soundManager.setMuted(isMuted);
       if (gameStage === 'dashboard') {
@@ -84,7 +69,7 @@ export default function GameManager() {
         soundManager.playGameBgm();
       }
     });
-  }, [gameStage, isMuted]);
+  }, [gameStage, isMuted, assetsLoaded]);
 
   useEffect(() => {
     // 🎧 브라우저 Autoplay 정책 우회 (최초 클릭 시 오디오 컨텍스트 강제 활성화)
@@ -104,6 +89,27 @@ export default function GameManager() {
       window.removeEventListener('touchstart', unlockAudio);
     };
   }, []);
+
+  // 에셋이 아직 로딩 중이면 로딩 화면 표시 (모든 Hook 선언 이후에 조기 return)
+  if (!assetsLoaded) {
+    return (
+      <div className="flex flex-col items-center justify-center w-full h-screen bg-black text-white gap-4">
+        <div className="w-16 h-16 border-4 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-xl font-bold tracking-widest animate-pulse text-[var(--accent-primary)]">LOADING MASTERPIECE ASSETS...</p>
+        
+        {loadError && (
+          <div className="flex flex-col items-center gap-4 mt-8 animate-in fade-in slide-in-from-bottom">
+            <p className="text-red-400 font-bold">⚠️ 에셋을 불러오는데 시간이 너무 오래 걸리거나 오류가 발생했습니다.</p>
+            <p className="text-red-300 text-sm mt-1 mb-2">강제 시작 시 일부 텍스쳐가 깨지거나 투명하게 보일 수 있습니다.</p>
+            <div className="flex gap-4">
+              <button onClick={() => window.location.reload()} className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors font-bold border border-white/20">새로고침</button>
+              <button onClick={() => setAssetsLoaded(true)} className="px-6 py-2 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded-xl transition-colors font-bold border border-red-500/50">강제 시작</button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <>
