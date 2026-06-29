@@ -481,7 +481,6 @@ export class SimulationCore {
               y: Math.max(80, holeY - 600),
             });
           }
-        }
         } else if (sensorData.type === 'flipper') {
           const flipperData = sensorBody.userData as any;
           if (flipperData.state === 'idle') {
