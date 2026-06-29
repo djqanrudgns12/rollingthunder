@@ -146,7 +146,8 @@ self.onmessage = async (e) => {
     const {
       width, height, customMapData, presetMeta, gimmickDensity,
       survivors, targetCount, mode, customRank, randomRanks, isSkillEnabled: isSkill,
-      baseTimeScale: initBaseTimeScale
+      baseTimeScale: initBaseTimeScale,
+      selectedMapPreset
     } = payload;
 
     const worldHeight = presetMeta ? presetMeta.worldHeight : height;

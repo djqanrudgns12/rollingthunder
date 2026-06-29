@@ -1883,7 +1883,8 @@ export default function PhysicsCanvas() {
             mode: gameMode,
             customRank: customWinningRank,
             randomRanks: randomWinningRanks,
-            isSkillEnabled
+            isSkillEnabled,
+            selectedMapPreset
           }
         });
       }
