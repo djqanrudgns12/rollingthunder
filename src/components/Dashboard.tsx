@@ -35,7 +35,6 @@ export default function Dashboard() {
   const [nameInput, setNameInput] = useState('')
 
   const [localWinnerCount, setLocalWinnerCount] = useState(targetWinnerCount || 1)
-  const [title, setTitle] = useState('')
   const [isMapModalOpen, setIsMapModalOpen] = useState(false)
   const [isListModalOpen, setIsListModalOpen] = useState(false)
 
@@ -186,7 +185,7 @@ export default function Dashboard() {
 
       let sid = null;
       try {
-        const finalTitle = title.trim() || '롤링 썬더!'
+        const finalTitle = '롤링 썬더!'
         setGameTitle(finalTitle)
         const session = await createSession(finalTitle)
         if (session) sid = session.id
@@ -216,18 +215,11 @@ export default function Dashboard() {
         {/* Body (Forms) - 화면이 작을 때 스크롤 됨 */}
         <div className="flex flex-col gap-3 overflow-y-auto scrollbar-hide flex-1 pb-2">
           
-          {/* 그룹 1: 기본 설정 (방 제목 & 맵) */}
+          {/* 그룹 1: 기본 설정 (맵) */}
           <div className="flex gap-3 shrink-0 flex-col md:flex-row bg-black/20 p-4 rounded-2xl border border-white/5">
-            <input 
-              type="text" 
-              placeholder="추첨 방 제목" 
-              className="flex-[2] bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] transition-colors truncate-1-line"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
             <button 
               onClick={() => setIsMapModalOpen(true)} 
-              className="relative flex-[1.5] overflow-hidden bg-black/40 backdrop-blur-md border border-white/10 hover:border-[var(--accent-primary)] rounded-xl transition-all duration-300 group shadow-[0_4px_20px_rgba(0,0,0,0.5)] hover:shadow-[0_0_20px_var(--accent-primary)] hover:scale-[1.01]"
+              className="relative w-full overflow-hidden bg-black/40 backdrop-blur-md border border-white/10 hover:border-[var(--accent-primary)] rounded-xl transition-all duration-300 group shadow-[0_4px_20px_rgba(0,0,0,0.5)] hover:shadow-[0_0_20px_var(--accent-primary)] hover:scale-[1.01]"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent-primary)]/0 via-[var(--accent-primary)]/10 to-[var(--accent-primary)]/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
               <div className="relative px-4 py-3 flex items-center justify-between h-full">

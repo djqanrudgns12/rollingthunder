@@ -1442,10 +1442,13 @@ export default function PhysicsCanvas() {
           }
 
         } else if (type === 'SOUND_EFFECT') {
-          if (payload.type === 'warp') soundManager.playFinish();
-          else if (payload.type === 'finish') soundManager.playFinish();
-          else if (payload.type === 'bumperHit') {
-            soundManager.playBumperHit(payload.impulse, payload.x);
+          // 🎧 [스마트 오디오] 무의미한 충돌음 배제 로직
+          if (payload.type === 'wallHit') {
+            // 의도적으로 음소거(Mute) 처리하여 소음 방지
+          } else if (payload.type === 'warp' || payload.type === 'finish') {
+            soundManager.playSfx('ui_fanfare', 0, payload.x || 400);
+          } else if (payload.type === 'bumperHit') {
+            soundManager.playSfx('gimmick_domino', payload.impulse, payload.x);
             // Visual Shake on Bumper Hit
             if (payload.targetId) {
               const target = viewport.getChildAt(0).children.find(c => c.label === payload.targetId);
@@ -1456,8 +1459,11 @@ export default function PhysicsCanvas() {
                 });
               }
             }
+          } else if (payload.type === 'funnel') {
+            soundManager.playSfx('gimmick_funnel', payload.impulse, payload.x);
+          } else if (payload.type === 'pipe') {
+            soundManager.playSfx('gimmick_pipe', payload.impulse, payload.x);
           }
-          else if (payload.type === 'wallHit') soundManager.playWallHit(payload.impulse, payload.x);
         } else if (type === 'SKILL_FIRED') {
           // ═══════════════════════════════════════════════════════════════════
           // ██ PROTECTED: 완주자의 스킬 발동은 UI에서도 이중 차단 ██
@@ -1485,7 +1491,8 @@ export default function PhysicsCanvas() {
           });
           // ── 발동 연출: 스킬별 사운드 + 카메라 셰이크 + 진동 ──
           const skillX = graphicsMap.get(payload.chipId)?.position.x ?? 400;
-          soundManager.playSkillActivation(payload.skill, skillX);
+          // 🎧 스킬 사운드 트리거 (isSkill = true 로 더킹 효과 발생)
+          soundManager.playSfx(`skill_${payload.skill}`, 0, skillX, true);
 
           // 임팩트 차등 셰이크. teleport는 위치 점프를 "연출"로 가리는 보정 역할도 겸함.
           const SKILL_SHAKE: Record<string, number> = {
@@ -1723,15 +1730,6 @@ export default function PhysicsCanvas() {
 
   return (
     <div className={`relative w-full h-full flex flex-col items-center justify-center overflow-hidden ${isBroadcasterMode ? 'bg-[#00ff00]' : 'bg-black'}`}>
-      {/* Title Bar Overlay */}
-      <div className="absolute top-6 left-6 z-[60] flex flex-col pointer-events-none animate-in fade-in slide-in-from-top-4 duration-500">
-        <div className="bg-black/40 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20 shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-          <p className="text-white/60 text-[10px] font-bold tracking-widest uppercase mb-0.5 ml-1">Title</p>
-          <h1 className="text-white font-extrabold text-xl tracking-wide drop-shadow-md">
-            {gameTitle || '롤링 썬더!'}
-          </h1>
-        </div>
-      </div>
 
       <LiveLeaderboard rankings={rankings} finishedFeed={finishedFeed} />
 
