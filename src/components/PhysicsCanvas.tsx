@@ -38,7 +38,7 @@ export default function PhysicsCanvas() {
   const finishedFeedRef = useRef(finishedFeed);
   useEffect(() => { finishedFeedRef.current = finishedFeed; }, [finishedFeed]);
   
-  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, setSelectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks, baseTimeScale } = useGameStore()
+  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, setSelectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks, baseTimeScale, isMuted, setMuted } = useGameStore()
   const { setGameStage, customMapData, isBroadcasterMode, gameTitle } = useUIStore()
   const workerRef = useRef<Worker | null>(null)
   
@@ -46,15 +46,16 @@ export default function PhysicsCanvas() {
   const cameraDirectorRef = useRef<any>(null);
   const [isFastForward, setIsFastForward] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [isBgmOn, setIsBgmOn] = useState(true);
   const [isMapMenuOpen, setIsMapMenuOpen] = useState(false);
 
+  useEffect(() => {
+    soundManager.setMuted(isMuted);
+  }, [isMuted]);
+
   const handleToggleBgm = () => {
-    setIsBgmOn(prev => {
-      const next = !prev;
-      soundManager.setVolumes(1, next ? 0.6 : 0, 1);
-      return next;
-    });
+    const nextMuted = !isMuted;
+    setMuted(nextMuted);
+    soundManager.setMuted(nextMuted);
   };
 
   const handleTogglePause = () => {
@@ -2020,7 +2021,7 @@ export default function PhysicsCanvas() {
             className="w-12 h-12 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2)] transition-all group"
             title="BGM 끄기/켜기"
           >
-            {isBgmOn ? 
+            {!isMuted ? 
               <Music4 className="w-[22px] h-[22px] text-emerald-400 group-hover:text-emerald-300 transition-colors" /> :
               <VolumeX className="w-[22px] h-[22px] text-gray-500 group-hover:text-gray-400 transition-colors" />
             }
