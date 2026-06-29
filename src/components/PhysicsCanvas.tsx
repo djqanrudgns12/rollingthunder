@@ -1439,9 +1439,16 @@ export default function PhysicsCanvas() {
               // Provide an ID to the graphic object for animations
               if (item.id) {
                 g.label = item.id;
+                graphicsMap.set(item.id, g);
               }
               staticContainer.addChild(g);
-            });
+            };
+
+            const initialItems = (payload.mapData && payload.mapData.items) ? payload.mapData.items : useEditorStore.getState().items;
+            if (Array.isArray(initialItems)) {
+              initialItems.forEach((item: any) => createEditorItemGraphic(item));
+            }
+
             // EditorStore 실시간 동기화 (새로운 아이템 추가 및 위치 업데이트 반영)
             const unsubEditor = useEditorStore.subscribe((state, prevState) => {
               if (!isEditorMode) return;
