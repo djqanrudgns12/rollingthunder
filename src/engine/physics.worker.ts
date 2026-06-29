@@ -15,10 +15,10 @@ import type { WallStyle } from './MapBuilder';
 
 let core: SimulationCore | null = null;
 let isRunning = false;
-let stepInterval: any = null;
 let postFinishFrames = 0;
 
 let positionsBuffer: Float32Array;
+let bufferPool: ArrayBuffer[] = [];
 let isSkillEnabled = true;
 let dtMultiplier = 1.0; // 결승 슬로모션(SET_TIME_SCALE)만 사용. 스킬 발동으로 변경하지 않음.
 
@@ -67,6 +67,21 @@ function broadcastCooldowns() {
 function broadcastFrame() {
   if (!core || core.activeChips.length === 0) return;
   const chips = core.activeChips;
+  const bufferLen = chips.length * 5;
+  const byteLen = bufferLen * 4;
+
+  let bufferToUse: ArrayBuffer;
+  if (bufferPool.length > 0) {
+    bufferToUse = bufferPool.pop()!;
+    if (bufferToUse.byteLength !== byteLen) {
+      bufferToUse = new ArrayBuffer(byteLen);
+    }
+  } else {
+    bufferToUse = new ArrayBuffer(byteLen);
+  }
+
+  positionsBuffer = new Float32Array(bufferToUse);
+
   for (let i = 0; i < chips.length; i++) {
     const t = chips[i].translation();
     const v = chips[i].linvel();
@@ -76,8 +91,8 @@ function broadcastFrame() {
     positionsBuffer[i * 5 + 3] = v.x;
     positionsBuffer[i * 5 + 4] = v.y;
   }
-  const frameData = new Float32Array(positionsBuffer);
-  (self.postMessage as any)({ type: 'FRAME', payload: frameData }, [frameData.buffer]);
+  
+  (self.postMessage as any)({ type: 'FRAME', payload: bufferToUse }, [bufferToUse]);
 }
 
 // core.events 를 그대로 메인 스레드로 중계
@@ -122,8 +137,6 @@ self.onmessage = async (e) => {
   if (type === 'INIT') {
     await SimulationCore.ensureRapier();
 
-    if (stepInterval) clearInterval(stepInterval);
-
     const {
       width, height, customMapData, selectedMapPreset, gimmickDensity,
       survivors, targetCount, mode, customRank, randomRanks, isSkillEnabled: isSkill,
@@ -144,6 +157,7 @@ self.onmessage = async (e) => {
       width, height, worldHeight, wallStyle,
       mapItems, gimmickDensity, isCustomMap,
       themeWeights: presetMeta?.themeWeights,
+      layoutConfig: presetMeta?.layoutConfig, // PRD v4: 레이아웃 설정 전달
       mapKey: selectedMapPreset && selectedMapPreset !== 'random' ? selectedMapPreset : 'random',
       survivors, targetCount, mode, customRank, randomRanks,
     });
@@ -182,32 +196,33 @@ self.onmessage = async (e) => {
       cd.maxCooldown = randomCooldown();
     }
 
-    stepInterval = setInterval(() => {
-      if (!core) return;
-      core.step(dtMultiplier);
-      flushEvents();
-      broadcastFrame();
+  } else if (type === 'STEP') {
+    if (!core || !isRunning) return;
+    core.step(dtMultiplier);
+    flushEvents();
+    broadcastFrame();
 
-      // 워커 루프는 "우승 확정(gameOver)"이 아니라 "마지막 주자까지 완주(allFinished)" 시 종료.
-      // 우승자가 나와도 남은 주자들이 결승선을 통과할 때까지 시뮬레이션을 계속 진행한다.
-      // 마지막 주자가 결승선에 닿자마자 멈추는 현상(화면에 칩이 걸쳐서 정지)을 막기 위해 2초(120프레임) 추가 대기.
-      if (core.allFinished) {
-        postFinishFrames++;
-        if (postFinishFrames > 120) {
-          clearInterval(stepInterval);
-          stepInterval = null;
-          chipCooldowns = [];
-          isRunning = false;
-          return;
-        }
+    // 워커 루프는 "우승 확정(gameOver)"이 아니라 "마지막 주자까지 완주(allFinished)" 시 종료.
+    // 우승자가 나와도 남은 주자들이 결승선을 통과할 때까지 시뮬레이션을 계속 진행한다.
+    // 마지막 주자가 결승선에 닿자마자 멈추는 현상(화면에 칩이 걸쳐서 정지)을 막기 위해 2초(120프레임) 추가 대기.
+    if (core.allFinished) {
+      postFinishFrames++;
+      if (postFinishFrames > 120) {
+        chipCooldowns = [];
+        isRunning = false;
+        return;
       }
+    }
 
-      // ── 핵심: 매 물리 스텝마다 개별 쿨타임 처리 ──
-      // 스킬 발동 시 슬로모션을 걸지 않으므로 게임 흐름이 전혀 방해받지 않는다.
-      processSkillCooldowns();
-      broadcastCooldowns();
-    }, 1000 / 60);
+    // ── 핵심: 매 물리 스텝마다 개별 쿨타임 처리 ──
+    // 스킬 발동 시 슬로모션을 걸지 않으므로 게임 흐름이 전혀 방해받지 않는다.
+    processSkillCooldowns();
+    broadcastCooldowns();
 
+  } else if (type === 'RECYCLE_BUFFER') {
+    if (payload && payload.byteLength) {
+      bufferPool.push(payload);
+    }
   } else if (type === 'NUDGE') {
     if (core && core.world) {
       NudgeSystem.applyNudge(core.world, payload.force || 150);
@@ -217,7 +232,6 @@ self.onmessage = async (e) => {
     dtMultiplier = payload.scale;
   } else if (type === 'STOP') {
     isRunning = false;
-    if (stepInterval) clearInterval(stepInterval);
     chipCooldowns = [];
     if (core) {
       core.free();

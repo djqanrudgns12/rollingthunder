@@ -137,6 +137,7 @@ export class SimulationCore {
     this.customWinningRank = config.customRank;
     this.survivorsData = config.survivors;
     this.rng = config.rng ?? Math.random;
+    this.layoutConfig = config.layoutConfig;
 
     const gravity = { x: 0.0, y: GRAVITY_Y };
     this.world = new RAPIER.World(gravity);
@@ -200,16 +201,17 @@ export class SimulationCore {
 
     // 칩 스폰 (스마트 그리드 배치)
     this.activeChips = [];
-    const slots = this.generateSlots(config.survivors.length, config.width);
+    // PRD v4: layoutConfig 전달
+    const slots = this.generateSlots(config.survivors.length, config.width, config.layoutConfig, config.worldHeight);
     config.survivors.forEach((s: any, idx: number) => {
       const slot = slots[idx];
-      const chip = ChipFactory.createChip(this.world!, slot.x, slot.y, 24, s.id);
+      const chip = ChipFactory.createChip(this.world!, slot.x, slot.y, 18, s.id);
       chip.setLinvel({ x: 0, y: 0 }, true);
       this.activeChips.push(chip);
     });
   }
 
-  private generateSlots(count: number, width: number): {x: number, y: number}[] {
+  private generateSlots(count: number, width: number, layoutConfig?: { startMarginPercent: number, endMarginPercent: number, spawnGap: number }, worldHeight: number = 3300): {x: number, y: number}[] {
     const slots: {x: number, y: number}[] = [];
     const spacingX = 65;
     const availableWidth = width * 0.8;
@@ -218,8 +220,15 @@ export class SimulationCore {
     const rows = Math.ceil(count / maxPerRow);
     let slotIdx = 0;
     
+    // PRD v4: Calculate StartLineY and ChipSpawnY
+    const startMargin = layoutConfig ? layoutConfig.startMarginPercent : 0.08;
+    const spawnGap = layoutConfig ? layoutConfig.spawnGap : 80;
+    const startLineY = worldHeight * startMargin; // Starts from top down
+    
     for (let r = 0; r < rows; r++) {
-      const rowY = 50 + r * 65; 
+      // Spawn chips progressively backward (upwards) from StartLineY - spawnGap
+      // Since it's top-down, "backward" means smaller Y
+      const rowY = Math.max(20, startLineY - spawnGap - (rows - 1 - r) * 65);
       const countInRow = (r === rows - 1) ? (count - slotIdx) : maxPerRow;
       const rowWidth = (countInRow - 1) * spacingX;
       const rowStartX = (width - rowWidth) / 2;
@@ -239,9 +248,12 @@ export class SimulationCore {
     return slots;
   }
 
+  // PRD v4: Store layoutConfig for shuffle
+  private layoutConfig?: { startMarginPercent: number, endMarginPercent: number, spawnGap: number };
+
   shuffle(width: number) {
     if (!this.world) return;
-    const slots = this.generateSlots(this.activeChips.length, width);
+    const slots = this.generateSlots(this.activeChips.length, width, this.layoutConfig, this.worldHeight);
     this.activeChips.forEach((chip, idx) => {
       const slot = slots[idx];
       chip.setTranslation({ x: slot.x, y: slot.y }, true);

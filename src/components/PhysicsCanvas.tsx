@@ -26,6 +26,7 @@ export default function PhysicsCanvas() {
   const [isMuted, setIsMuted] = useState(false)
   const [finishedFeed, setFinishedFeed] = useState<{ rank: number, survivor: any }[]>([])
   const [gameState, setGameState] = useState<'idle' | 'playing' | 'finished'>('idle')
+  const [isWorkerReady, setIsWorkerReady] = useState(false)
   const gameStateRef = useRef(gameState)
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -56,12 +57,12 @@ export default function PhysicsCanvas() {
   }, [gameState])
 
   const handleStart = useCallback(() => {
-    if (workerRef.current && gameState === 'idle') {
+    if (workerRef.current && gameState === 'idle' && isWorkerReady) {
       clearSkillLogs(); // 새 게임 시작 시 이전 스킬 로그 초기화
       workerRef.current.postMessage({ type: 'START' });
       setGameState('playing');
     }
-  }, [gameState, clearSkillLogs])
+  }, [gameState, isWorkerReady, clearSkillLogs])
 
   const handleShuffle = useCallback(() => {
     if (workerRef.current && gameState === 'idle') {
@@ -95,7 +96,7 @@ export default function PhysicsCanvas() {
     let minimapPointerActive = false;
     let minimapMoved = false;
     let minimapDownScreen = { x: 0, y: 0 };
-    let minimapScreenRect = { x: 20, y: 0, w: 0, h: 0, scale: 1 };
+    let minimapScreenRect = { x: 20, y: 0, w: 0, h: 0, scale: 1, offsetX: 0, offsetY: 0 };
     
     // Skill VFX Map
     const activeVFXMap = new Map<string, { cleanup: () => void }>();
@@ -282,6 +283,10 @@ export default function PhysicsCanvas() {
         app.stage.filters = [shockwave];
         
         app.ticker.add((ticker) => {
+          if (gameStateRef.current === 'playing' && workerRef.current) {
+            workerRef.current.postMessage({ type: 'STEP' });
+          }
+
           if (shockwaveRef.current && shockwaveRef.current.enabled) {
             shockwaveRef.current.time += ticker.deltaTime * 0.02;
             if (shockwaveRef.current.time > 2.5) {
@@ -308,10 +313,12 @@ export default function PhysicsCanvas() {
             const visibleH = window.innerHeight / currentZoom;
             const cx = viewport.center.x;
             const cy = viewport.center.y;
-            const x0 = Math.max(0, cx - visibleW / 2);
-            const x1 = Math.min(WORLD_WIDTH, cx + visibleW / 2);
-            const y0 = Math.max(0, cy - visibleH / 2);
-            const y1 = Math.min(WORLD_HEIGHT, cy + visibleH / 2);
+            const x0 = Math.max(-200, cx - visibleW / 2);
+            const x1 = Math.min(WORLD_WIDTH + 200, cx + visibleW / 2);
+            // PRD v4: 미니맵 표시 박스(viewIndicator)가 데드존에서 멈추지 않고 
+            // 뷰포트 전체 스크롤 범위(-500 ~ WORLD_HEIGHT + 200)를 정확히 담아내도록 수정
+            const y0 = Math.max(-500, cy - visibleH / 2);
+            const y1 = Math.min(WORLD_HEIGHT + 200, cy + visibleH / 2);
             const sw = Math.max(2, 8 / currentZoom);
             viewIndicator.rect(x0, y0, x1 - x0, y1 - y0);
             viewIndicator.fill({ color: 0x00ffcc, alpha: 0.12 });
@@ -338,7 +345,8 @@ export default function PhysicsCanvas() {
 
         // Add minimap background
         const minimapBg = new PIXI.Graphics();
-        minimapBg.rect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+        // PRD v4: 미니맵 영역 전체(데드존 포함)를 커버하도록 수정
+        minimapBg.rect(-200, -500, WORLD_WIDTH + 400, WORLD_HEIGHT + 700);
         minimapBg.fill({ color: 0x000000, alpha: 0.7 });
         pipViewport.addChild(minimapBg);
 
@@ -371,7 +379,8 @@ export default function PhysicsCanvas() {
         };
         const minimapToWorld = (sx: number, sy: number) => {
           const r = minimapScreenRect;
-          return { x: (sx - r.x) / r.scale, y: (sy - r.y) / r.scale };
+          // PRD v4: 미니맵이 데드존 클램프 영역까지 모두 포함하므로 오프셋 보정
+          return { x: (sx - r.x) / r.scale - (r.offsetX || 0), y: (sy - r.y) / r.scale - (r.offsetY || 0) };
         };
 
         // 미니맵 인터랙션은 윈도우 레벨에서 처리(아래 전체화면 메인 뷰포트가 Pixi 히트테스트를
@@ -426,35 +435,48 @@ export default function PhysicsCanvas() {
         // Setup minimap resize logic to place it at bottom-left
         const updateMinimapPos = () => {
           const h = window.innerHeight;
-          // Calculate max height to avoid overlapping with top-left Winner UI (approx 450px)
-          const WINNER_UI_HEIGHT = 450;
-          const BOTTOM_MARGIN = 120;
-          const maxMinimapHeight = h - WINNER_UI_HEIGHT - BOTTOM_MARGIN;
           
-          let currentMinimapHeight = baseMinimapHeight;
-          let currentMinimapWidth = baseMinimapWidth;
+          // PRD v4: 미니맵에 데드존까지 포함한 전체 클램프 영역 매핑
+          const BOUND_W = WORLD_WIDTH + 400; // left -200, right 200
+          const BOUND_H = WORLD_HEIGHT + 700; // top -500, bottom 200
           
-          if (currentMinimapHeight > maxMinimapHeight) {
-            currentMinimapHeight = Math.max(maxMinimapHeight, 200); // minimum 200px
-            currentMinimapWidth = currentMinimapHeight * (WORLD_WIDTH / WORLD_HEIGHT);
-          }
-
+          // 미니맵 가로 폭 고정 (로비 버튼과 동기화)
+          const currentMinimapWidth = 192;
+          // 맵 실제 비율에 맞춰 세로 크기 동적 할당
+          const currentMinimapHeight = currentMinimapWidth * (BOUND_H / BOUND_W);
+          
+          // 하단 간격 최적화
+          const BOTTOM_MARGIN = 90;
           const pipY = h - currentMinimapHeight - BOTTOM_MARGIN;
           
-          pipViewport.resize(currentMinimapWidth, currentMinimapHeight, WORLD_WIDTH, WORLD_HEIGHT);
-          pipViewport.scale.set(currentMinimapHeight / WORLD_HEIGHT);
+          // 버튼의 좌측 정렬(24px)에 완벽하게 일치
+          const MINIMAP_X = 24;
+          
+          pipViewport.resize(currentMinimapWidth, currentMinimapHeight, BOUND_W, BOUND_H);
+          const pipScale = currentMinimapHeight / BOUND_H;
+          pipViewport.scale.set(pipScale);
+          // 실제 월드의 (0,0) 위치가 데드존 오프셋(-200, -500)만큼 미뤄져 렌더링되게 pivot 설정
+          pipViewport.pivot.set(-200, -500);
 
           pipMask.clear();
-          pipMask.roundRect(20, pipY, currentMinimapWidth, currentMinimapHeight, 16);
+          pipMask.roundRect(MINIMAP_X, pipY, currentMinimapWidth, currentMinimapHeight, 16);
           pipMask.fill(0xffffff);
           
           pipBorder.clear();
-          pipBorder.roundRect(20, pipY, currentMinimapWidth, currentMinimapHeight, 16);
+          pipBorder.roundRect(MINIMAP_X, pipY, currentMinimapWidth, currentMinimapHeight, 16);
           pipBorder.stroke({ width: 2, color: 0x00ffcc, alpha: 0.8 });
           
-          pipViewport.position.set(20, pipY);
-          // 윈도우 레벨 미니맵 클릭 처리를 위한 화면 사각형/스케일 저장
-          minimapScreenRect = { x: 20, y: pipY, w: currentMinimapWidth, h: currentMinimapHeight, scale: currentMinimapHeight / WORLD_HEIGHT };
+          pipViewport.position.set(MINIMAP_X, pipY);
+          // 윈도우 레벨 미니맵 클릭 처리를 위한 화면 사각형/스케일 저장 (y 오프셋 보정 필요)
+          minimapScreenRect = { 
+            x: MINIMAP_X, 
+            y: pipY, 
+            w: currentMinimapWidth, 
+            h: currentMinimapHeight, 
+            scale: pipScale,
+            offsetX: 200,
+            offsetY: 500
+          };
           cameraDirector?.resize(window.innerWidth, window.innerHeight);
         };
         updateMinimapPos();
@@ -811,6 +833,7 @@ export default function PhysicsCanvas() {
         const { type, payload } = e.data;
         
         if (type === 'INIT_DONE') {
+          setIsWorkerReady(true);
           activeChipsCount = payload.activeChipsCount;
           // 첫 완주자가 우승 슬롯인지 알려 결승 직전 슬로우 연출 게이팅을 무장
           cameraDirector?.setDrama(isWinnerRank(1));
@@ -824,6 +847,40 @@ export default function PhysicsCanvas() {
           if (payload.mapData) {
             const staticContainer = new PIXI.Container();
             viewport.addChildAt(staticContainer, 0);
+
+            // PRD v4: Floor 레이어 추가 (라인 렌더링)
+            const floorContainer = new PIXI.Container();
+            viewport.addChildAt(floorContainer, 0); // staticContainer보다 더 아래에(배경 바로 위)
+            
+            const startMargin = presetMeta?.layoutConfig?.startMarginPercent ?? 0.08;
+            const endMargin = presetMeta?.layoutConfig?.endMarginPercent ?? 0.05;
+            
+            // Start Line 그리기
+            const startLineY = WORLD_HEIGHT * startMargin;
+            const startLine = new PIXI.Graphics();
+            startLine.rect(0, startLineY - 10, WORLD_WIDTH, 20); // 두께 20
+            startLine.fill({ color: 0x00FFD0, alpha: 0.3 }); // 네온 색상 1
+            startLine.stroke({ width: 2, color: 0x00FFD0, alpha: 0.8 });
+            // 체크무늬 패턴 (간단한 선)
+            for (let i = 0; i < WORLD_WIDTH; i += 40) {
+              startLine.moveTo(i, startLineY - 10);
+              startLine.lineTo(i + 20, startLineY + 10);
+              startLine.stroke({ width: 2, color: 0xFFFFFF, alpha: 0.5 });
+            }
+            floorContainer.addChild(startLine);
+
+            // End Line 그리기
+            const endLineY = WORLD_HEIGHT * (1 - endMargin);
+            const endLine = new PIXI.Graphics();
+            endLine.rect(0, endLineY - 10, WORLD_WIDTH, 20);
+            endLine.fill({ color: 0xFF00FF, alpha: 0.3 }); // 네온 색상 2
+            endLine.stroke({ width: 2, color: 0xFF00FF, alpha: 0.8 });
+            for (let i = 0; i < WORLD_WIDTH; i += 40) {
+              endLine.moveTo(i, endLineY - 10);
+              endLine.lineTo(i + 20, endLineY + 10);
+              endLine.stroke({ width: 2, color: 0xFFFFFF, alpha: 0.5 });
+            }
+            floorContainer.addChild(endLine);
 
             // Minimap static layer
             minimapStatic = new PIXI.Container();
@@ -1081,7 +1138,7 @@ export default function PhysicsCanvas() {
                 if (skinKey === 'SR_cat') skinKey = 'cat';
                 
                 const textureUrl = `/images/assets/skins/${skinKey}.png`;
-                const R = 24; // Physics radius
+                const R = 18; // Physics radius
                 
                 const iconWrapper = new PIXI.Container();
                 iconWrapper.label = 'icon';
@@ -1179,12 +1236,12 @@ export default function PhysicsCanvas() {
               if (isChip && survivor) {
                 const colorNum = parseInt(survivor.color.replace('#', '0x')) || 0xffffff;
                 if (currentRankings.length > 0 && currentRankings[0].id === survivor.id) {
-                  mDot.circle(0,0, 40); // 1st place is huge and gold
+                  mDot.circle(0,0, 30); // 1st place is huge and gold
                   mDot.fill(0xffd700);
                   // Add a subtle white outline to 1st place
                   mDot.stroke({ width: 10, color: 0xffffff, alpha: 1 });
                 } else {
-                  mDot.circle(0,0, 24);
+                  mDot.circle(0,0, 18);
                   mDot.fill(colorNum);
                   mDot.stroke({ width: 4, color: 0xffffff, alpha: 0.8 });
                 }
@@ -1217,6 +1274,10 @@ export default function PhysicsCanvas() {
             } else {
               bgLayers[0].tint = 0xffffff; // Neon
             }
+          }
+
+          if (payload && payload.byteLength) {
+            workerRef.current?.postMessage({ type: 'RECYCLE_BUFFER', payload }, [payload]);
           }
 
         } else if (type === 'SOUND_EFFECT') {
@@ -1548,9 +1609,10 @@ export default function PhysicsCanvas() {
           </button>
           <button 
             onClick={handleStart}
-            className="bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-black font-extrabold text-xl tracking-widest px-10 py-4 rounded-2xl hover:opacity-90 transition-all shadow-[0_0_30px_var(--accent-primary)] hover:scale-105 flex items-center gap-3 animate-pulse hover:animate-none"
+            disabled={!isWorkerReady}
+            className={`bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-black font-extrabold text-xl tracking-widest px-10 py-4 rounded-2xl transition-all shadow-[0_0_30px_var(--accent-primary)] flex items-center gap-3 ${!isWorkerReady ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90 hover:scale-105 animate-pulse hover:animate-none'}`}
           >
-            🚀 게임 시작
+            {isWorkerReady ? "🚀 게임 시작" : "⚙️ 엔진 로딩중..."}
           </button>
         </div>
       )}
