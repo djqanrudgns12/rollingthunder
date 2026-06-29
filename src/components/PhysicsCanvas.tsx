@@ -25,7 +25,7 @@ export default function PhysicsCanvas() {
   const [rankings, setRankings] = useState<ParticipantRank[]>([])
   const [isMuted, setIsMuted] = useState(false)
   const [finishedFeed, setFinishedFeed] = useState<{ rank: number, survivor: any }[]>([])
-  const [gameState, setGameState] = useState<'idle' | 'playing' | 'finished'>('idle')
+  const [gameState, setGameState] = useState<'idle' | 'playing' | 'winner_declared' | 'all_finished'>('idle')
   const [isWorkerReady, setIsWorkerReady] = useState(false)
   const gameStateRef = useRef(gameState)
   useEffect(() => {
@@ -33,6 +33,10 @@ export default function PhysicsCanvas() {
   }, [gameState]);
   const [gameOverResult, setGameOverResult] = useState<{winners: any[], mode: string} | null>(null)
   const [showRandomPopup, setShowRandomPopup] = useState(false)
+
+  // finishedFeed의 최신값을 참조하기 위한 ref (워커 이벤트 핸들러 클로저에서 사용)
+  const finishedFeedRef = useRef(finishedFeed);
+  useEffect(() => { finishedFeedRef.current = finishedFeed; }, [finishedFeed]);
   
   const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks } = useGameStore()
   const { setGameStage, customMapData, isBroadcasterMode, gameTitle } = useUIStore()
@@ -50,7 +54,7 @@ export default function PhysicsCanvas() {
   }, [])
 
   const handleNudge = useCallback(() => {
-    if (workerRef.current && gameState === 'playing') {
+    if (workerRef.current && (gameState === 'playing' || gameState === 'winner_declared')) {
       workerRef.current.postMessage({ type: 'NUDGE', payload: { force: 200 } });
       if (navigator.vibrate) navigator.vibrate(50);
     }
@@ -249,16 +253,13 @@ export default function PhysicsCanvas() {
             viewport.addChildAt(bgSprite, 0); // 제일 바닥에 렌더링
           }
         }
-        viewport.drag().pinch().wheel().decelerate()
+        // 줌(wheel/pinch)은 CameraDirector가 단독 소유 — pixi-viewport 플러그인은 drag/decelerate만 사용
+        viewport.drag().decelerate()
           .clamp({ left: -200, right: WORLD_WIDTH + 200, top: -500, bottom: WORLD_HEIGHT + 200, underflow: 'center' }); // clamp bounds
         
-        // 사용자가 직접 화면을 조작하면 카메라 디렉터를 수동 모드로(잠시 후 자동 복귀)
+        // 드래그 시 카메라 디렉터를 수동 모드로(잠시 후 자동 복귀)
         viewport.on('drag-start', () => cameraDirector?.notifyUserInteraction());
-        viewport.on('wheel', () => cameraDirector?.notifyUserInteraction());
-        viewport.on('pinch-start', () => cameraDirector?.notifyUserInteraction());
-        viewport.on('zoomed', () => cameraDirector?.notifyUserInteraction());
 
-        // 줌 제어는 카메라 디렉터가 단독 소유(clampZoom 플러그인은 시네마틱 줌과 충돌하므로 미사용)
         viewport.moveCenter(400, 200);
 
         // 스마트 카메라 디렉터 생성 (뷰포트 + 화면/월드 크기 + 슬로모션 콜백)
@@ -269,6 +270,70 @@ export default function PhysicsCanvas() {
           screenH: window.innerHeight,
           setTimeScale: (scale: number) => workerRef.current?.postMessage({ type: 'SET_TIME_SCALE', payload: { scale } }),
         });
+
+        // ── 마우스 휠 줌 (데스크톱) ──
+        const WHEEL_ZOOM_SPEED = 0.001; // deltaY 1px당 줌 변화율
+        const onCanvasWheel = (e: WheelEvent) => {
+          e.preventDefault(); // 페이지 스크롤 방지
+          if (!cameraDirector) return;
+          // deltaY: 양수=아래(축소), 음수=위(확대)
+          const delta = -e.deltaY * WHEEL_ZOOM_SPEED;
+          cameraDirector.applyUserZoom(delta, e.clientX, e.clientY);
+        };
+        app.canvas.addEventListener('wheel', onCanvasWheel, { passive: false });
+
+        // ── 핀치 줌 (모바일/터치) ──
+        let pinchStartDist = 0;
+        let pinchStartZoom = 1;
+        let pinchActive = false;
+
+        const getTouchDist = (t1: Touch, t2: Touch) =>
+          Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+
+        const getTouchCenter = (t1: Touch, t2: Touch) => ({
+          x: (t1.clientX + t2.clientX) / 2,
+          y: (t1.clientY + t2.clientY) / 2,
+        });
+
+        const onTouchStart = (e: TouchEvent) => {
+          if (e.touches.length === 2) {
+            pinchActive = true;
+            pinchStartDist = getTouchDist(e.touches[0], e.touches[1]);
+            pinchStartZoom = cameraDirector?.getZoom() ?? 1;
+          }
+        };
+
+        const onTouchMove = (e: TouchEvent) => {
+          if (!pinchActive || e.touches.length !== 2 || !cameraDirector) return;
+          e.preventDefault(); // 기본 핀치 줌(브라우저 줌) 방지
+
+          const currentDist = getTouchDist(e.touches[0], e.touches[1]);
+          const scale = currentDist / pinchStartDist;
+          const targetZoom = pinchStartZoom * scale;
+          const currentZoom = cameraDirector.getZoom();
+          const delta = (targetZoom - currentZoom) / currentZoom; // 상대 변화율
+
+          const center = getTouchCenter(e.touches[0], e.touches[1]);
+          cameraDirector.applyUserZoom(delta, center.x, center.y);
+        };
+
+        const onTouchEnd = (e: TouchEvent) => {
+          if (e.touches.length < 2) {
+            pinchActive = false;
+          }
+        };
+
+        app.canvas.addEventListener('touchstart', onTouchStart, { passive: true });
+        app.canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+        app.canvas.addEventListener('touchend', onTouchEnd, { passive: true });
+
+        // cleanup 등록
+        (app as any)._zoomInputCleanup = () => {
+          app.canvas.removeEventListener('wheel', onCanvasWheel);
+          app.canvas.removeEventListener('touchstart', onTouchStart);
+          app.canvas.removeEventListener('touchmove', onTouchMove);
+          app.canvas.removeEventListener('touchend', onTouchEnd);
+        };
 
         // Filters
         const shockwave = new ShockwaveFilter();
@@ -283,7 +348,16 @@ export default function PhysicsCanvas() {
         app.stage.filters = [shockwave];
         
         app.ticker.add((ticker) => {
-          if (gameStateRef.current === 'playing' && workerRef.current) {
+          // ═══════════════════════════════════════════════════════════════════
+          // ██ PROTECTED: 우승자 판정 후에도 물리 시뮬레이션 계속 진행 ██
+          // 이 조건을 'playing'으로만 제한하면 우승자 확정 시 경기가 멈춥니다.
+          // 'winner_declared' 상태에서도 STEP을 계속 전송하여 남은 참가자가
+          // 결승선까지 도달할 수 있도록 합니다.
+          // 'all_finished' 상태에서만 STEP 전송을 중단합니다.
+          // ⚠️ DO NOT MODIFY: 사용자 요청에 의해 영구 고정된 로직입니다.
+          // ═══════════════════════════════════════════════════════════════════
+          const gs = gameStateRef.current;
+          if ((gs === 'playing' || gs === 'winner_declared') && workerRef.current) {
             workerRef.current.postMessage({ type: 'STEP' });
           }
 
@@ -507,12 +581,45 @@ export default function PhysicsCanvas() {
         document.body.appendChild(errDiv);
       }
 
+      // 스킬별 대표 색상(각 스킬 VFX의 주 색상과 일치). 발동 버스트/링에 사용.
+      const SKILL_COLORS: Record<string, number> = {
+        tank: 0xFF8C00, booster: 0x00FFD0, ghost: 0xC084FC,
+        slime: 0x39FF14, magnet: 0x3B82F6, teleport: 0xFACC15,
+      };
+
       const applySkillVFX = (chipId: string, skill: string) => {
         const container = graphicsMap.get(chipId);
         if (!container) return;
 
         // 기존 이펙트 정리
         removeSkillVFX(chipId);
+
+        // ── 공통 활성화 버스트: 발동 순간을 분명히 보이게 (모든 스킬) ──
+        // 확장·페이드되는 링 + 방사형 파티클 1회. 자체 정리되므로 cleanupTasks 불필요.
+        const burstColor = SKILL_COLORS[skill] ?? 0xffffff;
+        const ring = new PIXI.Graphics();
+        ring.circle(0, 0, 14);
+        ring.stroke({ color: burstColor, width: 3, alpha: 0.9 });
+        ring.position.copyFrom(container.position);
+        viewport.addChild(ring);
+        gsap.fromTo(ring.scale, { x: 0.4, y: 0.4 }, { x: 3.2, y: 3.2, duration: 0.45, ease: 'power2.out' });
+        gsap.to(ring, { alpha: 0, duration: 0.45, ease: 'power2.out', onComplete: () => ring.destroy() });
+
+        for (let i = 0; i < 10; i++) {
+          const ang = (Math.PI * 2 * i) / 10 + Math.random() * 0.4;
+          const dist = 36 + Math.random() * 24;
+          const p = new PIXI.Graphics();
+          p.circle(0, 0, 2 + Math.random() * 2.5);
+          p.fill({ color: burstColor, alpha: 0.95 });
+          p.position.copyFrom(container.position);
+          viewport.addChild(p);
+          gsap.to(p.position, {
+            x: container.position.x + Math.cos(ang) * dist,
+            y: container.position.y + Math.sin(ang) * dist,
+            duration: 0.4 + Math.random() * 0.2, ease: 'power2.out',
+          });
+          gsap.to(p, { alpha: 0, duration: 0.4 + Math.random() * 0.2, ease: 'power2.in', onComplete: () => p.destroy() });
+        }
 
         const iconWrapper = container.getChildByLabel('icon');
         const cleanupTasks: (() => void)[] = [];
@@ -852,8 +959,8 @@ export default function PhysicsCanvas() {
             const floorContainer = new PIXI.Container();
             viewport.addChildAt(floorContainer, 0); // staticContainer보다 더 아래에(배경 바로 위)
             
-            const startMargin = presetMeta?.layoutConfig?.startMarginPercent ?? 0.08;
-            const endMargin = presetMeta?.layoutConfig?.endMarginPercent ?? 0.05;
+            const startMargin = presetMeta?.layoutConfig?.startMarginPercent ?? 0.04;
+            const endMargin = presetMeta?.layoutConfig?.endMarginPercent ?? 0.02;
             
             // Start Line 그리기
             const startLineY = WORLD_HEIGHT * startMargin;
@@ -1298,6 +1405,16 @@ export default function PhysicsCanvas() {
           }
           else if (payload.type === 'wallHit') soundManager.playWallHit(payload.impulse, payload.x);
         } else if (type === 'SKILL_FIRED') {
+          // ═══════════════════════════════════════════════════════════════════
+          // ██ PROTECTED: 완주자의 스킬 발동은 UI에서도 이중 차단 ██
+          // 워커에서 1차 필터링하지만, 타이밍 이슈 대비 UI에서도 확인합니다.
+          // finishedFeedRef에 해당 chipId가 있으면 이미 완주한 사람이므로 무시합니다.
+          // ⚠️ DO NOT MODIFY: 사용자 요청에 의해 영구 고정된 로직입니다.
+          // ═══════════════════════════════════════════════════════════════════
+          const isAlreadyFinished = finishedFeedRef.current.some((f: any) => f.survivor?.id === payload.chipId);
+          if (isAlreadyFinished) {
+            // 완주자 스킬은 로그에 기록하지 않음
+          } else {
           // ── 스킬 발동 → 로그에 기록 (중앙 팝업/슬로모션 없음) ──
           const firedSurvivor = survivors.find(s => s.id === payload.chipId);
           const playerName = firedSurvivor?.name || payload.chipId;
@@ -1312,11 +1429,26 @@ export default function PhysicsCanvas() {
             message,
             timestamp: Date.now(),
           });
-          // 가벼운 진동 피드백만 유지 (게임 흐름 방해 없음)
-          if (navigator.vibrate) navigator.vibrate(50);
-          
+          // ── 발동 연출: 스킬별 사운드 + 카메라 셰이크 + 진동 ──
+          const skillX = graphicsMap.get(payload.chipId)?.position.x ?? 400;
+          soundManager.playSkillActivation(payload.skill, skillX);
+
+          // 임팩트 차등 셰이크. teleport는 위치 점프를 "연출"로 가리는 보정 역할도 겸함.
+          const SKILL_SHAKE: Record<string, number> = {
+            teleport: 12, tank: 11, booster: 8, magnet: 6, ghost: 4, slime: 4,
+          };
+          cameraDirector?.addShake(SKILL_SHAKE[payload.skill] ?? 6);
+
+          // 스킬별 진동 패턴
+          const SKILL_VIBE: Record<string, number[]> = {
+            teleport: [30, 40, 30], tank: [80], booster: [20, 20, 20],
+            magnet: [50], ghost: [15, 30], slime: [60],
+          };
+          if (navigator.vibrate) navigator.vibrate(SKILL_VIBE[payload.skill] ?? 50);
+
           // VFX 적용
           applySkillVFX(payload.chipId, payload.skill);
+          }
         } else if (type === 'SKILL_EXPIRED') {
           // VFX 해제
           removeSkillVFX(payload.chipId);
@@ -1418,10 +1550,26 @@ export default function PhysicsCanvas() {
             return [...prev, payload];
           });
         } else if (type === 'GAME_OVER') {
-          setGameState('finished');
+          // ═══════════════════════════════════════════════════════════════════
+          // ██ PROTECTED: 우승자 판정 ≠ 경기 종료 ██
+          // GAME_OVER는 "우승자 확정"이지 "경기 종료"가 아닙니다.
+          // 'winner_declared' 상태로 전환하여 Victory 배너를 표시하되,
+          // 물리 시뮬레이션과 스킬 시스템은 계속 동작합니다.
+          // 'all_finished'로의 전환은 전원 완주(ALL_FINISHED) 시에만 발생합니다.
+          // ⚠️ DO NOT MODIFY: 사용자 요청에 의해 영구 고정된 로직입니다.
+          // ═══════════════════════════════════════════════════════════════════
+          setGameState('winner_declared');
           setGameOverResult(payload);
           triggerShockwave();
-          // 개별 피니셔 로직으로 대체되었으므로 GAME_OVER 시에는 추가 카메라 연출 없이 남은 연출 지속
+        } else if (type === 'ALL_FINISHED') {
+          // ═══════════════════════════════════════════════════════════════════
+          // ██ PROTECTED: 전원 완주 → 경기 최종 종료 ██
+          // 모든 참가자가 결승선을 통과한 후에만 'all_finished' 상태로 전환합니다.
+          // 화면은 그대로 유지되며, 단지 물리 STEP 전송이 중단될 뿐입니다.
+          // 스킬 로그와 Victory 배너는 유지되며, 움직이는 요소만 없어집니다.
+          // ⚠️ DO NOT MODIFY: 사용자 요청에 의해 영구 고정된 로직입니다.
+          // ═══════════════════════════════════════════════════════════════════
+          setGameState('all_finished');
         }
       };
 
@@ -1461,6 +1609,9 @@ export default function PhysicsCanvas() {
         }
         if ((app as any)._minimapInputCleanup) {
           (app as any)._minimapInputCleanup();
+        }
+        if ((app as any)._zoomInputCleanup) {
+          (app as any)._zoomInputCleanup();
         }
         if ((app as any)._pointerUpHandler) {
           window.removeEventListener('pointerup', (app as any)._pointerUpHandler);
@@ -1534,7 +1685,7 @@ export default function PhysicsCanvas() {
         <button 
           onClick={() => setGameStage('dashboard')}
           className={`glass-panel-heavy text-white font-bold px-6 py-4 rounded-2xl transition-all flex items-center justify-center gap-2 group w-48 ${
-            gameState === 'finished' 
+            (gameState === 'winner_declared' || gameState === 'all_finished')
               ? 'animate-bounce shadow-[0_0_25px_rgba(255,255,255,0.6)] border-2 border-white bg-white/20 hover:bg-white/30'
               : 'hover:bg-white/10 shadow-lg border border-white/10'
           }`}
@@ -1543,7 +1694,7 @@ export default function PhysicsCanvas() {
         </button>
       </div>
 
-      {gameState === 'finished' && gameOverResult && (
+      {(gameState === 'winner_declared' || gameState === 'all_finished') && gameOverResult && (
         <div className="absolute top-12 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center animate-in slide-in-from-top fade-in duration-700 pointer-events-none w-full max-w-md">
           {/* Stardust Particles (Phase 3) */}
           <div className="absolute inset-0 pointer-events-none overflow-visible z-[-1]">

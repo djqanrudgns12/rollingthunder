@@ -65,6 +65,28 @@ class AudioEngine {
   playFinish() {
     this.finishSound.play();
   }
+
+  // 스킬 발동 효과음. 별도 에셋 추가 없이 사전 로드된 3개 사운드를 스킬별로
+  // 음원/피치(rate)/볼륨/패닝을 달리해 재생 → 발동이 청각적으로 분명히 구분된다.
+  playSkillActivation(skill: string, x: number = 400) {
+    // [Howl, rate, volume]
+    const map: Record<string, [Howl, number, number]> = {
+      tank:     [this.wallHitSound, 0.7, 0.6],  // 무거운 충격음
+      booster:  [this.bumperSound, 1.45, 0.7],  // 높은 휙 소리
+      ghost:    [this.finishSound, 1.6, 0.45],  // 맑은 위잉
+      slime:    [this.bumperSound, 0.6, 0.6],   // 낮은 뭉글
+      magnet:   [this.finishSound, 0.8, 0.6],   // 저음 핑
+      teleport: [this.finishSound, 1.3, 0.85],  // 워프 핑
+    };
+    const entry = map[skill];
+    if (!entry) return;
+    const [sound, rate, volume] = entry;
+    const id = sound.play();
+    sound.rate(rate, id);
+    sound.volume(volume, id);
+    // 스테레오 패닝: 캔버스 너비(800) 기준 -1(좌) ~ 1(우)
+    sound.stereo((x / 400) - 1.0, id);
+  }
   
   toggleMute() {
     this.isMuted = !this.isMuted;

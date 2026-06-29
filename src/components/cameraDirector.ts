@@ -17,6 +17,8 @@ import type { Viewport } from 'pixi-viewport';
 type Mode = 'idle' | 'race' | 'manual' | 'finisher_focus';
 // 결승 연출 비트(레이싱 중에만 활성). 'tracking'은 평상 추적.
 type FinisherPhase = 'idle' | 'climax' | 'handoff';
+// 사용자 줌 상태머신
+type UserZoomState = 'INACTIVE' | 'ZOOMING' | 'HOLDING' | 'RETURNING';
 
 export interface CameraDirectorOpts {
   worldWidth: number;
@@ -54,7 +56,7 @@ export class CameraDirector {
   private hasLeader = false;
 
   private mode: Mode = 'idle';
-  private gameState: 'idle' | 'playing' | 'finished' = 'idle';
+  private gameState: 'idle' | 'playing' | 'winner_declared' | 'all_finished' = 'idle';
   private manualExpireMs = 0;
   private manualTargetX = 0;
   private manualTargetY = 0;
@@ -81,6 +83,12 @@ export class CameraDirector {
   private lastLeaderId: string | null = null; // 선두 교체 감지용
   private overtakeCooldownT = 0;         // 선두 교체 하이라이트 쿨다운
 
+  // ── 사용자 줌 상태 ──
+  private userZoomState: UserZoomState = 'INACTIVE';
+  private userZoom = 1.0;             // 사용자가 설정한 줌 레벨
+  private lastUserZoomMs = 0;         // 마지막 줌 입력 시각 (디바운스용)
+  private holdStartMs = 0;            // HOLDING 진입 시각
+
   // 시간 배율(슬로모션/가속): 부드럽게 이즈, 변화가 충분할 때만 워커로 전송
   private timeScaleCurrent = 1.0;
   private timeScaleTarget = 1.0;
@@ -95,6 +103,15 @@ export class CameraDirector {
   private readonly MAX_ZOOM = 2.0;
   private readonly BATTLE_ZOOM = 1.75;
   private readonly WINNER_ZOOM = 2.0;
+
+  // 사용자 줌 튜닝
+  private readonly USER_ZOOM_MIN = 0.25;      // 사용자 줌 최소 (맵 전체 조감)
+  private readonly USER_ZOOM_MAX = 3.5;       // 사용자 줌 최대 (극대 확대)
+  private readonly ZOOM_DEBOUNCE_MS = 300;    // ZOOMING→HOLDING 전환 대기
+  private readonly ZOOM_HOLD_S = 3.0;         // HOLDING 유지 시간 (playing)
+  private readonly ZOOM_HOLD_IDLE_S = 2.0;    // HOLDING 유지 시간 (idle)
+  private readonly ZOOM_RETURN_K = 1.5;       // 복귀 줌 댐핑 (ZOOM_K=3.0보다 느림)
+  private readonly PAN_RETURN_K = 2.0;        // 복귀 위치 댐핑 (PAN_K=5.0보다 느림)
 
   // 시네마틱 비트 튜닝
   private readonly IMMINENT_PX = 260;        // 결승선까지 이 거리 안이면 "도달 직전"
@@ -129,7 +146,7 @@ export class CameraDirector {
     this.screenH = screenH;
   }
 
-  setGameState(state: 'idle' | 'playing' | 'finished') {
+  setGameState(state: 'idle' | 'playing' | 'winner_declared' | 'all_finished') {
     const prev = this.gameState;
     this.gameState = state;
     if (state === 'idle') {
@@ -140,6 +157,12 @@ export class CameraDirector {
       if (this.mode === 'idle') {
         this.mode = 'race';
       }
+      // 사용자 줌이 활성 상태면 부드러운 복귀로 전환 (게임 시작 시 줌 고정 방지)
+      if (this.userZoomState === 'ZOOMING' || this.userZoomState === 'HOLDING') {
+        this.userZoomState = 'RETURNING';
+        this.mode = 'race';
+        this.freeManual = false;
+      }
       // 오프닝 연출: idle→playing 전이 시 넓게 빠졌다가 출발 팩으로 푸시인
       if (prev !== 'playing') {
         this.establishingT = this.ESTABLISH_S;
@@ -148,7 +171,8 @@ export class CameraDirector {
     }
   }
 
-  // 메인 뷰포트를 사용자가 직접 드래그/휠/핀치 → 카메라가 손을 떼고(자유 조작) 잠시 후 복귀
+  // 메인 뷰포트를 사용자가 직접 드래그 → 카메라가 손을 떼고(자유 조작) 잠시 후 복귀
+  // 주의: 휠/핀치 줌은 applyUserZoom()에서 별도 처리 (상태머신 기반)
   notifyUserInteraction() {
     // 통과 순간(climax) 같은 결정적 연출 중에는 카메라가 손을 떼지 않는다.
     if (this.mode === 'finisher_focus') return;
@@ -159,6 +183,73 @@ export class CameraDirector {
     // 수동 전환 시 슬로모션 즉시 해제(슬로우인 채로 사용자가 패닝하는 어색함 방지)
     this.anticipating = false;
     this.resetTimeScale();
+  }
+
+  /**
+   * 사용자가 휠/핀치로 줌을 변경할 때 호출.
+   * CameraDirector가 줌의 유일한 소유자이므로, pixi-viewport 플러그인을 거치지 않고
+   * 여기서 직접 줌을 계산하고 뷰포트에 적용한다.
+   * @param zoomDelta - 줌 배율 변화율 (예: 0.1 = 10% 확대, -0.1 = 10% 축소)
+   * @param screenX - 줌 중심점의 화면 좌표 X (CSS 픽셀)
+   * @param screenY - 줌 중심점의 화면 좌표 Y (CSS 픽셀)
+   */
+  applyUserZoom(zoomDelta: number, screenX: number, screenY: number) {
+    // ── 가드: 결정적 연출 중 무시 ──
+    if (this.mode === 'finisher_focus') return;
+    // ── 가드: 미니맵 스크럽 중 무시 ──
+    if (this.mode === 'manual' && this.scrubbing) return;
+
+    // ── 줌 계산: 마우스/터치 위치 기준 ──
+    const oldZoom = this.camZoom;
+    const newZoom = Math.max(
+      this.USER_ZOOM_MIN,
+      Math.min(this.USER_ZOOM_MAX, oldZoom * (1 + zoomDelta))
+    );
+
+    // 마우스/터치가 가리키는 월드 좌표 (줌 전)
+    const worldX = this.camX + (screenX - this.screenW / 2) / oldZoom;
+    const worldY = this.camY + (screenY - this.screenH / 2) / oldZoom;
+
+    // 줌 후에도 동일한 화면 위치에 동일한 월드 좌표가 오도록 카메라 이동
+    const newCamX = worldX - (screenX - this.screenW / 2) / newZoom;
+    const newCamY = worldY - (screenY - this.screenH / 2) / newZoom;
+
+    // ── 내부 상태 갱신 ──
+    this.camZoom = newZoom;
+    this.camX = newCamX;
+    this.camY = newCamY;
+    this.userZoom = newZoom;
+
+    // ── 뷰포트 즉시 반영 (CameraDirector가 유일한 줌 소유자) ──
+    this.vp.scale.set(newZoom);
+    this.vp.moveCenter(newCamX, newCamY);
+
+    // ── 상태머신 전환 ──
+    this.userZoomState = 'ZOOMING';
+    this.lastUserZoomMs = performance.now();
+
+    // ── 기존 freeManual/manual 모드 동기화 ──
+    if (this.mode !== 'manual' || !this.freeManual) {
+      this.mode = 'manual';
+      this.freeManual = true;
+      this.focusChipId = null;
+    }
+
+    // ── 슬로모션 해제 ──
+    this.anticipating = false;
+    this.resetTimeScale();
+  }
+
+  // 현재 줌 레벨 반환 (PhysicsCanvas의 핀치 처리에서 사용)
+  getZoom(): number {
+    return this.camZoom;
+  }
+
+  // 사용자 줌 상태 강제 초기화 (결정적 연출 진입 시)
+  private resetUserZoom() {
+    if (this.userZoomState !== 'INACTIVE') {
+      this.userZoomState = 'INACTIVE';
+    }
   }
 
   // 미니맵 탭 → 해당 좌표로 점프. chipId가 있으면 그 칩을 락온 추적.
@@ -236,21 +327,70 @@ export class CameraDirector {
     this.overtakeCooldownT = Math.max(0, this.overtakeCooldownT - dt);
     this.establishingT = Math.max(0, this.establishingT - dt);
 
-    // 자유 수동(메인 화면 직접 조작) 중에는 카메라가 손을 뗀다(pixi-viewport가 처리).
-    // 단, 결착 구간/타임아웃이 오면 즉시 복귀(현재 뷰 상태를 동기화해 점프 없이 이어받음).
+    // 자유 수동(메인 화면 직접 조작) 중에는 카메라가 손을 뗀다.
+    // 줌 상태머신(ZOOMING/HOLDING/RETURNING)으로 세밀하게 제어한다.
     if (this.mode === 'manual' && this.freeManual) {
       this.timeScaleTarget = 1.0; // 수동 중엔 항상 정상 속도
-      // 수동 조작 시 지나친 줌 인/아웃 방지 (0.3x ~ 3.0x 범위 강제)
-      if (this.vp.scale.x < 0.3) this.vp.scale.set(0.3);
-      if (this.vp.scale.x > 3.0) this.vp.scale.set(3.0);
 
+      const now = performance.now();
       const leaderYNow = this.frontRunnerY(chips);
       const nearFinish = leaderYNow / this.worldH >= this.LEAD_BATTLE_AT;
-      if (performance.now() > this.manualExpireMs || nearFinish) {
-        this.camX = this.vp.center.x; this.camY = this.vp.center.y; this.camZoom = this.vp.scale.x;
-        this.mode = 'race'; this.freeManual = false;
-      } else {
-        return; // 손 뗌
+
+      // ── 사용자 줌 상태머신 구동 ──
+      switch (this.userZoomState) {
+        case 'ZOOMING':
+          // 디바운스: 마지막 줌 입력 후 ZOOM_DEBOUNCE_MS 경과 → HOLDING
+          if (now - this.lastUserZoomMs > this.ZOOM_DEBOUNCE_MS) {
+            this.userZoomState = 'HOLDING';
+            this.holdStartMs = now;
+          }
+          // ZOOMING 중: 줌/위치 모두 사용자 값 유지, update()가 덮어쓰지 않음
+          return;
+
+        case 'HOLDING': {
+          // finished 상태: 무제한 유지 (복귀 안 함)
+          if (this.gameState === 'all_finished') return;
+
+          // 결착 직전: 즉시 복귀 (드라마 우선)
+          if (nearFinish && (this.gameState === 'playing' || this.gameState === 'winner_declared')) {
+            this.camX = this.vp.center.x; this.camY = this.vp.center.y; this.camZoom = this.vp.scale.x;
+            this.userZoomState = 'INACTIVE';
+            this.mode = 'race'; this.freeManual = false;
+            break; // update() 나머지 로직 실행
+          }
+
+          // 타이머 만료: RETURNING으로 전환
+          const holdDuration = this.gameState === 'idle'
+            ? this.ZOOM_HOLD_IDLE_S * 1000
+            : this.ZOOM_HOLD_S * 1000;
+          if (now - this.holdStartMs > holdDuration) {
+            this.userZoomState = 'RETURNING';
+            // camZoom/camX/camY는 현재 값 유지 (RETURNING에서 damp 시작점)
+            this.mode = 'race'; // race 모드로 전환하여 targetZoom 계산 가능
+            this.freeManual = false;
+            break; // update() 나머지 로직에서 RETURNING damp 실행
+          }
+
+          // HOLDING 중: 줌/위치 유지
+          return;
+        }
+
+        case 'RETURNING':
+          // RETURNING은 freeManual=false이므로 여기 도달하지 않음
+          // (아래 race 모드 로직에서 처리)
+          break;
+
+        case 'INACTIVE':
+        default:
+          // 드래그 등 비-줌 수동 조작: 기존 로직
+          if (this.vp.scale.x < 0.3) this.vp.scale.set(0.3);
+          if (this.vp.scale.x > 3.0) this.vp.scale.set(3.0);
+          if (now > this.manualExpireMs || nearFinish) {
+            this.camX = this.vp.center.x; this.camY = this.vp.center.y; this.camZoom = this.vp.scale.x;
+            this.mode = 'race'; this.freeManual = false;
+          } else {
+            return; // 손 뗌
+          }
       }
     }
 
@@ -293,11 +433,11 @@ export class CameraDirector {
     this.hasLeader = true;
 
     const progress = this.smLeaderY / this.worldH;
-    const playing = this.gameState === 'playing';
+    const playing = this.gameState === 'playing' || this.gameState === 'winner_declared';
 
     // ── 2) 모드 전이 ──
     if (this.mode === 'manual' && !this.scrubbing) {
-      if (this.gameState === 'finished') {
+      if (this.gameState === 'all_finished') {
         // 게임 종료 후에는 수동 모드 타이머를 무시하여 자유롭게 감상 가능
       } else if (performance.now() > this.manualExpireMs) {
         this.mode = this.gameState === 'idle' ? 'idle' : 'race';
@@ -462,9 +602,18 @@ export class CameraDirector {
     this.shakeIntensity = damp(this.shakeIntensity, 0, 10, dt); // 셰이크 감쇠
 
     if (!(this.mode === 'manual' && this.scrubbing)) {
-      this.camX = damp(this.camX, targetX, currentPanK, dt);
-      this.camY = damp(this.camY, targetY, currentPanK, dt);
-      this.camZoom = damp(this.camZoom, targetZoom, currentZoomK, dt);
+      const isReturning = this.userZoomState === 'RETURNING';
+      const effectivePanK = isReturning ? this.PAN_RETURN_K : currentPanK;
+      const effectiveZoomK = isReturning ? this.ZOOM_RETURN_K : currentZoomK;
+
+      this.camX = damp(this.camX, targetX, effectivePanK, dt);
+      this.camY = damp(this.camY, targetY, effectivePanK, dt);
+      this.camZoom = damp(this.camZoom, targetZoom, effectiveZoomK, dt);
+
+      // RETURNING 완료 체크: 줌이 목표에 충분히 수렴하면 INACTIVE로
+      if (isReturning && Math.abs(this.camZoom - targetZoom) < 0.01) {
+        this.userZoomState = 'INACTIVE';
+      }
     }
 
     const appliedZoom = this.clampZoom(this.camZoom + this.zoomPunch);
@@ -494,6 +643,9 @@ export class CameraDirector {
         this.finisherPhaseT = 0;
         this.anticipating = false;
         this.leadBattle = false;
+        // 사용자 줌 강제 해제 (결정적 연출 우선)
+        this.resetUserZoom();
+        this.freeManual = false;
         // 통과 순간 = 갑자기 빨라짐: 시간배율을 즉시 1.0 위로 펀치 후 1.0로 정착
         this.timeScaleCurrent = this.RELEASE_SCALE;
         this.timeScaleSent = this.RELEASE_SCALE;

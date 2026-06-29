@@ -107,7 +107,13 @@ function flushEvents() {
 // 각 칩의 쿨타임을 1씩 증가시키고, max에 도달하면 스킬을 발동한 뒤 즉시 초기화한다.
 // 이 방식은 게임 속도(dtMultiplier)에 영향을 받지 않으며, 순수 프레임 카운트 기반이다.
 function processSkillCooldowns() {
-  if (!core || !isSkillEnabled) return;
+  // ═══════════════════════════════════════════════════════════════════
+  // ██ PROTECTED: 전원 완주 시 스킬 시스템 완전 중단 ██
+  // 모든 참가자가 결승선을 통과한 후에는 어떤 스킬도 발동되지 않습니다.
+  // 개별 완주자 필터링(L113)과 함께 이중 보호를 형성합니다.
+  // ⚠️ DO NOT MODIFY: 사용자 요청에 의해 영구 고정된 로직입니다.
+  // ═══════════════════════════════════════════════════════════════════
+  if (!core || !isSkillEnabled || core.allFinished) return;
 
   for (const cd of chipCooldowns) {
     if (core.finishedChips.has(cd.chipId)) continue;
@@ -207,6 +213,15 @@ self.onmessage = async (e) => {
     // 마지막 주자가 결승선에 닿자마자 멈추는 현상(화면에 칩이 걸쳐서 정지)을 막기 위해 2초(120프레임) 추가 대기.
     if (core.allFinished) {
       postFinishFrames++;
+      // ═══════════════════════════════════════════════════════════════════
+      // ██ PROTECTED: 전원 완주 시 ALL_FINISHED 이벤트 1회 전송 ██
+      // GAME_OVER(우승자 확정)와 ALL_FINISHED(전원 완주)는 다른 이벤트입니다.
+      // UI는 이 이벤트를 받아야만 'all_finished' 상태로 전환합니다.
+      // ⚠️ DO NOT MODIFY: 사용자 요청에 의해 영구 고정된 로직입니다.
+      // ═══════════════════════════════════════════════════════════════════
+      if (postFinishFrames === 1) {
+        self.postMessage({ type: 'ALL_FINISHED' });
+      }
       if (postFinishFrames > 120) {
         chipCooldowns = [];
         isRunning = false;

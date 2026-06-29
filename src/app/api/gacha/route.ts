@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 // 서버 환경에서만 동작하므로 환경 변수에서 URL과 키를 가져옵니다.
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+// 환경변수 미설정 시 placeholder로 생성되어 빌드는 통과하나, 실제 API 호출 시 실패합니다.
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export async function POST(request: Request) {

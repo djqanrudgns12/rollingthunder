@@ -23,37 +23,44 @@ interface ActiveSkillEntry {
 
 // ── 스킬별 밸런스 상수 ───────────────────────────────────────────────────
 
-// 탱크: 중력 8배 + 감쇠 제거 + 높은 반발력으로 불도저 돌파
-const TANK_GRAVITY_SCALE = 8.0;
-const TANK_DAMPING = 0.0;
-const TANK_RESTITUTION = 0.95;
+// 탱크: 무거운 불도저 돌파. v3 밸런스: 중력 8→3, 감쇠 0→0.12(폭주 방지),
+//   반발 0.95→0.45("튀어오름" 완화). 여전히 무겁고 빠르되 화면 밖 이탈하지 않는다.
+const TANK_GRAVITY_SCALE = 3.0;
+const TANK_DAMPING = 0.12;
+const TANK_RESTITUTION = 0.45;
 const TANK_DURATION_FRAMES = 120;  // 2초
 
-// 부스터: 매 프레임 하방 추진력. 벽에 끼어도 계속 밀어내는 지속형 엔진
-const BOOSTER_FORCE_PER_FRAME = 300;  // ΔV/frame (질량 정규화됨)
+// 부스터: 하방 추진 엔진. v3 밸런스: 무한 가속(force 300/frame)이 fly-off 주범이었으므로
+//   force를 50으로 낮추고 BOOSTER_TARGET_SPEED 거버너로 "타깃 속도까지 가속 후 유지"하게 한다.
+const BOOSTER_FORCE_PER_FRAME = 50;   // ΔV/frame (질량 정규화됨) — 가속률만 담당
+const BOOSTER_TARGET_SPEED = 1500;    // 하방 속도가 이 값 미만일 때만 추진 적용(무한 가속 제거)
 const BOOSTER_DURATION_FRAMES = 90;   // 1.5초
 
-// 유령화: 저중력 + 극저감쇠 + 극저반발로 장애물을 스르르 통과
+// 유령화: 저중력 + 저감쇠 + 극저반발로 장애물을 스르르 통과
+//   v3: 감쇠 0.02→0.08(무한 드리프트 방지, 저중력 부유감은 유지)
 const GHOST_GRAVITY_SCALE = 0.3;
-const GHOST_DAMPING = 0.02;
+const GHOST_DAMPING = 0.08;
 const GHOST_RESTITUTION = 0.05;
 const GHOST_DURATION_FRAMES = 150;  // 2.5초
 
-// 슬라임: 고마찰 + 무반발 + 고감쇠로 끈적하게 들러붙어 통로 차단
-const SLIME_FRICTION = 5.0;
+// 슬라임: 끈적한 통로 차단. v3 밸런스: 완전 정지(불합리)를 강한 감속으로 완화.
+//   감쇠 2.0→0.9, 마찰 5.0→2.0(접착 고정 제거), 지속 3s→2s.
+const SLIME_FRICTION = 2.0;
 const SLIME_RESTITUTION = 0.0;
-const SLIME_DAMPING = 2.0;
-const SLIME_DURATION_FRAMES = 180;  // 3초
+const SLIME_DAMPING = 0.9;
+const SLIME_DURATION_FRAMES = 120;  // 2초
 
-// 자석: 반경 내 타 칩을 끌어당기는 인력장. 발동자는 약간의 중력 이득
-const MAGNET_RADIUS = 400;             // 인력 반경 (px)
-const MAGNET_STRENGTH = 8.0;           // 인력 세기 (ΔV/frame)
+// 자석: 반경 내 타 칩을 끌어당기는 인력장. 발동자는 약간의 중력 이득.
+//   v3: 세기 8→5, 반경 400→350, 지속 3s→2.5s로 광역 간섭/끌림 폭주 완화.
+const MAGNET_RADIUS = 350;             // 인력 반경 (px)
+const MAGNET_STRENGTH = 5.0;           // 인력 세기 (ΔV/frame)
 const MAGNET_SELF_GRAVITY = 1.5;       // 발동자 중력 스케일
 const MAGNET_UPWARD_DAMP = 0.3;        // 위로 끌어올리는 성분 감쇠 (정체 방지)
-const MAGNET_DURATION_FRAMES = 180;    // 3초
+const MAGNET_DURATION_FRAMES = 150;    // 2.5초
 
 // 순간이동: 1단계 상위 칩과 위치 스왑. 즉시 효과이므로 지속 프레임 불필요
-const TELEPORT_WARP_DISTANCE = 300;    // 1등일 때 순간 워프 거리 (px)
+//   v3: 워프 거리 300→180으로 "급소멸" 점프 폭 축소
+const TELEPORT_WARP_DISTANCE = 180;    // 1등일 때 순간 워프 거리 (px)
 
 // ── 쿨타임 (초 단위, worker에서 사용) ──────────────────────────────────
 // 스킬별 쿨타임을 export하여 physics.worker에서 참조
@@ -140,6 +147,11 @@ export class SkillSystem {
       return;
     }
 
+    // 칩당 지속형 스킬 1개만 유지: 기존에 걸려있던 다른 스킬을 제거(교체)하여
+    // Booster+Tank+Magnet 같은 극단 조합(속도 폭주/과도한 방해)을 원천 차단.
+    // (위에서 동일 스킬 중복은 이미 early-return 처리됨)
+    this.activeEntries = this.activeEntries.filter(e => e.chipId !== chipId);
+
     // 스킬별 지속 프레임 결정
     let durationFrames = 0;
     switch (skill) {
@@ -167,6 +179,7 @@ export class SkillSystem {
     world: RAPIER.World,
     currentFrame: number,
     activeChips: RAPIER.RigidBody[],
+    finishedChips?: Set<string>,
   ): { expiredChipIds: { chipId: string; skill: SkillType }[] } {
     const expired: { chipId: string; skill: SkillType }[] = [];
     if (this.activeEntries.length === 0) return { expiredChipIds: expired };
@@ -174,6 +187,18 @@ export class SkillSystem {
     const remaining: ActiveSkillEntry[] = [];
 
     for (const entry of this.activeEntries) {
+      // ═══════════════════════════════════════════════════════════════════
+      // ██ PROTECTED: 완주한 칩의 활성 스킬 즉시 해제 ██
+      // 결승선을 통과한 플레이어의 모든 지속 스킬(booster, magnet, tank 등)은
+      // 즉시 만료 처리합니다. 이 칩이 스킬 효과를 가진 채로 다른 칩에게
+      // 영향(예: magnet 인력)을 주는 것을 방지합니다.
+      // ⚠️ DO NOT MODIFY: 사용자 요청에 의해 영구 고정된 로직입니다.
+      // ═══════════════════════════════════════════════════════════════════
+      if (finishedChips && finishedChips.has(entry.chipId)) {
+        expired.push({ chipId: entry.chipId, skill: entry.skill });
+        continue;
+      }
+
       const body = activeChips.find(chip => {
         const data = chip.userData as any;
         return data && data.type === 'chip' && data.id === entry.chipId;
@@ -191,8 +216,11 @@ export class SkillSystem {
 
       switch (entry.skill) {
         case 'booster':
-          // 매 프레임 하방 추진력 적용 (질량 정규화)
-          this.applyDeltaV(body, 0, BOOSTER_FORCE_PER_FRAME);
+          // 하방 속도가 타깃 미만일 때만 추진력 적용(질량 정규화).
+          // "타깃 속도까지 가속 후 유지" → 무한 가속/화면 밖 이탈 방지.
+          if (body.linvel().y < BOOSTER_TARGET_SPEED) {
+            this.applyDeltaV(body, 0, BOOSTER_FORCE_PER_FRAME);
+          }
           break;
 
         case 'magnet':
@@ -270,6 +298,14 @@ export class SkillSystem {
     magnetChipId: string,
     activeChips: RAPIER.RigidBody[],
   ) {
+    // ═══════════════════════════════════════════════════════════════════
+    // ██ PROTECTED: 완주한 캐스터의 magnet 인력 차단 ██
+    // 결승선을 통과한 플레이어의 magnet이 다른 칩을 끌어당기지 않도록 합니다.
+    // ⚠️ DO NOT MODIFY: 사용자 요청에 의해 영구 고정된 로직입니다.
+    // ═══════════════════════════════════════════════════════════════════
+    const magnetData = magnetBody.userData as any;
+    if (magnetData?.finished) return;
+
     const mPos = magnetBody.translation();
 
     for (const chip of activeChips) {

@@ -49,6 +49,13 @@ const HOLE_PENALTY_FRAMES = 90;      // 1.5초 갇힘 후 리스폰
 // 댐핑 하향(ChipFactory 0.18)과 함께 종단속도를 크게 높여 칩이 쭉쭉 나아가게 한다.
 export const GRAVITY_Y = 9.81 * 15;
 
+// 전역 칩 속도 상한(px/s). 정상 종단속도(~817)의 약 2.4배.
+// 왜: 스킬(특히 Booster/Tank)·중력장이 임펄스를 누적시키면 댐핑이 낮아(0.18) 속도가
+// 사실상 무한대로 치솟아 칩이 화면 밖으로 사라지고 카메라가 추적을 포기하며 게임이 급종료된다.
+// 매 프레임 모든 칩의 선속도 크기를 이 값으로 클램프해 어떤 스킬 조합에서도 카메라 추적 한계
+// 안에 머물게 하는 최종 안전장치다(개별 스킬 밸런스와 독립적으로 동작).
+const MAX_CHIP_SPEED = 2000;
+
 // 부스터 1레벨당 부여 Δv(px/s). v2: 빨라진 칩 대비 체감 유지 위해 상향(160→210).
 const BOOSTER_DV_PER_LEVEL = 210;
 // 중력장 force 1당 중심부 Δv/frame(px/s). v2: 칩이 빨라 well 통과 시간이 짧아진 만큼 상향(0.4→0.52).
@@ -213,22 +220,23 @@ export class SimulationCore {
 
   private generateSlots(count: number, width: number, layoutConfig?: { startMarginPercent: number, endMarginPercent: number, spawnGap: number }, worldHeight: number = 3300): {x: number, y: number}[] {
     const slots: {x: number, y: number}[] = [];
-    const spacingX = 65;
-    const availableWidth = width * 0.8;
+    const spacingX = 85;  // PRD v5.1: 65 → 85 (이름 겹침 방지)
+    const availableWidth = width * 0.92;  // PRD v5.1: 0.8 → 0.92 (양쪽 측면 공간 활용)
     const maxPerRow = Math.max(1, Math.floor(availableWidth / spacingX));
     
     const rows = Math.ceil(count / maxPerRow);
     let slotIdx = 0;
     
-    // PRD v4: Calculate StartLineY and ChipSpawnY
-    const startMargin = layoutConfig ? layoutConfig.startMarginPercent : 0.08;
-    const spawnGap = layoutConfig ? layoutConfig.spawnGap : 80;
+    // PRD v5.1: 스타트라인 상향 + 스폰갭 축소
+    const startMargin = layoutConfig ? layoutConfig.startMarginPercent : 0.04;
+    const spawnGap = layoutConfig ? layoutConfig.spawnGap : 50;
     const startLineY = worldHeight * startMargin; // Starts from top down
+    const rowSpacingY = 75;  // PRD v5.1: 65 → 75 (이름 텍스트 높이 고려)
     
     for (let r = 0; r < rows; r++) {
-      // Spawn chips progressively backward (upwards) from StartLineY - spawnGap
-      // Since it's top-down, "backward" means smaller Y
-      const rowY = Math.max(20, startLineY - spawnGap - (rows - 1 - r) * 65);
+      // PRD v5.1: MIN_Y = -200 (외벽·카메라 모두 커버, 행 간격 보존)
+      // 플레이어는 반드시 스타트라인 위(작은 Y)에 배치
+      const rowY = Math.max(-200, startLineY - spawnGap - (rows - 1 - r) * rowSpacingY);
       const countInRow = (r === rows - 1) ? (count - slotIdx) : maxPerRow;
       const rowWidth = (countInRow - 1) * spacingX;
       const rowStartX = (width - rowWidth) / 2;
@@ -275,12 +283,16 @@ export class SimulationCore {
     this.processHoleRespawns();
 
     // 스킬 프레임루프: 매 프레임 활성 스킬의 지속 효과 적용 + 만료 해제
-    const { expiredChipIds } = SkillSystem.step(this.world, this.frame, this.activeChips);
+    const { expiredChipIds } = SkillSystem.step(this.world, this.frame, this.activeChips, this.finishedChips);
     if (expiredChipIds.length > 0) {
       for (const expired of expiredChipIds) {
         this.events.push({ type: 'SKILL_EXPIRED', payload: { chipId: expired.chipId, skill: expired.skill } });
       }
     }
+
+    // 모든 임펄스(중력장/스킬) 적용 이후 net 속도를 전역 상한으로 클램프 →
+    // 다음 스텝의 적분·렌더 브로드캐스트 모두 캡 적용된 속도를 본다.
+    this.clampVelocities();
 
     const totalSpeed = this.scanChipsAndFinish();
 
@@ -316,6 +328,20 @@ export class SimulationCore {
   private applyDeltaV(chip: RAPIER.RigidBody, dvx: number, dvy: number) {
     const m = chip.mass() || 1;
     chip.applyImpulse({ x: dvx * m, y: dvy * m }, true);
+  }
+
+  // 모든 활성 칩의 선속도 크기를 MAX_CHIP_SPEED로 제한(방향 보존).
+  // 칩이 화면 밖으로 로켓처럼 튀어나가 카메라가 추적을 놓치는 현상의 최종 안전장치.
+  private clampVelocities() {
+    for (let i = 0; i < this.activeChips.length; i++) {
+      const body = this.activeChips[i];
+      const v = body.linvel();
+      const speed = Math.sqrt(v.x * v.x + v.y * v.y);
+      if (speed > MAX_CHIP_SPEED) {
+        const k = MAX_CHIP_SPEED / speed;
+        body.setLinvel({ x: v.x * k, y: v.y * k }, true);
+      }
+    }
   }
 
   // 중력장 전용: 위(-y) 방향 성분을 감쇠해 칩이 중력에 맞서 정체/공전하는 것을 방지.
