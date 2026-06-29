@@ -202,29 +202,29 @@ export default function Dashboard() {
   return (
     <div className={`flex flex-col items-center justify-center w-full min-h-screen p-4 z-10 transition-colors duration-500 ${isBroadcasterMode ? 'bg-[#00ff00]' : 'bg-transparent'}`}>
       
-
+      {/* 화면 우측 상단 전역 유틸리티 버튼 (BGM, 설정) */}
+      <div className="absolute top-4 right-4 md:top-8 md:right-8 flex gap-3 z-50">
+        <button
+          onClick={() => {
+            const next = !isMuted;
+            setMuted(next);
+            import('@/engine/AudioEngine').then(({ soundManager }) => soundManager.setMuted(next));
+          }}
+          className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-white/20 transition-all hover:scale-110 shadow-lg group"
+        >
+          {isMuted ? <VolumeX className="w-6 h-6 text-white/50" /> : <Volume2 className="w-6 h-6 text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)] group-hover:text-cyan-300" />}
+        </button>
+        <button
+          onClick={() => useUIStore.getState().setActiveModal('settings')}
+          className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-white/20 transition-all hover:scale-110 shadow-lg group"
+        >
+          <Settings className="w-6 h-6 text-white/70 group-hover:text-white" />
+        </button>
+      </div>
 
       <div className={`p-5 md:p-8 rounded-3xl w-full max-w-2xl flex flex-col gap-4 shadow-2xl transition-all duration-500 max-h-[calc(100vh-2rem)] overflow-hidden ${isBroadcasterMode ? 'bg-black border-2 border-green-500' : 'glass-panel-heavy'}`}>
         {/* Header (Text Logo) - 항상 고정 */}
         <div className="relative text-center flex flex-col items-center shrink-0 mb-6 animate-in fade-in slide-in-from-top-4 w-full">
-          <div className="absolute right-0 top-0 flex gap-2">
-            <button
-              onClick={() => {
-                const next = !isMuted;
-                setMuted(next);
-                import('@/engine/AudioEngine').then(({ soundManager }) => soundManager.setMuted(next));
-              }}
-              className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"
-            >
-              {isMuted ? <VolumeX className="w-5 h-5 text-white/50" /> : <Volume2 className="w-5 h-5 text-[var(--accent-primary)]" />}
-            </button>
-            <button
-              onClick={() => useUIStore.getState().setActiveModal('settings')}
-              className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"
-            >
-              <Settings className="w-5 h-5 text-white/70" />
-            </button>
-          </div>
           <div className="flex items-center justify-center gap-3 md:gap-4">
             <img 
               src="/custom-icon.png" 
