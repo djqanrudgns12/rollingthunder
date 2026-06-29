@@ -225,9 +225,16 @@ export default function Dashboard() {
               <Settings className="w-5 h-5 text-white/70" />
             </button>
           </div>
-          <h1 className="text-5xl md:text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 drop-shadow-[0_0_15px_rgba(0,255,255,0.5)] pr-2">
-            ROLLING THUNDER
-          </h1>
+          <div className="flex items-center justify-center gap-3 md:gap-4">
+            <img 
+              src="/custom-icon.png" 
+              alt="Rolling Thunder Icon" 
+              className="h-12 md:h-16 w-auto object-contain drop-shadow-[0_0_15px_rgba(0,255,255,0.5)] transition-transform duration-300 hover:rotate-6 hover:scale-110"
+            />
+            <h1 className="text-5xl md:text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 drop-shadow-[0_0_15px_rgba(0,255,255,0.5)] pr-2">
+              ROLLING THUNDER
+            </h1>
+          </div>
           <p className="text-lg font-bold mt-2 text-cyan-300 text-shadow-sm animate-pulse">오늘 우리 자웅을 가리자!</p>
         </div>
 
