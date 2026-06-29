@@ -343,8 +343,9 @@ export default function PhysicsCanvas() {
             bgSprite.x = bgX;
             bgSprite.y = -BG_PAD_TOP; // 카메라 상단 한계점부터 시작
             bgSprite.alpha = 0.4;
+            bgSprite.zIndex = -100;
             
-            viewport.addChildAt(bgSprite, 0); // 제일 바닥에 렌더링
+            viewport.addChild(bgSprite); // 제일 바닥에 렌더링
           }
         }
         // 줌(wheel/pinch)은 CameraDirector가 단독 소유 — pixi-viewport 플러그인은 drag/decelerate만 사용
@@ -1399,10 +1400,8 @@ export default function PhysicsCanvas() {
               staticContainer.addChild(g);
             };
 
-            const mapDataArr = Array.isArray(payload.mapData) ? payload.mapData : (payload.mapData && payload.mapData.items ? payload.mapData.items : null);
-            const initialItems = mapDataArr || useEditorStore.getState().items;
-            if (Array.isArray(initialItems)) {
-              initialItems.forEach((item: any) => createEditorItemGraphic(item));
+            if (Array.isArray(payload.mapData) && payload.mapData.length > 0) {
+              payload.mapData.forEach((item: any) => createEditorItemGraphic(item));
             }
 
 
