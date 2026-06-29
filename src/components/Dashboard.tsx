@@ -215,48 +215,13 @@ export default function Dashboard() {
 
         {/* Body (Forms) - 화면이 작을 때 스크롤 됨 */}
         <div className="flex flex-col gap-3 overflow-y-auto scrollbar-hide flex-1 pb-2">
-          {/* 스킨 및 스킬 설정 영역 (상단 배치) */}
-          <div className="flex flex-col gap-3 bg-white/5 p-4 rounded-2xl border border-white/10 shrink-0 backdrop-blur-md shadow-[0_4px_30px_rgba(0,0,0,0.1)] transition-all hover:bg-white/10">
-            <div className="flex justify-between items-center">
-              <div className="flex flex-col">
-                <label className="text-xs text-[var(--accent-primary)] font-bold tracking-widest uppercase">참가자 스킨 일괄 적용</label>
-                <div className="flex items-center gap-3 mt-2">
-                  <div className="w-10 h-10 rounded-full bg-[var(--accent-primary)]/20 border-2 border-[var(--accent-primary)] flex items-center justify-center shadow-[0_0_15px_var(--accent-primary)] text-[var(--accent-primary)] shrink-0">
-                    <SkinPreviewIcon skinId={globalSkin} />
-                  </div>
-                  <select 
-                    className="bg-black/50 border border-white/10 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-[var(--accent-primary)] text-sm transition-colors flex-1"
-                    value={globalSkin}
-                    onChange={(e) => handleSkinChange(e.target.value)}
-                  >
-                    <option value="">기본 포커칩 (무작위 6종)</option>
-                    <option value="horse">경주마</option>
-                    <option value="spaceship">우주선</option>
-                    <option value="shuriken">표창</option>
-                    <option value="car">자동차</option>
-                    <option value="blackhole">[UR] 블랙홀</option>
-                    <option value="cat">[SR] 야옹이</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex flex-col items-end gap-2 shrink-0">
-                <span className="text-xs text-[var(--accent-secondary)] font-bold tracking-widest uppercase">스킬 (SKILLS)</span>
-                <button 
-                  onClick={() => setSkillEnabled(!isSkillEnabled)}
-                  className={`w-10 h-5 rounded-full relative transition-colors duration-300 ${isSkillEnabled ? 'bg-[var(--accent-primary)]' : 'bg-white/20'}`}
-                >
-                  <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-black transition-transform duration-300 ${isSkillEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* 추첨 방 제목 및 맵 설정 */}
-          <div className="flex gap-2 shrink-0 flex-col md:flex-row">
+          
+          {/* 그룹 1: 기본 설정 (방 제목 & 맵) */}
+          <div className="flex gap-3 shrink-0 flex-col md:flex-row bg-black/20 p-4 rounded-2xl border border-white/5">
             <input 
               type="text" 
               placeholder="추첨 방 제목" 
-              className="flex-1 bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] transition-colors truncate-1-line"
+              className="flex-[2] bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] transition-colors truncate-1-line"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
@@ -277,7 +242,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 text-white/40 group-hover:text-[var(--accent-primary)] transition-colors">
-                  <span className="text-xs font-bold uppercase tracking-wider hidden md:block">변경</span>
+                  <span className="text-xs font-bold uppercase tracking-wider hidden md:block whitespace-nowrap">변경</span>
                   <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-[var(--accent-primary)]/20">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                   </div>
@@ -286,108 +251,138 @@ export default function Dashboard() {
             </button>
           </div>
 
-          {/* 게임 모드 설정 */}
-          <div className="flex flex-col gap-4 bg-black/20 p-4 rounded-xl border border-white/5 shrink-0">
-            <div className="flex flex-col gap-3 pb-2 border-b border-white/5">
-              <label className="text-xs text-white/50 font-bold tracking-widest uppercase">게임 모드 (Game Mode)</label>
+          {/* 그룹 2: 게임 모드 설정 */}
+          <div className="flex flex-col gap-4 bg-black/20 p-4 rounded-2xl border border-white/5 shrink-0">
+            <div className="flex flex-col gap-3 pb-3 border-b border-white/5">
+              <label className="text-xs text-white/50 font-bold tracking-widest uppercase whitespace-nowrap">게임 모드 (GAME MODE)</label>
               <div className="flex gap-2">
                 <button 
                   onClick={() => setGameMode('speed')}
-                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${gameMode === 'speed' ? 'bg-[var(--accent-primary)] text-black shadow-[0_0_10px_var(--accent-primary)]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${gameMode === 'speed' ? 'bg-[var(--accent-primary)] text-black shadow-[0_0_10px_var(--accent-primary)]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                 >
                   스피드
                 </button>
                 <button 
                   onClick={() => setGameMode('turtle')}
-                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${gameMode === 'turtle' ? 'bg-[var(--accent-secondary)] text-black shadow-[0_0_10px_var(--accent-secondary)]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${gameMode === 'turtle' ? 'bg-[var(--accent-secondary)] text-black shadow-[0_0_10px_var(--accent-secondary)]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                 >
                   거북이
                 </button>
                 <button 
                   onClick={() => setGameMode('custom')}
-                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${gameMode === 'custom' ? 'bg-purple-500 text-white shadow-[0_0_10px_#a855f7]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${gameMode === 'custom' ? 'bg-purple-500 text-white shadow-[0_0_10px_#a855f7]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                 >
                   커스텀
                 </button>
                 <button 
                   onClick={() => setGameMode('random')}
-                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${gameMode === 'random' ? 'bg-orange-500 text-white shadow-[0_0_10px_#f97316]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${gameMode === 'random' ? 'bg-orange-500 text-white shadow-[0_0_10px_#f97316]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                 >
                   랜덤
                 </button>
               </div>
               
-              {gameMode === 'custom' && (
-                <div className="flex items-center gap-3 bg-black/40 p-3 rounded-lg border border-purple-500/30 animate-in fade-in slide-in-from-top-2">
-                  <span className="text-sm text-purple-300 font-bold">몇 번째로 들어온 사람을 당첨시킬까요?</span>
-                  <div className="flex items-center bg-black rounded-lg overflow-hidden border border-white/10 ml-auto">
-                    <button onClick={() => setCustomWinningRank(Math.max(1, customWinningRank - 1))} className="px-3 py-1 hover:bg-white/10 text-white/70">-</button>
-                    <input 
-                      type="number" 
-                      value={customWinningRank}
-                      onChange={(e) => setCustomWinningRank(Math.max(1, Number(e.target.value)))}
-                      className="w-12 bg-transparent text-center text-white font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <button onClick={() => setCustomWinningRank(customWinningRank + 1)} className="px-3 py-1 hover:bg-white/10 text-white/70">+</button>
-                  </div>
-                </div>
-              )}
+              <div className="animate-in fade-in slide-in-from-top-2 text-xs text-white/40 font-medium whitespace-nowrap mt-1">
+                {gameMode === 'speed' && '💡 먼저 결승선을 통과한 참가자가 승리합니다.'}
+                {gameMode === 'turtle' && '💡 가장 늦게 결승선을 통과한 참가자가 승리합니다.'}
+                {gameMode === 'custom' && '💡 지정한 등수로 들어온 참가자가 당첨됩니다.'}
+                {gameMode === 'random' && '💡 컴퓨터가 당첨 등수를 무작위로 결정합니다.'}
+              </div>
+            </div>
 
-              {gameMode === 'random' && (
-                <div className="flex items-center gap-3 bg-black/40 p-3 rounded-lg border border-orange-500/30 animate-in fade-in slide-in-from-top-2">
-                  <span className="text-sm text-orange-300 font-bold">🎲 컴퓨터가 당첨 등수를 랜덤 결정</span>
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-[var(--accent-primary)] font-bold tracking-widest uppercase whitespace-nowrap">
+                {gameMode === 'speed' ? '당첨자 수 (명)' : gameMode === 'turtle' ? '최후의 생존자 (명)' : gameMode === 'random' ? '당첨자 수 (명)' : '당첨 등수 (등)'}
+              </label>
+              {gameMode === 'custom' ? (
+                <div className="flex items-center bg-black/50 rounded-xl overflow-hidden border border-white/10">
+                  <button onClick={() => setCustomWinningRank(Math.max(1, customWinningRank - 1))} className="w-16 py-3 hover:bg-white/10 text-white/70 text-xl font-bold transition-colors">-</button>
+                  <input 
+                    type="number" 
+                    value={customWinningRank}
+                    onChange={(e) => setCustomWinningRank(Math.max(1, Number(e.target.value)))}
+                    className="flex-1 bg-transparent text-center text-purple-300 font-mono text-xl py-2 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <button onClick={() => setCustomWinningRank(customWinningRank + 1)} className="w-16 py-3 hover:bg-white/10 text-white/70 text-xl font-bold transition-colors">+</button>
+                </div>
+              ) : (
+                <div className="flex items-center bg-black/50 rounded-xl overflow-hidden border border-white/10">
+                  <button onClick={() => setLocalWinnerCount(Math.max(1, localWinnerCount - 1))} className="w-16 py-3 hover:bg-white/10 text-white/70 text-xl font-bold transition-colors">-</button>
+                  <input 
+                    type="number" 
+                    min={1} 
+                    max={Math.max(1, participants.length - 1)}
+                    value={localWinnerCount}
+                    onChange={(e) => setLocalWinnerCount(Number(e.target.value))}
+                    className="flex-1 bg-transparent text-center text-[var(--text-primary)] font-mono text-xl py-2 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <button onClick={() => setLocalWinnerCount(Math.min(Math.max(1, participants.length - 1), localWinnerCount + 1))} className="w-16 py-3 hover:bg-white/10 text-white/70 text-xl font-bold transition-colors">+</button>
                 </div>
               )}
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-6 pt-1">
-              <div className="flex flex-col gap-2">
-                <label className="text-xs text-[var(--accent-primary)] font-bold tracking-widest uppercase">
-                  {gameMode === 'speed' ? '당첨자 수 (명)' : gameMode === 'turtle' ? '최후의 생존자 (명)' : gameMode === 'random' ? '당첨자 수 (명)' : '당첨 등수 (등)'}
-                </label>
-                {gameMode === 'custom' ? (
-                  <div className="flex items-center bg-black/50 rounded-xl overflow-hidden border border-white/10 mt-1">
-                    <input 
-                      type="number" 
-                      value={customWinningRank}
-                      readOnly
-                      className="w-full bg-transparent text-center text-purple-300 font-mono text-xl py-2 focus:outline-none"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex items-center bg-black/50 rounded-xl overflow-hidden border border-white/10 mt-1">
-                    <button onClick={() => setLocalWinnerCount(Math.max(1, localWinnerCount - 1))} className="flex-1 py-2 hover:bg-white/10 text-white/70 text-xl font-bold transition-colors">-</button>
-                    <input 
-                      type="number" 
-                      min={1} 
-                      max={Math.max(1, participants.length - 1)}
-                      value={localWinnerCount}
-                      onChange={(e) => setLocalWinnerCount(Number(e.target.value))}
-                      className="w-16 bg-transparent text-center text-[var(--text-primary)] font-mono text-xl py-2 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <button onClick={() => setLocalWinnerCount(Math.min(Math.max(1, participants.length - 1), localWinnerCount + 1))} className="flex-1 py-2 hover:bg-white/10 text-white/70 text-xl font-bold transition-colors">+</button>
-                  </div>
-                )}
+          {/* 그룹 3: 인게임 요소 (1줄 배치) */}
+          <div className="flex flex-row items-center justify-between gap-4 bg-black/20 p-4 rounded-2xl border border-white/5 shrink-0 overflow-x-auto custom-scrollbar">
+            
+            {/* 스킬 */}
+            <div className="flex flex-col gap-2 shrink-0 flex-1 min-w-[80px]">
+              <label className="text-xs text-[var(--accent-secondary)] font-bold tracking-widest uppercase whitespace-nowrap">스킬 (SKILLS)</label>
+              <div className="flex items-center h-[38px]">
+                <button 
+                  onClick={() => setSkillEnabled(!isSkillEnabled)}
+                  className={`w-12 h-6 rounded-full relative transition-colors duration-300 ${isSkillEnabled ? 'bg-[var(--accent-primary)]' : 'bg-white/20'}`}
+                >
+                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-black transition-transform duration-300 shadow-sm ${isSkillEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                </button>
               </div>
-              <div className="flex flex-col gap-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-xs text-[var(--accent-secondary)] font-bold tracking-widest uppercase">Gimmick Density</label>
-                  <span className="text-xs text-white/70 font-mono bg-white/10 px-2 py-0.5 rounded-md">{gimmickDensity}%</span>
-                </div>
+            </div>
+
+            {/* 장애물 밀도 */}
+            <div className="flex flex-col gap-2 shrink-0 flex-[2] min-w-[160px] px-4 border-l border-white/10">
+              <div className="flex justify-between items-center">
+                <label className="text-xs text-[var(--accent-secondary)] font-bold tracking-widest uppercase whitespace-nowrap">장애물 밀도 (OBSTACLES)</label>
+                <span className="text-[10px] text-[var(--accent-secondary)] font-mono bg-black/50 px-2 py-0.5 rounded-lg border border-white/10 ml-2 whitespace-nowrap">{gimmickDensity}%</span>
+              </div>
+              <div className="flex items-center h-[38px] pt-1">
                 <input 
                   type="range" 
                   min={10} 
                   max={90}
                   value={gimmickDensity}
                   onChange={(e) => setGimmickDensity(Number(e.target.value))}
-                  className="accent-[var(--accent-secondary)] mt-2 cursor-pointer"
+                  className="w-full neon-slider"
                 />
               </div>
             </div>
+
+            {/* 참가자 스킨 */}
+            <div className="flex flex-col gap-2 shrink-0 flex-[1.5] min-w-[160px] pl-4 border-l border-white/10">
+              <label className="text-xs text-[var(--accent-primary)] font-bold tracking-widest uppercase whitespace-nowrap">참가자 스킨 (SKINS)</label>
+              <div className="flex items-center gap-2 h-[38px]">
+                <div className="w-8 h-8 rounded-full bg-[var(--accent-primary)]/20 border border-[var(--accent-primary)] flex items-center justify-center shadow-[0_0_10px_var(--accent-primary)] text-[var(--accent-primary)] shrink-0">
+                  <SkinPreviewIcon skinId={globalSkin} />
+                </div>
+                <select 
+                  className="bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:border-[var(--accent-primary)] text-[11px] font-bold tracking-wide transition-colors flex-1 min-w-0 h-[32px]"
+                  value={globalSkin}
+                  onChange={(e) => handleSkinChange(e.target.value)}
+                >
+                  <option value="">포커칩 (랜덤)</option>
+                  <option value="horse">경주마</option>
+                  <option value="spaceship">우주선</option>
+                  <option value="shuriken">표창</option>
+                  <option value="car">자동차</option>
+                  <option value="blackhole">[UR] 블랙홀</option>
+                  <option value="cat">[SR] 고양이</option>
+                </select>
+              </div>
+            </div>
+
           </div>
 
-          {/* 참가자 입력 및 목록 */}
-          <div className="flex flex-col gap-2 shrink-0">
+          {/* 그룹 4: 참가자 입력 및 목록 */}
+          <div className="flex flex-col gap-3 bg-black/20 p-4 rounded-2xl border border-white/5 shrink-0">
             <div className="flex gap-2 items-stretch">
               <textarea 
                 placeholder="참가자 이름 (쉼표/공백/줄바꿈 다중입력)" 
@@ -405,24 +400,31 @@ export default function Dashboard() {
                 }}
               />
               <div className="flex gap-2 shrink-0">
-                <button onClick={handleAdd} className="w-16 bg-[var(--accent-secondary)] text-black font-bold rounded-xl hover:opacity-90 transition-opacity text-sm shadow-[0_0_15px_rgba(0,255,204,0.3)]">
+                <button onClick={handleAdd} className="w-16 bg-[var(--accent-secondary)] text-black font-bold rounded-xl hover:opacity-90 transition-opacity text-sm shadow-[0_0_15px_rgba(0,255,204,0.3)] whitespace-nowrap">
                   추가
                 </button>
-                <button onClick={() => setIsListModalOpen(true)} className="w-16 bg-white/10 text-white/70 font-bold rounded-xl hover:bg-white/20 hover:text-white transition-colors text-xs border border-white/5" title="명단 관리">
+                <button onClick={() => setIsListModalOpen(true)} className="w-16 bg-white/10 text-white/70 font-bold rounded-xl hover:bg-white/20 hover:text-white transition-colors text-xs border border-white/5 whitespace-nowrap" title="명단 관리">
                   명단
                 </button>
               </div>
             </div>
 
-            <div className="bg-black/40 rounded-xl border border-white/5 p-2.5 min-h-[80px] max-h-[160px] overflow-y-auto flex flex-wrap gap-1.5 shadow-inner content-start">
-              {participants.length === 0 && <p className="text-white/30 text-sm m-auto">참가자가 없습니다.</p>}
-              {participants.map(p => (
-                <div key={p.id} className="bg-white/5 hover:bg-white/15 border border-white/10 rounded-full px-2.5 py-1 flex items-center gap-1.5 group relative backdrop-blur-sm transition-colors cursor-default">
-                  <div className="w-2 h-2 rounded-full shadow-[0_0_5px_currentColor] shrink-0" style={{ backgroundColor: p.color, color: p.color }}></div>
-                  <span className="text-xs font-medium text-[var(--text-primary)] truncate max-w-[75px] leading-none mt-[1px] block">{p.name}</span>
-                  <button onClick={() => handleRemoveParticipant(p.id)} className="text-white/30 hover:text-red-400 opacity-0 md:opacity-100 transition-opacity shrink-0 ml-0.5 text-[10px] leading-none w-3 h-3 flex items-center justify-center">×</button>
+            <div className="flex flex-col gap-2">
+              {participants.length > 0 && (
+                <div className="text-xs font-bold text-[var(--accent-primary)] px-1 whitespace-nowrap">
+                  참가자 명단 (현재 {participants.length}명)
                 </div>
-              ))}
+              )}
+              <div className="bg-black/40 rounded-xl border border-white/5 p-2.5 min-h-[80px] max-h-[160px] overflow-y-auto flex flex-wrap gap-1.5 shadow-inner content-start">
+                {participants.length === 0 && <p className="text-white/30 text-sm m-auto">참가자가 없습니다.</p>}
+                {participants.map(p => (
+                  <div key={p.id} className="bg-white/5 hover:bg-white/15 border border-white/10 rounded-full px-2.5 py-1 flex items-center gap-1.5 group relative backdrop-blur-sm transition-colors cursor-default">
+                    <div className="w-2 h-2 rounded-full shadow-[0_0_5px_currentColor] shrink-0" style={{ backgroundColor: p.color, color: p.color }}></div>
+                    <span className="text-xs font-medium text-[var(--text-primary)] truncate max-w-[75px] leading-none mt-[1px] block">{p.name}</span>
+                    <button onClick={() => handleRemoveParticipant(p.id)} className="text-white/30 hover:text-red-400 opacity-0 md:opacity-100 transition-opacity shrink-0 ml-0.5 text-[10px] leading-none w-3 h-3 flex items-center justify-center">×</button>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

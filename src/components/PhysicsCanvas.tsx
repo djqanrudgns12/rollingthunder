@@ -42,8 +42,61 @@ export default function PhysicsCanvas() {
   const { setGameStage, customMapData, isBroadcasterMode, gameTitle } = useUIStore()
   const workerRef = useRef<Worker | null>(null)
   
+  const cameraDirectorRef = useRef<any>(null);
+  const [isFastForward, setIsFastForward] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
-  
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => e.preventDefault();
+    const handlePointerDown = (e: PointerEvent) => {
+      if (e.button === 2) { // Right click
+        setIsFastForward(true);
+        cameraDirectorRef.current?.setFastForward(true);
+      }
+    };
+    const handlePointerUp = (e: PointerEvent) => {
+      if (e.button === 2) {
+        setIsFastForward(false);
+        cameraDirectorRef.current?.setFastForward(false);
+      }
+    };
+    const handlePointerCancel = () => {
+      setIsFastForward(false);
+      cameraDirectorRef.current?.setFastForward(false);
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+        e.preventDefault();
+        setIsPaused(prev => !prev);
+      }
+    };
+
+    window.addEventListener('contextmenu', handleContextMenu);
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerCancel);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('contextmenu', handleContextMenu);
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerCancel);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isPaused) {
+      import('gsap').then(({ gsap }) => gsap.globalTimeline.pause());
+      import('pixi.js').then((PIXI) => PIXI.Ticker.shared.stop());
+    } else {
+      import('gsap').then(({ gsap }) => gsap.globalTimeline.play());
+      import('pixi.js').then((PIXI) => PIXI.Ticker.shared.start());
+    }
+  }, [isPaused]);
+
   // WebGL Filters ref
   const shockwaveRef = useRef<any>(null)
   const triggerShockwave = useCallback(() => {
@@ -270,6 +323,7 @@ export default function PhysicsCanvas() {
           screenH: window.innerHeight,
           setTimeScale: (scale: number) => workerRef.current?.postMessage({ type: 'SET_TIME_SCALE', payload: { scale } }),
         });
+        cameraDirectorRef.current = cameraDirector;
 
         // ── 마우스 휠 줌 (데스크톱) ──
         const WHEEL_ZOOM_SPEED = 0.001; // deltaY 1px당 줌 변화율
@@ -1758,6 +1812,38 @@ export default function PhysicsCanvas() {
             <span className="text-[#00ffcc] text-xl font-black drop-shadow-[0_0_10px_rgba(0,255,204,0.8)] tabular-nums">
               {gameMode === 'custom' ? `${customWinningRank}TH` : randomWinningRanks.map(r => `${r}TH`).join(', ')}
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* 2배속 안내 오버레이 */}
+      {isFastForward && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 pointer-events-none flex flex-col items-center animate-in slide-in-from-top-4 fade-in duration-200">
+          <div className="flex items-center gap-2 bg-[#ff0055]/20 backdrop-blur-md px-6 py-2 rounded-full border-2 border-[#ff0055] shadow-[0_0_20px_rgba(255,0,85,0.8)]">
+            <span className="text-[#ff0055] font-black text-2xl tracking-widest drop-shadow-[0_0_8px_rgba(255,0,85,1)]">
+              2배속
+            </span>
+            <span className="text-[#ff0055] font-black text-2xl tracking-tighter drop-shadow-[0_0_8px_rgba(255,0,85,1)] animate-pulse">
+              {">>>"}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* 일시정지 오버레이 */}
+      {isPaused && (
+        <div className="absolute inset-0 z-50 pointer-events-none flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="flex flex-col items-center justify-center bg-black/40 px-12 py-8 rounded-3xl border border-white/20 shadow-[0_0_40px_rgba(255,255,255,0.1)]">
+            <div className="flex gap-4 mb-4">
+              <div className="w-4 h-16 bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.8)]"></div>
+              <div className="w-4 h-16 bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.8)]"></div>
+            </div>
+            <h2 className="text-white font-black text-4xl tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
+              PAUSED
+            </h2>
+            <p className="text-white/60 font-bold mt-4 animate-pulse">
+              스페이스바를 눌러 재개합니다
+            </p>
           </div>
         </div>
       )}
