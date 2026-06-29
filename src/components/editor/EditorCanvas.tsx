@@ -1,95 +1,179 @@
 'use client'
 
-import { useDroppable } from '@dnd-kit/core'
+import React, { useEffect, useRef } from 'react'
+import * as PIXI from 'pixi.js'
 import { useEditorStore } from '@/store/editorStore'
+import { Viewport } from 'pixi-viewport'
 
 export default function EditorCanvas() {
-  const { isOver, setNodeRef } = useDroppable({
-    id: 'editor-canvas',
-  })
-  const { items, selectedItemId, setSelectedItemId } = useEditorStore()
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const appRef = useRef<PIXI.Application | null>(null)
+  const viewportRef = useRef<Viewport | null>(null)
+  const containerRef = useRef<PIXI.Container | null>(null)
+  const graphicsMapRef = useRef<Map<string, PIXI.Graphics>>(new Map())
+
+  const { items, selectedItemId, setSelectedItemId, updateItem } = useEditorStore()
+
+  useEffect(() => {
+    if (!canvasRef.current) return
+
+    const initPixi = async () => {
+      const app = new PIXI.Application({
+        view: canvasRef.current!,
+        resizeTo: window,
+        backgroundColor: 0x111111,
+        antialias: true
+      })
+      appRef.current = app
+
+      const viewport = new Viewport({
+        screenWidth: window.innerWidth,
+        screenHeight: window.innerHeight,
+        worldWidth: 800,
+        worldHeight: 3000,
+        events: app.renderer.events
+      })
+      
+      viewport.drag().pinch().wheel().decelerate()
+      app.stage.addChild(viewport)
+      viewportRef.current = viewport
+
+      // 중앙 정렬
+      viewport.moveCenter(400, 400)
+
+      const container = new PIXI.Container()
+      viewport.addChild(container)
+      containerRef.current = container
+
+      // Background grid
+      const grid = new PIXI.Graphics()
+      grid.lineStyle(1, 0x333333, 0.5)
+      for (let i = 0; i <= 800; i += 50) {
+        grid.moveTo(i, 0).lineTo(i, 3000)
+      }
+      for (let i = 0; i <= 3000; i += 50) {
+        grid.moveTo(0, i).lineTo(800, i)
+      }
+      viewport.addChildAt(grid, 0)
+    }
+
+    initPixi()
+
+    return () => {
+      if (appRef.current) {
+        appRef.current.destroy(false, { children: true })
+      }
+    }
+  }, [])
+
+  // 아이템 렌더링 동기화
+  useEffect(() => {
+    if (!containerRef.current || !viewportRef.current) return
+
+    const container = containerRef.current
+    const currentIds = new Set(items.map(it => it.id))
+
+    // 삭제된 아이템 제거
+    for (const [id, g] of graphicsMapRef.current.entries()) {
+      if (!currentIds.has(id)) {
+        container.removeChild(g)
+        g.destroy()
+        graphicsMapRef.current.delete(id)
+      }
+    }
+
+    // 아이템 추가 및 업데이트
+    items.forEach(item => {
+      let g = graphicsMapRef.current.get(item.id)
+      if (!g) {
+        g = new PIXI.Graphics()
+        g.eventMode = 'dynamic'
+        g.cursor = 'pointer'
+        
+        // 드래그 로직
+        let isDragging = false
+        let offset = { x: 0, y: 0 }
+
+        g.on('pointerdown', (e) => {
+          e.stopPropagation()
+          setSelectedItemId(item.id)
+          
+          if (viewportRef.current) {
+             viewportRef.current.pause = true // 드래그 시 뷰포트 이동 방지
+          }
+          isDragging = true
+          const pos = e.data.getLocalPosition(container)
+          offset = { x: g!.x - pos.x, y: g!.y - pos.y }
+        })
+
+        g.on('pointerup', () => {
+          isDragging = false
+          if (viewportRef.current) viewportRef.current.pause = false
+        })
+        g.on('pointerupoutside', () => {
+          isDragging = false
+          if (viewportRef.current) viewportRef.current.pause = false
+        })
+
+        g.on('pointermove', (e) => {
+          if (isDragging) {
+            const pos = e.data.getLocalPosition(container)
+            // 소수점 스냅 방지 (자유로운 움직임)
+            const newX = pos.x + offset.x
+            const newY = pos.y + offset.y
+            g!.position.set(newX, newY)
+            updateItem(item.id, { x: newX, y: newY })
+          }
+        })
+
+        container.addChild(g)
+        graphicsMapRef.current.set(item.id, g)
+      }
+
+      // 렌더링 업데이트
+      g.clear()
+      const isSelected = selectedItemId === item.id
+
+      g.lineStyle(isSelected ? 3 : 1, isSelected ? 0x00ff00 : 0xffffff, 1)
+      g.beginFill(0x444444, 0.8)
+
+      // 타입별 그리기
+      if (item.type === 'wall' || item.type === 'iceblock' || item.type === 'luckygate') {
+        const w = item.w || 100
+        const h = item.h || 20
+        g.drawRect(-w/2, -h/2, w, h)
+      } else if (item.type === 'pin' || item.type === 'bumper' || item.type === 'windmill' || item.type === 'windcannon') {
+        const r = item.radius || (item.w ? item.w/2 : 20)
+        g.drawCircle(0, 0, r)
+      } else if (item.type === 'piston') {
+        const w = item.w || 100
+        const h = item.h || 20
+        g.drawRect(-w/2, -h/2, w, h)
+      } else if (item.type === 'flipper') {
+        const len = item.length || 90
+        g.drawRect(item.side === 'left' ? 0 : -len, -10, len, 20)
+      } else {
+        g.drawRect(-25, -25, 50, 50)
+      }
+      
+      g.endFill()
+
+      // 텍스트 라벨
+      g.removeChildren()
+      const label = new PIXI.Text(item.type, { fill: 0xffffff, fontSize: 12 })
+      label.anchor.set(0.5)
+      g.addChild(label)
+
+      g.position.set(item.x, item.y)
+      g.rotation = item.angle || 0
+
+    })
+
+  }, [items, selectedItemId, setSelectedItemId, updateItem])
 
   return (
-    <div className="flex-1 h-full relative p-2 md:p-4 flex items-center justify-center">
-      <div 
-        ref={setNodeRef}
-        onClick={() => setSelectedItemId(null)}
-        className={`w-full max-w-[800px] h-full max-h-[1200px] bg-black/50 rounded-3xl border transition-all duration-300 relative overflow-hidden
-          ${isOver ? 'border-[var(--accent-primary)] shadow-[0_0_40px_rgba(0,255,204,0.1)] scale-[1.01]' : 'border-white/10 shadow-2xl'}
-        `}
-        style={{
-          // 16x16 그리드 배경 패턴 (스냅 효과 시각화)
-          backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px)',
-          backgroundSize: '16px 16px',
-          backgroundPosition: 'center'
-        }}
-      >
-        {items.map(item => (
-          <div 
-            key={item.id}
-            onClick={(e) => { e.stopPropagation(); setSelectedItemId(item.id); }}
-            className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all group ${selectedItemId === item.id ? 'ring-4 ring-[var(--accent-primary)] ring-offset-2 ring-offset-black scale-110 z-50' : 'hover:scale-110 hover:brightness-125 z-10'}`}
-            style={{ left: item.x, top: item.y }}
-          >
-            {item.type === 'pin' && <div className="w-[30px] h-[30px] bg-slate-500 rounded-full border-2 border-slate-300 shadow-lg"></div>}
-            {item.type === 'bumper' && <div className="w-[30px] h-[30px] bg-orange-500 rounded-full border-2 border-yellow-300 shadow-[0_0_20px_rgba(255,165,0,0.6)]"></div>}
-            {item.type === 'wall' && <div className="bg-white/20 border border-white/50 backdrop-blur-md rounded-md shadow-lg flex items-center justify-center text-[10px] text-white/50" style={{ width: item.w || 100, height: item.h || 20, transform: `rotate(${item.rotation || 0}deg)` }}>Wall</div>}
-            {item.type === 'booster' && (
-              <div className="w-[50px] h-[50px] bg-gradient-to-t from-[var(--accent-primary)] to-transparent opacity-80 border-2 border-[var(--accent-primary)] rounded-md shadow-[0_0_15px_var(--accent-primary)] flex items-center justify-center" style={{ transform: `rotate(${item.rotation || 0}deg)` }}>
-                <span className="text-white font-black text-xl leading-none">↑</span>
-              </div>
-            )}
-            {item.type === 'windmill' && (
-              <div className="w-[100px] h-[100px] border-2 border-red-500/50 rounded-full flex items-center justify-center bg-red-500/10" style={{ transform: `rotate(${item.rotation || 0}deg)` }}>
-                <div className="w-full h-[10px] bg-red-500 absolute shadow-[0_0_10px_red]"></div>
-                <div className="w-[10px] h-full bg-red-500 absolute shadow-[0_0_10px_red]"></div>
-              </div>
-            )}
-            {item.type === 'spinner' && (
-              <div className="flex items-center justify-center relative animate-[spin_4s_linear_infinite]" style={{ width: item.w || 200, height: item.w || 200, animationDirection: (item.speed || 5) > 0 ? 'normal' : 'reverse', animationDuration: `${Math.max(1, 20 / Math.abs(item.speed || 5))}s` }}>
-                <div className={`absolute rounded-full shadow-[0_0_15px_currentColor] ${(item.speed || 5) > 0 ? 'bg-red-500 text-red-500' : 'bg-purple-500 text-purple-500'}`} style={{ width: item.w || 200, height: item.h || 20 }}></div>
-                <div className="w-[15px] h-[15px] bg-white rounded-full absolute shadow-[0_0_10px_white]"></div>
-              </div>
-            )}
-            {item.type === 'portal' && (
-              <div className="w-[40px] h-[40px] rounded-full border-4 flex items-center justify-center animate-[spin_3s_linear_infinite]" style={{ borderColor: item.color || '#c084fc', boxShadow: `0 0 20px ${item.color || '#c084fc'}` }}>
-                <div className="w-[20px] h-[20px] rounded-full" style={{ backgroundColor: item.color || '#c084fc' }}></div>
-              </div>
-            )}
-            {item.type === 'blackhole' && (
-              <div className="rounded-full border border-white/20 flex items-center justify-center bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-black via-black/80 to-transparent pointer-events-none" style={{ width: (item.radius || 150)*2, height: (item.radius || 150)*2, boxShadow: 'inset 0 0 20px rgba(0,0,0,1), 0 0 30px rgba(0,0,0,0.8)' }}>
-                <div className="w-[20px] h-[20px] bg-black rounded-full shadow-[0_0_10px_white]"></div>
-                <div className="absolute border border-white/10 rounded-full animate-[spin_10s_linear_infinite] border-dashed pointer-events-none" style={{ width: '80%', height: '80%' }}></div>
-              </div>
-            )}
-            {/* 화이트홀: 밝은 핑크 글로우 + 방출 파동 */}
-            {item.type === 'whitehole' && (
-              <div className="rounded-full border border-pink-300/40 flex items-center justify-center bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-pink-100 via-pink-200/50 to-transparent pointer-events-none" style={{ width: (item.radius || 100)*2, height: (item.radius || 100)*2, boxShadow: '0 0 30px rgba(255,102,255,0.4)' }}>
-                <div className="w-[20px] h-[20px] bg-white rounded-full shadow-[0_0_15px_rgba(255,102,255,0.8)]"></div>
-                <div className="absolute border border-pink-300/20 rounded-full animate-[spin_8s_linear_infinite_reverse] border-dashed pointer-events-none" style={{ width: '80%', height: '80%' }}></div>
-              </div>
-            )}
-            {/* 함정 구멍: 빨간 위험 링 + 검은 코어 */}
-            {item.type === 'hole' && (
-              <div className="rounded-full border-2 border-red-500 bg-black/90 flex items-center justify-center" style={{ width: (item.radius || 30)*2, height: (item.radius || 30)*2, boxShadow: '0 0 15px rgba(255,0,0,0.5), inset 0 0 10px rgba(255,0,0,0.3)' }}>
-                <span className="text-red-400 text-sm font-bold">⚠</span>
-              </div>
-            )}
-            {/* 피스톤: 메탈 본체 + 경고 줄무늬 */}
-            {item.type === 'piston' && (
-              <div className="bg-gray-600 border-2 border-yellow-400 rounded-md flex items-center justify-center relative overflow-hidden" style={{ width: item.w || 100, height: item.h || 20 }}>
-                <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,rgba(255,204,0,0.3)_6px,rgba(255,204,0,0.3)_12px)]"></div>
-                <span className="text-yellow-300 text-[7px] font-bold z-10">PISTON</span>
-              </div>
-            )}
-            
-            {/* 호버 시 좌표 표시 툴팁 */}
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap backdrop-blur-sm border border-white/10">
-              {item.type} (x:{Math.round(item.x)}, y:{Math.round(item.y)})
-            </div>
-          </div>
-        ))}
-      </div>
+    <div className="absolute inset-0 w-full h-full bg-black">
+      <canvas ref={canvasRef} className="w-full h-full" />
     </div>
   )
 }

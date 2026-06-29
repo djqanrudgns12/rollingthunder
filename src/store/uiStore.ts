@@ -10,8 +10,8 @@ interface UIState {
   activeModal: 'none' | 'mapLoad' | 'listManager' | 'settings'
   setActiveModal: (modal: 'none' | 'mapLoad' | 'listManager' | 'settings') => void
 
-  gameStage: 'dashboard' | 'playing' | 'winner_declared' | 'all_finished'
-  setGameStage: (stage: 'dashboard' | 'playing' | 'winner_declared' | 'all_finished') => void
+  gameStage: 'dashboard' | 'playing' | 'winner_declared' | 'all_finished' | 'editor'
+  setGameStage: (stage: 'dashboard' | 'playing' | 'winner_declared' | 'all_finished' | 'editor') => void
   
   customMapData: EditorItem[] | null
   setCustomMapData: (data: any[] | null) => void

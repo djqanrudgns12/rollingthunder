@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import Dashboard from './Dashboard'
 import dynamic from 'next/dynamic';
 const PhysicsCanvas = dynamic(() => import('./PhysicsCanvas'), { ssr: false });
-const EditorPanel = dynamic(() => import('./editor/EditorPanel'), { ssr: false });
+const MapEditorManager = dynamic(() => import('./editor/MapEditorManager'), { ssr: false });
 
 export default function GameManager() {
   const gameStage = useUIStore(state => state.gameStage)
@@ -135,7 +135,7 @@ export default function GameManager() {
     <>
       {gameStage === 'dashboard' && <Dashboard />}
       {gameStage === 'playing' && <PhysicsCanvas />}
-      <EditorPanel />
+      {gameStage === 'editor' && <MapEditorManager />}
     </>
   )
 }

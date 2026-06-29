@@ -49,7 +49,7 @@ export default function PhysicsCanvas() {
   const [isPaused, setIsPaused] = useState(false);
   const [isMapMenuOpen, setIsMapMenuOpen] = useState(false);
 
-  const { isEditorMode, setSelectedItemId, updateItem } = useEditorStore()
+
 
   useEffect(() => {
     soundManager.setMuted(isMuted);
@@ -1379,54 +1379,6 @@ export default function PhysicsCanvas() {
                 mg.fill({ color: 0xffffff });
               }
 
-              // Editor Mode Interaction
-              if (isEditorMode) {
-                g.eventMode = 'dynamic';
-                g.cursor = 'pointer';
-                let isDragging = false;
-                let dragStartPos = { x: 0, y: 0 };
-                let initialPos = { x: 0, y: 0 };
-                
-                g.on('pointerdown', (e: PIXI.FederatedPointerEvent) => {
-                  e.stopPropagation();
-                  isDragging = true;
-                  dragStartPos = { x: e.globalX, y: e.globalY };
-                  initialPos = { x: g.x, y: g.y };
-                  setSelectedItemId(item.id);
-                  g.alpha = 0.7;
-                  
-                  // 물리 엔진 일시정지 (선택적)
-                  if (workerRef.current) workerRef.current.postMessage({ type: 'SET_TIME_SCALE', payload: { scale: 0 } });
-                });
-                
-                g.on('globalpointermove', (e: PIXI.FederatedPointerEvent) => {
-                  if (isDragging) {
-                    const dx = (e.globalX - dragStartPos.x) / viewport.scale.x;
-                    const dy = (e.globalY - dragStartPos.y) / viewport.scale.y;
-                    
-                    // 소수점 미세 조정 위해 Round 제거 (정밀한 자유 이동)
-                    g.x = initialPos.x + dx;
-                    g.y = initialPos.y + dy;
-                  }
-                });
-                
-                g.on('pointerup', () => {
-                  if (isDragging) {
-                    isDragging = false;
-                    g.alpha = 1.0;
-                    
-                    // Zustand Store 업데이트
-                    updateItem(item.id, { x: g.x, y: g.y });
-                  }
-                });
-                g.on('pointerupoutside', () => {
-                  if (isDragging) {
-                    isDragging = false;
-                    g.alpha = 1.0;
-                    updateItem(item.id, { x: g.x, y: g.y });
-                  }
-                });
-              }
 
               g.position.set(item.x, item.y);
               mg.position.set(item.x, item.y);
@@ -1449,37 +1401,7 @@ export default function PhysicsCanvas() {
               initialItems.forEach((item: any) => createEditorItemGraphic(item));
             }
 
-            // EditorStore 실시간 동기화 (새로운 아이템 추가 및 위치 업데이트 반영)
-            const unsubEditor = useEditorStore.subscribe((state, prevState) => {
-              if (!isEditorMode) return;
-              
-              // 1. 기존 아이템 업데이트
-              state.items.forEach(item => {
-                const g = graphicsMap.get(item.id);
-                if (g && !g.destroyed) {
-                  g.position.set(item.x, item.y);
-                  g.rotation = item.rotation || 0;
-                } else if (!g) {
-                  // 2. 새로운 아이템 렌더링
-                  createEditorItemGraphic(item);
-                }
-              });
-              
-              // 3. 삭제된 아이템 처리
-              const currentIds = new Set(state.items.map(i => i.id));
-              prevState.items.forEach(oldItem => {
-                if (!currentIds.has(oldItem.id)) {
-                  const g = graphicsMap.get(oldItem.id);
-                  if (g) {
-                    g.destroy();
-                    graphicsMap.delete(oldItem.id);
-                  }
-                }
-              });
-            });
 
-            // Cleanup에 등록
-            (app as any)._editorUnsub = unsubEditor;
             
           }
 

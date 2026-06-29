@@ -276,7 +276,7 @@ export default function Dashboard() {
               <button
                 onClick={() => {
                   setEditorMode(true)
-                  setGameStage('playing')
+                  setGameStage('editor')
                 }}
                 className="relative shrink-0 w-full md:w-auto bg-black/40 backdrop-blur-md border border-white/10 hover:border-purple-500 rounded-xl px-4 py-3 flex items-center justify-center gap-2 transition-all duration-300 group shadow-[0_4px_20px_rgba(0,0,0,0.5)] hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] hover:scale-[1.01]"
               >

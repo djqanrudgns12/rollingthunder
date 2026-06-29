@@ -2,7 +2,9 @@
 
 import { useGameStore } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
-import { X, Moon, Sun, Type, Gauge, Zap } from 'lucide-react'
+import { X, Moon, Sun, Type, Gauge, Zap, LogOut, UserX } from 'lucide-react'
+import { useState } from 'react'
+import { logout, deleteAccount } from '@/app/actions'
 
 const FONTS = [
   { id: 'pretendard', name: 'Pretendard (기본)' },
@@ -33,8 +35,26 @@ export default function SettingsModal() {
   } = useGameStore()
   
   const { activeModal, setActiveModal } = useUIStore()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   if (activeModal !== 'settings') return null
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    await logout()
+    setActiveModal('none')
+    setIsLoggingOut(false)
+  }
+
+  const handleDeleteAccount = async () => {
+    if (confirm('정말로 회원탈퇴 하시겠습니까? 모든 데이터가 삭제되며 복구할 수 없습니다.')) {
+      setIsDeleting(true)
+      await deleteAccount()
+      setActiveModal('none')
+      setIsDeleting(false)
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -137,6 +157,26 @@ export default function SettingsModal() {
             </div>
           </div>
 
+        </div>
+
+        {/* Account Actions */}
+        <div className="p-6 pt-0 flex gap-3">
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut || isDeleting}
+            className="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <LogOut className="w-4 h-4" />
+            {isLoggingOut ? '로그아웃 중...' : '로그아웃'}
+          </button>
+          <button
+            onClick={handleDeleteAccount}
+            disabled={isLoggingOut || isDeleting}
+            className="flex-1 py-3 px-4 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <UserX className="w-4 h-4" />
+            {isDeleting ? '처리 중...' : '회원탈퇴'}
+          </button>
         </div>
       </div>
     </div>

@@ -59,3 +59,25 @@ export async function logout() {
   revalidatePath('/', 'layout')
   redirect('/')
 }
+
+export async function deleteAccount() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (user) {
+    const { createClient: createAdminClient } = await import('@supabase/supabase-js')
+    const adminAuthClient = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    // Supabase Admin API를 사용해 해당 사용자 완전히 삭제 (auth.users 에서 삭제)
+    // 연관된 데이터(예: public 스키마 내 foreign key ON DELETE CASCADE 설정된 데이터)도 함께 사라집니다.
+    await adminAuthClient.auth.admin.deleteUser(user.id)
+    
+    await supabase.auth.signOut()
+  }
+
+  revalidatePath('/', 'layout')
+  redirect('/')
+}

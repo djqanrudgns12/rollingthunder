@@ -7,7 +7,6 @@ import { useGameStore } from '@/store/gameStore'
 import { saveMapData } from '@/lib/supabase/mapFetcher'
 import { Save, X, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import InspectorPanel from './InspectorPanel'
 
 const ITEM_TYPES: { type: EditorItemType, label: string }[] = [
   { type: 'wall', label: '벽 (Wall)' },
@@ -22,7 +21,7 @@ const ITEM_TYPES: { type: EditorItemType, label: string }[] = [
   { type: 'flipper', label: '플리퍼 (Flipper)' }
 ]
 
-export default function EditorPanel() {
+export default function ToolboxPanel() {
   const { isEditorMode, setEditorMode, items, addItem, clearItems, mapId, setItems, selectedItemId, setSelectedItemId, removeItem } = useEditorStore()
   const { setGameStage } = useUIStore()
   const { mapDataCache, selectedMapPreset } = useGameStore()
@@ -147,9 +146,6 @@ export default function EditorPanel() {
           </button>
         </div>
       </div>
-
-      {/* Inspector Panel */}
-      <InspectorPanel />
     </>
   )
 }
