@@ -1298,6 +1298,26 @@ export default function PhysicsCanvas() {
                 g.addChild(block);
                 mg.rect(-w/2, -h/2, w, h);
                 mg.fill({ color: 0x88ccff, alpha: 0.8 });
+              } else if (item.type === 'polygon' && item.vertices && item.vertices.length > 2) {
+                const poly = new PIXI.Graphics();
+                // MapBuilder에서 x, y 기준 상대 좌표로 생성했으므로, 여기에서도 x, y 기준 local vertices로 렌더링
+                poly.moveTo(item.vertices[0].x, item.vertices[0].y);
+                for (let i = 1; i < item.vertices.length; i++) {
+                  poly.lineTo(item.vertices[i].x, item.vertices[i].y);
+                }
+                poly.lineTo(item.vertices[0].x, item.vertices[0].y);
+                poly.stroke({ color: 0xbbbbdd, width: 4 });
+                poly.fill({ color: 0x8888aa, alpha: 0.4 });
+                g.addChild(poly);
+
+                // 미니맵용 간단한 윤곽
+                mg.moveTo(item.vertices[0].x, item.vertices[0].y);
+                for (let i = 1; i < item.vertices.length; i++) {
+                  mg.lineTo(item.vertices[i].x, item.vertices[i].y);
+                }
+                mg.lineTo(item.vertices[0].x, item.vertices[0].y);
+                mg.stroke({ color: 0xbbbbdd, width: 4 });
+                mg.fill({ color: 0x8888aa, alpha: 0.6 });
               } else if (item.type === 'windcannon') {
                 const w = item.w || 120;
                 const h = item.h || 120;

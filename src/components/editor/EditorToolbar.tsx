@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { useEditorStore } from '@/store/editorStore'
 import { Save, Undo, Redo, Magnet, Plus, Map as MapIcon } from 'lucide-react'
 import { MapPresets } from '@/engine/MapPresets'
+import Link from 'next/link'
 
 export default function EditorToolbar() {
   const { undo, redo, items, historyIndex, history, gridSnap, setGridSnap, mapId, loadMapPreset } = useEditorStore()
@@ -102,13 +103,13 @@ export default function EditorToolbar() {
           <span>저장</span>
         </button>
 
-        <a 
+        <Link 
           href="/"
           className="flex items-center gap-1 bg-gray-600 hover:bg-gray-500 text-white text-sm font-medium px-4 py-1.5 rounded ml-2 transition-colors shadow-sm"
           title="대기화면으로 돌아가기"
         >
           로비 복귀
-        </a>
+        </Link>
       </div>
     </div>
   )

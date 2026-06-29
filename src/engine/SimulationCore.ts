@@ -178,10 +178,15 @@ export class SimulationCore {
         } else if (item.type === 'bumper') {
           const body = MapBuilder.createPin(this.world!, item.x, item.y, item.radius || 15, true, item.restitution, item.friction);
           if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
-        } else if (item.type === 'wall' || item.type === 'iceblock') {
-          const body = item.type === 'iceblock' 
-            ? MapBuilder.createBreakableBlock(this.world!, item) 
-            : MapBuilder.createRect(this.world!, item.x, item.y, item.w || 100, item.h || 20, 'wall', item.rotation || 0, item.restitution, item.friction);
+        } else if (item.type === 'wall' || item.type === 'iceblock' || item.type === 'polygon') {
+          let body;
+          if (item.type === 'iceblock') {
+            body = MapBuilder.createBreakableBlock(this.world!, item);
+          } else if (item.type === 'polygon') {
+            body = MapBuilder.createPolygon(this.world!, item);
+          } else {
+            body = MapBuilder.createRect(this.world!, item.x, item.y, item.w || 100, item.h || 20, 'wall', item.rotation || 0, item.restitution, item.friction);
+          }
           if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
         } else if (item.type === 'windmill' || item.type === 'piston' || item.type === 'spinner' || item.type === 'flipper') {
           const body = item.type === 'flipper'
@@ -220,6 +225,7 @@ export class SimulationCore {
           waypointB: userData.waypointB,
           originX: userData.originX,
           originY: userData.originY,
+          vertices: userData.vertices,
         });
       }
     });

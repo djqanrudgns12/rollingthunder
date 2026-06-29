@@ -4,15 +4,37 @@ import React from 'react'
 import { useEditorStore, EditorItem } from '@/store/editorStore'
 
 export default function InspectorPanel() {
-  const { items, selectedItemId, updateItem } = useEditorStore()
+  const { items, selectedItemId, updateItem, worldHeight, setWorldHeight } = useEditorStore()
 
   const selectedItem = items.find(it => it.id === selectedItemId)
 
   if (!selectedItem) {
+    const handleWorldHeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = parseInt(e.target.value);
+      if (!isNaN(value)) {
+        setWorldHeight(value);
+      }
+    };
+
     return (
-      <div className="absolute top-16 right-4 w-72 bg-[#1a1a1a] border border-[#333] rounded-xl shadow-2xl p-6 flex flex-col items-center justify-center pointer-events-auto h-32 z-10">
-        <p className="text-gray-500 text-sm font-semibold">선택된 요소가 없습니다.</p>
-        <p className="text-gray-600 text-xs mt-1">캔버스에서 항목을 선택하세요.</p>
+      <div className="absolute top-16 right-4 w-72 bg-[#1a1a1a] border border-[#333] rounded-xl shadow-2xl flex flex-col pointer-events-auto z-10 overflow-hidden">
+        <div className="p-4 border-b border-[#333] bg-[#222]">
+          <h2 className="font-bold text-white text-sm">맵 속성 (Map Properties)</h2>
+        </div>
+        <div className="p-4 space-y-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">세로 길이 (World Height)</label>
+            <input
+              type="number"
+              step={100}
+              value={worldHeight}
+              onChange={handleWorldHeightChange}
+              className="w-full bg-[#252525] border border-[#333] hover:border-[#444] rounded p-2 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors font-mono"
+            />
+            <p className="text-xs text-gray-600 mt-1">기본값: 3000</p>
+          </div>
+          <p className="text-gray-500 text-xs mt-4 text-center">기물을 선택하면 개별 속성이 표시됩니다.</p>
+        </div>
       </div>
     )
   }
@@ -84,6 +106,38 @@ export default function InspectorPanel() {
             </div>
           </div>
         </div>
+
+        {/* Polygon Special Group */}
+        {selectedItem.type === 'polygon' && (
+          <div>
+            <h3 className="text-xs font-bold text-fuchsia-400 mb-3 uppercase tracking-wider border-b border-[#333] pb-1">이미지 기반 자동 생성</h3>
+            <div className="space-y-3">
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    const { ImageTracer } = await import('@/lib/ImageTracer');
+                    const vertices = await ImageTracer.traceImage(file, 5);
+                    if (vertices && vertices.length > 2) {
+                      updateItem(selectedItem.id, { vertices });
+                    } else {
+                      alert('윤곽선을 추출할 수 없습니다.');
+                    }
+                  } catch (err) {
+                    console.error(err);
+                    alert('이미지 처리 중 오류가 발생했습니다.');
+                  }
+                  e.target.value = '';
+                }} 
+                className="text-xs text-gray-400 w-full" 
+              />
+              <p className="text-[10px] text-gray-500 leading-tight">이미지를 업로드하면 윤곽선을 자동 추출하여 다각형을 변형합니다. (배경이 투명한 PNG 권장)</p>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

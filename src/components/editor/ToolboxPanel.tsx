@@ -33,6 +33,7 @@ const CATEGORIES: Record<TabType, ItemDef[]> = {
   frames: [
     { type: 'wall', label: '벽 (Wall)', imagePath: '/images/assets/obstacles/obstacle_wall.png', color: 'text-gray-500' },
     { type: 'iceblock', label: '얼음블록 (IceBlock)', icon: Box, color: 'text-cyan-200' },
+    { type: 'polygon', label: '자유형 블록 (Polygon)', icon: CircleDashed, color: 'text-fuchsia-400' },
   ],
   skeleton: [
     { type: 'startline', label: '시작선 (Start)', icon: Flag, color: 'text-green-400' },
@@ -71,6 +72,15 @@ export default function ToolboxPanel() {
         newItem.w = 140; newItem.h = 20; break;
       case 'flipper':
         newItem.w = 90; newItem.h = 20; newItem.length = 90; newItem.side = 'left'; newItem.restAngle = 30; newItem.swingAngle = -30; break;
+      case 'polygon':
+        newItem.w = 100; newItem.h = 100;
+        newItem.vertices = [
+          { x: -50, y: -50 },
+          { x: 50, y: -50 },
+          { x: 50, y: 50 },
+          { x: -50, y: 50 }
+        ];
+        break;
       default:
         newItem.w = 40; newItem.h = 40; break;
     }

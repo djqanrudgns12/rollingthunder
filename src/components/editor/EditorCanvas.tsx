@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react'
 import * as PIXI from 'pixi.js'
 import { useEditorStore, EditorItem } from '@/store/editorStore'
 import { Viewport } from 'pixi-viewport'
+import { SVG_ASSETS } from '@/lib/SvgAssets'
 
 // 에셋 맵핑
 const ASSET_MAP: Record<string, string> = {
@@ -16,7 +17,12 @@ const ASSET_MAP: Record<string, string> = {
   hole: '/images/assets/obstacles/obstacle_hole.png',
   portal: '/images/assets/obstacles/obstacle_portal.png',
   blackhole: '/images/assets/obstacles/obstacle_blackhole.png',
-  whitehole: '/images/assets/obstacles/obstacle_whitehole.png'
+  whitehole: '/images/assets/obstacles/obstacle_whitehole.png',
+  spinner: SVG_ASSETS.spinner,
+  windcannon: SVG_ASSETS.windcannon,
+  luckygate: SVG_ASSETS.luckygate,
+  flipper: SVG_ASSETS.flipper,
+  iceblock: SVG_ASSETS.iceblock
 };
 
 export default function EditorCanvas() {
@@ -257,6 +263,15 @@ export default function EditorCanvas() {
         newItem.w = 140; newItem.h = 20; break;
       case 'flipper':
         newItem.w = 90; newItem.h = 20; newItem.length = 90; newItem.side = 'left'; newItem.restAngle = 30; newItem.swingAngle = -30; break;
+      case 'polygon':
+        newItem.w = 100; newItem.h = 100;
+        newItem.vertices = [
+          { x: -50, y: -50 },
+          { x: 50, y: -50 },
+          { x: 50, y: 50 },
+          { x: -50, y: 50 }
+        ];
+        break;
       default:
         newItem.w = 40; newItem.h = 40; break;
     }
@@ -360,7 +375,8 @@ export default function EditorCanvas() {
         resizeHandles.visible = false;
         c.addChild(resizeHandles);
 
-        const handleTypes = ['tl', 'tc', 'tr', 'cl', 'cr', 'bl', 'bc', 'br'];
+        if (item.type !== 'polygon') {
+          const handleTypes = ['tl', 'tc', 'tr', 'cl', 'cr', 'bl', 'bc', 'br'];
         handleTypes.forEach(type => {
             const h = new PIXI.Graphics();
             h.beginFill(0xffffff);
@@ -446,8 +462,9 @@ export default function EditorCanvas() {
                 appRef.current?.stage.on('pointerupoutside', onResizeUp);
             });
 
-            resizeHandles.addChild(h);
+            resizeHandles!.addChild(h);
         });
+        }
 
         container.addChild(c)
         containerMapRef.current.set(item.id, c)
@@ -489,10 +506,27 @@ export default function EditorCanvas() {
         } else if (item.type === 'flipper') {
           const len = item.length || 90
           sprite.drawRect(item.side === 'left' ? 0 : -len, -10, len, 20)
+        } else if (item.type === 'polygon') {
+          const vertices = item.vertices || [
+            { x: -50, y: -50 },
+            { x: 50, y: -50 },
+            { x: 50, y: 50 },
+            { x: -50, y: 50 }
+          ];
+          sprite.lineStyle(2, 0xff00ff);
+          sprite.beginFill(0xff00ff, 0.2);
+          sprite.moveTo(vertices[0].x, vertices[0].y);
+          for (let i = 1; i < vertices.length; i++) {
+            sprite.lineTo(vertices[i].x, vertices[i].y);
+          }
+          sprite.closePath();
+          sprite.endFill();
         } else {
           sprite.drawCircle(0, 0, drawR)
         }
-        sprite.endFill()
+        if (item.type !== 'polygon') {
+          sprite.endFill()
+        }
       }
 
       selectionG!.clear();
@@ -501,7 +535,81 @@ export default function EditorCanvas() {
       if (isSelected) {
         // Selection highlight (두꺼운 테두리)
         selectionG!.lineStyle(3, 0x00aaff, 1);
-        if (isCircleType) {
+        
+        if (item.type === 'polygon') {
+          const vertices = item.vertices || [];
+          if (vertices.length > 0) {
+            selectionG!.moveTo(vertices[0].x, vertices[0].y);
+            for (let i = 1; i < vertices.length; i++) {
+              selectionG!.lineTo(vertices[i].x, vertices[i].y);
+            }
+            selectionG!.closePath();
+          }
+
+          // Dynamic Handles for Polygon
+          // First, clean up old handles
+          resizeHandles!.children.forEach(child => child.destroy());
+          resizeHandles!.removeChildren();
+
+          vertices.forEach((v, idx) => {
+            const h = new PIXI.Graphics();
+            h.beginFill(0xffffff);
+            h.lineStyle(1, 0x00aaff);
+            h.drawCircle(0, 0, 6);
+            h.endFill();
+            h.position.set(v.x, v.y);
+            h.eventMode = 'dynamic';
+            h.cursor = 'crosshair';
+            
+            let isResizing = false;
+            let startDragPos = { x: 0, y: 0 };
+            let startV = { x: 0, y: 0 };
+
+            h.on('pointerdown', (e) => {
+                e.stopPropagation();
+                if (viewportRef.current) viewportRef.current.pause = true;
+                isResizing = true;
+                startDragPos = e.data.getLocalPosition(container);
+                
+                const currentItem = useEditorStore.getState().items.find(it => it.id === item.id);
+                if (!currentItem || !currentItem.vertices) return;
+                startV = { x: currentItem.vertices[idx].x, y: currentItem.vertices[idx].y };
+
+                const onResizeMove = (moveEvent: any) => {
+                    if(!isResizing) return;
+                    const pos = moveEvent.data.getLocalPosition(container);
+                    const dx = pos.x - startDragPos.x;
+                    const dy = pos.y - startDragPos.y;
+                    
+                    let newX = startV.x + dx;
+                    let newY = startV.y + dy;
+
+                    const snap = useEditorStore.getState().gridSnap;
+                    if (snap) {
+                        newX = Math.round(newX / 10) * 10;
+                        newY = Math.round(newY / 10) * 10;
+                    }
+
+                    const newVertices = [...currentItem.vertices!];
+                    newVertices[idx] = { x: newX, y: newY };
+                    updateItem(item.id, { vertices: newVertices });
+                }
+
+                const onResizeUp = () => {
+                    isResizing = false;
+                    if (viewportRef.current) viewportRef.current.pause = false;
+                    appRef.current?.stage.off('pointermove', onResizeMove);
+                    appRef.current?.stage.off('pointerup', onResizeUp);
+                    appRef.current?.stage.off('pointerupoutside', onResizeUp);
+                }
+
+                appRef.current?.stage.on('pointermove', onResizeMove);
+                appRef.current?.stage.on('pointerup', onResizeUp);
+                appRef.current?.stage.on('pointerupoutside', onResizeUp);
+            });
+            resizeHandles!.addChild(h);
+          });
+        } else if (isCircleType) {
             selectionG!.drawCircle(0, 0, drawR + 2);
             // Position handles for circle
             ['tl', 'tc', 'tr', 'cl', 'cr', 'bl', 'bc', 'br'].forEach(type => {

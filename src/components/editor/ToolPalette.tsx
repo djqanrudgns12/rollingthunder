@@ -2,6 +2,7 @@
 
 import { useDraggable } from '@dnd-kit/core'
 import { EditorItemType } from '@/store/editorStore'
+import { SVG_ASSETS } from '@/lib/SvgAssets'
 
 const tools: { id: string; type: EditorItemType; label: string; color: string }[] = [
   { id: 'tool-pin', type: 'pin', label: '일반 핀', color: 'bg-slate-500' },
@@ -34,11 +35,16 @@ function PaletteItem({ tool }: { tool: typeof tools[0] }) {
       {...attributes}
       className="flex flex-col items-center justify-center gap-3 p-4 bg-black/40 rounded-2xl border border-white/10 hover:border-white/30 hover:bg-white/5 transition-all cursor-grab active:cursor-grabbing touch-none group"
     >
-      <div className={`rounded-full shadow-[0_0_15px_rgba(255,255,255,0.1)] group-hover:scale-110 transition-transform ${tool.color} ${tool.type === 'wall' ? 'w-16 h-4 rounded-md' : 'w-10 h-10'}`}></div>
+      {SVG_ASSETS[tool.type as keyof typeof SVG_ASSETS] ? (
+        <img src={SVG_ASSETS[tool.type as keyof typeof SVG_ASSETS]} className="w-12 h-12 object-contain group-hover:scale-110 transition-transform pointer-events-none" />
+      ) : (
+        <div className={`rounded-full shadow-[0_0_15px_rgba(255,255,255,0.1)] group-hover:scale-110 transition-transform ${tool.color} ${tool.type === 'wall' ? 'w-16 h-4 rounded-md' : 'w-10 h-10'}`}></div>
+      )}
       <span className="text-xs text-[var(--text-secondary)] font-medium whitespace-nowrap">{tool.label}</span>
     </div>
   )
 }
+
 
 export default function ToolPalette() {
   return (

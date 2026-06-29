@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 // 하이엔드 기믹 타입 추가
-export type EditorItemType = 'pin' | 'bumper' | 'wall' | 'hole' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole' | 'spinner' | 'iceblock' | 'windcannon' | 'luckygate' | 'flipper' | 'startline' | 'endline';
+export type EditorItemType = 'pin' | 'bumper' | 'wall' | 'hole' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole' | 'spinner' | 'iceblock' | 'windcannon' | 'luckygate' | 'flipper' | 'startline' | 'endline' | 'polygon';
 
 export interface EditorItem {
   id: string;
@@ -16,6 +16,7 @@ export interface EditorItem {
   angle?: number;         // 통합된 각도 속성
   rotation?: number;      // 기존 호환성 유지용
   flip?: boolean;         // 좌우/상하 반전
+  vertices?: { x: number; y: number }[]; // 자유형 다각형(Polygon)의 정점 데이터
   // --- 하이엔드 기믹 전용 속성들 ---
   power?: number;         // 가속 강도 (Booster 전용: 1~5 등)
   speed?: number;         // 이동/회전 속도 (Windmill, Piston 전용)
@@ -55,6 +56,7 @@ interface EditorState {
   setSelectedItemId: (id: string | null) => void;
   setEditorMode: (isEditor: boolean) => void;
   setMapId: (id: string | null) => void;
+  setWorldHeight: (height: number) => void;
   loadMapPreset: (mapId: string) => void;
   
   clipboard: EditorItem | null;
@@ -83,6 +85,7 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   setClipboard: (item) => set({ clipboard: item }),
   setGridSnap: (snap) => set({ gridSnap: snap }),
+  setWorldHeight: (height) => set({ worldHeight: height }),
 
   loadMapPreset: (mapId) => set((state) => {
     // 동적 임포트로 MapPresets를 가져와서 적용
