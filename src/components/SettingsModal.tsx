@@ -35,7 +35,7 @@ export default function SettingsModal() {
     fontFamily, setFontFamily
   } = useGameStore()
   
-  const { activeModal, setActiveModal, isLoggedIn } = useUIStore()
+  const { activeModal, setActiveModal, isLoggedIn, setAuthMode } = useUIStore()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -184,14 +184,20 @@ export default function SettingsModal() {
           ) : (
             <>
               <button
-                onClick={() => setActiveModal('auth')}
+                onClick={() => {
+                  setAuthMode('login')
+                  setActiveModal('auth')
+                }}
                 className="flex-1 py-3 px-4 bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/20 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
               >
                 <LogIn className="w-4 h-4" />
                 로그인
               </button>
               <button
-                onClick={() => setActiveModal('auth')}
+                onClick={() => {
+                  setAuthMode('signup')
+                  setActiveModal('auth')
+                }}
                 className="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
               >
                 <UserPlus className="w-4 h-4" />

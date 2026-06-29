@@ -9,6 +9,8 @@ interface UIState {
   
   activeModal: 'none' | 'mapLoad' | 'listManager' | 'settings' | 'auth'
   setActiveModal: (modal: 'none' | 'mapLoad' | 'listManager' | 'settings' | 'auth') => void
+  authMode: 'login' | 'signup'
+  setAuthMode: (mode: 'login' | 'signup') => void
 
   gameStage: 'dashboard' | 'playing' | 'winner_declared' | 'all_finished' | 'editor'
   setGameStage: (stage: 'dashboard' | 'playing' | 'winner_declared' | 'all_finished' | 'editor') => void
@@ -45,6 +47,7 @@ export const useUIStore = create<UIState>()(
       isAnonymized: false,
       gameTitle: '롤링 썬더!',
       activeModal: 'none',
+      authMode: 'login',
       isAdmin: false,
       isLoggedIn: false,
       gameStage: 'dashboard',
@@ -55,6 +58,7 @@ export const useUIStore = create<UIState>()(
       setAnonymized: (isAnonymized) => set({ isAnonymized: isAnonymized }),
       setGameTitle: (title) => set({ gameTitle: title }),
       setActiveModal: (modal) => set({ activeModal: modal }),
+      setAuthMode: (mode) => set({ authMode: mode }),
       setIsAdmin: (isAdmin) => set({ isAdmin: isAdmin }),
       setIsLoggedIn: (isLoggedIn) => set({ isLoggedIn: isLoggedIn }),
     }),
@@ -66,6 +70,11 @@ export const useUIStore = create<UIState>()(
         isAnonymized: state.isAnonymized,
         customMapData: state.customMapData,
         customMapTitle: state.customMapTitle
+      }),
+      merge: (persistedState: any, currentState) => ({
+        ...currentState,
+        ...persistedState,
+        activeModal: 'none', // 로컬 스토리지의 이전 상태를 무시하고 항상 모달 닫힘 상태로 초기화
       }),
     }
   )
