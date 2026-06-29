@@ -142,6 +142,20 @@ export default function LoginPage() {
             </div>
           )}
 
+          {/* 로그인 상태 유지 체크박스 */}
+          <div className="flex items-center gap-2 mt-1">
+            <input
+              id="keepLoggedIn"
+              name="keepLoggedIn"
+              type="checkbox"
+              defaultChecked={true}
+              className="w-4 h-4 rounded border-white/20 bg-black/30 text-[var(--accent-primary)] focus:ring-[var(--accent-primary)]/50 focus:ring-offset-0 cursor-pointer"
+            />
+            <label htmlFor="keepLoggedIn" className="text-sm text-[var(--text-secondary)] select-none cursor-pointer">
+              로그인 상태 유지
+            </label>
+          </div>
+
           {error && (
             <div className="text-[var(--accent-warning)] text-sm p-3 bg-[var(--accent-warning)]/10 rounded-lg border border-[var(--accent-warning)]/20 flex items-start gap-2">
               <span className="mt-0.5">⚠️</span>

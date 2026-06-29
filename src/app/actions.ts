@@ -8,9 +8,11 @@ import { createClient } from '@/lib/supabase/server'
 const FAKE_DOMAIN = '@rt.local'
 
 export async function login(formData: FormData) {
-  const supabase = await createClient()
   const username = formData.get('username') as string
   const password = formData.get('password') as string
+  const keepLoggedIn = formData.get('keepLoggedIn') === 'on'
+
+  const supabase = await createClient(keepLoggedIn)
 
   const { error } = await supabase.auth.signInWithPassword({
     email: `${username}${FAKE_DOMAIN}`,
@@ -26,10 +28,12 @@ export async function login(formData: FormData) {
 }
 
 export async function signup(formData: FormData) {
-  const supabase = await createClient()
   const username = formData.get('username') as string
   const password = formData.get('password') as string
   const name = formData.get('name') as string
+  const keepLoggedIn = formData.get('keepLoggedIn') === 'on'
+
+  const supabase = await createClient(keepLoggedIn)
 
   const { error } = await supabase.auth.signUp({
     email: `${username}${FAKE_DOMAIN}`,

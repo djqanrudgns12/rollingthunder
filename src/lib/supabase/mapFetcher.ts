@@ -40,7 +40,10 @@ export async function fetchMapPresets(): Promise<Record<string, MapPresetMeta>> 
         bgImage: row.bg_image,
         themeWeights: row.theme_weights || {},
         layoutConfig: row.layout_config || {},
-        items: row.items || []
+        // DB에 items가 없거나 비어있다면 로컬 프리셋 데이터(MapPresets)를 우선 사용 (맵 에디터 데이터 유실 방지)
+        items: (row.items && Array.isArray(row.items) && row.items.length > 0) 
+                ? row.items 
+                : (MapPresets[row.id]?.items || [])
       }
     })
 
