@@ -1,7 +1,9 @@
 'use client'
 
-import React from 'react'
+import React, { useRef } from 'react'
 import { useEditorStore, EditorItem } from '@/store/editorStore'
+import { motion, useDragControls } from 'framer-motion'
+import { GripHorizontal } from 'lucide-react'
 
 const WORLD_WIDTH = 800
 
@@ -33,6 +35,8 @@ const CIRCLE_TYPES = new Set(['pin', 'bumper', 'portal', 'hole', 'blackhole', 'w
 
 export default function MinimapOverlay() {
   const { items, worldHeight, wallStyle, selectedItemId, setSelectedItemId, layoutConfig } = useEditorStore()
+  const constraintsRef = useRef<HTMLDivElement>(null)
+  const dragControls = useDragControls()
 
   const MINIMAP_WIDTH = 150
   const scale = MINIMAP_WIDTH / WORLD_WIDTH
@@ -50,11 +54,23 @@ export default function MinimapOverlay() {
   const endY = (wh * (1 - (layoutConfig?.endMarginPercent ?? 0.02))) * scale
 
   return (
-    <div
-      className="absolute right-72 top-20 bg-[#0a0a10] border border-[#00ffcc]/40 rounded-lg overflow-hidden shadow-2xl pointer-events-auto"
-      style={{ width: MINIMAP_WIDTH, height: MINIMAP_HEIGHT }}
+    <motion.div
+      drag
+      dragControls={dragControls}
+      dragListener={false}
+      dragMomentum={false}
+      className="absolute right-72 top-20 bg-[#0a0a10] border border-[#00ffcc]/40 rounded-lg overflow-hidden shadow-2xl pointer-events-auto z-50 flex flex-col"
+      style={{ width: MINIMAP_WIDTH }}
     >
-      <svg width={MINIMAP_WIDTH} height={MINIMAP_HEIGHT} className="block">
+      {/* Drag handle */}
+      <div 
+        className="h-6 bg-[#1a1a24] border-b border-[#00ffcc]/20 flex items-center justify-center cursor-move select-none hover:bg-[#2a2a34] transition-colors"
+        onPointerDown={(e) => dragControls.start(e)}
+      >
+        <GripHorizontal size={14} className="text-[#00ffcc]/60" />
+      </div>
+      
+      <svg width={MINIMAP_WIDTH} height={MINIMAP_HEIGHT} className="block cursor-crosshair">
         {/* 플레이필드 배경 */}
         <rect x={0} y={0} width={MINIMAP_WIDTH} height={MINIMAP_HEIGHT} fill="#0a0a10" />
         {/* 외벽(좌/우) */}
@@ -102,6 +118,6 @@ export default function MinimapOverlay() {
           return <circle key={item.id} cx={cx} cy={cy} r={r} fill={fill} opacity={0.85} onClick={onClick} style={{ cursor: 'pointer' }} />
         })}
       </svg>
-    </div>
+    </motion.div>
   )
 }

@@ -8,14 +8,19 @@ import ToolPalette from './ToolPalette'
 import EditorCanvas from './EditorCanvas'
 import PhysicsPreviewCanvas from './PhysicsPreviewCanvas'
 import PropertiesInspector from './PropertiesInspector'
+import EditorToolbar from './EditorToolbar'
+import HistoryViewer from './HistoryViewer'
 import { Play, X, Share2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 export default function EditorContainer() {
-  const { items, addItem } = useEditorStore()
+  const { items, addItem, tabs, activeTabId } = useEditorStore()
   const [activeId, setActiveId] = useState<string | null>(null)
   const [activeType, setActiveType] = useState<EditorItemType | null>(null)
   const [testMode, setTestMode] = useState(false)
+
+  const activeTab = tabs.find(t => t.id === activeTabId)
+  const isHistoryTab = activeTab?.type === 'history'
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -85,45 +90,55 @@ export default function EditorContainer() {
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <EditorToolbar />
+      
       {/* 툴바 (Export 및 Test Play 버튼) */}
-      <div className="absolute top-6 right-6 z-50 flex gap-3">
-        <button 
-          onClick={async () => {
-            if(items.length === 0) {
-              toast.error('맵에 배치된 요소가 없습니다.'); return;
-            }
-            const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-            const { error } = await supabase.from('map_presets').insert({
-              creator_id: 'guest',
-              title: 'Custom Map',
-              map_data: items,
-              share_code: code
-            });
-            if(error) toast.error('DB 저장 실패: ' + error.message)
-            else {
-              toast.success('맵 데이터가 서버에 배포되었습니다!');
-              toast('대시보드 화면에서 다음 코드를 입력하세요: ' + code, { duration: 10000 });
-            }
-          }}
-          className="flex items-center gap-2 bg-white/10 text-white px-5 py-2.5 rounded-full font-bold hover:bg-white/20 transition-colors border border-white/20 backdrop-blur-md"
-        >
-          <Share2 className="w-5 h-5" />
-          EXPORT
-        </button>
-        <button 
-          onClick={() => setTestMode(true)}
-          className="flex items-center gap-2 bg-[var(--accent-primary)] text-black px-5 py-2.5 rounded-full font-bold hover:scale-105 transition-transform shadow-[0_0_20px_var(--accent-primary)]"
-        >
-          <Play className="w-5 h-5 fill-current" />
-          TEST PLAY
-        </button>
-      </div>
+      {!isHistoryTab && (
+        <div className="absolute top-20 right-6 z-50 flex gap-3">
+          <button 
+            onClick={async () => {
+              if(items.length === 0) {
+                toast.error('맵에 배치된 요소가 없습니다.'); return;
+              }
+              const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+              const { error } = await supabase.from('map_presets').insert({
+                creator_id: 'guest',
+                title: 'Custom Map',
+                map_data: items,
+                share_code: code
+              });
+              if(error) toast.error('DB 저장 실패: ' + error.message)
+              else {
+                toast.success('맵 데이터가 서버에 배포되었습니다!');
+                toast('대시보드 화면에서 다음 코드를 입력하세요: ' + code, { duration: 10000 });
+              }
+            }}
+            className="flex items-center gap-2 bg-white/10 text-white px-5 py-2.5 rounded-full font-bold hover:bg-white/20 transition-colors border border-white/20 backdrop-blur-md"
+          >
+            <Share2 className="w-5 h-5" />
+            EXPORT
+          </button>
+          <button 
+            onClick={() => setTestMode(true)}
+            className="flex items-center gap-2 bg-[var(--accent-primary)] text-black px-5 py-2.5 rounded-full font-bold hover:scale-105 transition-transform shadow-[0_0_20px_var(--accent-primary)]"
+          >
+            <Play className="w-5 h-5 fill-current" />
+            TEST PLAY
+          </button>
+        </div>
+      )}
 
-      <div className="flex w-full h-full max-w-[1600px] mx-auto gap-2 md:gap-4 p-2 md:p-4 z-10">
-        <ToolPalette />
-        <EditorCanvas />
-        <PropertiesInspector />
-      </div>
+      {isHistoryTab ? (
+        <div className="w-full h-full pt-14 flex items-center justify-center">
+          <HistoryViewer />
+        </div>
+      ) : (
+        <div className="flex w-full h-full max-w-[1600px] mx-auto gap-2 md:gap-4 p-2 md:p-4 z-10 pt-14">
+          <ToolPalette />
+          <EditorCanvas />
+          <PropertiesInspector />
+        </div>
+      )}
       
       {/* 마우스를 따라다니는 고스트 이미지 (Ghosting) */}
       <DragOverlay dropAnimation={{ duration: 150, easing: 'ease-out' }}>

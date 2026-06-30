@@ -14,9 +14,8 @@ export default function MapEditorManager() {
   const loadMapPreset = useEditorStore(state => state.loadMapPreset)
 
   useEffect(() => {
-    // 맵 에디터 첫 진입 시 mapId가 없으면 'NeonArcade' (네온 아케이드) 맵을 기본으로 로드
     if (!mapId) {
-      loadMapPreset('NeonArcade')
+      loadMapPreset('neon_arcade')
     }
   }, [mapId, loadMapPreset])
 
