@@ -187,7 +187,7 @@ export default function EditorToolbar() {
 
   return (
     <>
-      <div className="absolute top-0 left-0 w-full h-14 bg-[#1a1a1a] border-b border-[#333] flex items-center justify-between z-20 shadow-md select-none">
+      <div className="absolute top-0 left-0 w-full h-14 bg-[#1a1a1a] border-b border-[#333] flex items-center justify-between z-[200] shadow-md select-none">
         {/* 좌측: 작업 탭 영역 */}
         <div className="flex items-end h-full overflow-x-auto no-scrollbar flex-1 pt-2">
           {tabs.map((tab, index) => {
@@ -276,7 +276,7 @@ export default function EditorToolbar() {
           </button>
           
           {showAddMenu && (
-            <div className="absolute top-14 left-0 mt-0 w-64 bg-[#222] border border-[#333] rounded-b-lg shadow-xl z-50 flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="absolute top-14 left-0 mt-0 w-64 bg-[#222] border border-[#333] rounded-b-lg shadow-xl z-[250] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
               <button 
                 onClick={() => { addTab(null, 'map'); setShowAddMenu(false); }}
                 className="w-full text-left px-4 py-3 hover:bg-[#333] text-white text-sm font-bold border-b border-[#333] flex items-center gap-2 transition-colors"

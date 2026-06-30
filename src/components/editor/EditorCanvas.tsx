@@ -94,7 +94,7 @@ export default function EditorCanvas() {
         events: app.renderer.events,
       })
       viewport.sortableChildren = true
-      viewport.drag().pinch().wheel().decelerate()
+      viewport.drag({ mouseButtons: 'right' }).pinch().wheel().decelerate()
         .clamp({ left: -300, right: WORLD_WIDTH + 300, top: -600, bottom: worldHeight + 400, underflow: 'center' })
       viewport.clampZoom({ minScale: 0.1, maxScale: 4 })
       app.stage.addChild(viewport)
@@ -112,21 +112,38 @@ export default function EditorCanvas() {
       await Promise.all(toLoad.map(u => PIXI.Assets.load(u).catch(() => null)))
       if (destroyed) return
 
-      // 빈 캔버스: Shift+드래그 = 영역 선택(러버밴드), 일반 클릭 = 선택 해제, 일반 드래그 = 패닝
+      // 빈 캔버스: 우클릭 드래그 = 패닝, 좌클릭 드래그 = 영역 선택(러버밴드)
       viewport.eventMode = 'static'
       viewport.on('pointerdown', (e: any) => {
         if (e.target !== viewport) return
-        if (e.shiftKey) { startRubberBand(e); return }
-        const s = { x: e.global.x, y: e.global.y }
-        const onUp = (ev: any) => {
-          const dx = ev.global.x - s.x, dy = ev.global.y - s.y
-          if (dx * dx + dy * dy < 25) setSelectedItemId(null)
-          appRef.current?.stage.off('pointerup', onUp)
-          appRef.current?.stage.off('pointerupoutside', onUp)
+        if (e.data.button === 0) {
+          // 좌클릭: 영역 선택
+          startRubberBand(e)
+          const s = { x: e.global.x, y: e.global.y }
+          const onUp = (ev: any) => {
+            const dx = ev.global.x - s.x, dy = ev.global.y - s.y
+            if (dx * dx + dy * dy < 25) {
+              useEditorStore.getState().setSelectedItemIds([])
+              useEditorStore.getState().setSelectedItemId(null)
+            }
+            appRef.current?.stage.off('pointerup', onUp)
+            appRef.current?.stage.off('pointerupoutside', onUp)
+          }
+          appRef.current?.stage.on('pointerup', onUp)
+          appRef.current?.stage.on('pointerupoutside', onUp)
         }
-        appRef.current?.stage.on('pointerup', onUp)
-        appRef.current?.stage.on('pointerupoutside', onUp)
       })
+      
+      // Delete 키 이벤트 추가
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          // 입력창 포커스 중이 아닐 때만
+          if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return
+          useEditorStore.getState().deleteSelected()
+        }
+      }
+      window.addEventListener('keydown', handleKeyDown)
+      
       // 줌 시 선택 핸들 크기를 화면 고정으로 유지
       viewport.on('zoomed-end', () => buildOverlay())
       viewport.on('zoomed', () => buildOverlay())
@@ -158,6 +175,7 @@ export default function EditorCanvas() {
     return () => {
       destroyed = true
       readyRef.current = false
+      window.removeEventListener('keydown', handleKeyDown)
       unsubs.forEach(u => u())
       nodeMapRef.current.forEach(e => { e.gfx.dispose() })
       nodeMapRef.current.clear()
@@ -354,11 +372,19 @@ export default function EditorCanvas() {
     if (item.type === 'polygon') { buildPolygonHandles(sel, item, hs, sw); return }
 
     // 비주얼 경계 기반 선택 박스
-    const b = entry.gfx.node.getLocalBounds()
-    const hw = Math.max(8, b.width / 2)
-    const hh = Math.max(8, b.height / 2)
-    const cx = b.x + b.width / 2
-    const cy = b.y + b.height / 2
+    let hw, hh, cx, cy
+    if (item.type === 'piston') {
+      hw = Math.max(8, (item.w || 100) / 2)
+      hh = Math.max(8, (item.h || 20) / 2)
+      cx = 0
+      cy = 0
+    } else {
+      const b = entry.gfx.node.getLocalBounds()
+      hw = Math.max(8, b.width / 2)
+      hh = Math.max(8, b.height / 2)
+      cx = b.x + b.width / 2
+      cy = b.y + b.height / 2
+    }
 
     const ring = new PIXI.Graphics()
     ring.rect(cx - hw - pad, cy - hh - pad, hw * 2 + pad * 2, hh * 2 + pad * 2)
@@ -384,18 +410,66 @@ export default function EditorCanvas() {
       sel.addChild(h)
     }
 
-    // 회전 핸들 (원형 타입 제외) — 상단 중앙에서 위로
+    // 회전 핸들 (원형 타입 제외) — 우측 상단 모서리 바깥쪽 (버튼형)
     if (!isCircle) {
-      const ry = cy - hh - 24 / z
-      const stick = new PIXI.Graphics()
-      stick.moveTo(cx, cy - hh - pad).lineTo(cx, ry).stroke({ width: sw, color: 0x00ffcc, alpha: 0.8 })
-      sel.addChild(stick)
+      const rx = cx + hw + 20 / z
+      const ry = cy - hh - 20 / z
       const rot = new PIXI.Graphics()
-      rot.circle(0, 0, hs * 1.3).fill({ color: 0x00ffcc }).stroke({ width: sw, color: 0xffffff })
-      rot.position.set(cx, ry)
+      rot.circle(0, 0, hs * 1.8).fill({ color: 0x00ffcc, alpha: 0.9 }).stroke({ width: sw, color: 0xffffff })
+      rot.circle(0, 0, hs * 0.7).fill({ color: 0xffffff }) // 내부에 흰색 점으로 아이콘 느낌 추가
+      rot.position.set(rx, ry)
       rot.eventMode = 'static'; rot.cursor = 'grab'
       attachRotate(rot, item.id)
       sel.addChild(rot)
+    }
+
+    // 피스톤의 경우 waypointB 조절 전용 주황색 핸들 추가
+    if (item.type === 'piston' && item.waypointB) {
+      // item.waypointB는 절대좌표이므로 sel 내부의 로컬 좌표로 변환하기 위해 역회전을 적용한다.
+      const dx = item.waypointB.x - item.x
+      const dy = item.waypointB.y - item.y
+      const rot = -(item.angle != null ? deg2rad(item.angle) : (item.rotation || 0))
+      
+      const localX = dx * Math.cos(rot) - dy * Math.sin(rot)
+      const localY = dx * Math.sin(rot) + dy * Math.cos(rot)
+      
+      const wptHandle = new PIXI.Graphics()
+      wptHandle.circle(0, 0, hs * 1.5).fill({ color: 0xffaa00 }).stroke({ width: sw, color: 0xffffff })
+      wptHandle.position.set(localX, localY)
+      wptHandle.eventMode = 'static'
+      wptHandle.cursor = 'pointer'
+      
+      wptHandle.on('pointerdown', (e: any) => {
+        e.stopPropagation()
+        const vp = viewportRef.current; const itemsLayer = itemsLayerRef.current
+        if (!vp || !itemsLayer) return
+        vp.plugins.pause('drag')
+        const start = getLocalPos(e, itemsLayer) // 월드 좌표계
+        const startWp = { x: item.waypointB!.x, y: item.waypointB!.y }
+        
+        const onMove = (ev: any) => {
+          const p = getLocalPos(ev, itemsLayer)
+          let nx = startWp.x + (p.x - start.x)
+          let ny = startWp.y + (p.y - start.y)
+          if (useEditorStore.getState().gridSnap) {
+            nx = Math.round(nx / 10) * 10
+            ny = Math.round(ny / 10) * 10
+          }
+          useEditorStore.getState().updateItemSilent(item.id, { waypointB: { x: nx, y: ny } })
+        }
+        const onUp = () => {
+          vp.plugins.resume('drag')
+          useEditorStore.getState().commitHistory()
+          appRef.current?.stage.off('pointermove', onMove)
+          appRef.current?.stage.off('pointerup', onUp)
+          appRef.current?.stage.off('pointerupoutside', onUp)
+        }
+        appRef.current?.stage.on('pointermove', onMove)
+        appRef.current?.stage.on('pointerup', onUp)
+        appRef.current?.stage.on('pointerupoutside', onUp)
+      })
+      
+      sel.addChild(wptHandle)
     }
   }
 
@@ -481,6 +555,20 @@ export default function EditorCanvas() {
       outline.stroke({ width: sw, color: 0x00aaff, alpha: 0.95 })
     }
     sel.addChild(outline)
+
+    // 폴리곤 회전 핸들 (우측 상단 모서리 바깥쪽)
+    if (verts.length > 0) {
+      const maxX = Math.max(...verts.map(v => v.x))
+      const minY = Math.min(...verts.map(v => v.y))
+      const rot = new PIXI.Graphics()
+      rot.circle(0, 0, hs * 1.8).fill({ color: 0x00ffcc, alpha: 0.9 }).stroke({ width: sw, color: 0xffffff })
+      rot.circle(0, 0, hs * 0.7).fill({ color: 0xffffff })
+      rot.position.set(maxX + hs * 4, minY - hs * 4) // 대략 20 / z 만큼 이격
+      rot.eventMode = 'static'; rot.cursor = 'grab'
+      attachRotate(rot, item.id)
+      sel.addChild(rot)
+    }
+
     verts.forEach((v, idx) => {
       const h = new PIXI.Graphics()
       h.circle(0, 0, hs * 1.3).fill({ color: 0xffffff }).stroke({ width: sw, color: 0x00aaff })

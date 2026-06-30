@@ -37,9 +37,12 @@ let chipCooldowns: ChipCooldown[] = [];
 // PRD v2: 6종 스킬 전부 활성화. 순간이동과 자석은 강력하지만 드물게 등장
 const AVAILABLE_SKILLS: SkillType[] = ['tank', 'booster', 'ghost', 'slime', 'magnet', 'teleport'];
 
-// 쿨타임 범위: 최소 300프레임(5초)~최대 900프레임(15초) @60fps
-const MIN_COOLDOWN_FRAMES = 300;
-const MAX_COOLDOWN_FRAMES = 900;
+const GLOBAL_SPEED_MODIFIER = 0.7;
+const COOLDOWN_SCALE = 1 / GLOBAL_SPEED_MODIFIER;
+
+// 쿨타임 범위: 최소 300프레임(5초)~최대 900프레임(15초) @60fps (배속 보정 적용됨)
+const MIN_COOLDOWN_FRAMES = Math.round(300 * COOLDOWN_SCALE);
+const MAX_COOLDOWN_FRAMES = Math.round(900 * COOLDOWN_SCALE);
 
 // 무작위 쿨타임 생성 (각 마블마다 다른 주기를 갖도록)
 function randomCooldown(): number {

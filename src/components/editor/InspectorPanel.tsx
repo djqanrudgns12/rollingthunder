@@ -26,6 +26,7 @@ function StageProperties() {
       icon={<MapIcon className="w-4 h-4 text-blue-400" />}
       width="w-72"
       style={{ top: '80px', right: '20px' }}
+      panelId="stage-properties"
     >
       <div className="flex-1 p-4 space-y-4">
         <p className="text-xs text-gray-500 -mt-2 mb-2">기물 미선택 시 맵 전체 설정</p>
@@ -114,6 +115,7 @@ function ItemProperties({ selectedItem }: { selectedItem: EditorItem }) {
       onClose={() => setSelectedItemId(null)}
       width="w-72"
       style={{ bottom: '20px', right: '20px' }}
+      panelId="item-properties"
     >
       <div className="flex flex-col h-full max-h-[60vh]">
         <div className="px-4 pb-2 border-b border-[#333]">
@@ -154,10 +156,38 @@ function ItemProperties({ selectedItem }: { selectedItem: EditorItem }) {
           </div>
 
           {/* 전용 특성 (Detail Properties) Group */}
-          {selectedItem.type !== 'wall' && selectedItem.type !== 'polygon' && (
+          {true && (
             <div>
               <h3 className="text-sm font-bold text-white bg-blue-600/30 p-2 rounded mb-3">세부 특성 (Detail Properties)</h3>
               <div className="space-y-3 p-2 bg-[#1a1a1a] rounded border border-[#333]">
+
+                {(selectedItem.type === 'polygon' || selectedItem.type === 'wall') && (
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">테마 (Theme / Variant)</label>
+                    <select 
+                      value={selectedItem.variant || ''} 
+                      onChange={(e) => useEditorStore.getState().updateItem(selectedItem.id, { variant: e.target.value })}
+                      className="w-full bg-[#252525] border border-[#333] hover:border-[#444] rounded p-2 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                    >
+                      <option value="">기본 (Default)</option>
+                      <option value="neon">네온 사이버펑크 (neon)</option>
+                      <option value="circuit">전자 기판 (circuit)</option>
+                      <option value="matrix">매트릭스 (matrix)</option>
+                      <option value="lava">용암 대장간 (lava)</option>
+                      <option value="ice">빙하 얼음 (ice)</option>
+                      <option value="toxic">맹독 지대 (toxic)</option>
+                      <option value="crystal">수정 동굴 (crystal)</option>
+                      <option value="grass">잔디 숲 (grass)</option>
+                      <option value="gold">황금 신전 (gold)</option>
+                      <option value="steampunk">스팀펑크 (steampunk)</option>
+                      <option value="gothic">고딕 호러 (gothic)</option>
+                      <option value="space">심우주 (space)</option>
+                      <option value="candy">캔디 랜드 (candy)</option>
+                      <option value="arcade">레트로 아케이드 (arcade)</option>
+                      <option value="plasma">플라즈마 에너지 (plasma)</option>
+                    </select>
+                  </div>
+                )}
                 
                 {selectedItem.type === 'flipper' && (
                   <div className="grid grid-cols-2 gap-3">

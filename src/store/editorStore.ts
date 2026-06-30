@@ -106,6 +106,7 @@ interface EditorState {
   distributeSelected: (axis: 'h' | 'v') => void;
   mirrorSelected: (duplicate: boolean) => void;
   arraySelected: (count: number, gapX: number, gapY: number) => void;
+  duplicateSelected: () => void;
   deleteSelected: () => void;
   setEditorMode: (isEditor: boolean) => void;
   setMapId: (id: string | null) => void;
@@ -127,6 +128,10 @@ interface EditorState {
   
   showHistoryPanel: boolean;
   setShowHistoryPanel: (show: boolean) => void;
+  
+  // 플로팅 패널 Z-Index 전역 관리 (패널 ID 배열 - 끝에 있을수록 맨 위)
+  panelOrder: string[];
+  bringToFront: (panelId: string) => void;
 }
 
 // 스냅샷 생성 유틸리티
@@ -165,6 +170,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   showHistoryPanel: false,
   setShowHistoryPanel: (show) => set({ showHistoryPanel: show }),
+
+  panelOrder: ['inspector', 'toolbox', 'history', 'minimap'],
+  bringToFront: (panelId) => set((state) => {
+    const newOrder = state.panelOrder.filter(id => id !== panelId);
+    newOrder.push(panelId);
+    return { panelOrder: newOrder };
+  }),
 
   addTab: (mapId, type, customTitle) => set((state) => {
     // 이미 열려있는 맵 탭인지 확인
@@ -613,6 +625,25 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const newHistory = state.history.slice(0, state.historyIndex + 1);
     newHistory.push(items); if (newHistory.length > 50) newHistory.shift();
     return { items, history: newHistory, historyIndex: newHistory.length - 1 };
+  }),
+
+  // 다중 선택 일괄 복제
+  duplicateSelected: () => set((state) => {
+    const sel = state.selectedItemIds.length ? state.selectedItemIds : (state.selectedItemId ? [state.selectedItemId] : []);
+    if (!sel.length) return state;
+    const src = state.items.filter((it) => sel.includes(it.id));
+    const copies = src.map((it) => ({ 
+      ...it, 
+      id: `${it.type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, 
+      x: it.x + 30, 
+      y: it.y + 30,
+      waypointB: it.waypointB ? { x: it.waypointB.x + 30, y: it.waypointB.y + 30 } : it.waypointB
+    }));
+    const items = [...state.items, ...copies];
+    const newSel = copies.map(c => c.id);
+    const newHistory = state.history.slice(0, state.historyIndex + 1);
+    newHistory.push(items); if (newHistory.length > 50) newHistory.shift();
+    return { items, history: newHistory, historyIndex: newHistory.length - 1, selectedItemIds: newSel, selectedItemId: newSel[newSel.length - 1] || null };
   }),
 
   deleteSelected: () => set((state) => {

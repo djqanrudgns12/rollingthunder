@@ -299,7 +299,9 @@ export class MapBuilder {
   }
 
   static createPolygon(world: RAPIER.World, item: any) {
-    const desc = RAPIER.RigidBodyDesc.fixed().setTranslation(item.x, item.y);
+    const desc = RAPIER.RigidBodyDesc.fixed()
+      .setTranslation(item.x, item.y)
+      .setRotation((item.angle || item.rotation || 0) * (Math.PI / 180));
     const body = world.createRigidBody(desc);
     
     // Ensure we have vertices

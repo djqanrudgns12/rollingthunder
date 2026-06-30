@@ -48,7 +48,7 @@ function PaletteItem({ tool }: { tool: typeof tools[0] }) {
 
 export default function ToolPalette() {
   return (
-    <div className="w-24 md:w-48 h-full glass-panel-heavy rounded-3xl p-3 md:p-4 flex flex-col gap-4 border border-[var(--accent-secondary)]/30 shrink-0 z-20">
+    <div className="w-24 md:w-48 h-full glass-panel-heavy rounded-3xl p-3 md:p-4 flex flex-col gap-4 border border-[var(--accent-secondary)]/30 shrink-0 z-[200]">
       <h2 className="text-sm md:text-lg font-outfit text-[var(--accent-secondary)] font-bold text-center border-b border-white/10 pb-4 tracking-widest">TOOLS</h2>
       <div className="flex flex-col gap-3 flex-1 overflow-y-auto custom-scrollbar">
         {tools.map(tool => (

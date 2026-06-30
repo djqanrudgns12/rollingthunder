@@ -42,9 +42,12 @@ export interface SimInitConfig {
   rng?: () => number;      // 결정론적 재현을 위한 난수 주입(스폰 위치). 기본 Math.random
 }
 
-const PORTAL_COOLDOWN_FRAMES = 60;   // 1초
-const HOLE_COOLDOWN_FRAMES = 120;    // 2초
-const HOLE_PENALTY_FRAMES = 90;      // 1.5초 갇힘 후 리스폰
+const GLOBAL_SPEED_MODIFIER = 0.7; // 전체 게임 배속 하향 조정치
+const COOLDOWN_SCALE = 1 / GLOBAL_SPEED_MODIFIER; // 프레임 기반 쿨타임 길이 비례 증가 상수
+
+const PORTAL_COOLDOWN_FRAMES = Math.round(60 * COOLDOWN_SCALE);   // 1초
+const HOLE_COOLDOWN_FRAMES = Math.round(120 * COOLDOWN_SCALE);    // 2초
+const HOLE_PENALTY_FRAMES = Math.round(90 * COOLDOWN_SCALE);      // 1.5초 갇힘 후 리스폰
 
 // 월드 중력(px/s²). v2: 칩 이동 속도를 끌어올려 "루즈함"을 해소(11×→15×).
 // 댐핑 하향(ChipFactory 0.18)과 함께 종단속도를 크게 높여 칩이 쭉쭉 나아가게 한다.
@@ -298,7 +301,7 @@ export class SimulationCore {
     if (!this.world || !this.eventQueue) return;
     this.events = [];
 
-    const rawDt = (1 / 60) * dtMultiplier;
+    const rawDt = (1 / 60) * GLOBAL_SPEED_MODIFIER * dtMultiplier;
     this.world.integrationParameters.dt = Math.min(rawDt, 4 / 60);
     this.world.step(this.eventQueue);
 
@@ -500,7 +503,7 @@ export class SimulationCore {
           const gateId = sensorData.id;
           const cooldownKey = `lucky_${chipData.id}_${gateId}`;
           const lastTrigger = this.lastWarpFrame.get(cooldownKey) || -99999;
-          if (this.frame - lastTrigger > 120) {
+          if (this.frame - lastTrigger > Math.round(120 * COOLDOWN_SCALE)) {
             this.lastWarpFrame.set(cooldownKey, this.frame);
             const roll = this.rng();
             let effect: 'boost' | 'bounce' | 'stun' | 'repel';
@@ -526,7 +529,7 @@ export class SimulationCore {
         collider.setRestitution(2.0);
         this.luckyEffects.push({
           body: chip, chipId: chipData.id,
-          atFrame: this.frame + 180,
+          atFrame: this.frame + Math.round(180 * COOLDOWN_SCALE),
           restore: () => { try { collider.setRestitution(origRestitution); } catch {} }
         });
         break;
@@ -536,7 +539,7 @@ export class SimulationCore {
         chip.setLinvel({ x: 0, y: 0 }, true);
         this.luckyEffects.push({
           body: chip, chipId: chipData.id,
-          atFrame: this.frame + 90,
+          atFrame: this.frame + Math.round(90 * COOLDOWN_SCALE),
           restore: () => {
             try {
               chip.setGravityScale(1, true);
@@ -655,7 +658,7 @@ export class SimulationCore {
         }
       } else if (d.state === 'returning') {
         const diff = Math.abs(currentRot - restRad * (d.side === 'right' ? -1 : 1));
-        if (diff < 0.05 || this.frame - d.stateFrame > 30) {
+        if (diff < 0.05 || this.frame - d.stateFrame > Math.round(30 * COOLDOWN_SCALE)) {
           d.state = 'idle';
           b.setAngvel(0, true);
           b.setRotation(restRad * (d.side === 'right' ? -1 : 1), true);
@@ -859,7 +862,7 @@ export class SimulationCore {
       const lastProgress = this.chipLastProgressFrame.get(data.id) || 0;
       // 5초(300프레임) 진전 없으면 탈출 임펄스. 코너 끼임 대비 "중앙으로" 밀어내고
       // 강하게 아래로 보낸다(벽 코너에서 빠져나오도록 수평 성분을 중앙 지향으로).
-      if (this.frame - lastProgress > 300) {
+      if (this.frame - lastProgress > Math.round(300 * COOLDOWN_SCALE)) {
         const towardCenter = (400 - t.x) * 1.5; // 중앙(x=400)으로 향하는 Δv (기존 0.9에서 강화)
         this.applyDeltaV(chip, towardCenter + (Math.random() - 0.5) * 150, 450); // 아래로 보내는 힘 강화 (기존 360 -> 450)
         this.chipLastProgressFrame.set(data.id, this.frame);
@@ -867,7 +870,7 @@ export class SimulationCore {
     });
 
     // Level 3: Absolute Timeout — 3분(10800프레임) 경과 시 중력 2배 + 중력장 비활성화
-    if (this.frame === 10800) {
+    if (this.frame === Math.round(10800 * COOLDOWN_SCALE)) {
       const grav = world.gravity;
       world.gravity = { x: grav.x, y: grav.y * 2 };
       world.forEachRigidBody((b) => {

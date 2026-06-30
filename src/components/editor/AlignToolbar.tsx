@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { useEditorStore } from '@/store/editorStore'
+import { Trash2, Copy, FlipHorizontal } from 'lucide-react'
 
 export default function AlignToolbar() {
   const selectedItemIds = useEditorStore(s => s.selectedItemIds)
@@ -9,6 +10,8 @@ export default function AlignToolbar() {
   const distributeSelected = useEditorStore(s => s.distributeSelected)
   const mirrorSelected = useEditorStore(s => s.mirrorSelected)
   const arraySelected = useEditorStore(s => s.arraySelected)
+  const deleteSelected = useEditorStore(s => s.deleteSelected)
+  const duplicateSelected = useEditorStore(s => s.duplicateSelected)
 
   const [count, setCount] = useState(2)
   const [gapX, setGapX] = useState(60)
@@ -45,9 +48,14 @@ export default function AlignToolbar() {
         <Btn title="가로 균등 분포" disabled={n < 3} onClick={() => distributeSelected('h')}>↔분포</Btn>
         <Btn title="세로 균등 분포" disabled={n < 3} onClick={() => distributeSelected('v')}>↕분포</Btn>
         <div className="w-px h-5 bg-[#444] mx-0.5" />
-        {/* 미러 (>=1) */}
-        <Btn title="좌우 대칭(제자리)" onClick={() => mirrorSelected(false)}>미러</Btn>
-        <Btn title="좌우 대칭 복제" onClick={() => mirrorSelected(true)}>미러복제</Btn>
+        {/* 미러/복사/삭제 (>=1) */}
+        <Btn title="좌우 대칭(제자리)" onClick={() => mirrorSelected(false)}><FlipHorizontal className="w-4 h-4 text-gray-300" /></Btn>
+        <Btn title="좌우 대칭 복제" onClick={() => mirrorSelected(true)}><FlipHorizontal className="w-4 h-4 text-blue-400" /></Btn>
+        <Btn title="단순 복제" onClick={() => duplicateSelected()}><Copy className="w-4 h-4 text-green-400" /></Btn>
+        <div className="w-px h-5 bg-[#444] mx-0.5" />
+        <Btn title="일괄 삭제 (Delete)" onClick={() => deleteSelected()}>
+          <Trash2 className="w-4 h-4 text-red-500" />
+        </Btn>
       </div>
 
       {/* 배열 복제 */}

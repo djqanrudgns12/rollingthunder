@@ -34,7 +34,7 @@ const RECT_TYPES = new Set(['wall', 'piston', 'iceblock', 'luckygate', 'windcann
 const CIRCLE_TYPES = new Set(['pin', 'bumper', 'portal', 'hole', 'blackhole', 'whitehole'])
 
 export default function MinimapOverlay() {
-  const { items, worldHeight, wallStyle, selectedItemId, setSelectedItemId, layoutConfig } = useEditorStore()
+  const { items, worldHeight, wallStyle, selectedItemId, setSelectedItemId, layoutConfig, panelOrder, bringToFront } = useEditorStore()
   const constraintsRef = useRef<HTMLDivElement>(null)
   const dragControls = useDragControls()
 
@@ -53,14 +53,17 @@ export default function MinimapOverlay() {
   const startY = (layoutConfig?.startLineY ?? (layoutConfig?.startMarginPercent ? wh * layoutConfig.startMarginPercent : 70)) * scale
   const endY = (wh * (1 - (layoutConfig?.endMarginPercent ?? 0.02))) * scale
 
+  const zIndex = 100 + panelOrder.indexOf('minimap')
+
   return (
     <motion.div
       drag
       dragControls={dragControls}
       dragListener={false}
       dragMomentum={false}
-      className="absolute right-72 top-20 bg-[#0a0a10] border border-[#00ffcc]/40 rounded-lg overflow-hidden shadow-2xl pointer-events-auto z-50 flex flex-col"
-      style={{ width: MINIMAP_WIDTH }}
+      onPointerDownCapture={() => bringToFront('minimap')}
+      className="absolute right-72 top-20 bg-[#0a0a10] border border-[#00ffcc]/40 rounded-lg overflow-hidden shadow-2xl pointer-events-auto flex flex-col"
+      style={{ width: MINIMAP_WIDTH, zIndex }}
     >
       {/* Drag handle */}
       <div 

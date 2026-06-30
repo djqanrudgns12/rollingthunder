@@ -38,7 +38,9 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
   if (item.type === 'wall') {
     const texName = item.variant ? `obstacle_wall_${item.variant}` : 'obstacle_wall'
     const texture = ctx.getTexture(OBS(texName))
-    const sprite = new PIXI.TilingSprite({ texture, width: item.w || 100, height: item.h || 20 })
+    const sprite = new PIXI.Sprite(texture)
+    sprite.width = item.w || 100
+    sprite.height = item.h || 20
     sprite.anchor.set(0.5)
     g.addChild(sprite)
     mg.rect(-item.w / 2, -item.h / 2, item.w, item.h)
@@ -215,8 +217,15 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
     poly.moveTo(item.vertices[0].x, item.vertices[0].y)
     for (let i = 1; i < item.vertices.length; i++) poly.lineTo(item.vertices[i].x, item.vertices[i].y)
     poly.lineTo(item.vertices[0].x, item.vertices[0].y)
-    poly.stroke({ color: 0xbbbbdd, width: 4 })
-    poly.fill({ color: 0x8888aa, alpha: 0.4 })
+    const texName = item.variant ? `obstacle_wall_${item.variant}` : 'obstacle_wall'
+    const texture = ctx.getTexture(OBS(texName))
+
+    poly.stroke({ color: 0x555555, width: 4 })
+    if (texture) {
+      poly.fill({ texture, alpha: 1.0 })
+    } else {
+      poly.fill({ color: 0x8888aa, alpha: 0.4 })
+    }
     g.addChild(poly)
 
     mg.moveTo(item.vertices[0].x, item.vertices[0].y)
@@ -301,11 +310,19 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
       disposers.push(ctx.registerTicker(pistonTick))
     } else {
       // 정지 모드: A→B 궤적 가이드 + B 위치 고스트
+      // 본체(g)가 회전하더라도 가이드가 월드 좌표상의 waypointB를 정확히 가리키도록 역회전 변환
+      const dx = bx - ax
+      const dy = by - ay
+      const rot = item.angle != null ? (item.angle * Math.PI) / 180 : (item.rotation || 0)
+      const invRot = -rot
+      const localX = dx * Math.cos(invRot) - dy * Math.sin(invRot)
+      const localY = dx * Math.sin(invRot) + dy * Math.cos(invRot)
+
       const guide = new PIXI.Graphics()
-      guide.moveTo(0, 0).lineTo(bx - ax, by - ay)
+      guide.moveTo(0, 0).lineTo(localX, localY)
       guide.stroke({ width: 2, color: 0xffcc00, alpha: 0.5 })
       const w = item.w || 100, h = item.h || 20
-      guide.rect(bx - ax - w / 2, by - ay - h / 2, w, h)
+      guide.rect(localX - w / 2, localY - h / 2, w, h)
       guide.stroke({ width: 1, color: 0xffcc00, alpha: 0.4 })
       g.addChild(guide)
     }
@@ -314,8 +331,9 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
 
   g.position.set(item.x, item.y)
   mg.position.set(item.x, item.y)
-  g.rotation = item.rotation || 0
-  mg.rotation = item.rotation || 0
+  const finalRot = item.angle != null ? (item.angle * Math.PI) / 180 : (item.rotation || 0)
+  g.rotation = finalRot
+  mg.rotation = finalRot
   mg.scale.set(1.5)
 
   const dispose = () => {

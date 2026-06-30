@@ -11,7 +11,7 @@ export interface PhysicComponent {
 }
 
 export interface UserData {
-  type: 'chip' | 'wall' | 'pin' | 'bumper' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole' | 'hole' | 'spinner' | 'iceblock' | 'windcannon' | 'luckygate' | 'flipper';
+  type: 'chip' | 'wall' | 'pin' | 'bumper' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole' | 'hole' | 'spinner' | 'iceblock' | 'windcannon' | 'luckygate' | 'flipper' | 'polygon';
   id?: string;
   radius?: number;
   w?: number;

@@ -109,6 +109,7 @@ export default function HistoryTimelinePanel({ mapId, mapTitle, onClose }: Histo
       onClose={onClose}
       width="w-[400px]"
       style={{ top: '80px', left: '20px' }}
+      panelId="history"
     >
       <div className="p-6 bg-[#111] border-t border-white/10">
           <div className="mb-6">

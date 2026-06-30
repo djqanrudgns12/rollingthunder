@@ -95,7 +95,7 @@ export default function EditorContainer() {
       
       {/* 툴바 (Export 및 Test Play 버튼) */}
       {!isHistoryTab && (
-        <div className="absolute top-20 right-6 z-50 flex gap-3">
+        <div className="absolute top-20 right-6 z-[200] flex gap-3">
           <button 
             onClick={async () => {
               if(items.length === 0) {
