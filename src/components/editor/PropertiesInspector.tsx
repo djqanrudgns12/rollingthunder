@@ -1,14 +1,18 @@
 'use client'
 
+import React, { useState } from 'react'
 import { useEditorStore } from '@/store/editorStore'
-import { Settings2, Trash2, Image as ImageIcon, Map as MapIcon, Maximize2 } from 'lucide-react'
-
+import { Settings2, Trash2, Image as ImageIcon, Map as MapIcon, Maximize2, Clock } from 'lucide-react'
+import HistoryTimelineModal from './HistoryTimelineModal'
 
 
 function GlobalMapSettings() {
-  const { wallStyle, setWallStyle, worldHeight, setWorldHeight } = useEditorStore()
+  const { wallStyle, setWallStyle, worldHeight, setWorldHeight, tabs, activeTabId } = useEditorStore()
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const activeTab = tabs.find(t => t.id === activeTabId);
 
   return (
+    <>
     <div className="w-80 h-full glass-panel flex flex-col overflow-hidden shrink-0 hidden lg:flex">
       <div className="p-4 border-b border-white/10 flex items-center gap-2 bg-black/20">
         <MapIcon className="w-4 h-4 text-blue-400" />
@@ -46,7 +50,26 @@ function GlobalMapSettings() {
           </div>
         </div>
       </div>
+
+      <div className="p-4 border-t border-white/10 bg-black/20 mt-auto">
+        <button 
+          onClick={() => setShowHistoryModal(true)}
+          className="w-full py-2.5 bg-purple-500/10 text-purple-400 border border-purple-500/30 rounded font-bold text-sm flex items-center justify-center gap-2 hover:bg-purple-500/30 transition-colors group"
+        >
+          <Clock className="w-4 h-4 group-hover:-rotate-90 transition-transform duration-300" />
+          작업 내역 타임라인 보기
+        </button>
+      </div>
     </div>
+    
+    {showHistoryModal && (
+      <HistoryTimelineModal 
+        mapId={activeTab?.mapId || null}
+        mapTitle={activeTab?.title || ''}
+        onClose={() => setShowHistoryModal(false)}
+      />
+    )}
+    </>
   )
 }
 

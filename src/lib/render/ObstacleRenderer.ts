@@ -306,8 +306,8 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
 
   g.position.set(item.x, item.y)
   mg.position.set(item.x, item.y)
-  g.rotation = item.rotation || 0
-  mg.rotation = item.rotation || 0
+  g.rotation = (item.rotation || 0) * (Math.PI / 180)
+  mg.rotation = (item.rotation || 0) * (Math.PI / 180)
   mg.scale.set(1.5)
 
   const dispose = () => {

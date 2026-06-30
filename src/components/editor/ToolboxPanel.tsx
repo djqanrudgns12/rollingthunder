@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { useEditorStore, EditorItemType, EditorItem } from '@/store/editorStore'
-import { Plus, Trash2, MapPin, CircleDashed, Zap, Fan, ArrowDownToLine, Loader, Wind, Trophy, MoveDiagonal, Circle, Waypoints, Aperture, Sun, Square, Box, Flag, FlagTriangleRight } from 'lucide-react'
+import { Plus, Trash2, MapPin, CircleDashed, Zap, Fan, ArrowDownToLine, Loader, Wind, Trophy, MoveDiagonal, Circle, Waypoints, Aperture, Sun, Square, Box, Flag, FlagTriangleRight, ChevronLeft, ChevronRight } from 'lucide-react'
 
 type TabType = 'obstacles' | 'frames' | 'backgrounds'
 
@@ -87,6 +87,7 @@ export const AVAILABLE_BACKGROUNDS = [
 export default function ToolboxPanel() {
   const { addItem, selectedItemId, removeItem, clearItems, bgImage, setBgImage } = useEditorStore()
   const [activeTab, setActiveTab] = useState<TabType>('obstacles')
+  const [isOpen, setIsOpen] = useState(true)
 
   const handleAddItem = (type: EditorItemType) => {
     const newItem: EditorItem = {
@@ -136,8 +137,22 @@ export default function ToolboxPanel() {
   }
 
   return (
-    <div className="absolute top-16 left-4 w-72 bg-[#1a1a1a] border border-[#333] rounded-xl shadow-2xl flex flex-col pointer-events-auto h-[calc(100vh-5rem)] z-10 overflow-hidden">
-      {/* 탭 네비게이션 */}
+    <div className={`absolute top-0 left-0 w-72 bg-[#1a1a1a]/90 backdrop-blur-md border-r border-[#333] shadow-2xl flex flex-col pointer-events-auto h-full z-20 transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      {/* 토글 버튼 */}
+      <div 
+        onClick={() => setIsOpen(!isOpen)}
+        className="absolute -right-8 top-1/2 -translate-y-1/2 w-8 h-16 bg-[#222]/90 backdrop-blur-md border-y border-r border-[#333] rounded-r-lg flex items-center justify-center cursor-pointer hover:bg-[#333] transition-colors shadow-[4px_0_10px_rgba(0,0,0,0.5)] group z-30"
+        title={isOpen ? "사이드바 숨기기" : "사이드바 열기"}
+      >
+        {isOpen ? (
+          <ChevronLeft className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+        ) : (
+          <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+        )}
+      </div>
+
+      <div className="flex flex-col h-full overflow-hidden">
+        {/* 탭 네비게이션 */}
       <div className="flex border-b border-[#333] bg-[#222]">
         <button 
           onClick={() => setActiveTab('obstacles')}
@@ -234,6 +249,7 @@ export default function ToolboxPanel() {
         >
           전체 지우기
         </button>
+      </div>
       </div>
     </div>
   )

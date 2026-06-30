@@ -106,8 +106,17 @@ export default function EditorToolbar() {
         if (!mapId) setMapId(targetMapId) // 새 맵이었다면 Store에 확정
         markSaved(activeTabId, targetMapId, finalMapName)
         
-        // SAVE_MAP 로깅 추가
-        logMapEditAction(targetMapId, 'SAVE_MAP', { itemsCount: items.length });
+        // SAVE_MAP 로깅 추가 (전체 스냅샷 저장)
+        logMapEditAction(targetMapId, 'SAVE_MAP', { 
+          itemsCount: items.length,
+          snapshot: {
+            items,
+            worldHeight,
+            layoutConfig,
+            wallStyle,
+            bgImage: bgImage || existingMap?.bgImage
+          }
+        });
 
         toast.success('맵이 성공적으로 저장되었습니다!')
       } else {
@@ -174,13 +183,6 @@ export default function EditorToolbar() {
     e.dataTransfer.dropEffect = 'move';
   }
 
-  const handleOpenHistory = () => {
-    const activeTab = tabs.find(t => t.id === activeTabId);
-    if (!activeTab || activeTab.type === 'history') return;
-    
-    const title = `[작업 내역] ${activeTab.title}`;
-    addTab(activeTab.mapId, 'history', title);
-  }
 
   return (
     <>
@@ -333,14 +335,6 @@ export default function EditorToolbar() {
 
         {/* 우측: 도구 및 저장 */}
         <div className="flex items-center gap-2 px-4">
-          <button 
-            onClick={handleOpenHistory}
-            className="flex items-center gap-1 bg-[#2a2a2a] hover:bg-[#333] text-sm text-gray-200 px-3 py-1.5 rounded border border-[#444] transition-colors shadow-sm mr-2"
-            title="현재 맵의 작업 내역 보기"
-          >
-            <History className="w-4 h-4 text-purple-400" />
-            <span>작업 내역</span>
-          </button>
 
           <button 
             onClick={undo}
