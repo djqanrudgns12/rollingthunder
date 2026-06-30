@@ -3,7 +3,7 @@ import { MapEntity } from '@/core/entities/Map';
 import { MapRepository } from '@/infrastructure/supabase/mapRepository';
 import { UserRepository } from '@/infrastructure/supabase/userRepository';
 import { AuthenticationError, PermissionDeniedError, ValidationError } from '@/core/errors/AppError';
-import { MapPresets } from '@/engine/MapPresets';
+import { MapPresets, DEFAULT_THEME_WEIGHTS } from '@/engine/MapPresets';
 
 export class SaveMapUseCase {
   static async execute(mapData: Partial<MapEntity>): Promise<void> {
@@ -53,6 +53,11 @@ export class SaveMapUseCase {
       }
     }
 
+    // 빈 가중치 검사 후 기본값 주입
+    const finalThemeWeights = (mapData.themeWeights && Object.keys(mapData.themeWeights).length > 0)
+      ? mapData.themeWeights
+      : DEFAULT_THEME_WEIGHTS;
+
     // 기본값 세팅 및 MapEntity 캐스팅
     const fullMapData: MapEntity = {
       id: mapData.id,
@@ -64,7 +69,7 @@ export class SaveMapUseCase {
       worldHeight: mapData.worldHeight || 2400,
       wallStyle: mapData.wallStyle || 'straight',
       bgImage: mapData.bgImage,
-      themeWeights: mapData.themeWeights || {},
+      themeWeights: finalThemeWeights,
       layoutConfig: mapData.layoutConfig || {},
       items: mapData.items || []
     };

@@ -21,7 +21,8 @@ export class MapRepository {
         bg_image: mapData.bgImage,
         theme_weights: mapData.themeWeights,
         layout_config: mapData.layoutConfig,
-        items: mapData.items
+        items: mapData.items,
+        updated_at: new Date().toISOString()
       }, { onConflict: 'id' });
 
     if (error) {

@@ -1,7 +1,101 @@
 'use client'
 
 import { useEditorStore } from '@/store/editorStore'
-import { Settings2, Trash2 } from 'lucide-react'
+import { Settings2, Trash2, Image as ImageIcon, Map as MapIcon, Maximize2 } from 'lucide-react'
+
+const AVAILABLE_BACKGROUNDS = [
+  { id: 'neon_arcade', name: '네온 아케이드', path: '/images/assets/map_bg_neon_arcade.png' },
+  { id: 'gravity_abyss', name: '블랙홀의 함정', path: '/images/assets/map_bg_gravity_abyss.png' },
+  { id: 'mechanical_factory', name: '톱니바퀴 공장', path: '/images/assets/map_bg_mechanical_factory.png' },
+  { id: 'boost_highway', name: '부스트 하이웨이', path: '/images/assets/map_bg_boost_highway.png' },
+  { id: 'portal_labyrinth', name: '차원 포탈 미궁', path: '/images/assets/map_bg_portal_labyrinth.png' },
+  { id: 'plinko_cascade', name: '플링코 폭포', path: '/images/assets/map_bg_plinko_cascade.png' },
+  { id: 'roulette_of_fate', name: '운명의 룰렛', path: '/images/assets/map_bg_roulette_of_fate.png' },
+  { id: 'tornado_canyon', name: '토네이도 협곡', path: '/images/assets/map_bg_tornado_canyon.png' },
+  { id: 'bounce_mirror', name: '바운스 미러', path: '/images/assets/map_bg_bounce_mirror.png' },
+  { id: 'meteor_field', name: '미티어 필드', path: '/images/assets/map_bg_meteor_field.png' },
+  { id: 'cyber_dystopia', name: '사이버 디스토피아', path: '/images/assets/bg_cyber_dystopia.png' },
+  { id: 'neon_synthwave', name: '네온 신스웨이브', path: '/images/assets/bg_neon_synthwave_ultra.png' },
+  { id: 'celestial_clockwork', name: '천체 시계장치', path: '/images/assets/bg_celestial_clockwork.png' },
+  { id: 'abyssal_trench', name: '심해 해구', path: '/images/assets/bg_abyssal_trench.png' },
+]
+
+function GlobalMapSettings() {
+  const { bgImage, setBgImage, wallStyle, setWallStyle, worldHeight, setWorldHeight } = useEditorStore()
+
+  return (
+    <div className="w-80 h-full glass-panel flex flex-col overflow-hidden shrink-0 hidden lg:flex">
+      <div className="p-4 border-b border-white/10 flex items-center gap-2 bg-black/20">
+        <MapIcon className="w-4 h-4 text-blue-400" />
+        <h3 className="font-bold text-blue-400 font-outfit tracking-wider uppercase">
+          GLOBAL MAP SETTINGS
+        </h3>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className="space-y-3">
+          <h4 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1">
+            <ImageIcon className="w-3 h-3" /> Background Image
+          </h4>
+          <p className="text-[10px] text-gray-500 leading-relaxed mb-2">
+            ※ 이미지는 외벽 사이에 완벽히 임베딩되며, 기물 뒤(Z-Index 맨 아래)에 배치됩니다.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <div 
+              onClick={() => setBgImage(null)}
+              className={`cursor-pointer rounded overflow-hidden border-2 transition-all ${!bgImage ? 'border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'border-white/10 hover:border-white/30'}`}
+            >
+              <div className="w-full h-16 bg-black flex items-center justify-center text-xs text-gray-500">None</div>
+              <div className="bg-black/60 p-1 text-[10px] text-center text-white truncate">없음</div>
+            </div>
+            {AVAILABLE_BACKGROUNDS.map((bg) => (
+              <div 
+                key={bg.id}
+                onClick={() => setBgImage(bg.path)}
+                className={`cursor-pointer rounded overflow-hidden border-2 transition-all ${bgImage === bg.path ? 'border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'border-white/10 hover:border-white/30'}`}
+                title={bg.name}
+              >
+                <div 
+                  className="w-full h-16 bg-cover bg-center"
+                  style={{ backgroundImage: \`url(\${bg.path})\` }}
+                />
+                <div className="bg-black/80 p-1 text-[10px] text-center text-white truncate">{bg.name}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <h4 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1">
+            <Maximize2 className="w-3 h-3" /> Layout Settings
+          </h4>
+          <div>
+            <label className="text-xs text-gray-400 block mb-1">World Height (px)</label>
+            <input 
+              type="number" 
+              value={worldHeight} 
+              onChange={(e) => setWorldHeight(Number(e.target.value))} 
+              className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-sm text-white focus:outline-none focus:border-blue-500" 
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-400 block mb-1">Wall Style</label>
+            <select 
+              value={wallStyle} 
+              onChange={(e) => setWallStyle(e.target.value as any)} 
+              className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+            >
+              <option value="straight">Straight (800px)</option>
+              <option value="narrow">Narrow (600px)</option>
+              <option value="wide">Wide (900px)</option>
+              <option value="zigzag">Zigzag</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function PropertiesInspector() {
   const { items, selectedItemId, updateItem, removeItem, setSelectedItemId } = useEditorStore()
@@ -9,12 +103,7 @@ export default function PropertiesInspector() {
   const item = items.find(it => it.id === selectedItemId)
 
   if (!item) {
-    return (
-      <div className="w-80 h-full glass-panel flex flex-col items-center justify-center text-center p-6 text-[var(--text-secondary)] shrink-0 hidden lg:flex">
-        <Settings2 className="w-12 h-12 mb-4 opacity-30" />
-        <p className="text-sm">캔버스에서 블록을 선택하여<br/>속성을 편집하세요.</p>
-      </div>
-    )
+    return <GlobalMapSettings />
   }
 
   const handleChange = (field: string, value: any) => {
