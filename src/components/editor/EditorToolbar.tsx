@@ -1,18 +1,50 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useEditorStore } from '@/store/editorStore'
-import { Save, Undo, Redo, Magnet, Plus, Map as MapIcon, Play, Pause } from 'lucide-react'
+import { Save, Undo, Redo, Magnet, Plus, Map as MapIcon, Play, Pause, Loader2 } from 'lucide-react'
 import { MapPresets } from '@/engine/MapPresets'
 import Link from 'next/link'
+import { saveMapAction } from '@/presentation/actions/mapActions'
+import { getUserRoleAction } from '@/presentation/actions/authActions'
 
 export default function EditorToolbar() {
-  const { undo, redo, items, historyIndex, history, gridSnap, setGridSnap, mapId, loadMapPreset, previewAnimating, setPreviewAnimating } = useEditorStore()
+  const { undo, redo, items, historyIndex, history, gridSnap, setGridSnap, mapId, setMapId, worldHeight, layoutConfig, wallStyle, loadMapPreset, previewAnimating, setPreviewAnimating } = useEditorStore()
   const [mapName, setMapName] = useState('새 맵')
+  const [isSaving, setIsSaving] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
 
-  const handleSave = () => {
-    console.log('Save map:', mapName, items)
-    alert('맵 저장 기능은 아직 Supabase DB 연동 전입니다.')
+  useEffect(() => {
+    getUserRoleAction().then(({ role }) => setUserRole(role))
+  }, [])
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    
+    // mapId가 없으면 클라이언트 단에서 임시 생성 (저장 성공 시 Store에 반영)
+    const targetMapId = mapId || crypto.randomUUID()
+    
+    try {
+      const result = await saveMapAction({
+        id: targetMapId,
+        name: mapName,
+        worldHeight,
+        layoutConfig,
+        wallStyle,
+        items
+      })
+
+      if (result.success) {
+        if (!mapId) setMapId(targetMapId) // 새 맵이었다면 Store에 확정
+        alert('맵이 성공적으로 저장되었습니다!')
+      } else {
+        alert(`저장 실패: ${result.error}`)
+      }
+    } catch (e: any) {
+      alert(`오류 발생: ${e.message}`)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleNewMap = () => {
@@ -20,7 +52,9 @@ export default function EditorToolbar() {
     const st = useEditorStore.getState()
     st.setItems([])
     st.setWorldHeight(2400)
+    st.setMapId(null) // 새 맵 생성 시 mapId 비움
     useEditorStore.setState({ layoutConfig: { startLineY: 100, endMarginPercent: 0.02, spawnGap: 50 } })
+    setMapName('새 맵')
   }
 
   return (
@@ -103,14 +137,17 @@ export default function EditorToolbar() {
           {previewAnimating ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
         </button>
 
-        <button 
-          onClick={handleSave}
-          className="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-4 py-1.5 rounded ml-2 transition-colors shadow-sm"
-          title="저장 (Ctrl+S)"
-        >
-          <Save className="w-4 h-4" />
-          <span>저장</span>
-        </button>
+        {userRole === 'admin' && (
+          <button 
+            onClick={handleSave}
+            disabled={isSaving}
+            className="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-1.5 rounded ml-2 transition-colors shadow-sm"
+            title="저장 (Ctrl+S)"
+          >
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            <span>{isSaving ? '저장중' : '저장'}</span>
+          </button>
+        )}
 
         <Link 
           href="/"

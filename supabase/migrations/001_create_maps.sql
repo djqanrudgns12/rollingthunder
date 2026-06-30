@@ -26,15 +26,25 @@ ON maps FOR SELECT
 TO public 
 USING (true);
 
--- 인증된 사용자는 맵 생성/수정 가능 (차후 admin role 검증으로 강화 가능)
+-- 인증된 사용자 중 admin 권한을 가진 사용자만 맵 생성/수정 가능
 CREATE POLICY "maps_insert_policy" 
 ON maps FOR INSERT 
-TO authenticated 
-WITH CHECK (true);
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = auth.uid()
+        AND profiles.role = 'admin'
+    )
+);
 
 CREATE POLICY "maps_update_policy" 
 ON maps FOR UPDATE 
-TO authenticated 
-USING (true);
+USING (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = auth.uid()
+        AND profiles.role = 'admin'
+    )
+);
 
 -- 기본 프리셋 인서트 (초기 맵 데이터가 없을 경우를 대비해 랜덤/기본 맵을 심을 수 있지만 현재는 생략)

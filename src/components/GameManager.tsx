@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 
 import { useUIStore } from '@/store/uiStore'
 import { useGameStore } from '@/store/gameStore'
-import { fetchMapPresets } from '@/lib/supabase/mapFetcher'
+import { getMapsAction } from '@/presentation/actions/mapActions'
 import { createClient } from '@/lib/supabase/client'
 import Dashboard from './Dashboard'
 import dynamic from 'next/dynamic';
@@ -32,7 +32,7 @@ export default function GameManager() {
         const supabase = createClient();
         const [PIXI, dynamicMaps, { data: { session } }] = await Promise.all([
           import('pixi.js'),
-          fetchMapPresets(),
+          getMapsAction(),
           supabase.auth.getSession()
         ]);
         
