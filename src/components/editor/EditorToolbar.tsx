@@ -10,7 +10,7 @@ import { saveMapAction, deployMapAction } from '@/presentation/actions/mapAction
 import { getUserRoleAction } from '@/presentation/actions/authActions'
 
 export default function EditorToolbar() {
-  const { undo, redo, items, historyIndex, history, gridSnap, setGridSnap, mapId, setMapId, worldHeight, layoutConfig, wallStyle, loadMapPreset, previewAnimating, setPreviewAnimating } = useEditorStore()
+  const { undo, redo, items, historyIndex, history, gridSnap, setGridSnap, mapId, setMapId, worldHeight, layoutConfig, wallStyle, bgImage, loadMapPreset, previewAnimating, setPreviewAnimating } = useEditorStore()
   const mapDataCache = useGameStore(state => state.mapDataCache)
   const setGameStage = useUIStore(state => state.setGameStage)
   const [mapName, setMapName] = useState('새 맵')
@@ -43,13 +43,23 @@ export default function EditorToolbar() {
       finalMapName = `[커스텀] ${finalMapName}`
     }
 
+    // 기존 맵 데이터에서 불변 메타데이터 추출 (없으면 기본값)
+    const gameStore = useGameStore.getState()
+    const currentCache = gameStore.mapDataCache || { ...MapPresets }
+    const existingMap = currentCache[targetMapId] || MapPresets[targetMapId]
+
     try {
       const result = await saveMapAction({
         id: targetMapId,
         name: finalMapName,
+        description: existingMap?.description,
+        lengthType: existingMap?.lengthType,
+        complexity: existingMap?.complexity,
         worldHeight,
         layoutConfig,
         wallStyle,
+        bgImage: bgImage || existingMap?.bgImage,
+        themeWeights: existingMap?.themeWeights,
         items
       })
 
@@ -60,13 +70,14 @@ export default function EditorToolbar() {
         gameStore.setMapDataCache({
           ...currentCache,
           [targetMapId]: {
-            ...currentCache[targetMapId],
+            ...(existingMap || {}),
             name: finalMapName,
             worldHeight,
             layoutConfig,
             wallStyle,
+            bgImage: bgImage || existingMap?.bgImage,
             items,
-            isOfficial: currentCache[targetMapId]?.isOfficial ?? false
+            isOfficial: existingMap?.isOfficial ?? false
           }
         })
         

@@ -3,6 +3,7 @@ import { MapEntity } from '@/core/entities/Map';
 import { MapRepository } from '@/infrastructure/supabase/mapRepository';
 import { UserRepository } from '@/infrastructure/supabase/userRepository';
 import { AuthenticationError, PermissionDeniedError, ValidationError } from '@/core/errors/AppError';
+import { MapPresets } from '@/engine/MapPresets';
 
 export class SaveMapUseCase {
   static async execute(mapData: Partial<MapEntity>): Promise<void> {
@@ -32,19 +33,20 @@ export class SaveMapUseCase {
     // 기존 맵 정보 조회 (isOfficial 상태 유지를 위해)
     const existingMaps = await MapRepository.findAll();
     const existingMap = existingMaps.find(m => m.id === mapData.id);
+    const presetMap = MapPresets[mapData.id as string];
     
     let isOfficial = false;
     let finalName = mapData.name;
 
-    if (existingMap) {
-      // 기존에 공식맵이었으면 그대로 유지
-      isOfficial = existingMap.isOfficial ?? false;
+    if (existingMap || presetMap) {
+      // 기존에 DB에 공식맵이거나 원본 프리셋이면 유지
+      isOfficial = existingMap?.isOfficial ?? presetMap?.isOfficial ?? (presetMap ? true : false);
       // 공식맵이 아닌 커스텀 맵인데 이름에 [커스텀]이 없으면 붙여줌
       if (!isOfficial && !finalName.startsWith('[커스텀]')) {
         finalName = `[커스텀] ${finalName}`;
       }
     } else {
-      // 새 맵이면 무조건 커스텀 맵으로 강제
+      // 완전히 새 맵이면 무조건 커스텀 맵으로 강제
       isOfficial = false;
       if (!finalName.startsWith('[커스텀]')) {
         finalName = `[커스텀] ${finalName}`;
