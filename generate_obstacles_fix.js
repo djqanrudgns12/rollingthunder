@@ -286,6 +286,49 @@ const assets = [
         <circle cx="240" cy="52" r="2" fill="#555555" />
       </svg>
     `
+  },
+  {
+    name: 'obstacle_blower.png',
+    width: 256, height: 256,
+    svg: `
+      <svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="blowerBody" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#444444" />
+            <stop offset="50%" stop-color="#2a2a2a" />
+            <stop offset="100%" stop-color="#111111" />
+          </linearGradient>
+          <linearGradient id="nozzleGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#666666" />
+            <stop offset="100%" stop-color="#222222" />
+          </linearGradient>
+          <filter id="windGlow">
+            <feGaussianBlur stdDeviation="8" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+        
+        <!-- Wind Flow (Upwards) -->
+        <path d="M 80 120 L 70 30" fill="none" stroke="#00ffff" stroke-width="4" stroke-linecap="round" stroke-dasharray="15 25" filter="url(#windGlow)" opacity="0.6" />
+        <path d="M 128 130 L 128 10" fill="none" stroke="#00ffff" stroke-width="8" stroke-linecap="round" stroke-dasharray="30 20" filter="url(#windGlow)" opacity="0.9" />
+        <path d="M 176 120 L 186 30" fill="none" stroke="#00ffff" stroke-width="4" stroke-linecap="round" stroke-dasharray="15 25" filter="url(#windGlow)" opacity="0.6" />
+        
+        <!-- Main Body -->
+        <rect x="64" y="140" width="128" height="96" rx="16" fill="url(#blowerBody)" stroke="#00ffff" stroke-width="2" />
+        
+        <!-- Nozzle -->
+        <polygon points="64,140 192,140 170,110 86,110" fill="url(#nozzleGrad)" />
+        <rect x="76" y="100" width="104" height="10" rx="4" fill="#111111" stroke="#00ffff" stroke-width="1" filter="url(#windGlow)" />
+        
+        <!-- Internal Fan (Static representation) -->
+        <circle cx="128" cy="188" r="32" fill="#0a0a0a" stroke="#333333" stroke-width="4" />
+        <path d="M 128 188 L 128 160 M 128 188 L 152 202 M 128 188 L 104 202" stroke="#555555" stroke-width="6" stroke-linecap="round" />
+        <circle cx="128" cy="188" r="10" fill="#888888" />
+        
+        <!-- Mounting Base -->
+        <rect x="48" y="220" width="160" height="16" rx="4" fill="#222222" />
+      </svg>
+    `
   }
 ];
 

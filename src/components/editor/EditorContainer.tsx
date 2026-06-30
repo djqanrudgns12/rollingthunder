@@ -7,7 +7,7 @@ import { useEditorStore, EditorItemType } from '@/store/editorStore'
 import ToolPalette from './ToolPalette'
 import EditorCanvas from './EditorCanvas'
 import PhysicsPreviewCanvas from './PhysicsPreviewCanvas'
-import PropertiesInspector from './PropertiesInspector'
+import InspectorPanel from './InspectorPanel'
 import EditorToolbar from './EditorToolbar'
 import HistoryViewer from './HistoryViewer'
 import HistoryTimelinePanel from './HistoryTimelinePanel'
@@ -137,7 +137,7 @@ export default function EditorContainer() {
         <div className="flex w-full h-full max-w-[1600px] mx-auto gap-2 md:gap-4 p-2 md:p-4 z-10 pt-14">
           <ToolPalette />
           <EditorCanvas />
-          <PropertiesInspector />
+          <InspectorPanel />
           
           {showHistoryPanel && (
             <HistoryTimelinePanel 
