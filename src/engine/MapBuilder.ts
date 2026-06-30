@@ -96,50 +96,24 @@ export class MapBuilder {
   }
 
   static createWalls(world: RAPIER.World, width: number, height: number, thickness: number = 100, style: WallStyle = 'zigzag') {
-    const numSegments = Math.ceil((height * 2) / 100) + 10; // Extra padding
-    for (let i = -5; i < numSegments; i++) {
-      const y = i * 100 - (height / 2);
-      
+    const startY = -500; // Match BG_PAD_TOP
+    const endY = height + 500; // Match BG_PAD_BOTTOM roughly
+    const step = 100;
+    
+    for (let y = startY; y <= endY; y += step) {
       const { leftOffset, rightOffset, leftAngle, rightAngle } = getWallTransform(y, height, style);
       
-      const leftId = `wall_l_${i}`;
+      const leftId = `wall_l_${y}`;
       const leftBody = this.createRect(world, -thickness / 2 + leftOffset, y, thickness, 100, 'wall', leftAngle, 0.2, 0.05);
       if(leftBody.userData) (leftBody.userData as UserData).id = leftId;
 
-      const rightId = `wall_r_${i}`;
+      const rightId = `wall_r_${y}`;
       const rightBody = this.createRect(world, width + thickness / 2 - rightOffset, y, thickness, 100, 'wall', rightAngle, 0.2, 0.05);
       if(rightBody.userData) (rightBody.userData as UserData).id = rightId;
     }
   }
 
-  static createPolygon(world: RAPIER.World, item: any) {
-    if (!item.vertices || item.vertices.length < 3) return null;
-    
-    // Create a polyline collider. Vertices must be a Float32Array of [x0, y0, x1, y1, ...]
-    // Polyline needs an extra vertex at the end to close the loop
-    const vertices = new Float32Array((item.vertices.length + 1) * 2);
-    for (let i = 0; i < item.vertices.length; i++) {
-      vertices[i * 2] = item.vertices[i].x;
-      vertices[i * 2 + 1] = item.vertices[i].y;
-    }
-    // Close the loop
-    vertices[item.vertices.length * 2] = item.vertices[0].x;
-    vertices[item.vertices.length * 2 + 1] = item.vertices[0].y;
 
-    const rigidBodyDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(item.x, item.y);
-    const rigidBody = world.createRigidBody(rigidBodyDesc);
-
-    // Use polyline to support concave shapes easily
-    const colliderDesc = RAPIER.ColliderDesc.polyline(vertices)
-      .setRestitution(item.restitution ?? 0.4)
-      .setFriction(item.friction ?? 0.1);
-
-    world.createCollider(colliderDesc, rigidBody);
-    
-    const userData: any = { type: 'polygon', id: item.id, vertices: item.vertices };
-    rigidBody.userData = userData;
-    return rigidBody;
-  }
 
   static createPin(world: RAPIER.World, x: number, y: number, radius: number, isBumper = false, restitution?: number, friction?: number) {
     const rigidBodyDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(x, y);
@@ -165,7 +139,7 @@ export class MapBuilder {
       : RAPIER.RigidBodyDesc.kinematicVelocityBased();
       
     desc.setTranslation(item.x, item.y)
-      .setRotation(item.rotation ? item.rotation * (Math.PI / 180) : 0);
+      .setRotation((item.angle ?? item.rotation ?? 0) * (Math.PI / 180));
       
     // 피스톤(얇은 강체) 터널링 방지를 위해 CCD 활성화
     if (item.type === 'piston') {
@@ -223,7 +197,7 @@ export class MapBuilder {
     // 센서(Sensor): 충돌하지 않고 통과할 때 이벤트를 발생시킵니다 (포탈, 부스터, 중력장)
     const desc = RAPIER.RigidBodyDesc.fixed()
       .setTranslation(item.x, item.y)
-      .setRotation((item.rotation || 0) * (Math.PI / 180));
+      .setRotation((item.angle ?? item.rotation ?? 0) * (Math.PI / 180));
     const body = world.createRigidBody(desc);
     let colliderDesc;
     
@@ -362,7 +336,7 @@ export class MapBuilder {
   static createPolygon(world: RAPIER.World, item: any) {
     const desc = RAPIER.RigidBodyDesc.fixed()
       .setTranslation(item.x, item.y)
-      .setRotation((item.angle || item.rotation || 0) * (Math.PI / 180));
+      .setRotation((item.angle ?? item.rotation ?? 0) * (Math.PI / 180));
     const body = world.createRigidBody(desc);
     
     // Ensure we have vertices
@@ -373,23 +347,21 @@ export class MapBuilder {
       { x: -50, y: 50 }
     ];
 
-    // RAPIER requires a flat Float32Array for polyline or convex decomposition
-    // Convert array of {x, y} to flat array [x1, y1, x2, y2, ...]
-    const flatVertices = new Float32Array(vertices.length * 2);
+    // Create a polyline collider. Vertices must be a Float32Array of [x0, y0, x1, y1, ...]
+    // Polyline needs an extra vertex at the end to close the loop
+    const flatVertices = new Float32Array((vertices.length + 1) * 2);
     for (let i = 0; i < vertices.length; i++) {
       flatVertices[i * 2] = vertices[i].x;
       flatVertices[i * 2 + 1] = vertices[i].y;
     }
-
-    // For a simple wavy wall or hollow boundary, polyline is good.
-    // However, if the polygon is supposed to be a solid block, we need convexDecomposition.
-    // If we use convexDecomposition, we need the indices as well, which is more complex.
-    // Let's use polyline for general curvy walls. If it's closed, append the first vertex to the end.
+    // Close the loop
+    flatVertices[vertices.length * 2] = vertices[0].x;
+    flatVertices[vertices.length * 2 + 1] = vertices[0].y;
     
     // For now, let's create a polyline collider. It has no volume but stops objects.
     const colliderDesc = RAPIER.ColliderDesc.polyline(flatVertices)
-      .setRestitution(item.restitution || 0.5)
-      .setFriction(item.friction || 0.1);
+      .setRestitution(item.restitution ?? 0.4)
+      .setFriction(item.friction ?? 0.1);
       
     world.createCollider(colliderDesc, body);
     
