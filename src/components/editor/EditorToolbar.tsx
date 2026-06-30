@@ -17,7 +17,7 @@ export default function EditorToolbar() {
     undo, redo, items, historyIndex, history, gridSnap, setGridSnap, 
     mapId, setMapId, worldHeight, layoutConfig, wallStyle, bgImage, 
     previewAnimating, setPreviewAnimating,
-    tabs, activeTabId, addTab, switchTab, closeTab, markSaved, reorderTabs
+    tabs, activeTabId, addTab, switchTab, closeTab, markSaved, reorderTabs, updateTabTitle
   } = useEditorStore()
   
   const mapDataCache = useGameStore(state => state.mapDataCache)
@@ -29,9 +29,20 @@ export default function EditorToolbar() {
   // Unsaved changes modal state
   const [closingTabId, setClosingTabId] = useState<string | null>(null)
 
+  // Dropdown menu & Title editing state
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const [editingTabId, setEditingTabId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
+
   useEffect(() => {
     getUserRoleAction().then(({ role }) => setUserRole(role))
   }, [])
+
+  useEffect(() => {
+    const handleOutsideClick = () => setShowAddMenu(false);
+    if (showAddMenu) document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, [showAddMenu]);
 
   const handleSave = async () => {
     if (!activeTabId) return;
@@ -196,8 +207,40 @@ export default function EditorToolbar() {
                 
                 {isHistory && <History className="w-3.5 h-3.5 mr-2 text-purple-400" />}
                 
-                <span className="truncate text-sm font-medium pr-6">
-                  {tab.title} {tab.isUnsaved && <span className="text-orange-400 ml-1">*</span>}
+                <span 
+                  className="truncate text-sm font-medium pr-6"
+                  onDoubleClick={() => {
+                    if (isActive && !isHistory) {
+                      setEditingTabId(tab.id);
+                      setEditingTitle(tab.title);
+                    }
+                  }}
+                  title={isActive && !isHistory ? "더블클릭하여 맵 이름 변경" : ""}
+                >
+                  {editingTabId === tab.id ? (
+                    <input
+                      type="text"
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onBlur={() => {
+                        updateTabTitle(tab.id, editingTitle || '새 맵');
+                        setEditingTabId(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          updateTabTitle(tab.id, editingTitle || '새 맵');
+                          setEditingTabId(null);
+                        } else if (e.key === 'Escape') {
+                          setEditingTabId(null);
+                        }
+                      }}
+                      autoFocus
+                      className="bg-[#111] text-white px-1 py-0.5 rounded outline-none border border-blue-500 w-full"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <>{tab.title} {tab.isUnsaved && <span className="text-orange-400 ml-1">*</span>}</>
+                  )}
                 </span>
                 
                 {/* 닫기 버튼 (Hover 시 노출, Active 시 항상 노출) */}
@@ -212,13 +255,63 @@ export default function EditorToolbar() {
             )
           })}
           
-          <button 
-            onClick={() => addTab(null, 'map')}
-            className="flex items-center justify-center w-10 h-full hover:bg-[#2a2a2a] text-gray-400 hover:text-white transition-colors"
-            title="새 맵 탭 열기"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
+          <div className="relative h-full flex items-center">
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAddMenu(!showAddMenu);
+              }}
+              className="flex items-center justify-center w-10 h-full hover:bg-[#2a2a2a] text-gray-400 hover:text-white transition-colors"
+              title="새 맵 / 불러오기"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+            {showAddMenu && (
+              <div className="absolute top-12 left-0 mt-2 w-56 bg-[#222] border border-[#333] rounded-lg shadow-xl z-50 flex flex-col" onClick={e => e.stopPropagation()}>
+                <button 
+                  onClick={() => { addTab(null, 'map'); setShowAddMenu(false); }}
+                  className="w-full text-left px-4 py-3 hover:bg-[#333] text-white text-sm font-bold border-b border-[#333] flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4 text-blue-400" />
+                  커스텀 맵 추가하기
+                </button>
+                
+                <div className="flex-1 overflow-y-auto max-h-[60vh] scrollbar-thin scrollbar-thumb-[#444]">
+                  <div className="px-4 py-2 bg-[#1a1a1a] text-xs font-bold text-gray-400 uppercase tracking-wider sticky top-0 z-10">
+                    기본맵 불러오기
+                  </div>
+                  {Object.entries(MapPresets).map(([key, preset]) => (
+                    <button
+                      key={key}
+                      onClick={() => { useEditorStore.getState().loadMapPreset(key); setShowAddMenu(false); }}
+                      className="w-full text-left px-4 py-2 hover:bg-[#333] text-gray-200 text-sm truncate block"
+                    >
+                      {preset.name}
+                    </button>
+                  ))}
+
+                  <div className="px-4 py-2 bg-[#1a1a1a] text-xs font-bold text-gray-400 uppercase tracking-wider sticky top-0 z-10 border-t border-[#333]">
+                    커스텀맵 불러오기
+                  </div>
+                  {Object.entries(mapDataCache || {}).filter(([k, m]) => !m.isOfficial && !MapPresets[k]).length === 0 ? (
+                    <div className="px-4 py-2 text-xs text-gray-500">저장된 맵이 없습니다.</div>
+                  ) : (
+                    Object.entries(mapDataCache || {})
+                      .filter(([k, m]) => !m.isOfficial && !MapPresets[k])
+                      .map(([key, map]) => (
+                        <button
+                          key={key}
+                          onClick={() => { useEditorStore.getState().loadMapPreset(key); setShowAddMenu(false); }}
+                          className="w-full text-left px-4 py-2 hover:bg-[#333] text-gray-200 text-sm truncate block"
+                        >
+                          {map.name}
+                        </button>
+                      ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* 우측: 도구 및 저장 */}

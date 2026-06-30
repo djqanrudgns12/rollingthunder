@@ -12,10 +12,12 @@ import { useEditorStore } from '@/store/editorStore'
 export default function MapEditorManager() {
   const mapId = useEditorStore(state => state.mapId)
   const loadMapPreset = useEditorStore(state => state.loadMapPreset)
+  const hasLoadedInitial = React.useRef(false);
 
   useEffect(() => {
-    if (!mapId) {
+    if (!mapId && !hasLoadedInitial.current) {
       loadMapPreset('neon_arcade')
+      hasLoadedInitial.current = true;
     }
   }, [mapId, loadMapPreset])
 

@@ -3,56 +3,10 @@
 import { useEditorStore } from '@/store/editorStore'
 import { Settings2, Trash2, Image as ImageIcon, Map as MapIcon, Maximize2 } from 'lucide-react'
 
-const AVAILABLE_BACKGROUNDS = [
-  { id: 'neon_arcade', name: '네온 아케이드', path: '/images/assets/map_bg_neon_arcade.png' },
-  { id: 'gravity_abyss', name: '블랙홀의 함정', path: '/images/assets/map_bg_gravity_abyss.png' },
-  { id: 'mechanical_factory', name: '톱니바퀴 공장', path: '/images/assets/map_bg_mechanical_factory.png' },
-  { id: 'boost_highway', name: '부스트 하이웨이', path: '/images/assets/map_bg_boost_highway.png' },
-  { id: 'portal_labyrinth', name: '차원 포탈 미궁', path: '/images/assets/map_bg_portal_labyrinth.png' },
-  { id: 'plinko_cascade', name: '플링코 폭포', path: '/images/assets/map_bg_plinko_cascade.png' },
-  { id: 'roulette_of_fate', name: '운명의 룰렛', path: '/images/assets/map_bg_roulette_of_fate.png' },
-  { id: 'tornado_canyon', name: '토네이도 협곡', path: '/images/assets/map_bg_tornado_canyon.png' },
-  { id: 'bounce_mirror', name: '바운스 미러', path: '/images/assets/map_bg_bounce_mirror.png' },
-  { id: 'meteor_field', name: '미티어 필드', path: '/images/assets/map_bg_meteor_field.png' },
-  { id: 'cyber_dystopia', name: '사이버 디스토피아', path: '/images/assets/bg_cyber_dystopia.png' },
-  { id: 'neon_synthwave', name: '네온 신스웨이브', path: '/images/assets/bg_neon_synthwave_ultra.png' },
-  { id: 'celestial_clockwork', name: '천체 시계장치', path: '/images/assets/bg_celestial_clockwork.png' },
-  { id: 'abyssal_trench', name: '심해 해구', path: '/images/assets/bg_abyssal_trench.png' },
-  // AI 생성 에셋 30종 추가
-  { id: 'abstract_geometric_void', name: '기하학적 추상', path: '/images/assets/bg_abstract_geometric_void_1782785788732.jpg' },
-  { id: 'alien_planet_surface', name: '외계 행성', path: '/images/assets/bg_alien_planet_surface_1782785858731.jpg' },
-  { id: 'ancient_mystic_ruins', name: '고대 유적', path: '/images/assets/bg_ancient_mystic_ruins_1782785615064.jpg' },
-  { id: 'bioluminescent_jungle', name: '생물발광 정글', path: '/images/assets/bg_bioluminescent_jungle_1782785780805.jpg' },
-  { id: 'candy_land', name: '캔디 랜드', path: '/images/assets/bg_candy_land_1782785710474.jpg' },
-  { id: 'celestial_sky_palace', name: '천상의 궁전', path: '/images/assets/bg_celestial_sky_palace_1782785761515.jpg' },
-  { id: 'clockwork_gears', name: '톱니바퀴 시계', path: '/images/assets/bg_clockwork_gears_1782785770871.jpg' },
-  { id: 'crystal_cave', name: '수정 동굴', path: '/images/assets/bg_crystal_cave_1782785736014.jpg' },
-  { id: 'cyberpunk_megacity', name: '사이버펑크 시티', path: '/images/assets/bg_cyberpunk_megacity_1782785606020.jpg' },
-  { id: 'deep_space_nebula', name: '심우주 성운', path: '/images/assets/bg_deep_space_nebula_1782785644285.jpg' },
-  { id: 'desert_oasis', name: '사막 오아시스', path: '/images/assets/bg_desert_oasis_1782785682635.jpg' },
-  { id: 'enchanted_forest', name: '요정의 숲', path: '/images/assets/bg_enchanted_forest_1782785674317.jpg' },
-  { id: 'floating_islands', name: '부유하는 섬', path: '/images/assets/bg_floating_islands_1782785867391.jpg' },
-  { id: 'frozen_tundra', name: '혹한의 툰드라', path: '/images/assets/bg_frozen_tundra_1782785823149.jpg' },
-  { id: 'galactic_highway', name: '은하계 도로', path: '/images/assets/bg_galactic_highway_1782785832121.jpg' },
-  { id: 'golden_temple', name: '황금 신전', path: '/images/assets/bg_golden_temple_1782785887745.jpg' },
-  { id: 'haunted_gothic_castle', name: '고딕 성', path: '/images/assets/bg_haunted_gothic_castle_1782785727034.jpg' },
-  { id: 'icy_glacier_cavern', name: '빙하 동굴', path: '/images/assets/bg_icy_glacier_cavern_1782785635405.jpg' },
-  { id: 'lava_volcano_core', name: '용암 지대', path: '/images/assets/bg_lava_volcano_core_1782785625035.jpg' },
-  { id: 'magma_forge', name: '마그마 대장간', path: '/images/assets/bg_magma_forge_1782785812794.jpg' },
-  { id: 'pirate_ship_deck', name: '해적선 갑판', path: '/images/assets/bg_pirate_ship_deck_1782785840910.jpg' },
-  { id: 'post_apocalyptic_ruins', name: '아포칼립스', path: '/images/assets/bg_post_apocalyptic_ruins_1782785753197.jpg' },
-  { id: 'quantum_realm', name: '양자 영역', path: '/images/assets/bg_quantum_realm_1782785877783.jpg' },
-  { id: 'retrowave_sunset', name: '레트로 선셋', path: '/images/assets/bg_retrowave_sunset_1782785719122.jpg' },
-  { id: 'samurai_dojo', name: '사무라이 도장', path: '/images/assets/bg_samurai_dojo_1782785850135.jpg' },
-  { id: 'steampunk_factory', name: '스팀펑크 공장', path: '/images/assets/bg_steampunk_factory_1782785664737.jpg' },
-  { id: 'toxic_wasteland', name: '오염 구역', path: '/images/assets/bg_toxic_wasteland_1782785654564.jpg' },
-  { id: 'underwater_atlantis', name: '심해 아틀란티스', path: '/images/assets/bg_underwater_atlantis_1782785691060.jpg' },
-  { id: 'virtual_matrix_grid', name: '가상 매트릭스', path: '/images/assets/bg_virtual_matrix_grid_1782785744588.jpg' },
-  { id: 'zen_garden', name: '젠 가든', path: '/images/assets/bg_zen_garden_1782785804310.jpg' },
-]
+
 
 function GlobalMapSettings() {
-  const { bgImage, setBgImage, wallStyle, setWallStyle, worldHeight, setWorldHeight } = useEditorStore()
+  const { wallStyle, setWallStyle, worldHeight, setWorldHeight } = useEditorStore()
 
   return (
     <div className="w-80 h-full glass-panel flex flex-col overflow-hidden shrink-0 hidden lg:flex">
@@ -64,38 +18,6 @@ function GlobalMapSettings() {
       </div>
       
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        <div className="space-y-3">
-          <h4 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1">
-            <ImageIcon className="w-3 h-3" /> Background Image
-          </h4>
-          <p className="text-[10px] text-gray-500 leading-relaxed mb-2">
-            ※ 이미지는 외벽 사이에 완벽히 임베딩되며, 기물 뒤(Z-Index 맨 아래)에 배치됩니다.
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <div 
-              onClick={() => setBgImage(null)}
-              className={`cursor-pointer rounded overflow-hidden border-2 transition-all ${!bgImage ? 'border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'border-white/10 hover:border-white/30'}`}
-            >
-              <div className="w-full h-16 bg-black flex items-center justify-center text-xs text-gray-500">None</div>
-              <div className="bg-black/60 p-1 text-[10px] text-center text-white truncate">없음</div>
-            </div>
-            {AVAILABLE_BACKGROUNDS.map((bg) => (
-              <div 
-                key={bg.id}
-                onClick={() => setBgImage(bg.path)}
-                className={`cursor-pointer rounded overflow-hidden border-2 transition-all ${bgImage === bg.path ? 'border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'border-white/10 hover:border-white/30'}`}
-                title={bg.name}
-              >
-                <div 
-                  className="w-full h-16 bg-cover bg-center"
-                  style={{ backgroundImage: `url(${bg.path})` }}
-                />
-                <div className="bg-black/80 p-1 text-[10px] text-center text-white truncate">{bg.name}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
         <div className="space-y-3">
           <h4 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1">
             <Maximize2 className="w-3 h-3" /> Layout Settings
