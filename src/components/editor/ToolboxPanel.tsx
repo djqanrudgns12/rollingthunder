@@ -109,11 +109,24 @@ export default function ToolboxPanel() {
       case 'iceblock':
         newItem.w = 60; newItem.h = 25; newItem.hp = 3; newItem.maxHp = 3; break;
       case 'windcannon':
-        newItem.w = 120; newItem.h = 120; newItem.windAngle = 90; newItem.windForce = 15; break;
+        newItem.w = 120; newItem.h = 120; newItem.windAngle = 90; newItem.windForce = 15; newItem.onFrames = 180; newItem.offFrames = 120; break;
       case 'luckygate':
         newItem.w = 140; newItem.h = 20; break;
       case 'flipper':
-        newItem.w = 90; newItem.h = 20; newItem.length = 90; newItem.side = 'left'; newItem.restAngle = 30; newItem.swingAngle = -30; break;
+        newItem.w = 90; newItem.h = 20; newItem.length = 90; newItem.side = 'left'; newItem.restAngle = 30; newItem.swingAngle = -30; newItem.swingSpeed = 30; newItem.returnSpeed = 8; break;
+      case 'windmill':
+        newItem.w = 100; newItem.h = 10; newItem.speed = 3; break;
+      case 'pin':
+        newItem.radius = 8; newItem.restitution = 0.4; break;
+      case 'bumper':
+        newItem.radius = 14; newItem.restitution = 1.4; break;
+      case 'hole':
+        newItem.radius = 30; break;
+      case 'blackhole':
+      case 'whitehole':
+        newItem.radius = 150; newItem.force = 5; break;
+      case 'portal':
+        newItem.color = '#c084fc'; break;
       case 'polygon':
         newItem.w = 100; newItem.h = 100;
         newItem.vertices = [
