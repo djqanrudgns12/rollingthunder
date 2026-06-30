@@ -277,6 +277,20 @@ export default function PhysicsCanvas() {
           '/images/assets/obstacles/obstacle_hole.png',
           '/images/assets/obstacles/obstacle_piston.png',
           '/images/assets/obstacles/windmill_rotor.png',
+          '/images/assets/skins/pr_dragon.png',
+          '/images/assets/skins/pr_unicorn.png',
+          '/images/assets/skins/pr_dino.png',
+          '/images/assets/skins/pr_slime.png',
+          '/images/assets/skins/pr_robot.png',
+          '/images/assets/skins/pr_phoenix.png',
+          '/images/assets/skins/pr_alien.png',
+          '/images/assets/skins/pr_gummy.png',
+          '/images/assets/skins/pr_astronaut.png',
+          '/images/assets/skins/pr_ghost.png',
+          '/images/assets/skins/pr_hamster.png',
+          '/images/assets/skins/pr_hotairballoon.png',
+          '/images/assets/skins/pr_pirateship.png',
+          '/images/assets/skins/pr_magiccarpet.png',
         ];
         let loadedAssets: any = {};
         try {
@@ -1124,22 +1138,53 @@ export default function PhysicsCanvas() {
                 try {
                   const tex = PIXI.Assets.get(textureUrl);
                   if (tex) {
-                    // subtle drop shadow
-                    const shadow = new PIXI.Sprite(tex);
-                    shadow.anchor.set(0.5);
-                    shadow.width = renderDiameter;
-                    shadow.height = renderDiameter;
-                    shadow.tint = 0x000000;
-                    shadow.alpha = 0.5;
-                    shadow.y = 3;
-                    iconWrapper.addChild(shadow);
+                    if (skinKey.startsWith('pr_')) {
+                      // 둥근 그림자
+                      const shadow = new PIXI.Graphics();
+                      shadow.circle(0, 0, renderDiameter / 2);
+                      shadow.fill({ color: 0x000000, alpha: 0.5 });
+                      shadow.y = 3;
+                      iconWrapper.addChild(shadow);
 
-                    const sprite = new PIXI.Sprite(tex);
-                    sprite.anchor.set(0.5); // 완벽한 무결성을 위한 중앙 앵커 정렬
-                    sprite.width = renderDiameter;   // 시각적 사이즈 조정 적용
-                    sprite.height = renderDiameter;
-                    sprite.tint = colNum;   // 참가자 고유 색상 무한 지원
-                    iconWrapper.addChild(sprite);
+                      // 스프라이트 (원본 컬러 유지)
+                      const sprite = new PIXI.Sprite(tex);
+                      sprite.anchor.set(0.5);
+                      sprite.width = renderDiameter;
+                      sprite.height = renderDiameter;
+                      sprite.tint = 0xFFFFFF; // 틴트 초기화
+
+                      // 원형 마스크
+                      const mask = new PIXI.Graphics();
+                      mask.circle(0, 0, renderDiameter / 2);
+                      mask.fill({ color: 0xffffff, alpha: 1.0 });
+                      iconWrapper.addChild(mask);
+                      sprite.mask = mask;
+                      
+                      iconWrapper.addChild(sprite);
+
+                      // 칩 식별을 위한 테두리 색상 처리
+                      const border = new PIXI.Graphics();
+                      border.circle(0, 0, renderDiameter / 2);
+                      border.stroke({ width: 3, color: colNum, alpha: 1.0 });
+                      iconWrapper.addChild(border);
+                    } else {
+                      // subtle drop shadow
+                      const shadow = new PIXI.Sprite(tex);
+                      shadow.anchor.set(0.5);
+                      shadow.width = renderDiameter;
+                      shadow.height = renderDiameter;
+                      shadow.tint = 0x000000;
+                      shadow.alpha = 0.5;
+                      shadow.y = 3;
+                      iconWrapper.addChild(shadow);
+
+                      const sprite = new PIXI.Sprite(tex);
+                      sprite.anchor.set(0.5); // 완벽한 무결성을 위한 중앙 앵커 정렬
+                      sprite.width = renderDiameter;   // 시각적 사이즈 조정 적용
+                      sprite.height = renderDiameter;
+                      sprite.tint = colNum;   // 참가자 고유 색상 무한 지원
+                      iconWrapper.addChild(sprite);
+                    }
                   } else {
                     throw new Error("Texture not preloaded");
                   }
@@ -1261,7 +1306,9 @@ export default function PhysicsCanvas() {
           // 🎧 [스마트 오디오] 무의미한 충돌음 배제 로직
           if (payload.type === 'wallHit') {
             // 의도적으로 음소거(Mute) 처리하여 소음 방지
-          } else if (payload.type === 'warp' || payload.type === 'finish') {
+          } else if (payload.type === 'warp') {
+            soundManager.playSfx('env_wormhole', 0, payload.x || 400);
+          } else if (payload.type === 'finish') {
             soundManager.playSfx('ui_fanfare', 0, payload.x || 400);
           } else if (payload.type === 'bumperHit') {
             soundManager.playSfx('gimmick_domino', payload.impulse, payload.x);
