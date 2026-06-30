@@ -61,6 +61,16 @@ interface EditorState {
   setItems: (items: EditorItem[]) => void;
   
   setSelectedItemId: (id: string | null) => void;
+  // --- 다중 선택 / 정렬 / 미러 (Phase 3) ---
+  selectedItemIds: string[];
+  setSelectedItemIds: (ids: string[]) => void;
+  toggleSelectedItem: (id: string) => void;
+  moveSelectedBy: (dx: number, dy: number, commit?: boolean) => void;
+  alignSelected: (edge: 'left' | 'right' | 'top' | 'bottom' | 'centerH' | 'centerV') => void;
+  distributeSelected: (axis: 'h' | 'v') => void;
+  mirrorSelected: (duplicate: boolean) => void;
+  arraySelected: (count: number, gapX: number, gapY: number) => void;
+  deleteSelected: () => void;
   setEditorMode: (isEditor: boolean) => void;
   setMapId: (id: string | null) => void;
   setWorldHeight: (height: number) => void;
@@ -93,6 +103,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   previewAnimating: true,
   clipboard: null,
   gridSnap: false,
+  selectedItemIds: [],
 
   setClipboard: (item) => set({ clipboard: item }),
   setGridSnap: (snap) => set({ gridSnap: snap }),
@@ -185,14 +196,121 @@ export const useEditorStore = create<EditorState>((set) => ({
     return { items, history: newHistory, historyIndex: newHistory.length - 1 };
   }),
 
-  setSelectedItemId: (id) => set({ selectedItemId: id }),
+  setSelectedItemId: (id) => set({ selectedItemId: id, selectedItemIds: id ? [id] : [] }),
+  setSelectedItemIds: (ids) => set({ selectedItemIds: ids, selectedItemId: ids.length ? ids[ids.length - 1] : null }),
+  toggleSelectedItem: (id) => set((state) => {
+    const has = state.selectedItemIds.includes(id);
+    const ids = has ? state.selectedItemIds.filter((i) => i !== id) : [...state.selectedItemIds, id];
+    return { selectedItemIds: ids, selectedItemId: ids.length ? ids[ids.length - 1] : null };
+  }),
+
+  // 선택된 모든 기물을 이동 (commit=false 면 히스토리 미기록 — 드래그 중)
+  moveSelectedBy: (dx, dy, commit = true) => set((state) => {
+    const sel = new Set(state.selectedItemIds.length ? state.selectedItemIds : (state.selectedItemId ? [state.selectedItemId] : []));
+    if (!sel.size) return state;
+    const items = state.items.map((it) => sel.has(it.id) ? {
+      ...it, x: it.x + dx, y: it.y + dy,
+      waypointB: it.waypointB ? { x: it.waypointB.x + dx, y: it.waypointB.y + dy } : it.waypointB,
+    } : it);
+    if (!commit) return { items };
+    const newHistory = state.history.slice(0, state.historyIndex + 1);
+    newHistory.push(items);
+    if (newHistory.length > 50) newHistory.shift();
+    return { items, history: newHistory, historyIndex: newHistory.length - 1 };
+  }),
+
+  alignSelected: (edge) => set((state) => {
+    const sel = state.selectedItemIds; if (sel.length < 2) return state;
+    const chosen = state.items.filter((it) => sel.includes(it.id));
+    const xs = chosen.map((c) => c.x), ys = chosen.map((c) => c.y);
+    let target: number | null = null; let horizontal = true;
+    if (edge === 'left') target = Math.min(...xs);
+    else if (edge === 'right') target = Math.max(...xs);
+    else if (edge === 'centerH') target = xs.reduce((a, b) => a + b, 0) / xs.length;
+    else { horizontal = false; if (edge === 'top') target = Math.min(...ys); else if (edge === 'bottom') target = Math.max(...ys); else target = ys.reduce((a, b) => a + b, 0) / ys.length; }
+    const items = state.items.map((it) => sel.includes(it.id) ? (horizontal ? { ...it, x: target! } : { ...it, y: target! }) : it);
+    const newHistory = state.history.slice(0, state.historyIndex + 1);
+    newHistory.push(items); if (newHistory.length > 50) newHistory.shift();
+    return { items, history: newHistory, historyIndex: newHistory.length - 1 };
+  }),
+
+  distributeSelected: (axis) => set((state) => {
+    const sel = state.selectedItemIds; if (sel.length < 3) return state;
+    const chosen = state.items.filter((it) => sel.includes(it.id)).sort((a, b) => axis === 'h' ? a.x - b.x : a.y - b.y);
+    const lo = axis === 'h' ? chosen[0].x : chosen[0].y;
+    const hi = axis === 'h' ? chosen[chosen.length - 1].x : chosen[chosen.length - 1].y;
+    const step = (hi - lo) / (chosen.length - 1);
+    const pos = new Map<string, number>();
+    chosen.forEach((c, i) => pos.set(c.id, lo + step * i));
+    const items = state.items.map((it) => pos.has(it.id) ? (axis === 'h' ? { ...it, x: Math.round(pos.get(it.id)!) } : { ...it, y: Math.round(pos.get(it.id)!) }) : it);
+    const newHistory = state.history.slice(0, state.historyIndex + 1);
+    newHistory.push(items); if (newHistory.length > 50) newHistory.shift();
+    return { items, history: newHistory, historyIndex: newHistory.length - 1 };
+  }),
+
+  // 세로축(x = WORLD_WIDTH/2) 기준 좌우 대칭. duplicate=true 면 미러 복제본 추가.
+  mirrorSelected: (duplicate) => set((state) => {
+    const W = 800;
+    const sel = state.selectedItemIds.length ? state.selectedItemIds : (state.selectedItemId ? [state.selectedItemId] : []);
+    if (!sel.length) return state;
+    const mirror = (it: EditorItem): EditorItem => ({
+      ...it,
+      x: W - it.x,
+      angle: it.angle != null ? ((180 - it.angle) % 360 + 360) % 360 : it.angle,
+      windAngle: it.windAngle != null ? ((360 - it.windAngle) % 360) : it.windAngle,
+      side: it.side === 'left' ? 'right' : it.side === 'right' ? 'left' : it.side,
+      waypointB: it.waypointB ? { x: W - it.waypointB.x, y: it.waypointB.y } : it.waypointB,
+      vertices: it.vertices ? it.vertices.map((v) => ({ x: -v.x, y: v.y })) : it.vertices,
+    });
+    let items: EditorItem[];
+    let newSel: string[];
+    if (duplicate) {
+      const copies = state.items.filter((it) => sel.includes(it.id)).map((it) => ({ ...mirror(it), id: `${it.type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}` }));
+      items = [...state.items, ...copies];
+      newSel = copies.map((c) => c.id);
+    } else {
+      const s = new Set(sel);
+      items = state.items.map((it) => s.has(it.id) ? mirror(it) : it);
+      newSel = sel;
+    }
+    const newHistory = state.history.slice(0, state.historyIndex + 1);
+    newHistory.push(items); if (newHistory.length > 50) newHistory.shift();
+    return { items, history: newHistory, historyIndex: newHistory.length - 1, selectedItemIds: newSel, selectedItemId: newSel[newSel.length - 1] || null };
+  }),
+
+  // 선택 묶음을 count 개로 선형 복제 (gapX, gapY 간격)
+  arraySelected: (count, gapX, gapY) => set((state) => {
+    const sel = state.selectedItemIds.length ? state.selectedItemIds : (state.selectedItemId ? [state.selectedItemId] : []);
+    if (!sel.length || count < 1) return state;
+    const src = state.items.filter((it) => sel.includes(it.id));
+    const copies: EditorItem[] = [];
+    for (let n = 1; n <= count; n++) {
+      for (const it of src) {
+        copies.push({ ...it, id: `${it.type}_${Date.now()}_${n}_${Math.random().toString(36).slice(2, 5)}`, x: it.x + gapX * n, y: it.y + gapY * n, waypointB: it.waypointB ? { x: it.waypointB.x + gapX * n, y: it.waypointB.y + gapY * n } : it.waypointB });
+      }
+    }
+    const items = [...state.items, ...copies];
+    const newHistory = state.history.slice(0, state.historyIndex + 1);
+    newHistory.push(items); if (newHistory.length > 50) newHistory.shift();
+    return { items, history: newHistory, historyIndex: newHistory.length - 1 };
+  }),
+
+  deleteSelected: () => set((state) => {
+    const sel = new Set(state.selectedItemIds.length ? state.selectedItemIds : (state.selectedItemId ? [state.selectedItemId] : []));
+    if (!sel.size) return state;
+    const items = state.items.filter((it) => !sel.has(it.id));
+    const newHistory = state.history.slice(0, state.historyIndex + 1);
+    newHistory.push(items); if (newHistory.length > 50) newHistory.shift();
+    return { items, history: newHistory, historyIndex: newHistory.length - 1, selectedItemId: null, selectedItemIds: [] };
+  }),
+
   setEditorMode: (isEditor) => set({ isEditorMode: isEditor }),
   setMapId: (id) => set({ mapId: id }),
 
   undo: () => set((state) => {
     if (state.historyIndex > 0) {
       const prevIndex = state.historyIndex - 1;
-      return { historyIndex: prevIndex, items: state.history[prevIndex], selectedItemId: null };
+      return { historyIndex: prevIndex, items: state.history[prevIndex], selectedItemId: null, selectedItemIds: [] };
     }
     return state;
   }),
@@ -200,7 +318,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   redo: () => set((state) => {
     if (state.historyIndex < state.history.length - 1) {
       const nextIndex = state.historyIndex + 1;
-      return { historyIndex: nextIndex, items: state.history[nextIndex], selectedItemId: null };
+      return { historyIndex: nextIndex, items: state.history[nextIndex], selectedItemId: null, selectedItemIds: [] };
     }
     return state;
   }),

@@ -6,6 +6,7 @@ import ToolboxPanel from './ToolboxPanel'
 import InspectorPanel from './InspectorPanel'
 import EditorToolbar from './EditorToolbar'
 import MinimapOverlay from './MinimapOverlay'
+import AlignToolbar from './AlignToolbar'
 import { useEditorStore } from '@/store/editorStore'
 
 export default function MapEditorManager() {
@@ -35,6 +36,9 @@ export default function MapEditorManager() {
 
       {/* 4. 미니맵 오버레이 */}
       <MinimapOverlay />
+
+      {/* 5. 정렬/미러/배열 도구 (다중 선택 시) */}
+      <AlignToolbar />
     </div>
   )
 }

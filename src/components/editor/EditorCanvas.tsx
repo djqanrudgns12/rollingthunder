@@ -108,9 +108,24 @@ export default function EditorCanvas() {
       await Promise.all(toLoad.map(u => PIXI.Assets.load(u).catch(() => null)))
       if (destroyed) return
 
-      // 빈 캔버스 클릭 시 선택 해제
+      // 빈 캔버스: Shift+드래그 = 영역 선택(러버밴드), 일반 클릭 = 선택 해제, 일반 드래그 = 패닝
       viewport.eventMode = 'static'
-      viewport.on('pointerdown', (e: any) => { if (e.target === viewport) setSelectedItemId(null) })
+      viewport.on('pointerdown', (e: any) => {
+        if (e.target !== viewport) return
+        if (e.shiftKey) { startRubberBand(e); return }
+        const s = { x: e.global.x, y: e.global.y }
+        const onUp = (ev: any) => {
+          const dx = ev.global.x - s.x, dy = ev.global.y - s.y
+          if (dx * dx + dy * dy < 25) setSelectedItemId(null)
+          appRef.current?.stage.off('pointerup', onUp)
+          appRef.current?.stage.off('pointerupoutside', onUp)
+        }
+        appRef.current?.stage.on('pointerup', onUp)
+        appRef.current?.stage.on('pointerupoutside', onUp)
+      })
+      // 줌 시 선택 핸들 크기를 화면 고정으로 유지
+      viewport.on('zoomed-end', () => buildOverlay())
+      viewport.on('zoomed', () => buildOverlay())
 
       readyRef.current = true
       await buildChrome()
@@ -127,7 +142,7 @@ export default function EditorCanvas() {
           recreateAll(); buildOverlay()
         } else if (state.items !== prev.items) {
           syncItems(); buildOverlay()
-        } else if (state.selectedItemId !== prev.selectedItemId) {
+        } else if (state.selectedItemIds !== prev.selectedItemIds) {
           buildOverlay()
         }
       })
@@ -221,18 +236,30 @@ export default function EditorCanvas() {
       e.stopPropagation()
       const vp = viewportRef.current; const itemsLayer = itemsLayerRef.current
       if (!vp || !itemsLayer) return
-      setSelectedItemId(id)
+      const store = useEditorStore.getState()
+
+      // Shift-클릭: 선택 토글 (드래그 없음)
+      if (e.shiftKey) { store.toggleSelectedItem(id); return }
+
+      // 이미 다중 선택에 포함된 기물을 누르면 그룹 전체를 이동, 아니면 단일 선택
+      if (!store.selectedItemIds.includes(id)) setSelectedItemId(id)
+
       vp.plugins.pause('drag')
       const start = getLocalPos(e, itemsLayer)
-      const cur = useEditorStore.getState().items.find(it => it.id === id)
-      const offset = { x: (cur?.x || 0) - start.x, y: (cur?.y || 0) - start.y }
+      const primary = useEditorStore.getState().items.find(it => it.id === id)
+      const px0 = primary?.x || 0, py0 = primary?.y || 0
+      let lastDx = 0, lastDy = 0
 
       const onMove = (ev: any) => {
         const p = getLocalPos(ev, itemsLayer)
-        let nx = p.x + offset.x
-        let ny = p.y + offset.y
-        if (useEditorStore.getState().gridSnap) { nx = Math.round(nx / 10) * 10; ny = Math.round(ny / 10) * 10 }
-        useEditorStore.getState().updateItemSilent(id, { x: Math.round(nx), y: Math.round(ny) })
+        let dx = p.x - start.x, dy = p.y - start.y
+        if (useEditorStore.getState().gridSnap) {
+          dx = Math.round((px0 + dx) / 10) * 10 - px0
+          dy = Math.round((py0 + dy) / 10) * 10 - py0
+        }
+        const incDx = dx - lastDx, incDy = dy - lastDy
+        lastDx = dx; lastDy = dy
+        if (incDx || incDy) useEditorStore.getState().moveSelectedBy(incDx, incDy, false)
       }
       const onUp = () => {
         vp.plugins.resume('drag')
@@ -247,13 +274,66 @@ export default function EditorCanvas() {
     })
   }
 
+  // ---- 러버밴드(영역) 선택 ----
+  const startRubberBand = (e: any) => {
+    const vp = viewportRef.current; const itemsLayer = itemsLayerRef.current; const overlay = overlayRef.current
+    if (!vp || !itemsLayer || !overlay) return
+    vp.plugins.pause('drag')
+    const start = getLocalPos(e, itemsLayer)
+    const rb = new PIXI.Graphics()
+    overlay.addChild(rb)
+    const draw = (p: any) => {
+      const z = vp.scale.x || 1
+      rb.clear()
+      rb.rect(Math.min(start.x, p.x), Math.min(start.y, p.y), Math.abs(p.x - start.x), Math.abs(p.y - start.y))
+      rb.fill({ color: 0x00aaff, alpha: 0.12 }).stroke({ width: 1 / z, color: 0x00aaff, alpha: 0.9 })
+    }
+    const onMove = (ev: any) => draw(getLocalPos(ev, itemsLayer))
+    const onUp = (ev: any) => {
+      const p = getLocalPos(ev, itemsLayer)
+      const x0 = Math.min(start.x, p.x), x1 = Math.max(start.x, p.x), y0 = Math.min(start.y, p.y), y1 = Math.max(start.y, p.y)
+      rb.destroy()
+      const ids = useEditorStore.getState().items
+        .filter(it => it.type !== 'startline' && it.type !== 'endline' && it.x >= x0 && it.x <= x1 && it.y >= y0 && it.y <= y1)
+        .map(it => it.id)
+      useEditorStore.getState().setSelectedItemIds(ids)
+      vp.plugins.resume('drag')
+      appRef.current?.stage.off('pointermove', onMove)
+      appRef.current?.stage.off('pointerup', onUp)
+      appRef.current?.stage.off('pointerupoutside', onUp)
+    }
+    appRef.current?.stage.on('pointermove', onMove)
+    appRef.current?.stage.on('pointerup', onUp)
+    appRef.current?.stage.on('pointerupoutside', onUp)
+  }
+
   // ---- 선택 오버레이(테두리 + 리사이즈 핸들 + 폴리곤 정점) ----
   const buildOverlay = () => {
     const overlay = overlayRef.current; if (!overlay) return
     overlay.removeChildren().forEach(c => c.destroy({ children: true }))
     const st = useEditorStore.getState()
-    const id = st.selectedItemId
-    if (!id) return
+    const ids = st.selectedItemIds
+    if (ids.length === 0) return
+
+    const z = viewportRef.current?.scale.x || 1
+
+    // 다중 선택: 각 기물에 링만 표시(편집 핸들 없음)
+    if (ids.length > 1) {
+      for (const sid of ids) {
+        const it = st.items.find(i => i.id === sid); const en = nodeMapRef.current.get(sid)
+        if (!it || !en) continue
+        const bb = en.gfx.node.getLocalBounds()
+        const ring = new PIXI.Graphics()
+        ring.position.set(it.x, it.y)
+        applyRotation(ring, it)
+        ring.rect(bb.x - 2 / z, bb.y - 2 / z, bb.width + 4 / z, bb.height + 4 / z)
+        ring.stroke({ width: 2 / z, color: 0x00ffcc, alpha: 0.9 })
+        overlay.addChild(ring)
+      }
+      return
+    }
+
+    const id = ids[0]
     const item = st.items.find(it => it.id === id); if (!item) return
     const entry = nodeMapRef.current.get(id); if (!entry) return
 
@@ -262,7 +342,12 @@ export default function EditorCanvas() {
     applyRotation(sel, item)
     overlay.addChild(sel)
 
-    if (item.type === 'polygon') { buildPolygonHandles(sel, item); return }
+    // 줌 무관 화면 고정 크기 (핸들/선 두께)
+    const hs = 5 / z         // 핸들 반크기
+    const sw = 2 / z         // 선 두께
+    const pad = 3 / z        // 테두리 여백
+
+    if (item.type === 'polygon') { buildPolygonHandles(sel, item, hs, sw); return }
 
     // 비주얼 경계 기반 선택 박스
     const b = entry.gfx.node.getLocalBounds()
@@ -272,8 +357,8 @@ export default function EditorCanvas() {
     const cy = b.y + b.height / 2
 
     const ring = new PIXI.Graphics()
-    ring.rect(cx - hw - 2, cy - hh - 2, hw * 2 + 4, hh * 2 + 4)
-    ring.stroke({ width: 2, color: 0x00aaff, alpha: 0.95 })
+    ring.rect(cx - hw - pad, cy - hh - pad, hw * 2 + pad * 2, hh * 2 + pad * 2)
+    ring.stroke({ width: sw, color: 0x00aaff, alpha: 0.95 })
     sel.addChild(ring)
 
     const isCircle = CIRCLE_TYPES.has(item.type)
@@ -284,7 +369,7 @@ export default function EditorCanvas() {
     ]
     for (const [type, hx, hy] of handleDefs) {
       const h = new PIXI.Graphics()
-      h.rect(-5, -5, 10, 10).fill({ color: 0xffffff }).stroke({ width: 1, color: 0x00aaff })
+      h.rect(-hs, -hs, hs * 2, hs * 2).fill({ color: 0xffffff }).stroke({ width: sw, color: 0x00aaff })
       h.position.set(hx, hy)
       h.eventMode = 'static'
       if (type === 'tl' || type === 'br') h.cursor = 'nwse-resize'
@@ -294,6 +379,48 @@ export default function EditorCanvas() {
       attachResize(h, item.id, type, isCircle)
       sel.addChild(h)
     }
+
+    // 회전 핸들 (원형 타입 제외) — 상단 중앙에서 위로
+    if (!isCircle) {
+      const ry = cy - hh - 24 / z
+      const stick = new PIXI.Graphics()
+      stick.moveTo(cx, cy - hh - pad).lineTo(cx, ry).stroke({ width: sw, color: 0x00ffcc, alpha: 0.8 })
+      sel.addChild(stick)
+      const rot = new PIXI.Graphics()
+      rot.circle(0, 0, hs * 1.3).fill({ color: 0x00ffcc }).stroke({ width: sw, color: 0xffffff })
+      rot.position.set(cx, ry)
+      rot.eventMode = 'static'; rot.cursor = 'grab'
+      attachRotate(rot, item.id)
+      sel.addChild(rot)
+    }
+  }
+
+  const attachRotate = (handle: PIXI.Graphics, id: string) => {
+    handle.on('pointerdown', (e: any) => {
+      e.stopPropagation()
+      const vp = viewportRef.current; const itemsLayer = itemsLayerRef.current
+      if (!vp || !itemsLayer) return
+      vp.plugins.pause('drag')
+      const onMove = (ev: any) => {
+        const p = getLocalPos(ev, itemsLayer)
+        const it = useEditorStore.getState().items.find(i => i.id === id)
+        if (!it) return
+        let deg = Math.atan2(p.y - it.y, p.x - it.x) * 180 / Math.PI + 90
+        if (useEditorStore.getState().gridSnap) deg = Math.round(deg / 15) * 15
+        deg = ((deg % 360) + 360) % 360
+        useEditorStore.getState().updateItemSilent(id, { angle: Math.round(deg) })
+      }
+      const onUp = () => {
+        vp.plugins.resume('drag')
+        useEditorStore.getState().commitHistory()
+        appRef.current?.stage.off('pointermove', onMove)
+        appRef.current?.stage.off('pointerup', onUp)
+        appRef.current?.stage.off('pointerupoutside', onUp)
+      }
+      appRef.current?.stage.on('pointermove', onMove)
+      appRef.current?.stage.on('pointerup', onUp)
+      appRef.current?.stage.on('pointerupoutside', onUp)
+    })
   }
 
   const attachResize = (handle: PIXI.Graphics, id: string, type: string, isCircle: boolean) => {
@@ -340,19 +467,19 @@ export default function EditorCanvas() {
     })
   }
 
-  const buildPolygonHandles = (sel: PIXI.Container, item: EditorItem) => {
+  const buildPolygonHandles = (sel: PIXI.Container, item: EditorItem, hs = 5, sw = 2) => {
     const verts = item.vertices || []
     const outline = new PIXI.Graphics()
     if (verts.length > 0) {
       outline.moveTo(verts[0].x, verts[0].y)
       for (let i = 1; i < verts.length; i++) outline.lineTo(verts[i].x, verts[i].y)
       outline.closePath()
-      outline.stroke({ width: 2, color: 0x00aaff, alpha: 0.95 })
+      outline.stroke({ width: sw, color: 0x00aaff, alpha: 0.95 })
     }
     sel.addChild(outline)
     verts.forEach((v, idx) => {
       const h = new PIXI.Graphics()
-      h.circle(0, 0, 6).fill({ color: 0xffffff }).stroke({ width: 1, color: 0x00aaff })
+      h.circle(0, 0, hs * 1.3).fill({ color: 0xffffff }).stroke({ width: sw, color: 0x00aaff })
       h.position.set(v.x, v.y)
       h.eventMode = 'static'; h.cursor = 'crosshair'
       h.on('pointerdown', (e: any) => {
@@ -394,7 +521,13 @@ export default function EditorCanvas() {
       const ctrl = e.ctrlKey || e.metaKey
       const st = useEditorStore.getState()
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (st.selectedItemId) st.removeItem(st.selectedItemId)
+        if (st.selectedItemIds.length || st.selectedItemId) st.deleteSelected()
+      } else if ((st.selectedItemIds.length || st.selectedItemId) && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault()
+        const step = e.shiftKey ? 10 : 1
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0
+        const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0
+        st.moveSelectedBy(dx, dy, true)
       } else if (ctrl && e.key === 'z') {
         e.preventDefault(); e.shiftKey ? st.redo() : st.undo()
       } else if (ctrl && e.key === 'y') {
@@ -448,6 +581,24 @@ export default function EditorCanvas() {
     setSelectedItemId(ni.id)
   }
 
+  const zoomBy = (factor: number) => {
+    const vp = viewportRef.current; if (!vp) return
+    const ns = Math.min(4, Math.max(0.1, vp.scale.x * factor))
+    vp.setZoom(ns, true)
+    vp.emit('zoomed-end', vp as any)
+  }
+  const zoomReset = () => {
+    const vp = viewportRef.current; if (!vp) return
+    vp.setZoom(1, true); vp.emit('zoomed-end', vp as any)
+  }
+  const zoomFit = () => {
+    const vp = viewportRef.current; if (!vp) return
+    const wh = useEditorStore.getState().worldHeight || 3300
+    vp.fit(true, WORLD_WIDTH, wh)
+    vp.moveCenter(WORLD_WIDTH / 2, wh / 2)
+    vp.emit('zoomed-end', vp as any)
+  }
+
   return (
     <div
       className="absolute inset-0 w-full h-full"
@@ -455,6 +606,13 @@ export default function EditorCanvas() {
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' }}
     >
       <canvas ref={canvasRef} className="w-full h-full outline-none" tabIndex={0} />
+      {/* 줌 컨트롤 */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-[#1a1a1a]/90 border border-[#333] rounded-lg p-1 pointer-events-auto shadow-lg z-20">
+        <button onClick={() => zoomBy(1 / 1.25)} className="w-8 h-8 rounded text-gray-300 hover:bg-[#333] text-lg" title="축소">−</button>
+        <button onClick={zoomReset} className="px-2 h-8 rounded text-gray-300 hover:bg-[#333] text-xs font-mono" title="100%">1:1</button>
+        <button onClick={zoomFit} className="px-2 h-8 rounded text-gray-300 hover:bg-[#333] text-xs" title="전체 보기">Fit</button>
+        <button onClick={() => zoomBy(1.25)} className="w-8 h-8 rounded text-gray-300 hover:bg-[#333] text-lg" title="확대">+</button>
+      </div>
     </div>
   )
 }
