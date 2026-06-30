@@ -20,7 +20,9 @@ interface HistoryTimelineModalProps {
   onClose: () => void;
 }
 
-export default function HistoryTimelineModal({ mapId, mapTitle, onClose }: HistoryTimelineModalProps) {
+import FloatingPanel from './FloatingPanel';
+
+export default function HistoryTimelinePanel({ mapId, mapTitle, onClose }: HistoryTimelineModalProps) {
   const [logs, setLogs] = useState<HistoryLog[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -101,22 +103,14 @@ export default function HistoryTimelineModal({ mapId, mapTitle, onClose }: Histo
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div 
-        className="w-[600px] max-h-[80vh] bg-[#1a1a1a] border border-[#333] rounded-xl shadow-2xl flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="p-4 border-b border-[#333] flex justify-between items-center bg-[#222]">
-          <h2 className="text-lg font-bold text-purple-400 flex items-center gap-2">
-            <Clock className="w-5 h-5" />
-            작업 내역 타임라인
-          </h2>
-          <button onClick={onClose} className="p-1 hover:bg-[#333] rounded text-gray-400 hover:text-white transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="p-6 flex-1 overflow-y-auto bg-[#111]">
+    <FloatingPanel 
+      title="작업 내역 타임라인" 
+      icon={<Clock className="w-4 h-4" />} 
+      onClose={onClose}
+      width="w-[400px]"
+      style={{ top: '80px', left: '20px' }}
+    >
+      <div className="p-6 bg-[#111] border-t border-white/10">
           <div className="mb-6">
             <div className="text-sm text-gray-400">현재 맵</div>
             <div className="text-lg font-bold text-gray-200">{mapTitle || '새 맵'}</div>
@@ -175,8 +169,7 @@ export default function HistoryTimelineModal({ mapId, mapTitle, onClose }: Histo
               );
             })}
           </div>
-        </div>
       </div>
-    </div>
+    </FloatingPanel>
   );
 }

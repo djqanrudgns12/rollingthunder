@@ -121,6 +121,9 @@ interface EditorState {
   undo: () => void;
   redo: () => void;
   pushHistory: (newItems: EditorItem[]) => void;
+  
+  showHistoryPanel: boolean;
+  setShowHistoryPanel: (show: boolean) => void;
 }
 
 // 스냅샷 생성 유틸리티
@@ -156,6 +159,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     isUnsaved: false
   }],
   activeTabId: 'tab-initial',
+
+  showHistoryPanel: false,
+  setShowHistoryPanel: (show) => set({ showHistoryPanel: show }),
 
   addTab: (mapId, type, customTitle) => set((state) => {
     // 이미 열려있는 맵 탭인지 확인

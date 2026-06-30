@@ -63,6 +63,7 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
     sprite.anchor.set(0.5)
     sprite.width = 60
     sprite.height = 60
+    sprite.angle = 180 // 텍스처가 기본적으로 아래를 향하므로 180도 뒤집어서 기본(0도=UP)을 맞춤
     g.addChild(sprite)
     mg.rect(-25, -25, 50, 50)
     mg.fill({ color: 0x55ff55, alpha: 0.8 })
@@ -306,8 +307,8 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
 
   g.position.set(item.x, item.y)
   mg.position.set(item.x, item.y)
-  g.rotation = (item.rotation || 0) * (Math.PI / 180)
-  mg.rotation = (item.rotation || 0) * (Math.PI / 180)
+  g.rotation = item.rotation || 0
+  mg.rotation = item.rotation || 0
   mg.scale.set(1.5)
 
   const dispose = () => {

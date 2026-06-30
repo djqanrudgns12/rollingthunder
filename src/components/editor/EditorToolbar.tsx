@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useEditorStore, WorkspaceTab } from '@/store/editorStore'
 import { useGameStore } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
-import { Save, Undo, Redo, Magnet, Plus, Play, Pause, Loader2, Upload, X, History, ChevronDown, ChevronRight } from 'lucide-react'
+import { Save, Undo, Redo, Magnet, Plus, Play, Pause, Loader2, Upload, X, History, ChevronDown, ChevronRight, Clock } from 'lucide-react'
 import { MapPresets } from '@/engine/MapPresets'
 import { saveMapAction, deployMapAction } from '@/presentation/actions/mapActions'
 import { getUserRoleAction } from '@/presentation/actions/authActions'
@@ -17,7 +17,8 @@ export default function EditorToolbar() {
     undo, redo, items, historyIndex, history, gridSnap, setGridSnap, 
     mapId, setMapId, worldHeight, layoutConfig, wallStyle, bgImage, 
     previewAnimating, setPreviewAnimating,
-    tabs, activeTabId, addTab, switchTab, closeTab, markSaved, reorderTabs, updateTabTitle
+    tabs, activeTabId, addTab, switchTab, closeTab, markSaved, reorderTabs, updateTabTitle,
+    showHistoryPanel, setShowHistoryPanel
   } = useEditorStore()
   
   const mapDataCache = useGameStore(state => state.mapDataCache)
@@ -335,6 +336,18 @@ export default function EditorToolbar() {
 
         {/* 우측: 도구 및 저장 */}
         <div className="flex items-center gap-2 px-4">
+          <button 
+            onClick={() => setShowHistoryPanel(!showHistoryPanel)}
+            className={`flex items-center gap-1 text-sm px-3 py-1.5 rounded border transition-colors shadow-sm mr-2 ${
+              showHistoryPanel 
+                ? 'bg-purple-500/20 text-purple-400 border-purple-500/50' 
+                : 'bg-[#2a2a2a] hover:bg-[#333] text-gray-200 border-[#444]'
+            }`}
+            title="작업 내역 타임라인 토글"
+          >
+            <Clock className="w-4 h-4 text-purple-400" />
+            <span>작업 내역</span>
+          </button>
 
           <button 
             onClick={undo}

@@ -158,7 +158,9 @@ export class MapBuilder {
 
   static createSensor(world: RAPIER.World, item: any) {
     // 센서(Sensor): 충돌하지 않고 통과할 때 이벤트를 발생시킵니다 (포탈, 부스터, 중력장)
-    const desc = RAPIER.RigidBodyDesc.fixed().setTranslation(item.x, item.y);
+    const desc = RAPIER.RigidBodyDesc.fixed()
+      .setTranslation(item.x, item.y)
+      .setRotation((item.rotation || 0) * (Math.PI / 180));
     const body = world.createRigidBody(desc);
     let colliderDesc;
     

@@ -10,11 +10,12 @@ import PhysicsPreviewCanvas from './PhysicsPreviewCanvas'
 import PropertiesInspector from './PropertiesInspector'
 import EditorToolbar from './EditorToolbar'
 import HistoryViewer from './HistoryViewer'
+import HistoryTimelinePanel from './HistoryTimelinePanel'
 import { Play, X, Share2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 export default function EditorContainer() {
-  const { items, addItem, tabs, activeTabId } = useEditorStore()
+  const { items, addItem, tabs, activeTabId, showHistoryPanel, setShowHistoryPanel } = useEditorStore()
   const [activeId, setActiveId] = useState<string | null>(null)
   const [activeType, setActiveType] = useState<EditorItemType | null>(null)
   const [testMode, setTestMode] = useState(false)
@@ -137,6 +138,14 @@ export default function EditorContainer() {
           <ToolPalette />
           <EditorCanvas />
           <PropertiesInspector />
+          
+          {showHistoryPanel && (
+            <HistoryTimelinePanel 
+              mapId={activeTab?.mapId || null}
+              mapTitle={activeTab?.title || ''}
+              onClose={() => setShowHistoryPanel(false)}
+            />
+          )}
         </div>
       )}
       
