@@ -12,6 +12,7 @@ interface ItemDef {
   icon?: React.FC<any>;
   imagePath?: string;
   color: string;
+  variant?: string;
 }
 
 const CATEGORIES: Record<TabType, ItemDef[]> = {
@@ -22,7 +23,7 @@ const CATEGORIES: Record<TabType, ItemDef[]> = {
     { type: 'windmill', label: '풍차 (Windmill)', imagePath: '/images/assets/obstacles/obstacle_windmill.png', color: 'text-blue-400' },
     { type: 'piston', label: '피스톤 (Piston)', imagePath: '/images/assets/obstacles/obstacle_piston.png', color: 'text-red-400' },
     { type: 'spinner', label: '스피너 (Spinner)', icon: Loader, color: 'text-indigo-400' },
-    { type: 'windcannon', label: '송풍기 (WindCannon)', icon: Wind, color: 'text-teal-300' },
+    { type: 'windcannon', label: '송풍기 (WindCannon)', imagePath: '/images/assets/obstacles/obstacle_blower.png', color: 'text-teal-300' },
     { type: 'luckygate', label: '럭키게이트 (LuckyGate)', icon: Trophy, color: 'text-yellow-500' },
     { type: 'flipper', label: '플리퍼 (Flipper)', icon: MoveDiagonal, color: 'text-pink-400' },
     { type: 'hole', label: '구멍 (Hole)', imagePath: '/images/assets/obstacles/obstacle_hole.png', color: 'text-black' },
@@ -32,6 +33,21 @@ const CATEGORIES: Record<TabType, ItemDef[]> = {
   ],
   frames: [
     { type: 'wall', label: '벽 (Wall)', imagePath: '/images/assets/obstacles/obstacle_wall.png', color: 'text-gray-500' },
+    { type: 'wall', variant: 'neon', label: '벽 (네온 사이버펑크)', imagePath: '/images/assets/obstacles/obstacle_wall_neon.png', color: 'text-pink-400' },
+    { type: 'wall', variant: 'circuit', label: '벽 (전자 기판)', imagePath: '/images/assets/obstacles/obstacle_wall_circuit.png', color: 'text-green-500' },
+    { type: 'wall', variant: 'matrix', label: '벽 (매트릭스)', imagePath: '/images/assets/obstacles/obstacle_wall_matrix.png', color: 'text-green-400' },
+    { type: 'wall', variant: 'lava', label: '벽 (용암 대장간)', imagePath: '/images/assets/obstacles/obstacle_wall_lava.png', color: 'text-red-500' },
+    { type: 'wall', variant: 'ice', label: '벽 (빙하 얼음)', imagePath: '/images/assets/obstacles/obstacle_wall_ice.png', color: 'text-cyan-300' },
+    { type: 'wall', variant: 'toxic', label: '벽 (맹독 지대)', imagePath: '/images/assets/obstacles/obstacle_wall_toxic.png', color: 'text-yellow-400' },
+    { type: 'wall', variant: 'crystal', label: '벽 (수정 동굴)', imagePath: '/images/assets/obstacles/obstacle_wall_crystal.png', color: 'text-purple-400' },
+    { type: 'wall', variant: 'grass', label: '벽 (잔디 숲)', imagePath: '/images/assets/obstacles/obstacle_wall_grass.png', color: 'text-green-600' },
+    { type: 'wall', variant: 'gold', label: '벽 (황금 신전)', imagePath: '/images/assets/obstacles/obstacle_wall_gold.png', color: 'text-yellow-500' },
+    { type: 'wall', variant: 'steampunk', label: '벽 (스팀펑크)', imagePath: '/images/assets/obstacles/obstacle_wall_steampunk.png', color: 'text-amber-700' },
+    { type: 'wall', variant: 'gothic', label: '벽 (고딕 호러)', imagePath: '/images/assets/obstacles/obstacle_wall_gothic.png', color: 'text-red-900' },
+    { type: 'wall', variant: 'space', label: '벽 (심우주)', imagePath: '/images/assets/obstacles/obstacle_wall_space.png', color: 'text-indigo-900' },
+    { type: 'wall', variant: 'candy', label: '벽 (캔디 랜드)', imagePath: '/images/assets/obstacles/obstacle_wall_candy.png', color: 'text-pink-300' },
+    { type: 'wall', variant: 'arcade', label: '벽 (레트로 아케이드)', imagePath: '/images/assets/obstacles/obstacle_wall_arcade.png', color: 'text-red-600' },
+    { type: 'wall', variant: 'plasma', label: '벽 (플라즈마 에너지)', imagePath: '/images/assets/obstacles/obstacle_wall_plasma.png', color: 'text-cyan-400' },
     { type: 'iceblock', label: '얼음블록 (IceBlock)', icon: Box, color: 'text-cyan-200' },
     { type: 'polygon', label: '자유형 블록 (Polygon)', icon: CircleDashed, color: 'text-fuchsia-400' },
   ]
@@ -89,10 +105,11 @@ export default function ToolboxPanel() {
   const [activeTab, setActiveTab] = useState<TabType>('obstacles')
   const [isOpen, setIsOpen] = useState(true)
 
-  const handleAddItem = (type: EditorItemType) => {
+  const handleAddItem = (type: EditorItemType, variant?: string) => {
     const newItem: EditorItem = {
       id: `${type}_${Date.now()}_${Math.floor(Math.random()*1000)}`,
       type,
+      variant,
       x: 400,
       y: 400,
       speed: 1.0,
@@ -196,11 +213,12 @@ export default function ToolboxPanel() {
               key={it.type}
               draggable
               onDragStart={(e) => {
-                e.dataTransfer.setData('application/x-editor-item', it.type);
+                const dragData = JSON.stringify({ type: it.type, variant: it.variant });
+                e.dataTransfer.setData('application/x-editor-item', dragData);
                 e.dataTransfer.effectAllowed = 'copy';
               }}
               // 클릭으로 추가하는 기능도 남겨두기 (기존 기능)
-              onClick={() => handleAddItem(it.type)}
+              onClick={() => handleAddItem(it.type, it.variant)}
               className="w-full flex items-center gap-3 px-3 py-2.5 bg-[#252525] hover:bg-[#333] border border-[#333] hover:border-[#555] rounded-lg transition-colors text-left group cursor-grab active:cursor-grabbing"
               title="클릭 시 추가되거나 캔버스로 드래그하세요"
             >

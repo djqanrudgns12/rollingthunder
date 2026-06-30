@@ -10,6 +10,7 @@ export type EditorWallStyle = 'straight' | 'zigzag' | 'narrow' | 'wide';
 export interface EditorItem {
   id: string;
   type: EditorItemType;
+  variant?: string;
   x: number;
   y: number;
   w?: number;

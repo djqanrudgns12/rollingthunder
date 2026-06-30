@@ -329,6 +329,264 @@ const assets = [
         <rect x="48" y="220" width="160" height="16" rx="4" fill="#222222" />
       </svg>
     `
+  },
+  {
+    name: 'obstacle_wall_neon.png', width: 256, height: 64,
+    svg: `
+      <svg width="256" height="64" viewBox="0 0 256 64" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="neonPink"><feGaussianBlur stdDeviation="3" result="blur" /><feComposite in="SourceGraphic" in2="blur" operator="over" /></filter>
+          <filter id="neonBlue"><feGaussianBlur stdDeviation="3" result="blur" /><feComposite in="SourceGraphic" in2="blur" operator="over" /></filter>
+          <pattern id="grid" width="16" height="16" patternUnits="userSpaceOnUse">
+            <path d="M 16 0 L 0 0 0 16" fill="none" stroke="#222" stroke-width="1" />
+          </pattern>
+        </defs>
+        <rect x="0" y="8" width="256" height="48" fill="#111" />
+        <rect x="0" y="8" width="256" height="48" fill="url(#grid)" />
+        <rect x="0" y="4" width="256" height="4" fill="#ff00ff" filter="url(#neonPink)" />
+        <rect x="0" y="56" width="256" height="4" fill="#00ffff" filter="url(#neonBlue)" />
+        <path d="M 32 16 L 224 48 M 32 48 L 224 16" fill="none" stroke="#ff00ff" stroke-width="2" opacity="0.3" filter="url(#neonPink)" />
+      </svg>
+    `
+  },
+  {
+    name: 'obstacle_wall_circuit.png', width: 256, height: 64,
+    svg: `
+      <svg width="256" height="64" viewBox="0 0 256 64" xmlns="http://www.w3.org/2000/svg">
+        <rect x="0" y="8" width="256" height="48" fill="#0f380f" />
+        <path d="M 0 16 L 32 16 L 48 32 L 256 32" fill="none" stroke="#b87333" stroke-width="2" />
+        <path d="M 0 48 L 64 48 L 80 16 L 256 16" fill="none" stroke="#b87333" stroke-width="2" />
+        <circle cx="32" cy="16" r="4" fill="#00ff00" />
+        <circle cx="48" cy="32" r="4" fill="#00ff00" />
+        <circle cx="64" cy="48" r="4" fill="#00ff00" />
+        <circle cx="80" cy="16" r="4" fill="#00ff00" />
+        <rect x="0" y="8" width="256" height="2" fill="#00ff00" opacity="0.5" />
+        <rect x="0" y="54" width="256" height="2" fill="#00ff00" opacity="0.5" />
+      </svg>
+    `
+  },
+  {
+    name: 'obstacle_wall_matrix.png', width: 256, height: 64,
+    svg: `
+      <svg width="256" height="64" viewBox="0 0 256 64" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="matrixGlow"><feGaussianBlur stdDeviation="2" result="blur" /><feComposite in="SourceGraphic" in2="blur" operator="over" /></filter>
+        </defs>
+        <rect x="0" y="8" width="256" height="48" fill="#000" />
+        <text x="16" y="24" fill="#00ff00" font-family="monospace" font-size="12" filter="url(#matrixGlow)">1 0 1 1 0 1</text>
+        <text x="80" y="48" fill="#00ff00" font-family="monospace" font-size="12" filter="url(#matrixGlow)">0 1 0 0 1 0</text>
+        <text x="160" y="32" fill="#00ff00" font-family="monospace" font-size="12" filter="url(#matrixGlow)">1 1 0 1 0 0</text>
+        <rect x="0" y="6" width="256" height="2" fill="#00ff00" filter="url(#matrixGlow)" />
+        <rect x="0" y="56" width="256" height="2" fill="#00ff00" filter="url(#matrixGlow)" />
+      </svg>
+    `
+  },
+  {
+    name: 'obstacle_wall_lava.png', width: 256, height: 64,
+    svg: `
+      <svg width="256" height="64" viewBox="0 0 256 64" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="lavaGlow"><feGaussianBlur stdDeviation="4" result="blur" /><feComposite in="SourceGraphic" in2="blur" operator="over" /></filter>
+        </defs>
+        <rect x="0" y="8" width="256" height="48" fill="#1a0a00" />
+        <path d="M 0 24 Q 32 40 64 24 T 128 32 T 192 16 T 256 32" fill="none" stroke="#ff3300" stroke-width="4" filter="url(#lavaGlow)" />
+        <path d="M 0 40 Q 32 24 64 40 T 128 48 T 192 32 T 256 48" fill="none" stroke="#ff6600" stroke-width="2" filter="url(#lavaGlow)" />
+        <rect x="0" y="8" width="256" height="4" fill="#331100" />
+        <rect x="0" y="52" width="256" height="4" fill="#331100" />
+      </svg>
+    `
+  },
+  {
+    name: 'obstacle_wall_ice.png', width: 256, height: 64,
+    svg: `
+      <svg width="256" height="64" viewBox="0 0 256 64" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="iceBg" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#ccffff" />
+            <stop offset="50%" stop-color="#88ccff" />
+            <stop offset="100%" stop-color="#4488ff" />
+          </linearGradient>
+        </defs>
+        <rect x="0" y="8" width="256" height="48" fill="url(#iceBg)" opacity="0.8" />
+        <path d="M 16 8 L 32 32 L 48 8 Z" fill="#ffffff" opacity="0.4" />
+        <path d="M 80 56 L 96 32 L 112 56 Z" fill="#ffffff" opacity="0.4" />
+        <path d="M 160 8 L 180 40 L 200 8 Z" fill="#ffffff" opacity="0.3" />
+        <rect x="0" y="6" width="256" height="4" fill="#ffffff" opacity="0.9" />
+        <rect x="0" y="54" width="256" height="4" fill="#ffffff" opacity="0.9" />
+      </svg>
+    `
+  },
+  {
+    name: 'obstacle_wall_toxic.png', width: 256, height: 64,
+    svg: `
+      <svg width="256" height="64" viewBox="0 0 256 64" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="warningStripes2" patternUnits="userSpaceOnUse" width="32" height="64">
+            <path d="M -16 64 L 16 -16 L 48 -16 L 16 64 Z" fill="#ffff00" />
+            <path d="M 16 64 L 48 -16 L 80 -16 L 48 64 Z" fill="#000000" />
+          </pattern>
+          <filter id="toxicGlow"><feGaussianBlur stdDeviation="3" result="blur" /><feComposite in="SourceGraphic" in2="blur" operator="over" /></filter>
+        </defs>
+        <rect x="0" y="8" width="256" height="48" fill="url(#warningStripes2)" />
+        <rect x="0" y="32" width="256" height="24" fill="#33ff00" opacity="0.4" filter="url(#toxicGlow)" />
+        <circle cx="128" cy="32" r="12" fill="#000" />
+        <circle cx="128" cy="32" r="8" fill="#33ff00" filter="url(#toxicGlow)" />
+        <rect x="0" y="8" width="256" height="4" fill="#222" />
+        <rect x="0" y="52" width="256" height="4" fill="#33ff00" opacity="0.8" filter="url(#toxicGlow)" />
+      </svg>
+    `
+  },
+  {
+    name: 'obstacle_wall_crystal.png', width: 256, height: 64,
+    svg: `
+      <svg width="256" height="64" viewBox="0 0 256 64" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="crystalGlow"><feGaussianBlur stdDeviation="4" result="blur" /><feComposite in="SourceGraphic" in2="blur" operator="over" /></filter>
+        </defs>
+        <rect x="0" y="8" width="256" height="48" fill="#1a0033" />
+        <path d="M 32 56 L 40 24 L 48 56 Z" fill="#ff00ff" opacity="0.8" filter="url(#crystalGlow)" />
+        <path d="M 40 56 L 48 16 L 56 56 Z" fill="#9900ff" opacity="0.8" filter="url(#crystalGlow)" />
+        <path d="M 160 8 L 168 40 L 176 8 Z" fill="#ff00ff" opacity="0.8" filter="url(#crystalGlow)" />
+        <path d="M 168 8 L 176 48 L 184 8 Z" fill="#9900ff" opacity="0.8" filter="url(#crystalGlow)" />
+        <rect x="0" y="8" width="256" height="2" fill="#ff00ff" opacity="0.5" />
+        <rect x="0" y="54" width="256" height="2" fill="#ff00ff" opacity="0.5" />
+      </svg>
+    `
+  },
+  {
+    name: 'obstacle_wall_grass.png', width: 256, height: 64,
+    svg: `
+      <svg width="256" height="64" viewBox="0 0 256 64" xmlns="http://www.w3.org/2000/svg">
+        <rect x="0" y="8" width="256" height="48" fill="#3a2a1a" />
+        <rect x="0" y="8" width="256" height="12" fill="#44aa22" />
+        <path d="M 0 20 Q 8 28 16 20 T 32 20 T 48 20 T 64 20 T 80 20 T 96 20 T 112 20 T 128 20 T 144 20 T 160 20 T 176 20 T 192 20 T 208 20 T 224 20 T 240 20 T 256 20 L 256 8 L 0 8 Z" fill="#44aa22" />
+        <path d="M 16 16 L 20 8 M 48 16 L 52 8 M 128 16 L 124 8 M 200 16 L 204 8" stroke="#66cc44" stroke-width="2" stroke-linecap="round" />
+        <circle cx="32" cy="40" r="4" fill="#2a1a0a" />
+        <circle cx="160" cy="48" r="6" fill="#2a1a0a" />
+      </svg>
+    `
+  },
+  {
+    name: 'obstacle_wall_gold.png', width: 256, height: 64,
+    svg: `
+      <svg width="256" height="64" viewBox="0 0 256 64" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#ffee66" />
+            <stop offset="50%" stop-color="#ccaaoo" />
+            <stop offset="100%" stop-color="#886600" />
+          </linearGradient>
+          <filter id="goldGlow"><feGaussianBlur stdDeviation="3" result="blur" /><feComposite in="SourceGraphic" in2="blur" operator="over" /></filter>
+        </defs>
+        <rect x="0" y="8" width="256" height="48" fill="#332211" />
+        <rect x="0" y="8" width="256" height="6" fill="url(#goldGrad)" filter="url(#goldGlow)" />
+        <rect x="0" y="50" width="256" height="6" fill="url(#goldGrad)" filter="url(#goldGlow)" />
+        <path d="M 32 24 L 48 24 L 48 40 L 32 40 Z M 96 24 L 112 24 L 112 40 L 96 40 Z M 160 24 L 176 24 L 176 40 L 160 40 Z M 224 24 L 240 24 L 240 40 L 224 40 Z" fill="none" stroke="url(#goldGrad)" stroke-width="2" />
+      </svg>
+    `
+  },
+  {
+    name: 'obstacle_wall_steampunk.png', width: 256, height: 64,
+    svg: `
+      <svg width="256" height="64" viewBox="0 0 256 64" xmlns="http://www.w3.org/2000/svg">
+        <rect x="0" y="8" width="256" height="48" fill="#8b5a2b" />
+        <rect x="0" y="8" width="256" height="4" fill="#a0522d" />
+        <rect x="0" y="52" width="256" height="4" fill="#5c3317" />
+        <circle cx="32" cy="32" r="16" fill="none" stroke="#cd853f" stroke-width="4" stroke-dasharray="4 4" />
+        <circle cx="32" cy="32" r="6" fill="#cd853f" />
+        <circle cx="224" cy="32" r="16" fill="none" stroke="#cd853f" stroke-width="4" stroke-dasharray="4 4" />
+        <circle cx="224" cy="32" r="6" fill="#cd853f" />
+        <circle cx="16" cy="16" r="2" fill="#000" />
+        <circle cx="128" cy="16" r="2" fill="#000" />
+        <circle cx="240" cy="16" r="2" fill="#000" />
+        <circle cx="16" cy="48" r="2" fill="#000" />
+        <circle cx="128" cy="48" r="2" fill="#000" />
+        <circle cx="240" cy="48" r="2" fill="#000" />
+      </svg>
+    `
+  },
+  {
+    name: 'obstacle_wall_gothic.png', width: 256, height: 64,
+    svg: `
+      <svg width="256" height="64" viewBox="0 0 256 64" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="mist"><feGaussianBlur stdDeviation="6" result="blur" /></filter>
+        </defs>
+        <rect x="0" y="8" width="256" height="48" fill="#1a1a24" />
+        <rect x="0" y="8" width="256" height="4" fill="#0d0d12" />
+        <rect x="0" y="52" width="256" height="4" fill="#0d0d12" />
+        <path d="M 32 12 L 32 52 M 64 12 L 64 52 M 96 12 L 96 52 M 128 12 L 128 52 M 160 12 L 160 52 M 192 12 L 192 52 M 224 12 L 224 52" stroke="#333" stroke-width="4" />
+        <path d="M 32 12 L 30 8 M 64 12 L 66 8" stroke="#333" stroke-width="2" />
+        <ellipse cx="128" cy="48" rx="60" ry="10" fill="#ff0000" opacity="0.3" filter="url(#mist)" />
+      </svg>
+    `
+  },
+  {
+    name: 'obstacle_wall_space.png', width: 256, height: 64,
+    svg: `
+      <svg width="256" height="64" viewBox="0 0 256 64" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="starGlow"><feGaussianBlur stdDeviation="1" result="blur" /><feComposite in="SourceGraphic" in2="blur" operator="over" /></filter>
+        </defs>
+        <rect x="0" y="8" width="256" height="48" fill="#05051a" />
+        <circle cx="32" cy="24" r="1.5" fill="#fff" filter="url(#starGlow)" />
+        <circle cx="128" cy="40" r="2" fill="#aaccff" filter="url(#starGlow)" />
+        <circle cx="200" cy="16" r="1.5" fill="#ffccaa" filter="url(#starGlow)" />
+        <ellipse cx="128" cy="32" rx="100" ry="20" fill="#9900ff" opacity="0.2" filter="url(#starGlow)" />
+        <rect x="0" y="8" width="256" height="2" fill="#5500aa" opacity="0.8" />
+        <rect x="0" y="54" width="256" height="2" fill="#5500aa" opacity="0.8" />
+      </svg>
+    `
+  },
+  {
+    name: 'obstacle_wall_candy.png', width: 256, height: 64,
+    svg: `
+      <svg width="256" height="64" viewBox="0 0 256 64" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="candyStripe" patternUnits="userSpaceOnUse" width="32" height="64">
+            <path d="M -16 64 L 16 -16 L 32 -16 L 0 64 Z" fill="#ff66b2" />
+            <path d="M 0 64 L 32 -16 L 48 -16 L 16 64 Z" fill="#ffffff" />
+            <path d="M 16 64 L 48 -16 L 64 -16 L 32 64 Z" fill="#ff66b2" />
+          </pattern>
+        </defs>
+        <rect x="0" y="8" width="256" height="48" fill="url(#candyStripe)" rx="8" />
+        <rect x="0" y="8" width="256" height="6" fill="#ffffff" opacity="0.5" rx="2" />
+        <rect x="0" y="50" width="256" height="6" fill="#000000" opacity="0.2" rx="2" />
+      </svg>
+    `
+  },
+  {
+    name: 'obstacle_wall_arcade.png', width: 256, height: 64,
+    svg: `
+      <svg width="256" height="64" viewBox="0 0 256 64" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="bricks" patternUnits="userSpaceOnUse" width="32" height="16">
+            <rect x="0" y="0" width="32" height="16" fill="#cc3333" />
+            <rect x="0" y="0" width="32" height="2" fill="#ff6666" />
+            <rect x="30" y="0" width="2" height="16" fill="#990000" />
+            <rect x="0" y="14" width="32" height="2" fill="#990000" />
+          </pattern>
+        </defs>
+        <rect x="0" y="8" width="256" height="48" fill="url(#bricks)" />
+        <rect x="0" y="8" width="256" height="4" fill="#ff0000" opacity="0.5" />
+      </svg>
+    `
+  },
+  {
+    name: 'obstacle_wall_plasma.png', width: 256, height: 64,
+    svg: `
+      <svg width="256" height="64" viewBox="0 0 256 64" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="plasmaGlow"><feGaussianBlur stdDeviation="5" result="blur" /><feComposite in="SourceGraphic" in2="blur" operator="over" /></filter>
+        </defs>
+        <rect x="0" y="8" width="256" height="48" fill="#001133" rx="4" />
+        <path d="M 0 32 L 32 16 L 64 48 L 96 24 L 128 40 L 160 16 L 192 48 L 224 24 L 256 32" fill="none" stroke="#00ffff" stroke-width="3" filter="url(#plasmaGlow)" />
+        <path d="M 0 32 L 32 16 L 64 48 L 96 24 L 128 40 L 160 16 L 192 48 L 224 24 L 256 32" fill="none" stroke="#ffffff" stroke-width="1" />
+        <rect x="0" y="8" width="256" height="4" fill="#00ffff" opacity="0.6" filter="url(#plasmaGlow)" />
+        <rect x="0" y="52" width="256" height="4" fill="#00ffff" opacity="0.6" filter="url(#plasmaGlow)" />
+        <rect x="0" y="8" width="256" height="48" fill="none" stroke="#666" stroke-width="4" rx="4" />
+      </svg>
+    `
   }
 ];
 

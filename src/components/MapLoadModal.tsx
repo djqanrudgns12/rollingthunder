@@ -62,11 +62,13 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
            setCustomPreviewData(null)
         }
       }
-      fetchPreview()
+      if (isOpen) {
+        fetchPreview()
+      }
     } else {
       setCustomPreviewData(null)
     }
-  }, [mapCode, activeTab])
+  }, [mapCode, activeTab, isOpen])
 
   if (!isOpen) return null
 
@@ -105,7 +107,7 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
   let previewMeta: any = null
   if (activeTab === 'default') {
     if (hoveredMapId && hoveredMapId !== 'random') {
-      const p = getPresetMeta(hoveredMapId)
+      const p = useGameStore.getState().mapDataCache?.[hoveredMapId] || getPresetMeta(hoveredMapId)
       if (p) {
         previewMeta = {
            title: p.name,

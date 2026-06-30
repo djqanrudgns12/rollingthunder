@@ -7,19 +7,16 @@ const THROTTLE_MS = 150;
 // 🎹 ZzFX Micro Synthesizer Engine
 // ============================================================================
 let zzfxX: AudioContext | null = null;
-export const initZzfx = () => {
+export const initZzfx = (forceResume: boolean = false) => {
   if (typeof window === 'undefined') return;
   if (!zzfxX) {
-    // 💡 핵심 픽스: Howler.js가 사용자 클릭 시 자동으로 AudioContext의 잠금을 풀어주므로,
-    // ZzFX가 자체 Context를 만들지 않고 Howler의 Context를 빌려 쓰도록 강제 연결합니다.
     if (Howler.ctx) {
       zzfxX = Howler.ctx as AudioContext;
     } else {
       zzfxX = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
   }
-  // User Gesture 없이 Resume 시도 시 나는 에러 무시
-  if (zzfxX.state === 'suspended') {
+  if (zzfxX.state === 'suspended' && forceResume) {
     zzfxX.resume().catch(() => {});
   }
 };
@@ -84,8 +81,21 @@ class AudioEngine {
   private constructor() {
     Howler.volume(this.masterVol);
 
-    this.standbyBgm = new Howl({ src: ['/sounds/bgm/Standby.mp3'], loop: true, volume: this.bgmVol, preload: true });
-    this.playgameBgm = new Howl({ src: ['/sounds/bgm/Playgame.mp3'], loop: true, volume: this.bgmVol, preload: true });
+    this.standbyBgm = new Howl({ src: ['/sounds/bgm/Standby.mp3'], loop: true, volume: this.bgmVol, preload: true, html5: true });
+    this.playgameBgm = new Howl({ src: ['/sounds/bgm/Playgame.mp3'], loop: true, volume: this.bgmVol, preload: true, html5: true });
+  }
+
+  // --- 핵심: 전역 오디오 락 해제 메서드 ---
+  unlockAudio() {
+    initZzfx(true);
+    // 빈 버퍼를 재생하여 iOS 등에서 오디오 세션을 완벽히 초기화합니다.
+    if (zzfxX) {
+      const buffer = zzfxX.createBuffer(1, 1, 22050);
+      const source = zzfxX.createBufferSource();
+      source.buffer = buffer;
+      source.connect(zzfxX.destination);
+      source.start();
+    }
   }
 
   static getInstance(): AudioEngine {

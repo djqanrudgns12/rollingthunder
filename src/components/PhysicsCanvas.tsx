@@ -1280,7 +1280,7 @@ export default function PhysicsCanvas() {
           } else if (payload.type === 'holeTrapped') {
             soundManager.playSfx('env_wormhole', 0, 400);
           } else if (payload.type === 'spinner_whoosh') {
-            soundManager.playSfx('gimmick_domino', payload.impulse * 0.5, payload.x);
+            soundManager.playSfx('spinner_whoosh', payload.impulse, payload.x);
           }
         } else if (type === 'FLIPPER_SWING') {
           const target = viewport.getChildAt(0).children.find(c => (c as any).label === payload.id);
@@ -1289,6 +1289,8 @@ export default function PhysicsCanvas() {
               gsap.fromTo(target.scale as any, { x: 1.2, y: 1.2 }, { x: 1, y: 1, duration: 0.3, ease: 'elastic.out(1, 0.3)' });
             });
           }
+          // 무거운 둔탁한 소리로 매핑
+          soundManager.playSfx('ui_nudge', 50, payload.x);
         } else if (type === 'ICE_CRACK') {
           soundManager.playSfx('gimmick_domino', 30, payload.x);
           const target = viewport.getChildAt(0).children.find(c => (c as any).label === payload.id);
@@ -1310,7 +1312,8 @@ export default function PhysicsCanvas() {
             }
           }
         } else if (type === 'ICE_DESTROY') {
-          soundManager.playSfx('warp', 0, payload.x);
+          // 얼음 파괴 파티클 및 짧은 금속성/유리 깨짐 효과음
+          soundManager.playSfx('ui_door_slam', 0, payload.x);
           const target = viewport.getChildAt(0).children.find(c => (c as any).label === payload.id);
           if (target) {
             import('gsap').then(({ gsap }) => {

@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import { Toaster } from 'sonner';
 import "./globals.css";
 import ThemeProvider from "@/components/ThemeProvider";
+import GlobalAudioUnlocker from "@/components/GlobalAudioUnlocker";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -65,8 +66,10 @@ export default function RootLayout({
       </head>
       <body className="antialiased min-h-[100dvh] w-full flex flex-col overflow-hidden bg-[var(--bg-primary)]">
         <ThemeProvider>
-          {children}
-          <Toaster theme="dark" position="bottom-right" />
+          <GlobalAudioUnlocker>
+            {children}
+            <Toaster theme="dark" position="bottom-right" />
+          </GlobalAudioUnlocker>
         </ThemeProvider>
       </body>
     </html>

@@ -18,7 +18,11 @@ import {
 const OBSTACLE_TEXTURES = [
   'obstacle_pin', 'obstacle_bumper', 'obstacle_wall', 'obstacle_booster',
   'obstacle_windmill', 'obstacle_portal', 'obstacle_blackhole', 'obstacle_whitehole',
-  'obstacle_hole', 'obstacle_piston',
+  'obstacle_hole', 'obstacle_piston', 'obstacle_blower',
+  'obstacle_wall_neon', 'obstacle_wall_circuit', 'obstacle_wall_matrix', 'obstacle_wall_lava',
+  'obstacle_wall_ice', 'obstacle_wall_toxic', 'obstacle_wall_crystal', 'obstacle_wall_grass',
+  'obstacle_wall_gold', 'obstacle_wall_steampunk', 'obstacle_wall_gothic', 'obstacle_wall_space',
+  'obstacle_wall_candy', 'obstacle_wall_arcade', 'obstacle_wall_plasma'
 ].map(n => `/images/assets/obstacles/${n}.png`)
 
 const deg2rad = (d: number) => (d * Math.PI) / 180
@@ -550,13 +554,22 @@ export default function EditorCanvas() {
   // ---- 팔레트 드래그&드롭 ----
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
-    const type = e.dataTransfer.getData('application/x-editor-item') as any
+    const rawData = e.dataTransfer.getData('application/x-editor-item')
+    if (!rawData) return
+    let type: any, variant: string | undefined
+    try {
+      const parsed = JSON.parse(rawData)
+      type = parsed.type
+      variant = parsed.variant
+    } catch {
+      type = rawData
+    }
     if (!type || !viewportRef.current || !canvasRef.current) return
     const rect = canvasRef.current.getBoundingClientRect()
     const world = viewportRef.current.toWorld(e.clientX - rect.left, e.clientY - rect.top)
     const ni: EditorItem = {
       id: `${type}_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-      type, x: Math.round(world.x), y: Math.round(world.y),
+      type, variant, x: Math.round(world.x), y: Math.round(world.y),
       speed: 1.0, restitution: 0.5, friction: 0.1, flip: false,
     }
     switch (type) {

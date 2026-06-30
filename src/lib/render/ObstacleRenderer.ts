@@ -36,7 +36,8 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
   }
 
   if (item.type === 'wall') {
-    const texture = ctx.getTexture(OBS('obstacle_wall'))
+    const texName = item.variant ? `obstacle_wall_${item.variant}` : 'obstacle_wall'
+    const texture = ctx.getTexture(OBS(texName))
     const sprite = new PIXI.TilingSprite({ texture, width: item.w || 100, height: item.h || 20 })
     sprite.anchor.set(0.5)
     g.addChild(sprite)
@@ -226,27 +227,33 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
   } else if (item.type === 'windcannon') {
     const w = item.w || 120
     const h = item.h || 120
-    const cannon = new PIXI.Graphics()
-    cannon.rect(-w / 2, -h / 2, w, h)
-    cannon.fill({ color: 0x334455, alpha: 0.3 })
-    cannon.stroke({ color: 0x55aaff, width: 2, alpha: 0.5 })
-
+    
+    const sprite = new PIXI.Sprite(ctx.getTexture(OBS('obstacle_blower')))
+    sprite.anchor.set(0.5)
+    sprite.width = w
+    sprite.height = h
+    
     const angleRad = (item.windAngle || 90) * (Math.PI / 180)
+    sprite.rotation = angleRad
+    g.addChild(sprite)
+
     const dirX = Math.sin(angleRad)
     const dirY = -Math.cos(angleRad)
 
-    for (let i = 0; i < 3; i++) {
-      const arrow = new PIXI.Graphics()
-      arrow.poly([{ x: -10, y: -10 }, { x: 0, y: -20 }, { x: 10, y: -10 }, { x: 0, y: -15 }])
-      arrow.fill({ color: 0xaaccff, alpha: 0.6 })
-      arrow.rotation = angleRad
-      arrow.position.set(dirX * (i * 20 - 20), dirY * (i * 20 - 20))
-      cannon.addChild(arrow)
-      gsapTo(arrow.position, { x: dirX * (i * 20 + 20), y: dirY * (i * 20 + 20), alpha: 0, duration: 0.5, repeat: -1, ease: 'none' })
+    if (animated) {
+      for (let i = 0; i < 3; i++) {
+        const arrow = new PIXI.Graphics()
+        arrow.poly([{ x: -10, y: -10 }, { x: 0, y: -20 }, { x: 10, y: -10 }, { x: 0, y: -15 }])
+        arrow.fill({ color: 0x00ffff, alpha: 0.8 })
+        arrow.rotation = angleRad
+        arrow.position.set(dirX * (i * 30), dirY * (i * 30))
+        g.addChild(arrow)
+        gsapTo(arrow.position, { x: dirX * (i * 30 + 50), y: dirY * (i * 30 + 50), alpha: 0, duration: 0.6, repeat: -1, ease: 'none' })
+      }
     }
-    g.addChild(cannon)
+
     mg.rect(-w / 2, -h / 2, w, h)
-    mg.fill({ color: 0x55aaff, alpha: 0.3 })
+    mg.fill({ color: 0x55aaff, alpha: 0.5 })
   } else if (item.type === 'luckygate') {
     const w = item.w || 140
     const h = 15

@@ -88,30 +88,32 @@ export default function MinimapOverlay() {
           const isSel = selectedItemId === item.id
           const fill = isSel ? '#ffffff' : itemColor(item.type, item)
           const onClick = (e: React.MouseEvent) => { e.stopPropagation(); setSelectedItemId(item.id) }
+          const rotation = item.rotation || item.angle || 0
+          const transform = rotation ? `rotate(${rotation}, ${cx}, ${cy})` : undefined
 
           if (item.type === 'flipper') {
             const len = (item.length || 90) * scale
-            return <rect key={item.id} x={item.side === 'left' ? cx : cx - len} y={cy - 2} width={len} height={4} fill={fill} opacity={0.9} onClick={onClick} style={{ cursor: 'pointer' }} />
+            return <rect key={item.id} x={item.side === 'left' ? cx : cx - len} y={cy - 2} width={len} height={4} fill={fill} opacity={0.9} onClick={onClick} transform={transform} style={{ cursor: 'pointer' }} />
           }
           if (RECT_TYPES.has(item.type)) {
             const w = Math.max(2, (item.w || 40) * scale)
             const h = Math.max(2, (item.h || 40) * scale)
-            return <rect key={item.id} x={cx - w / 2} y={cy - h / 2} width={w} height={h} fill={fill} opacity={0.9} onClick={onClick} style={{ cursor: 'pointer' }} />
+            return <rect key={item.id} x={cx - w / 2} y={cy - h / 2} width={w} height={h} fill={fill} opacity={0.9} onClick={onClick} transform={transform} style={{ cursor: 'pointer' }} />
           }
           if (CIRCLE_TYPES.has(item.type)) {
             const r = Math.max(1.5, (item.radius || 15) * scale)
-            return <circle key={item.id} cx={cx} cy={cy} r={r} fill={fill} opacity={0.9} onClick={onClick} style={{ cursor: 'pointer' }} />
+            return <circle key={item.id} cx={cx} cy={cy} r={r} fill={fill} opacity={0.9} onClick={onClick} transform={transform} style={{ cursor: 'pointer' }} />
           }
           // windmill: 십자, spinner: 막대
           if (item.type === 'windmill') {
-            return <g key={item.id} onClick={onClick} style={{ cursor: 'pointer' }}>
+            return <g key={item.id} onClick={onClick} transform={transform} style={{ cursor: 'pointer' }}>
               <rect x={cx - 8 * scale} y={cy - 1.5} width={16 * scale} height={3} fill={fill} opacity={0.8} />
               <rect x={cx - 1.5} y={cy - 8 * scale} width={3} height={16 * scale} fill={fill} opacity={0.8} />
             </g>
           }
           if (item.type === 'spinner') {
             const w = Math.max(2, (item.w || 200) * scale)
-            return <rect key={item.id} x={cx - w / 2} y={cy - 2} width={w} height={4} rx={2} fill={fill} opacity={0.9} onClick={onClick} style={{ cursor: 'pointer' }} />
+            return <rect key={item.id} x={cx - w / 2} y={cy - 2} width={w} height={4} rx={2} fill={fill} opacity={0.9} onClick={onClick} transform={transform} style={{ cursor: 'pointer' }} />
           }
           // 기본: 작은 원
           const r = Math.max(1.5, (item.radius || (item.w ? item.w / 2 : 8)) * scale)
