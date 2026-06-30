@@ -32,7 +32,9 @@ export default function SettingsModal() {
     gimmickDensity, setGimmickDensity,
     baseTimeScale, setBaseTimeScale,
     theme, setTheme,
-    fontFamily, setFontFamily
+    fontFamily, setFontFamily,
+    bgmVolume, setBgmVolume,
+    sfxVolume, setSfxVolume
   } = useGameStore()
   
   const { activeModal, setActiveModal, isLoggedIn, setAuthMode } = useUIStore()
@@ -137,6 +139,43 @@ export default function SettingsModal() {
                   {speed}x
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Audio Volumes */}
+          <div className="flex flex-col gap-4">
+            <label className="text-xs text-[var(--accent-primary)] font-bold tracking-widest uppercase flex items-center gap-2">
+              음량 설정 (AUDIO)
+            </label>
+            
+            <div className="flex flex-col gap-2 bg-black/20 p-3 rounded-xl border border-white/5">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-white/70 font-medium">배경음악 (BGM)</span>
+                <span className="text-[10px] text-white/50 font-mono bg-black/50 px-2 py-0.5 rounded-lg border border-white/10">{bgmVolume}%</span>
+              </div>
+              <input 
+                type="range" 
+                min={0} 
+                max={100}
+                value={bgmVolume}
+                onChange={(e) => setBgmVolume(Number(e.target.value))}
+                className="w-full neon-slider"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2 bg-black/20 p-3 rounded-xl border border-white/5">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-white/70 font-medium">효과음 (SFX)</span>
+                <span className="text-[10px] text-white/50 font-mono bg-black/50 px-2 py-0.5 rounded-lg border border-white/10">{sfxVolume}%</span>
+              </div>
+              <input 
+                type="range" 
+                min={0} 
+                max={100}
+                value={sfxVolume}
+                onChange={(e) => setSfxVolume(Number(e.target.value))}
+                className="w-full neon-slider"
+              />
             </div>
           </div>
 

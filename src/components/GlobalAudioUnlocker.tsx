@@ -1,8 +1,15 @@
 'use client';
 import { useEffect } from 'react';
 import { soundManager } from '@/engine/AudioEngine';
+import { useGameStore } from '@/store/gameStore';
 
 export default function GlobalAudioUnlocker({ children }: { children: React.ReactNode }) {
+  const { bgmVolume, sfxVolume } = useGameStore();
+
+  // 스토어의 볼륨 설정(0~100)을 오디오 엔진(0.0~1.0)에 동기화
+  useEffect(() => {
+    soundManager.setVolumes(1.0, bgmVolume / 100, (sfxVolume / 100) * 0.6);
+  }, [bgmVolume, sfxVolume]);
   useEffect(() => {
     const handleFirstInteraction = () => {
       // 사용자의 첫 번째 상호작용 시 오디오 엔진 잠금 해제 강제 호출

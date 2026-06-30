@@ -80,6 +80,10 @@ interface GameState {
   setTheme: (theme: 'dark' | 'light') => void
   fontFamily: string
   setFontFamily: (font: string) => void
+  bgmVolume: number
+  setBgmVolume: (vol: number) => void
+  sfxVolume: number
+  setSfxVolume: (vol: number) => void
 }
 
 export const useGameStore = create<GameState>()(
@@ -144,6 +148,10 @@ export const useGameStore = create<GameState>()(
       setTheme: (theme) => set({ theme }),
       fontFamily: 'pretendard',
       setFontFamily: (fontFamily) => set({ fontFamily }),
+      bgmVolume: 100,
+      setBgmVolume: (bgmVolume) => set({ bgmVolume }),
+      sfxVolume: 100,
+      setSfxVolume: (sfxVolume) => set({ sfxVolume }),
     }),
     {
       name: 'rt-game-storage',
@@ -160,6 +168,8 @@ export const useGameStore = create<GameState>()(
         gameMode: state.gameMode,
         customWinningRank: state.customWinningRank,
         isSkillEnabled: state.isSkillEnabled,
+        bgmVolume: state.bgmVolume,
+        sfxVolume: state.sfxVolume,
       }),
     }
   )

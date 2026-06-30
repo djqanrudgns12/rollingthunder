@@ -40,8 +40,8 @@ class AudioEngine {
   
   // Volumes
   private masterVol: number = 1.0;
-  private bgmVol: number = 0.6;
-  private sfxVol: number = 1.0;
+  private bgmVol: number = 1.0; // BGM은 1.0 (최대)
+  private sfxVol: number = 0.6; // 효과음은 0.6으로 낮춤
 
   private constructor() {
     Howler.volume(this.masterVol);
