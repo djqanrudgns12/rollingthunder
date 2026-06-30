@@ -122,12 +122,49 @@ export default function EditorCanvas() {
       await Promise.all(toLoad.map(u => PIXI.Assets.load(u).catch(() => null)))
       if (destroyed) return
 
-      // 빈 캔버스: 우클릭 드래그 = 패닝, 좌클릭 드래그 = 영역 선택(러버밴드)
+      // 빈 캔버스: 우클릭 드래그 = 패닝, 좌클릭 드래그 = 바깥쪽 패닝 또는 안쪽 영역 선택(러버밴드)
       viewport.eventMode = 'static'
       viewport.on('pointerdown', (e: any) => {
         if (e.target !== viewport) return
         if (e.data.button === 0) {
-          // 좌클릭: 영역 선택
+          const local = getLocalPos(e, viewport)
+          
+          if (local.x < 0 || local.x > WORLD_WIDTH) {
+            // 바깥 영역 좌클릭: 수동 패닝(드래그)
+            let lastPos = { x: e.global.x, y: e.global.y }
+            const s = { x: e.global.x, y: e.global.y }
+            
+            const onMove = (ev: any) => {
+              const dx = ev.global.x - lastPos.x
+              const dy = ev.global.y - lastPos.y
+              viewport.x += dx
+              viewport.y += dy
+              // pixi-viewport 내부의 clamp 플러그인을 강제 갱신하여 한계점 초과 방지
+              const clampPlugin = viewport.plugins.get('clamp')
+              if (clampPlugin) clampPlugin.update()
+              viewport.emit('moved', { viewport, type: 'drag' })
+              lastPos = { x: ev.global.x, y: ev.global.y }
+            }
+            
+            const onUp = (ev: any) => {
+              const dx = ev.global.x - s.x, dy = ev.global.y - s.y
+              if (dx * dx + dy * dy < 25) {
+                // 단순 클릭 시 선택 해제
+                useEditorStore.getState().setSelectedItemIds([])
+                useEditorStore.getState().setSelectedItemId(null)
+              }
+              appRef.current?.stage.off('pointermove', onMove)
+              appRef.current?.stage.off('pointerup', onUp)
+              appRef.current?.stage.off('pointerupoutside', onUp)
+            }
+            
+            appRef.current?.stage.on('pointermove', onMove)
+            appRef.current?.stage.on('pointerup', onUp)
+            appRef.current?.stage.on('pointerupoutside', onUp)
+            return
+          }
+
+          // 안쪽 영역 좌클릭: 영역 선택
           startRubberBand(e)
           const s = { x: e.global.x, y: e.global.y }
           const onUp = (ev: any) => {
