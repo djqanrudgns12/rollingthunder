@@ -167,7 +167,7 @@ export default function ToolboxPanel() {
   }
 
   return (
-    <div className={`absolute top-0 left-0 w-72 bg-[#1a1a1a]/90 backdrop-blur-md border-r border-[#333] shadow-2xl flex flex-col pointer-events-auto h-full z-20 transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+    <div className={`absolute top-14 bottom-0 left-0 w-72 bg-[#1a1a1a]/90 backdrop-blur-md border-r border-[#333] shadow-2xl flex flex-col pointer-events-auto z-20 transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       {/* 토글 버튼 */}
       <div 
         onClick={() => setIsOpen(!isOpen)}
