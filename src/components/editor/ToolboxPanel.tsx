@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { useEditorStore, EditorItemType, EditorItem } from '@/store/editorStore'
 import { Plus, Trash2, MapPin, CircleDashed, Zap, Fan, ArrowDownToLine, Loader, Wind, Trophy, MoveDiagonal, Circle, Waypoints, Aperture, Sun, Square, Box, Flag, FlagTriangleRight } from 'lucide-react'
 
-type TabType = 'obstacles' | 'frames' | 'skeleton' | 'backgrounds'
+type TabType = 'obstacles' | 'frames' | 'backgrounds'
 
 interface ItemDef {
   type: EditorItemType;
@@ -34,10 +34,6 @@ const CATEGORIES: Record<TabType, ItemDef[]> = {
     { type: 'wall', label: '벽 (Wall)', imagePath: '/images/assets/obstacles/obstacle_wall.png', color: 'text-gray-500' },
     { type: 'iceblock', label: '얼음블록 (IceBlock)', icon: Box, color: 'text-cyan-200' },
     { type: 'polygon', label: '자유형 블록 (Polygon)', icon: CircleDashed, color: 'text-fuchsia-400' },
-  ],
-  skeleton: [
-    { type: 'startline', label: '시작선 (Start)', icon: Flag, color: 'text-green-400' },
-    { type: 'endline', label: '도착선 (End)', icon: FlagTriangleRight, color: 'text-red-500' },
   ]
 }
 
@@ -108,8 +104,6 @@ export default function ToolboxPanel() {
     switch(type) {
       case 'wall':
       case 'piston':
-      case 'startline':
-      case 'endline':
         newItem.w = 100; newItem.h = 20; break;
       case 'iceblock':
         newItem.w = 60; newItem.h = 25; newItem.hp = 3; newItem.maxHp = 3; break;
@@ -156,12 +150,6 @@ export default function ToolboxPanel() {
           className={`flex-1 py-3 text-sm font-bold transition-colors ${activeTab === 'frames' ? 'text-white border-b-2 border-blue-500 bg-[#2a2a2a]' : 'text-gray-400 hover:text-gray-200'}`}
         >
           프레임
-        </button>
-        <button 
-          onClick={() => setActiveTab('skeleton')}
-          className={`flex-1 py-3 text-sm font-bold transition-colors ${activeTab === 'skeleton' ? 'text-white border-b-2 border-blue-500 bg-[#2a2a2a]' : 'text-gray-400 hover:text-gray-200'}`}
-        >
-          골격
         </button>
         <button 
           onClick={() => setActiveTab('backgrounds')}

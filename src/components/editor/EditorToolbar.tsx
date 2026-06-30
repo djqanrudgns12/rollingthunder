@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useEditorStore, WorkspaceTab } from '@/store/editorStore'
 import { useGameStore } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
-import { Save, Undo, Redo, Magnet, Plus, Play, Pause, Loader2, Upload, X, History } from 'lucide-react'
+import { Save, Undo, Redo, Magnet, Plus, Play, Pause, Loader2, Upload, X, History, ChevronDown, ChevronRight } from 'lucide-react'
 import { MapPresets } from '@/engine/MapPresets'
 import { saveMapAction, deployMapAction } from '@/presentation/actions/mapActions'
 import { getUserRoleAction } from '@/presentation/actions/authActions'
@@ -33,6 +33,8 @@ export default function EditorToolbar() {
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const [isOfficialExpanded, setIsOfficialExpanded] = useState(true);
+  const [isCustomExpanded, setIsCustomExpanded] = useState(false);
 
   useEffect(() => {
     getUserRoleAction().then(({ role }) => setUserRole(role))
@@ -254,47 +256,62 @@ export default function EditorToolbar() {
               </div>
             )
           })}
-          
-          <div className="relative h-full flex items-center">
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowAddMenu(!showAddMenu);
-              }}
-              className="flex items-center justify-center w-10 h-full hover:bg-[#2a2a2a] text-gray-400 hover:text-white transition-colors"
-              title="새 맵 / 불러오기"
-            >
-              <Plus className="w-5 h-5" />
-            </button>
-            {showAddMenu && (
-              <div className="absolute top-12 left-0 mt-2 w-56 bg-[#222] border border-[#333] rounded-lg shadow-xl z-50 flex flex-col" onClick={e => e.stopPropagation()}>
-                <button 
-                  onClick={() => { addTab(null, 'map'); setShowAddMenu(false); }}
-                  className="w-full text-left px-4 py-3 hover:bg-[#333] text-white text-sm font-bold border-b border-[#333] flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4 text-blue-400" />
-                  커스텀 맵 추가하기
-                </button>
-                
-                <div className="flex-1 overflow-y-auto max-h-[60vh] scrollbar-thin scrollbar-thumb-[#444]">
-                  <div className="px-4 py-2 bg-[#1a1a1a] text-xs font-bold text-gray-400 uppercase tracking-wider sticky top-0 z-10">
-                    기본맵 불러오기
-                  </div>
-                  {Object.entries(MapPresets).map(([key, preset]) => (
-                    <button
-                      key={key}
-                      onClick={() => { useEditorStore.getState().loadMapPreset(key); setShowAddMenu(false); }}
-                      className="w-full text-left px-4 py-2 hover:bg-[#333] text-gray-200 text-sm truncate block"
-                    >
-                      {preset.name}
-                    </button>
-                  ))}
+          {/* 탭 매핑 종료 (스크롤 영역) */}
+        </div>
 
-                  <div className="px-4 py-2 bg-[#1a1a1a] text-xs font-bold text-gray-400 uppercase tracking-wider sticky top-0 z-10 border-t border-[#333]">
-                    커스텀맵 불러오기
-                  </div>
-                  {Object.entries(mapDataCache || {}).filter(([k, m]) => !m.isOfficial && !MapPresets[k]).length === 0 ? (
-                    <div className="px-4 py-2 text-xs text-gray-500">저장된 맵이 없습니다.</div>
+        {/* 맵 추가 버튼 (스크롤 밖으로 분리하여 Clipping 버그 해결) */}
+        <div className="relative h-full flex items-center border-l border-[#333]">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowAddMenu(!showAddMenu);
+            }}
+            className="flex items-center justify-center w-12 h-full bg-[#1a1a1a] hover:bg-[#2a2a2a] text-gray-400 hover:text-white transition-colors"
+            title="새 맵 / 불러오기"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
+          
+          {showAddMenu && (
+            <div className="absolute top-14 left-0 mt-0 w-64 bg-[#222] border border-[#333] rounded-b-lg shadow-xl z-50 flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+              <button 
+                onClick={() => { addTab(null, 'map'); setShowAddMenu(false); }}
+                className="w-full text-left px-4 py-3 hover:bg-[#333] text-white text-sm font-bold border-b border-[#333] flex items-center gap-2 transition-colors"
+              >
+                <Plus className="w-4 h-4 text-blue-400" />
+                새 커스텀 맵 추가하기
+              </button>
+              
+              <div className="flex-1 overflow-y-auto max-h-[60vh] scrollbar-thin scrollbar-thumb-[#444]">
+                {/* 기본맵 섹션 (아코디언) */}
+                <button 
+                  onClick={() => setIsOfficialExpanded(!isOfficialExpanded)}
+                  className="w-full flex items-center justify-between px-4 py-2 bg-[#1a1a1a] hover:bg-[#2a2a2a] text-xs font-bold text-gray-300 uppercase tracking-wider sticky top-0 z-10 transition-colors border-b border-[#333]"
+                >
+                  <span className="flex items-center gap-1">기본 맵 (Engine Presets)</span>
+                  {isOfficialExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                </button>
+                {isOfficialExpanded && Object.entries(MapPresets).map(([key, preset]) => (
+                  <button
+                    key={key}
+                    onClick={() => { useEditorStore.getState().loadMapPreset(key); setShowAddMenu(false); }}
+                    className="w-full text-left px-8 py-2.5 hover:bg-[#333] text-gray-200 text-sm truncate block border-l-2 border-transparent hover:border-blue-500 transition-colors"
+                  >
+                    {preset.name}
+                  </button>
+                ))}
+
+                {/* 커스텀맵 섹션 (아코디언) */}
+                <button 
+                  onClick={() => setIsCustomExpanded(!isCustomExpanded)}
+                  className="w-full flex items-center justify-between px-4 py-2 bg-[#1a1a1a] hover:bg-[#2a2a2a] text-xs font-bold text-gray-300 uppercase tracking-wider sticky top-0 z-10 border-t border-b border-[#333] transition-colors"
+                >
+                  <span className="flex items-center gap-1">커스텀 맵 (My Maps)</span>
+                  {isCustomExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                </button>
+                {isCustomExpanded && (
+                  Object.entries(mapDataCache || {}).filter(([k, m]) => !m.isOfficial && !MapPresets[k]).length === 0 ? (
+                    <div className="px-8 py-3 text-xs text-gray-500 italic">저장된 맵이 없습니다.</div>
                   ) : (
                     Object.entries(mapDataCache || {})
                       .filter(([k, m]) => !m.isOfficial && !MapPresets[k])
@@ -302,16 +319,16 @@ export default function EditorToolbar() {
                         <button
                           key={key}
                           onClick={() => { useEditorStore.getState().loadMapPreset(key); setShowAddMenu(false); }}
-                          className="w-full text-left px-4 py-2 hover:bg-[#333] text-gray-200 text-sm truncate block"
+                          className="w-full text-left px-8 py-2.5 hover:bg-[#333] text-gray-200 text-sm truncate block border-l-2 border-transparent hover:border-purple-500 transition-colors"
                         >
                           {map.name}
                         </button>
                       ))
-                  )}
-                </div>
+                  )
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* 우측: 도구 및 저장 */}

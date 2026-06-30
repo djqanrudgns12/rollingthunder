@@ -106,6 +106,7 @@ interface EditorState {
   deleteSelected: () => void;
   setEditorMode: (isEditor: boolean) => void;
   setMapId: (id: string | null) => void;
+  setBgImage: (url: string | null) => void;
   setWorldHeight: (height: number) => void;
   setWallStyle: (style: EditorWallStyle) => void;
   setPreviewAnimating: (on: boolean) => void;
@@ -363,6 +364,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   setClipboard: (item) => set({ clipboard: item }),
   setGridSnap: (snap) => set({ gridSnap: snap }),
+  setBgImage: (url) => { set({ bgImage: url }); get().markUnsaved(); },
   setWorldHeight: (height) => { set({ worldHeight: height }); get().markUnsaved(); },
   setWallStyle: (style) => { set({ wallStyle: style }); get().markUnsaved(); },
   setPreviewAnimating: (on) => set({ previewAnimating: on }),
