@@ -37,6 +37,8 @@ export interface EditorItem {
   length?: number;        // 플리퍼 길이
   restAngle?: number;     // 플리퍼 대기 각도
   swingAngle?: number;    // 플리퍼 스윙 각도
+  swingSpeed?: number;    // 플리퍼 스윙 속도
+  returnSpeed?: number;   // 플리퍼 복귀 속도
   side?: string;          // 플리퍼 방향 ('left' | 'right')
 }
 

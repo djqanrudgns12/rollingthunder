@@ -7,10 +7,16 @@ import InspectorPanel from './InspectorPanel'
 import EditorToolbar from './EditorToolbar'
 import MinimapOverlay from './MinimapOverlay'
 import AlignToolbar from './AlignToolbar'
+import HistoryTimelinePanel from './HistoryTimelinePanel'
 import { useEditorStore } from '@/store/editorStore'
 
 export default function MapEditorManager() {
   const mapId = useEditorStore(state => state.mapId)
+  const tabs = useEditorStore(state => state.tabs)
+  const activeTabId = useEditorStore(state => state.activeTabId)
+  const activeTab = tabs.find(t => t.id === activeTabId)
+  const showHistoryPanel = useEditorStore(state => state.showHistoryPanel)
+  const setShowHistoryPanel = useEditorStore(state => state.setShowHistoryPanel)
   const loadMapPreset = useEditorStore(state => state.loadMapPreset)
   const hasLoadedInitial = React.useRef(false);
 
@@ -40,6 +46,15 @@ export default function MapEditorManager() {
 
       {/* 5. 정렬/미러/배열 도구 (다중 선택 시) */}
       <AlignToolbar />
+
+      {/* 6. 작업 내역 타임라인 패널 */}
+      {showHistoryPanel && (
+        <HistoryTimelinePanel 
+          mapId={activeTab?.mapId || null}
+          mapTitle={activeTab?.title || ''}
+          onClose={() => setShowHistoryPanel(false)}
+        />
+      )}
     </div>
   )
 }

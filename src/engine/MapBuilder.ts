@@ -116,8 +116,10 @@ export class MapBuilder {
     if (item.type === 'windmill') {
       // 십자가 모양 렌더링을 위해 두 개의 직사각형 Collider 교차 연결
       // 끼임 방지를 위해 탄성(restitution)을 높임 (1.2 -> 1.5)
-      const c1 = RAPIER.ColliderDesc.cuboid(50, 5).setRestitution(1.5);
-      const c2 = RAPIER.ColliderDesc.cuboid(5, 50).setRestitution(1.5);
+      const w = item.w || 100;
+      const h = item.h || 10;
+      const c1 = RAPIER.ColliderDesc.cuboid(w / 2, h / 2).setRestitution(1.5);
+      const c2 = RAPIER.ColliderDesc.cuboid(h / 2, w / 2).setRestitution(1.5);
       world.createCollider(c1, body);
       world.createCollider(c2, body);
       body.setAngvel(item.speed || 3, true);
@@ -289,8 +291,8 @@ export class MapBuilder {
       swingAngle: item.swingAngle || -40,
       state: 'idle',
       stateFrame: 0,
-      swingSpeed: 30,
-      returnSpeed: 8,
+      swingSpeed: item.swingSpeed || 30,
+      returnSpeed: item.returnSpeed || 8,
       side: item.side || 'left',
     } as UserData;
     return body;
