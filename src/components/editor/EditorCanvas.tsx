@@ -622,6 +622,15 @@ export default function EditorCanvas() {
         const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0
         const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0
         st.moveSelectedBy(dx, dy, true)
+      } else if (!(st.selectedItemIds.length || st.selectedItemId) && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault()
+        const vp = viewportRef.current
+        if (vp) {
+          const panStep = e.shiftKey ? 50 : 20
+          const dx = e.key === 'ArrowLeft' ? -panStep : e.key === 'ArrowRight' ? panStep : 0
+          const dy = e.key === 'ArrowUp' ? -panStep : e.key === 'ArrowDown' ? panStep : 0
+          vp.moveCenter(vp.center.x + dx, vp.center.y + dy)
+        }
       } else if (ctrl && e.key === 'z') {
         e.preventDefault(); e.shiftKey ? st.redo() : st.undo()
       } else if (ctrl && e.key === 'y') {
