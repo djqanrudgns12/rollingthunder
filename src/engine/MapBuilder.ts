@@ -2,7 +2,81 @@ import RAPIER from '@dimforge/rapier2d-compat';
 import { UserData } from './types';
 
 // 외벽 스타일: 맵마다 다른 외벽 형태를 지정하여 시각적·물리적 다양성 확보
-export type WallStyle = 'straight' | 'zigzag' | 'narrow' | 'wide';
+export type WallStyle = 'straight' | 'zigzag' | 'narrow' | 'wide' | 'funnel' | 'hourglass' | 'diamond' | 'wave' | 'sawtooth' | 'asymmetric';
+
+function getWallTransform(y: number, height: number, style: WallStyle) {
+  let leftOffset = 0, rightOffset = 0, leftAngle = 0, rightAngle = 0;
+  const progress = Math.max(0, Math.min(1, y / height));
+
+  switch (style) {
+    case 'narrow':
+      leftOffset = 100; rightOffset = 100;
+      break;
+    case 'wide':
+      leftOffset = -50; rightOffset = -50;
+      break;
+    case 'zigzag': {
+      const isBump = Math.round(y / 100) % 2 === 0;
+      leftOffset = isBump ? 20 : 0; rightOffset = isBump ? 20 : 0;
+      break;
+    }
+    case 'funnel': {
+      leftOffset = progress * 200; rightOffset = progress * 200;
+      const dx = 200 / height;
+      const angle = Math.atan(dx) * (180 / Math.PI);
+      leftAngle = angle; rightAngle = -angle; 
+      break;
+    }
+    case 'hourglass': {
+      const dist = Math.abs(progress - 0.5);
+      leftOffset = 150 - dist * 300; rightOffset = 150 - dist * 300;
+      const dx = progress < 0.5 ? (300 / height) : (-300 / height);
+      const angle = Math.atan(dx) * (180 / Math.PI);
+      leftAngle = angle; rightAngle = -angle;
+      break;
+    }
+    case 'diamond': {
+      const dist = Math.abs(progress - 0.5);
+      leftOffset = dist * 300 - 50; rightOffset = dist * 300 - 50;
+      const dx = progress < 0.5 ? (-300 / height) : (300 / height);
+      const angle = Math.atan(dx) * (180 / Math.PI);
+      leftAngle = angle; rightAngle = -angle;
+      break;
+    }
+    case 'wave': {
+      const freq = (2 * Math.PI) / 800;
+      leftOffset = Math.sin(y * freq) * 60 + 20;
+      rightOffset = Math.sin(y * freq) * 60 + 20;
+      const dx = Math.cos(y * freq) * 60 * freq;
+      const angle = Math.atan(dx) * (180 / Math.PI);
+      leftAngle = angle; rightAngle = -angle;
+      break;
+    }
+    case 'sawtooth': {
+      const localY = ((y % 400) + 400) % 400;
+      if (localY < 300) {
+        leftOffset = (localY / 300) * 120; rightOffset = (localY / 300) * 120;
+        const angle = Math.atan(120 / 300) * (180 / Math.PI);
+        leftAngle = angle; rightAngle = -angle;
+      } else {
+        leftOffset = 120 - ((localY - 300) / 100) * 120; rightOffset = 120 - ((localY - 300) / 100) * 120;
+        const angle = Math.atan(-120 / 100) * (180 / Math.PI);
+        leftAngle = angle; rightAngle = -angle;
+      }
+      break;
+    }
+    case 'asymmetric': {
+      const freq = (2 * Math.PI) / 1000;
+      const shift = Math.sin(y * freq) * 150;
+      leftOffset = shift; rightOffset = -shift;
+      const dx = Math.cos(y * freq) * 150 * freq;
+      const angle = Math.atan(dx) * (180 / Math.PI);
+      leftAngle = angle; rightAngle = angle; 
+      break;
+    }
+  }
+  return { leftOffset, rightOffset, leftAngle, rightAngle };
+}
 
 export class MapBuilder {
   static createRect(world: RAPIER.World, x: number, y: number, w: number, h: number, type: 'wall', rotation: number = 0, restitution: number = 0.2, friction: number = 0.5) {
@@ -22,33 +96,20 @@ export class MapBuilder {
   }
 
   static createWalls(world: RAPIER.World, width: number, height: number, thickness: number = 100, style: WallStyle = 'zigzag') {
-    // 외벽 스타일별 설정:
-    // straight: 매끄러운 일자벽 (칩 끼임 없음)
-    // zigzag: 기존 지그재그 (bump=20). 의도적으로 거친 벽면이 필요한 맵 전용
-    // narrow: 좌우 폭을 좁혀 600px로. 밀집 경쟁 유도
-    // wide: 좌우 폭을 넓혀 900px로. 넓은 공간에서 분산
-    const narrowInset = style === 'narrow' ? 100 : 0;
-    const wideOutset = style === 'wide' ? -50 : 0;
-    const useBump = style === 'zigzag';
-    
-    const numSegments = Math.ceil((height * 2) / 100);
-    for (let i = 0; i < numSegments; i++) {
+    const numSegments = Math.ceil((height * 2) / 100) + 10; // Extra padding
+    for (let i = -5; i < numSegments; i++) {
       const y = i * 100 - (height / 2);
-      // 지그재그 스타일에서만 돌출(bump) 적용
-      const bump = (useBump && i % 2 === 0) ? 20 : 0;
       
-      // 외벽은 낮은 마찰(0.05): 칩이 벽에 들러붙어 정체되는 것을 원천 차단(항상 미끄러져 낙하).
-      // left wall (narrowInset: 안쪽으로 밀기, wideOutset: 바깥으로 밀기)
+      const { leftOffset, rightOffset, leftAngle, rightAngle } = getWallTransform(y, height, style);
+      
       const leftId = `wall_l_${i}`;
-      const leftBody = this.createRect(world, -thickness / 2 + bump + narrowInset + wideOutset, y, thickness, 100, 'wall', 0, 0.2, 0.05);
+      const leftBody = this.createRect(world, -thickness / 2 + leftOffset, y, thickness, 100, 'wall', leftAngle, 0.2, 0.05);
       if(leftBody.userData) (leftBody.userData as UserData).id = leftId;
 
-      // right wall
       const rightId = `wall_r_${i}`;
-      const rightBody = this.createRect(world, width + thickness / 2 - bump - narrowInset - wideOutset, y, thickness, 100, 'wall', 0, 0.2, 0.05);
+      const rightBody = this.createRect(world, width + thickness / 2 - rightOffset, y, thickness, 100, 'wall', rightAngle, 0.2, 0.05);
       if(rightBody.userData) (rightBody.userData as UserData).id = rightId;
     }
-    // 바닥 생성 안 함: 칩이 결승선(y > worldHeight + 20)을 통과해야 하므로
   }
 
   static createPolygon(world: RAPIER.World, item: any) {

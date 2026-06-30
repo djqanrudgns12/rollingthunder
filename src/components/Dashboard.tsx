@@ -8,7 +8,7 @@ import MapLoadModal, { DEFAULT_MAPS } from './MapLoadModal'
 import ListManagerModal from './ListManagerModal'
 import SettingsModal from './SettingsModal'
 import AuthModal from './AuthModal'
-import { Tv, Shield, ShieldOff, Video, Map, Circle, Car, Rocket, Zap, Cat, Target, Volume2, VolumeX, Settings } from 'lucide-react'
+import { Tv, Shield, ShieldOff, Video, Map, Circle, Car, Rocket, Zap, Cat, Target, Volume2, VolumeX, Settings, Ghost, Bot, Flame, Star, Smile, Cloud, Anchor, Wind } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEditorStore } from '@/store/editorStore'
 
@@ -21,6 +21,20 @@ function SkinPreviewIcon({ skinId }: { skinId: string }) {
     case 'car': return <Car className="w-5 h-5" />
     case 'blackhole': return <Circle className="w-5 h-5 animate-spin" />
     case 'cat': return <Cat className="w-5 h-5" />
+    case 'pr_dragon': return <Flame className="w-5 h-5 text-red-500" />
+    case 'pr_unicorn': return <Star className="w-5 h-5 text-pink-400" />
+    case 'pr_dino': return <Smile className="w-5 h-5 text-green-500" />
+    case 'pr_slime': return <Circle className="w-5 h-5 text-blue-400" />
+    case 'pr_robot': return <Bot className="w-5 h-5 text-gray-400" />
+    case 'pr_phoenix': return <Flame className="w-5 h-5 text-orange-500" />
+    case 'pr_alien': return <Smile className="w-5 h-5 text-green-400" />
+    case 'pr_gummy': return <Smile className="w-5 h-5 text-yellow-500" />
+    case 'pr_astronaut': return <Rocket className="w-5 h-5 text-white" />
+    case 'pr_ghost': return <Ghost className="w-5 h-5 text-white" />
+    case 'pr_hamster': return <Smile className="w-5 h-5 text-orange-300" />
+    case 'pr_hotairballoon': return <Cloud className="w-5 h-5 text-red-400" />
+    case 'pr_pirateship': return <Anchor className="w-5 h-5 text-gray-400" />
+    case 'pr_magiccarpet': return <Wind className="w-5 h-5 text-purple-400" />
     default: return <Circle className="w-5 h-5" />
   }
 }
@@ -411,8 +425,22 @@ export default function Dashboard() {
                   <option value="spaceship">우주선</option>
                   <option value="shuriken">표창</option>
                   <option value="car">자동차</option>
-                  <option value="blackhole">[UR] 블랙홀</option>
-                  <option value="cat">[SR] 고양이</option>
+                  <option value="blackhole">블랙홀</option>
+                  <option value="cat">고양이</option>
+                  <option value="pr_dragon">[PR] 드래곤</option>
+                  <option value="pr_unicorn">[PR] 유니콘</option>
+                  <option value="pr_dino">[PR] 공룡</option>
+                  <option value="pr_slime">[PR] 슬라임</option>
+                  <option value="pr_robot">[PR] 로봇</option>
+                  <option value="pr_phoenix">[PR] 불사조</option>
+                  <option value="pr_alien">[PR] 외계인</option>
+                  <option value="pr_gummy">[PR] 구미베어</option>
+                  <option value="pr_astronaut">[PR] 우주비행사</option>
+                  <option value="pr_ghost">[PR] 꼬마 유령</option>
+                  <option value="pr_hamster">[PR] 햄스터</option>
+                  <option value="pr_hotairballoon">[PR] 열기구</option>
+                  <option value="pr_pirateship">[PR] 꼬마 해적선</option>
+                  <option value="pr_magiccarpet">[PR] 마법 양탄자</option>
                 </select>
               </div>
             </div>

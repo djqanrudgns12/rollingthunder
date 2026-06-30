@@ -338,6 +338,7 @@ export default function PhysicsCanvas() {
           screenW: window.innerWidth,
           screenH: window.innerHeight,
           setTimeScale: (scale: number) => workerRef.current?.postMessage({ type: 'SET_TIME_SCALE', payload: { scale } }),
+          endMarginPercent: presetMeta?.layoutConfig?.endMarginPercent, // PRD v6.0: 종료선 전달
         });
         cameraDirectorRef.current = cameraDirector;
 
@@ -1109,6 +1110,7 @@ export default function PhysicsCanvas() {
                 // 에셋별 렌더링 스케일 조정 (시각적 밸런스 패치)
                 let renderDiameter = R * 2;
                 const isLargeAsset = skinKey.startsWith('chip_base_') || 
+                                     skinKey.startsWith('pr_') ||
                                      skinKey === 'blackhole' || 
                                      skinKey === 'shuriken';
                 if (isLargeAsset) {

@@ -26,6 +26,7 @@ export interface CameraDirectorOpts {
   screenW: number;
   screenH: number;
   setTimeScale: (scale: number) => void;
+  endMarginPercent?: number; // PRD v6.0: 종료선 동기화
 }
 
 // 프레임레이트 독립 지수 보간: dt(초)에 무관하게 일정한 "절반 도달 시간"을 보장.
@@ -41,6 +42,7 @@ export class CameraDirector {
   private vp: Viewport;
   private worldW: number;
   private worldH: number;
+  private finishLineY: number; // PRD v6.0: 실제 종료선 Y
   private screenW: number;
   private screenH: number;
   private setTimeScale: (scale: number) => void;
@@ -133,6 +135,7 @@ export class CameraDirector {
     this.vp = vp;
     this.worldW = opts.worldWidth;
     this.worldH = opts.worldHeight;
+    this.finishLineY = opts.worldHeight * (1 - (opts.endMarginPercent ?? 0.02)); // PRD v6.0
     this.screenW = opts.screenW;
     this.screenH = opts.screenH;
     this.setTimeScale = opts.setTimeScale;
@@ -371,7 +374,7 @@ export class CameraDirector {
 
     // ── 1) 선두/2위/잔여주자 산출 ──
     // 선두 = (결승선 직전까지) 가장 멀리 내려간 칩. finished(아래로 빠진) 칩은 제외.
-    const finishLineY = this.worldH + 20;
+    const finishLineY = this.finishLineY; // PRD v6.0
     const racingCap = this.worldH + 60;
     let leaderY = -Infinity, leaderX = this.smCentroidX, leaderId: string | null = null;
     let secondY = -Infinity, secondX = this.smCentroidX;

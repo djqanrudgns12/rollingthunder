@@ -5,7 +5,81 @@ export const WORLD_WIDTH = 800
 export const BG_PAD_TOP = 500
 export const BG_PAD_BOTTOM = 200
 
-export type WallStyle = 'straight' | 'zigzag' | 'narrow' | 'wide'
+export type WallStyle = 'straight' | 'zigzag' | 'narrow' | 'wide' | 'funnel' | 'hourglass' | 'diamond' | 'wave' | 'sawtooth' | 'asymmetric'
+
+function getWallTransform(y: number, height: number, style: WallStyle) {
+  let leftOffset = 0, rightOffset = 0, leftAngle = 0, rightAngle = 0;
+  const progress = Math.max(0, Math.min(1, y / height));
+
+  switch (style) {
+    case 'narrow':
+      leftOffset = 100; rightOffset = 100;
+      break;
+    case 'wide':
+      leftOffset = -50; rightOffset = -50;
+      break;
+    case 'zigzag': {
+      const isBump = Math.round(y / 100) % 2 === 0;
+      leftOffset = isBump ? 20 : 0; rightOffset = isBump ? 20 : 0;
+      break;
+    }
+    case 'funnel': {
+      leftOffset = progress * 200; rightOffset = progress * 200;
+      const dx = 200 / height;
+      const angle = Math.atan(dx) * (180 / Math.PI);
+      leftAngle = angle; rightAngle = -angle; 
+      break;
+    }
+    case 'hourglass': {
+      const dist = Math.abs(progress - 0.5);
+      leftOffset = 150 - dist * 300; rightOffset = 150 - dist * 300;
+      const dx = progress < 0.5 ? (300 / height) : (-300 / height);
+      const angle = Math.atan(dx) * (180 / Math.PI);
+      leftAngle = angle; rightAngle = -angle;
+      break;
+    }
+    case 'diamond': {
+      const dist = Math.abs(progress - 0.5);
+      leftOffset = dist * 300 - 50; rightOffset = dist * 300 - 50;
+      const dx = progress < 0.5 ? (-300 / height) : (300 / height);
+      const angle = Math.atan(dx) * (180 / Math.PI);
+      leftAngle = angle; rightAngle = -angle;
+      break;
+    }
+    case 'wave': {
+      const freq = (2 * Math.PI) / 800;
+      leftOffset = Math.sin(y * freq) * 60 + 20;
+      rightOffset = Math.sin(y * freq) * 60 + 20;
+      const dx = Math.cos(y * freq) * 60 * freq;
+      const angle = Math.atan(dx) * (180 / Math.PI);
+      leftAngle = angle; rightAngle = -angle;
+      break;
+    }
+    case 'sawtooth': {
+      const localY = ((y % 400) + 400) % 400;
+      if (localY < 300) {
+        leftOffset = (localY / 300) * 120; rightOffset = (localY / 300) * 120;
+        const angle = Math.atan(120 / 300) * (180 / Math.PI);
+        leftAngle = angle; rightAngle = -angle;
+      } else {
+        leftOffset = 120 - ((localY - 300) / 100) * 120; rightOffset = 120 - ((localY - 300) / 100) * 120;
+        const angle = Math.atan(-120 / 100) * (180 / Math.PI);
+        leftAngle = angle; rightAngle = -angle;
+      }
+      break;
+    }
+    case 'asymmetric': {
+      const freq = (2 * Math.PI) / 1000;
+      const shift = Math.sin(y * freq) * 150;
+      leftOffset = shift; rightOffset = -shift;
+      const dx = Math.cos(y * freq) * 150 * freq;
+      const angle = Math.atan(dx) * (180 / Math.PI);
+      leftAngle = angle; rightAngle = angle; 
+      break;
+    }
+  }
+  return { leftOffset, rightOffset, leftAngle, rightAngle };
+}
 
 interface StageOpts {
   worldHeight: number
@@ -101,31 +175,23 @@ export function createStartEndLines(opts: StageOpts): PIXI.Container {
 export function createWallGuide(opts: StageOpts): PIXI.Graphics {
   const g = new PIXI.Graphics()
   const style = opts.wallStyle || 'straight'
-  const narrowInset = style === 'narrow' ? 100 : 0
-  const wideOutset = style === 'wide' ? -50 : 0
-  const useBump = style === 'zigzag'
   const top = -BG_PAD_TOP
   const bottom = opts.worldHeight + BG_PAD_BOTTOM
+  const height = opts.worldHeight
 
-  const leftBase = narrowInset + wideOutset
-  const rightBase = WORLD_WIDTH - narrowInset - wideOutset
+  const leftBase = 0
+  const rightBase = WORLD_WIDTH
 
-  if (useBump) {
-    // 지그재그: 100px 세그먼트마다 20px 돌출
-    g.moveTo(leftBase, top)
-    for (let y = top; y <= bottom; y += 100) {
-      const bump = (Math.round((y + BG_PAD_TOP) / 100) % 2 === 0) ? 20 : 0
-      g.lineTo(leftBase + bump, y)
-    }
-    g.moveTo(rightBase, top)
-    for (let y = top; y <= bottom; y += 100) {
-      const bump = (Math.round((y + BG_PAD_TOP) / 100) % 2 === 0) ? 20 : 0
-      g.lineTo(rightBase - bump, y)
-    }
-  } else {
-    g.moveTo(leftBase, top).lineTo(leftBase, bottom)
-    g.moveTo(rightBase, top).lineTo(rightBase, bottom)
+  g.moveTo(leftBase + getWallTransform(top, height, style).leftOffset, top)
+  for (let y = top; y <= bottom; y += 50) {
+    g.lineTo(leftBase + getWallTransform(y, height, style).leftOffset, y)
   }
+
+  g.moveTo(rightBase - getWallTransform(top, height, style).rightOffset, top)
+  for (let y = top; y <= bottom; y += 50) {
+    g.lineTo(rightBase - getWallTransform(y, height, style).rightOffset, y)
+  }
+
   g.stroke({ width: 4, color: 0x00ffff, alpha: 0.55 })
   return g
 }

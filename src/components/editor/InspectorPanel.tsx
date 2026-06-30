@@ -69,6 +69,12 @@ function StageProperties() {
             <option value="zigzag">지그재그 (zigzag)</option>
             <option value="narrow">좁게 (narrow 600px)</option>
             <option value="wide">넓게 (wide 900px)</option>
+            <option value="funnel">깔때기 (funnel)</option>
+            <option value="hourglass">모래시계 (hourglass)</option>
+            <option value="diamond">다이아몬드 (diamond)</option>
+            <option value="wave">웨이브 (wave)</option>
+            <option value="sawtooth">톱니 (sawtooth)</option>
+            <option value="asymmetric">비대칭 쏠림 (asymmetric)</option>
           </select>
         </div>
 

@@ -5,7 +5,7 @@ import { useGameStore } from './gameStore'
 export type EditorItemType = 'pin' | 'bumper' | 'wall' | 'hole' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole' | 'spinner' | 'iceblock' | 'windcannon' | 'luckygate' | 'flipper' | 'startline' | 'endline' | 'polygon';
 
 // 외벽 스타일 (MapPresets.WallStyle 과 동일 — 순환 import 회피 위해 로컬 정의)
-export type EditorWallStyle = 'straight' | 'zigzag' | 'narrow' | 'wide';
+export type EditorWallStyle = 'straight' | 'zigzag' | 'narrow' | 'wide' | 'funnel' | 'hourglass' | 'diamond' | 'wave' | 'sawtooth' | 'asymmetric';
 
 export interface EditorItem {
   id: string;

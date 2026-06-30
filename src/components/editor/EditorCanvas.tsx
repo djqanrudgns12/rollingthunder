@@ -73,6 +73,16 @@ export default function EditorCanvas() {
     let destroyed = false
     const unsubs: Array<() => void> = []
 
+    // Delete 키 이벤트 추가
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        // 입력창 포커스 중이 아닐 때만
+        if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return
+        useEditorStore.getState().deleteSelected()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+
     const init = async () => {
       const app = new PIXI.Application()
       await app.init({ canvas: canvasRef.current!, resizeTo: window, backgroundColor: 0x0a0a10, antialias: true, resolution: window.devicePixelRatio || 1, autoDensity: true })
@@ -134,15 +144,7 @@ export default function EditorCanvas() {
         }
       })
       
-      // Delete 키 이벤트 추가
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Delete' || e.key === 'Backspace') {
-          // 입력창 포커스 중이 아닐 때만
-          if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return
-          useEditorStore.getState().deleteSelected()
-        }
-      }
-      window.addEventListener('keydown', handleKeyDown)
+
       
       // 줌 시 선택 핸들 크기를 화면 고정으로 유지
       viewport.on('zoomed-end', () => buildOverlay())

@@ -1,7 +1,7 @@
 // src/core/entities/Map.ts
 export type MapComplexity = 'Simple' | 'Medium' | 'Complex';
 export type MapLengthType = 'Short' | 'Middle' | 'Long';
-export type MapWallStyle = 'straight' | 'zigzag' | 'narrow' | 'wide';
+export type MapWallStyle = 'straight' | 'zigzag' | 'narrow' | 'wide' | 'funnel' | 'hourglass' | 'diamond' | 'wave' | 'sawtooth' | 'asymmetric';
 
 export interface MapEntity {
   id: string;

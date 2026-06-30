@@ -77,8 +77,17 @@ export default function MinimapOverlay() {
         {/* 플레이필드 배경 */}
         <rect x={0} y={0} width={MINIMAP_WIDTH} height={MINIMAP_HEIGHT} fill="#0a0a10" />
         {/* 외벽(좌/우) */}
-        <line x1={leftWall} y1={0} x2={leftWall} y2={MINIMAP_HEIGHT} stroke="#00ffff" strokeWidth={1.5} strokeOpacity={0.5} />
-        <line x1={rightWall} y1={0} x2={rightWall} y2={MINIMAP_HEIGHT} stroke="#00ffff" strokeWidth={1.5} strokeOpacity={0.5} />
+        {wallStyle === 'zigzag' ? (
+          <>
+            <path d={`M ${leftWall} 0 ` + Array.from({ length: Math.ceil(MINIMAP_HEIGHT / (100 * scale)) + 1 }).map((_, i) => `L ${leftWall + (i % 2 === 0 ? 20 * scale : 0)} ${i * 100 * scale}`).join(' ')} stroke="#00ffff" strokeWidth={1.5} fill="none" strokeOpacity={0.5} />
+            <path d={`M ${rightWall} 0 ` + Array.from({ length: Math.ceil(MINIMAP_HEIGHT / (100 * scale)) + 1 }).map((_, i) => `L ${rightWall - (i % 2 === 0 ? 20 * scale : 0)} ${i * 100 * scale}`).join(' ')} stroke="#00ffff" strokeWidth={1.5} fill="none" strokeOpacity={0.5} />
+          </>
+        ) : (
+          <>
+            <line x1={leftWall} y1={0} x2={leftWall} y2={MINIMAP_HEIGHT} stroke="#00ffff" strokeWidth={1.5} strokeOpacity={0.5} />
+            <line x1={rightWall} y1={0} x2={rightWall} y2={MINIMAP_HEIGHT} stroke="#00ffff" strokeWidth={1.5} strokeOpacity={0.5} />
+          </>
+        )}
         {/* 시작선 / 종료선 */}
         <line x1={0} y1={startY} x2={MINIMAP_WIDTH} y2={startY} stroke="#00FFD0" strokeWidth={2} strokeOpacity={0.8} />
         <line x1={0} y1={endY} x2={MINIMAP_WIDTH} y2={endY} stroke="#FF00FF" strokeWidth={2} strokeOpacity={0.8} />
@@ -91,12 +100,22 @@ export default function MinimapOverlay() {
           const isSel = selectedItemId === item.id
           const fill = isSel ? '#ffffff' : itemColor(item.type, item)
           const onClick = (e: React.MouseEvent) => { e.stopPropagation(); setSelectedItemId(item.id) }
-          const rotation = item.rotation || item.angle || 0
-          const transform = rotation ? `rotate(${rotation}, ${cx}, ${cy})` : undefined
+          const rotationDeg = item.angle != null ? item.angle : (item.rotation ? item.rotation * 180 / Math.PI : 0)
+          const transform = rotationDeg ? `rotate(${rotationDeg}, ${cx}, ${cy})` : undefined
 
           if (item.type === 'flipper') {
             const len = (item.length || 90) * scale
             return <rect key={item.id} x={item.side === 'left' ? cx : cx - len} y={cy - 2} width={len} height={4} fill={fill} opacity={0.9} onClick={onClick} transform={transform} style={{ cursor: 'pointer' }} />
+          }
+          if (item.type === 'polygon' && item.vertices && item.vertices.length > 2) {
+            const points = item.vertices.map(v => `${cx + v.x * scale},${cy + v.y * scale}`).join(' ')
+            return <polygon key={item.id} points={points} fill={fill} opacity={0.9} onClick={onClick} transform={transform} style={{ cursor: 'pointer' }} />
+          }
+          if (item.type === 'windcannon') {
+            const w = Math.max(2, (item.w || 120) * scale)
+            const h = Math.max(2, (item.h || 120) * scale)
+            const wcTransform = `rotate(${item.windAngle || 90}, ${cx}, ${cy})`
+            return <rect key={item.id} x={cx - w / 2} y={cy - h / 2} width={w} height={h} fill={fill} opacity={0.9} onClick={onClick} transform={wcTransform} style={{ cursor: 'pointer' }} />
           }
           if (RECT_TYPES.has(item.type)) {
             const w = Math.max(2, (item.w || 40) * scale)
