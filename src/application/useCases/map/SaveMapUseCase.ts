@@ -29,11 +29,34 @@ export class SaveMapUseCase {
       mapData.id = crypto.randomUUID();
     }
 
+    // 기존 맵 정보 조회 (isOfficial 상태 유지를 위해)
+    const existingMaps = await MapRepository.findAll();
+    const existingMap = existingMaps.find(m => m.id === mapData.id);
+    
+    let isOfficial = false;
+    let finalName = mapData.name;
+
+    if (existingMap) {
+      // 기존에 공식맵이었으면 그대로 유지
+      isOfficial = existingMap.isOfficial ?? false;
+      // 공식맵이 아닌 커스텀 맵인데 이름에 [커스텀]이 없으면 붙여줌
+      if (!isOfficial && !finalName.startsWith('[커스텀]')) {
+        finalName = `[커스텀] ${finalName}`;
+      }
+    } else {
+      // 새 맵이면 무조건 커스텀 맵으로 강제
+      isOfficial = false;
+      if (!finalName.startsWith('[커스텀]')) {
+        finalName = `[커스텀] ${finalName}`;
+      }
+    }
+
     // 기본값 세팅 및 MapEntity 캐스팅
     const fullMapData: MapEntity = {
       id: mapData.id,
-      name: mapData.name,
+      name: finalName,
       description: mapData.description || '',
+      isOfficial: isOfficial,
       lengthType: mapData.lengthType || 'Middle',
       complexity: mapData.complexity || 'Medium',
       worldHeight: mapData.worldHeight || 2400,

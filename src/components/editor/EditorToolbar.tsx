@@ -2,14 +2,16 @@
 
 import React, { useState, useEffect } from 'react'
 import { useEditorStore } from '@/store/editorStore'
+import { useGameStore } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
-import { Save, Undo, Redo, Magnet, Plus, Map as MapIcon, Play, Pause, Loader2 } from 'lucide-react'
+import { Save, Undo, Redo, Magnet, Plus, Map as MapIcon, Play, Pause, Loader2, Upload } from 'lucide-react'
 import { MapPresets } from '@/engine/MapPresets'
-import { saveMapAction } from '@/presentation/actions/mapActions'
+import { saveMapAction, deployMapAction } from '@/presentation/actions/mapActions'
 import { getUserRoleAction } from '@/presentation/actions/authActions'
 
 export default function EditorToolbar() {
   const { undo, redo, items, historyIndex, history, gridSnap, setGridSnap, mapId, setMapId, worldHeight, layoutConfig, wallStyle, loadMapPreset, previewAnimating, setPreviewAnimating } = useEditorStore()
+  const mapDataCache = useGameStore(state => state.mapDataCache)
   const setGameStage = useUIStore(state => state.setGameStage)
   const [mapName, setMapName] = useState('새 맵')
   const [isSaving, setIsSaving] = useState(false)
@@ -19,16 +21,32 @@ export default function EditorToolbar() {
     getUserRoleAction().then(({ role }) => setUserRole(role))
   }, [])
 
+  useEffect(() => {
+    if (mapId) {
+      const source = mapDataCache || MapPresets
+      if (source[mapId]) {
+        setMapName(source[mapId].name)
+      }
+    } else {
+      setMapName('새 맵')
+    }
+  }, [mapId, mapDataCache])
+
   const handleSave = async () => {
     setIsSaving(true)
     
     // mapId가 없으면 클라이언트 단에서 임시 생성 (저장 성공 시 Store에 반영)
     const targetMapId = mapId || crypto.randomUUID()
     
+    let finalMapName = mapName.trim()
+    if (!finalMapName.startsWith('[커스텀]')) {
+      finalMapName = `[커스텀] ${finalMapName}`
+    }
+
     try {
       const result = await saveMapAction({
         id: targetMapId,
-        name: mapName,
+        name: finalMapName,
         worldHeight,
         layoutConfig,
         wallStyle,
@@ -36,7 +54,24 @@ export default function EditorToolbar() {
       })
 
       if (result.success) {
+        // Update local mapDataCache
+        const gameStore = useGameStore.getState()
+        const currentCache = gameStore.mapDataCache || { ...MapPresets }
+        gameStore.setMapDataCache({
+          ...currentCache,
+          [targetMapId]: {
+            ...currentCache[targetMapId],
+            name: finalMapName,
+            worldHeight,
+            layoutConfig,
+            wallStyle,
+            items,
+            isOfficial: currentCache[targetMapId]?.isOfficial ?? false
+          }
+        })
+        
         if (!mapId) setMapId(targetMapId) // 새 맵이었다면 Store에 확정
+        setMapName(finalMapName)
         alert('맵이 성공적으로 저장되었습니다!')
       } else {
         alert(`저장 실패: ${result.error}`)
@@ -68,18 +103,37 @@ export default function EditorToolbar() {
           onChange={(e) => {
             const newMapId = e.target.value;
             if (newMapId) {
-              setMapName(MapPresets[newMapId]?.name || '새 맵');
+              const source = mapDataCache || MapPresets;
+              setMapName(source[newMapId]?.name || '새 맵');
               loadMapPreset(newMapId);
             }
           }}
           className="bg-[#2a2a2a] text-white text-sm rounded px-3 py-1.5 border border-[#444] focus:outline-none focus:border-blue-500"
         >
           <option value="" disabled>맵을 선택하세요</option>
-          {Object.keys(MapPresets).map((key) => (
-            <option key={key} value={key}>
-              {MapPresets[key].name}
-            </option>
-          ))}
+          {(() => {
+            const source = mapDataCache || MapPresets;
+            const officialKeys = Object.keys(source).filter(key => source[key].isOfficial !== false);
+            const customKeys = Object.keys(source).filter(key => source[key].isOfficial === false);
+            return (
+              <>
+                {officialKeys.length > 0 && (
+                  <optgroup label="기본맵">
+                    {officialKeys.map(key => (
+                      <option key={key} value={key}>{source[key].name}</option>
+                    ))}
+                  </optgroup>
+                )}
+                {customKeys.length > 0 && (
+                  <optgroup label="커스텀 맵">
+                    {customKeys.map(key => (
+                      <option key={key} value={key}>{source[key].name}</option>
+                    ))}
+                  </optgroup>
+                )}
+              </>
+            );
+          })()}
         </select>
         <button 
           onClick={handleNewMap}
@@ -139,15 +193,42 @@ export default function EditorToolbar() {
         </button>
 
         {userRole === 'admin' && (
-          <button 
-            onClick={handleSave}
-            disabled={isSaving}
-            className="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-1.5 rounded ml-2 transition-colors shadow-sm"
-            title="저장 (Ctrl+S)"
-          >
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            <span>{isSaving ? '저장중' : '저장'}</span>
-          </button>
+          <>
+            {mapId && (mapDataCache || MapPresets)[mapId]?.isOfficial === false && (
+              <button 
+                onClick={async () => {
+                  if (!confirm('이 커스텀 맵을 기본맵으로 배포하시겠습니까?')) return;
+                  const res = await deployMapAction(mapId);
+                  if (res.success) {
+                    const gameStore = useGameStore.getState();
+                    const currentCache = gameStore.mapDataCache || { ...MapPresets };
+                    gameStore.setMapDataCache({
+                      ...currentCache,
+                      [mapId]: { ...currentCache[mapId], isOfficial: true }
+                    });
+                    // 로컬 이름 갱신 ([커스텀] 딱지 떼고 싶을 수 있지만, 현재는 상태만 승격시킴)
+                    alert('서버 배포 완료! 이제 기본맵 탭에 표시됩니다.');
+                  } else {
+                    alert(`배포 실패: ${res.error}`);
+                  }
+                }}
+                className="flex items-center gap-1 bg-green-600 hover:bg-green-500 text-white text-sm font-medium px-4 py-1.5 rounded ml-2 transition-colors shadow-sm"
+                title="서버 배포"
+              >
+                <Upload className="w-4 h-4" />
+                <span>서버 배포</span>
+              </button>
+            )}
+            <button 
+              onClick={handleSave}
+              disabled={isSaving}
+              className="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-1.5 rounded ml-2 transition-colors shadow-sm"
+              title="저장 (Ctrl+S)"
+            >
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              <span>{isSaving ? '저장중' : '저장'}</span>
+            </button>
+          </>
         )}
 
         <button 

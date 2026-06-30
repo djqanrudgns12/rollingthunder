@@ -13,6 +13,7 @@ export class MapRepository {
         id: mapData.id,
         name: mapData.name,
         description: mapData.description,
+        is_official: mapData.isOfficial ?? false,
         length_type: mapData.lengthType,
         complexity: mapData.complexity,
         world_height: mapData.worldHeight,
@@ -43,6 +44,7 @@ export class MapRepository {
       id: row.id,
       name: row.name,
       description: row.description || '',
+      isOfficial: row.is_official,
       lengthType: row.length_type as any,
       complexity: row.complexity as any,
       worldHeight: row.world_height,
@@ -51,8 +53,19 @@ export class MapRepository {
       themeWeights: row.theme_weights || {},
       layoutConfig: row.layout_config || {},
       items: row.items || [],
-      createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at)
     }));
+  }
+
+  static async setOfficial(mapId: string, isOfficial: boolean): Promise<void> {
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from('maps')
+      .update({ is_official: isOfficial })
+      .eq('id', mapId);
+
+    if (error) {
+      throw new DatabaseError(`맵 배포 상태 업데이트 중 오류가 발생했습니다: ${error.message}`);
+    }
   }
 }

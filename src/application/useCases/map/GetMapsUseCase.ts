@@ -12,6 +12,7 @@ export class GetMapsUseCase {
         dynamicMaps[map.id] = {
           name: map.name,
           description: map.description || '',
+          isOfficial: map.isOfficial,
           lengthType: map.lengthType,
           complexity: map.complexity,
           worldHeight: map.worldHeight,

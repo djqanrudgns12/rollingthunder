@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useGameStore } from './gameStore'
 
 // 하이엔드 기믹 타입 추가
 export type EditorItemType = 'pin' | 'bumper' | 'wall' | 'hole' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole' | 'spinner' | 'iceblock' | 'windcannon' | 'luckygate' | 'flipper' | 'startline' | 'endline' | 'polygon';
@@ -101,9 +102,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   setPreviewAnimating: (on) => set({ previewAnimating: on }),
 
   loadMapPreset: (mapId) => set((state) => {
-    // 동적 임포트로 MapPresets를 가져와서 적용
-    import('@/engine/MapPresets').then(({ MapPresets }) => {
-      const preset = MapPresets[mapId];
+    const applyPreset = (preset: any) => {
       if (preset) {
         useEditorStore.setState({
           mapId,
@@ -116,7 +115,17 @@ export const useEditorStore = create<EditorState>((set) => ({
           historyIndex: 0
         });
       }
-    });
+    };
+
+    const mapDataCache = useGameStore.getState().mapDataCache;
+    if (mapDataCache && mapDataCache[mapId]) {
+      applyPreset(mapDataCache[mapId]);
+    } else {
+      // 동적 임포트로 MapPresets를 가져와서 적용 (Fallback)
+      import('@/engine/MapPresets').then(({ MapPresets }) => {
+        applyPreset(MapPresets[mapId]);
+      });
+    }
     return {};
   }),
 

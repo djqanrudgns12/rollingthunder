@@ -25,6 +25,7 @@ export const DEFAULT_THEME_WEIGHTS: ThemeWeights = {
 export interface MapPresetMeta {
   name: string;                              // UI에 표시될 맵 이름
   description: string;                       // 맵 특성 한 줄 설명
+  isOfficial?: boolean;                      // 공식 배포 여부 (true: 공식, false: 커스텀)
   lengthType: 'Short' | 'Middle' | 'Long';   // 길이 분류
   complexity: 'Simple' | 'Medium' | 'Complex'; // 복잡도 분류
   worldHeight: number;                       // 이 맵 전용 월드 높이

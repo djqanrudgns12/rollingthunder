@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS public.maps (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
+    is_official BOOLEAN DEFAULT false,
     length_type TEXT DEFAULT 'Middle',
     complexity TEXT DEFAULT 'Medium',
     world_height INTEGER DEFAULT 2400,

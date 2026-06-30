@@ -7,6 +7,7 @@ export interface MapEntity {
   id: string;
   name: string;
   description?: string;
+  isOfficial?: boolean;
   lengthType: MapLengthType;
   complexity: MapComplexity;
   worldHeight: number;
