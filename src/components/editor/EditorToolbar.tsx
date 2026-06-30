@@ -2,14 +2,15 @@
 
 import React, { useState, useEffect } from 'react'
 import { useEditorStore } from '@/store/editorStore'
+import { useUIStore } from '@/store/uiStore'
 import { Save, Undo, Redo, Magnet, Plus, Map as MapIcon, Play, Pause, Loader2 } from 'lucide-react'
 import { MapPresets } from '@/engine/MapPresets'
-import Link from 'next/link'
 import { saveMapAction } from '@/presentation/actions/mapActions'
 import { getUserRoleAction } from '@/presentation/actions/authActions'
 
 export default function EditorToolbar() {
   const { undo, redo, items, historyIndex, history, gridSnap, setGridSnap, mapId, setMapId, worldHeight, layoutConfig, wallStyle, loadMapPreset, previewAnimating, setPreviewAnimating } = useEditorStore()
+  const setGameStage = useUIStore(state => state.setGameStage)
   const [mapName, setMapName] = useState('새 맵')
   const [isSaving, setIsSaving] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
@@ -149,13 +150,13 @@ export default function EditorToolbar() {
           </button>
         )}
 
-        <Link 
-          href="/"
+        <button 
+          onClick={() => setGameStage('dashboard')}
           className="flex items-center gap-1 bg-gray-600 hover:bg-gray-500 text-white text-sm font-medium px-4 py-1.5 rounded ml-2 transition-colors shadow-sm"
           title="대기화면으로 돌아가기"
         >
           로비 복귀
-        </Link>
+        </button>
       </div>
     </div>
   )
