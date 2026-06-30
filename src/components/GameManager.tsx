@@ -86,6 +86,8 @@ export default function GameManager() {
         soundManager.playStandbyBgm();
       } else if (gameStage === 'playing') {
         soundManager.playGameBgm();
+      } else if (gameStage === 'editor') {
+        soundManager.playMapEditorBgm();
       }
     });
   }, [gameStage, isMuted, assetsLoaded]);

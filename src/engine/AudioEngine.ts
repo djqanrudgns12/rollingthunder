@@ -63,6 +63,7 @@ class AudioEngine {
   // BGM (사용자 제공 .mp3 파일은 Howler로 정상 재생)
   private standbyBgm: Howl;
   private playgameBgm: Howl;
+  private mapeditorBgm: Howl;
   private currentBgm: Howl | null = null;
   
   // Throttling state
@@ -83,6 +84,7 @@ class AudioEngine {
 
     this.standbyBgm = new Howl({ src: ['/sounds/bgm/Standby.mp3'], loop: true, volume: this.bgmVol, preload: true, html5: true });
     this.playgameBgm = new Howl({ src: ['/sounds/bgm/Playgame.mp3'], loop: true, volume: this.bgmVol, preload: true, html5: true });
+    this.mapeditorBgm = new Howl({ src: ['/sounds/bgm/Mapeditor.mp3'], loop: true, volume: this.bgmVol, preload: true, html5: true });
   }
 
   // --- 핵심: 전역 오디오 락 해제 메서드 ---
@@ -112,6 +114,10 @@ class AudioEngine {
 
   playGameBgm() {
     this.crossfadeBgm(this.playgameBgm);
+  }
+
+  playMapEditorBgm() {
+    this.crossfadeBgm(this.mapeditorBgm);
   }
 
   private crossfadeBgm(nextBgm: Howl) {
