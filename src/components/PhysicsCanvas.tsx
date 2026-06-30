@@ -43,7 +43,7 @@ export default function PhysicsCanvas() {
   useEffect(() => { finishedFeedRef.current = finishedFeed; }, [finishedFeed]);
   
   const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, setSelectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks, baseTimeScale, isMuted, setMuted, mapDataCache } = useGameStore()
-  const { setGameStage, customMapData, isBroadcasterMode, gameTitle } = useUIStore()
+  const { setGameStage, customMapData, customMapMeta, isBroadcasterMode, gameTitle } = useUIStore()
   const workerRef = useRef<Worker | null>(null)
   
   const appRef = useRef<PIXI.Application | null>(null);
@@ -228,7 +228,10 @@ export default function PhysicsCanvas() {
       
     // 맵 프리셋에 따른 동적 월드 높이 결정
     const presetMeta = actualMapPreset ? (safeMapDataCache[actualMapPreset] || getPresetMeta(actualMapPreset)) : null;
-    const WORLD_HEIGHT = presetMeta ? presetMeta.worldHeight : 2400;
+    const isCustomMap = !!(customMapData && customMapData.length > 0);
+    const WORLD_HEIGHT = isCustomMap && customMapMeta?.worldHeight 
+      ? customMapMeta.worldHeight 
+      : (presetMeta ? presetMeta.worldHeight : 2400);
     let initPromise: Promise<void> | null = null;
     
     const initPixi = async () => {
@@ -251,9 +254,11 @@ export default function PhysicsCanvas() {
           containerRef.current.appendChild(app.canvas);
         }
 
+        const bgImageToUse = isCustomMap && customMapMeta?.bgImage ? customMapMeta.bgImage : presetMeta?.bgImage;
+
         // Preload Assets
         const texturesToLoad = [
-          ...(presetMeta?.bgImage ? [presetMeta.bgImage] : []),
+          ...(bgImageToUse ? [bgImageToUse] : []),
           '/images/assets/skins/chip_base_1.png',
           '/images/assets/skins/chip_base_2.png',
           '/images/assets/skins/chip_base_3.png',
@@ -325,12 +330,14 @@ export default function PhysicsCanvas() {
 
         app.stage.addChild(viewport);
         
+        const wallStyleToUse = isCustomMap && customMapMeta?.wallStyle ? customMapMeta.wallStyle : presetMeta?.wallStyle;
+
         // 맵별 배경 이미지 렌더링 (viewport 내부에 붙여 스크롤/줌 연동)
         // 공유 모듈(StageChrome)로 게임/에디터 동일 배경 렌더
         const bg = createBackground(
           createAppRenderContext(app),
-          presetMeta?.bgImage,
-          { worldHeight: WORLD_HEIGHT, wallStyle: presetMeta?.wallStyle }
+          bgImageToUse,
+          { worldHeight: WORLD_HEIGHT, wallStyle: wallStyleToUse }
         );
         if (bg) {
           bgSprite = bg;
@@ -352,7 +359,9 @@ export default function PhysicsCanvas() {
           screenW: window.innerWidth,
           screenH: window.innerHeight,
           setTimeScale: (scale: number) => workerRef.current?.postMessage({ type: 'SET_TIME_SCALE', payload: { scale } }),
-          endMarginPercent: presetMeta?.layoutConfig?.endMarginPercent, // PRD v6.0: 종료선 전달
+          endMarginPercent: isCustomMap && customMapMeta?.layoutConfig?.endMarginPercent !== undefined 
+            ? customMapMeta.layoutConfig.endMarginPercent 
+            : presetMeta?.layoutConfig?.endMarginPercent, // PRD v6.0: 종료선 전달
         });
         cameraDirectorRef.current = cameraDirector;
 
@@ -1047,9 +1056,10 @@ export default function PhysicsCanvas() {
             viewport.addChild(floorContainer);
             
             // 시작선/종료선: 공유 모듈(StageChrome)로 게임/에디터 동일 렌더
+            const layoutConfigToUse = isCustomMap && customMapMeta?.layoutConfig ? customMapMeta.layoutConfig : presetMeta?.layoutConfig;
             floorContainer.addChild(createStartEndLines({
               worldHeight: WORLD_HEIGHT,
-              layoutConfig: presetMeta?.layoutConfig,
+              layoutConfig: layoutConfigToUse,
             }));
 
             // Minimap static layer
@@ -1584,6 +1594,7 @@ export default function PhysicsCanvas() {
             width: WORLD_WIDTH,
             height: WORLD_HEIGHT,
             customMapData,
+            customMapMeta, // PRD v6.0: Share code custom map meta
             presetMeta, // DB에서 Fetch된 실제 맵 메타데이터를 통째로 전달
             gimmickDensity,
             survivors,

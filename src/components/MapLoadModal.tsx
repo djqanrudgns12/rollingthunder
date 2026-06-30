@@ -35,7 +35,7 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
   const [hoveredMapId, setHoveredMapId] = useState<string | null>(null)
   const [customPreviewData, setCustomPreviewData] = useState<any | null>(null)
 
-  const { setCustomMapData, setCustomMapTitle } = useUIStore()
+  const { setCustomMapData, setCustomMapMeta, setCustomMapTitle } = useUIStore()
   const { setSelectedMapPreset } = useGameStore()
 
   // 커스텀 맵 코드 입력 시 미리보기 데이터를 가져옵니다.
@@ -50,14 +50,24 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
           .single()
         setIsLoading(false)
         if (!error && data) {
-           // map_data 배열의 최대 y값을 찾아 대략적인 worldHeight 유추 (기본 3000)
            let maxH = 3000;
+           let items = [];
+           let worldHeight = 3000;
+           
            if (Array.isArray(data.map_data)) {
-              data.map_data.forEach((item: any) => {
+              // Legacy format
+              items = data.map_data;
+              items.forEach((item: any) => {
                  if (item.y && item.y > maxH) maxH = item.y;
-              })
+              });
+              worldHeight = maxH + 200;
+           } else if (data.map_data && typeof data.map_data === 'object') {
+              // New format
+              items = data.map_data.items || [];
+              worldHeight = data.map_data.worldHeight || 3000;
            }
-           setCustomPreviewData({ items: data.map_data, title: data.title, worldHeight: maxH + 200 })
+           
+           setCustomPreviewData({ items, title: data.title, worldHeight })
         } else {
            setCustomPreviewData(null)
         }
@@ -88,7 +98,28 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
       return
     }
     
-    setCustomMapData(data.map_data)
+    let items = [];
+    let customMeta = null;
+
+    if (Array.isArray(data.map_data)) {
+       items = data.map_data;
+       let maxH = 3000;
+       items.forEach((item: any) => {
+          if (item.y && item.y > maxH) maxH = item.y;
+       });
+       customMeta = { worldHeight: maxH + 200 };
+    } else if (data.map_data && typeof data.map_data === 'object') {
+       items = data.map_data.items || [];
+       customMeta = {
+          worldHeight: data.map_data.worldHeight,
+          wallStyle: data.map_data.wallStyle,
+          bgImage: data.map_data.bgImage,
+          layoutConfig: data.map_data.layoutConfig
+       };
+    }
+
+    setCustomMapData(items)
+    setCustomMapMeta(customMeta)
     setCustomMapTitle(data.title)
     toast.success(`[${data.title}] 맵을 성공적으로 불러왔습니다!`)
     onClose()
@@ -96,6 +127,7 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
 
   const handleLoadDefaultMap = (mapId: string) => {
     setCustomMapData(null)
+    setCustomMapMeta(null)
     setCustomMapTitle(null)
     setSelectedMapPreset(mapId)
     const selected = DEFAULT_MAPS.find(m => m.id === mapId)

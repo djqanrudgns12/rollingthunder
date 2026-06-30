@@ -147,17 +147,19 @@ self.onmessage = async (e) => {
     await SimulationCore.ensureRapier();
 
     const {
-      width, height, customMapData, presetMeta, gimmickDensity,
+      width, height, customMapData, customMapMeta, presetMeta, gimmickDensity,
       survivors, targetCount, mode, customRank, randomRanks, isSkillEnabled: isSkill,
       baseTimeScale: initBaseTimeScale,
       selectedMapPreset
     } = payload;
 
-    const worldHeight = presetMeta ? presetMeta.worldHeight : height;
-    const wallStyle: WallStyle = presetMeta ? presetMeta.wallStyle : 'zigzag';
-    const presetData = presetMeta ? presetMeta.items : null;
-    const mapItems = customMapData && customMapData.length > 0 ? customMapData : presetData;
     const isCustomMap = !!(customMapData && customMapData.length > 0);
+    const worldHeight = isCustomMap && customMapMeta?.worldHeight ? customMapMeta.worldHeight : (presetMeta ? presetMeta.worldHeight : height);
+    const wallStyle: WallStyle = isCustomMap && customMapMeta?.wallStyle ? customMapMeta.wallStyle : (presetMeta ? presetMeta.wallStyle : 'zigzag');
+    const presetData = presetMeta ? presetMeta.items : null;
+    const mapItems = isCustomMap ? customMapData : presetData;
+    const layoutConfig = isCustomMap && customMapMeta?.layoutConfig ? customMapMeta.layoutConfig : presetMeta?.layoutConfig;
+    const themeWeights = isCustomMap && customMapMeta?.themeWeights ? customMapMeta.themeWeights : presetMeta?.themeWeights;
 
     isSkillEnabled = isSkill ?? true;
     if (initBaseTimeScale !== undefined) {
@@ -169,8 +171,8 @@ self.onmessage = async (e) => {
     core.init({
       width, height, worldHeight, wallStyle,
       mapItems, gimmickDensity, isCustomMap,
-      themeWeights: presetMeta?.themeWeights,
-      layoutConfig: presetMeta?.layoutConfig, // PRD v4: 레이아웃 설정 전달
+      themeWeights,
+      layoutConfig, // PRD v6.0: 커스텀 맵의 레이아웃 메타데이터도 반영
       mapKey: selectedMapPreset && selectedMapPreset !== 'random' ? selectedMapPreset : 'random',
       survivors, targetCount, mode, customRank, randomRanks,
     });

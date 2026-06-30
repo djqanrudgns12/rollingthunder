@@ -102,10 +102,17 @@ export default function EditorContainer() {
                 toast.error('맵에 배치된 요소가 없습니다.'); return;
               }
               const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+              const store = useEditorStore.getState();
               const { error } = await supabase.from('map_presets').insert({
                 creator_id: 'guest',
                 title: 'Custom Map',
-                map_data: items,
+                map_data: {
+                  items,
+                  worldHeight: store.worldHeight,
+                  wallStyle: store.wallStyle,
+                  bgImage: store.bgImage,
+                  layoutConfig: store.layoutConfig
+                },
                 share_code: code
               });
               if(error) toast.error('DB 저장 실패: ' + error.message)

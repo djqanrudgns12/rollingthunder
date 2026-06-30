@@ -17,6 +17,8 @@ interface UIState {
   
   customMapData: EditorItem[] | null
   setCustomMapData: (data: any[] | null) => void
+  customMapMeta: { worldHeight?: number, wallStyle?: string, bgImage?: string | null, layoutConfig?: any } | null
+  setCustomMapMeta: (meta: any | null) => void
   customMapTitle: string | null
   setCustomMapTitle: (title: string | null) => void
 
@@ -42,6 +44,7 @@ export const useUIStore = create<UIState>()(
       toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
       
       customMapData: null,
+      customMapMeta: null,
       customMapTitle: null,
       isBroadcasterMode: false,
       isAnonymized: false,
@@ -53,6 +56,7 @@ export const useUIStore = create<UIState>()(
       gameStage: 'dashboard',
       setGameStage: (stage) => set({ gameStage: stage }),
       setCustomMapData: (data) => set({ customMapData: data }),
+      setCustomMapMeta: (meta) => set({ customMapMeta: meta }),
       setCustomMapTitle: (title) => set({ customMapTitle: title }),
       setBroadcasterMode: (isBroadcaster) => set({ isBroadcasterMode: isBroadcaster }),
       setAnonymized: (isAnonymized) => set({ isAnonymized: isAnonymized }),
@@ -69,6 +73,7 @@ export const useUIStore = create<UIState>()(
         isBroadcasterMode: state.isBroadcasterMode, 
         isAnonymized: state.isAnonymized,
         customMapData: state.customMapData,
+        customMapMeta: state.customMapMeta,
         customMapTitle: state.customMapTitle
       }),
       merge: (persistedState: any, currentState) => ({
