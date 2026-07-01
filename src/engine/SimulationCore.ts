@@ -31,6 +31,7 @@ export interface SimInitConfig {
   mapItems: any[] | null;  // 명시적 배치 아이템(프리셋/커스텀). null이면 랜덤 생성
   gimmickDensity: number;
   isCustomMap?: boolean;   // 커스텀 맵 여부 (밀도 조절 무시)
+  isOfficial?: boolean;    // 공식/배포 맵 여부 (편집본 정확 재현 위해 밀도 조절 무시)
   themeWeights?: ThemeWeights; // 맵별 추가 기믹 가중치
   layoutConfig?: any;      // 맵별 레이아웃 설정
   mapKey?: string;         // 프리셋 ID (시드 생성용)
@@ -163,9 +164,11 @@ export class SimulationCore {
 
     // 장애물 배치
     const isCustomMap = config.isCustomMap ?? false;
+    // 공식/커스텀(저작) 맵은 편집본을 그대로 재현 — 밀도 절차(applyDensity) 우회.
+    const isAuthored = isCustomMap || (config.isOfficial ?? false);
     const baseItems = config.mapItems && config.mapItems.length > 0 ? config.mapItems : null;
     if (baseItems) {
-      const finalItems = isCustomMap
+      const finalItems = isAuthored
         ? baseItems
         : applyDensity(
             baseItems,
@@ -222,7 +225,8 @@ export class SimulationCore {
           w: userData.w,
           h: userData.h,
           radius: userData.radius,
-          rotation: body.rotation(),
+          // 렌더 정규 단위(도)로 저장 — 게임/에디터 렌더러가 rotation 을 '도'로 해석한다. [lib/render/rotation.ts]
+          rotation: body.rotation() * (180 / Math.PI),
           speed: userData.speed,
           color: userData.color,
           waypointB: userData.waypointB,

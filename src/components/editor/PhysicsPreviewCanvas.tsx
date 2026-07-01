@@ -45,7 +45,7 @@ export default function PhysicsPreviewCanvas() {
         } else if (item.type === 'bumper') {
           MapBuilder.createPin(world, item.x, item.y, item.radius || 15, true, item.restitution, item.friction)
         } else if (item.type === 'wall') {
-          MapBuilder.createRect(world, item.x, item.y, item.w || 100, item.h || 20, 'wall', item.rotation || 0, item.restitution, item.friction)
+          MapBuilder.createRect(world, item.x, item.y, item.w || 100, item.h || 20, 'wall', item.angle ?? item.rotation ?? 0, item.restitution, item.friction)
         }
       })
 

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from 'react'
 import type { EditorItem } from '@/store/editorStore'
+import { itemRotationDeg } from '@/lib/render/rotation'
 
 interface MapPreviewCanvasProps {
   mapData: EditorItem[]
@@ -49,8 +50,9 @@ export default function MapPreviewCanvas({ mapData, worldHeight, className = '' 
     const drawItem = (item: EditorItem) => {
       ctx.save()
       ctx.translate(item.x, item.y)
-      if (item.rotation) {
-        ctx.rotate((item.rotation * Math.PI) / 180)
+      const rotDeg = itemRotationDeg(item)
+      if (rotDeg) {
+        ctx.rotate((rotDeg * Math.PI) / 180)
       }
 
       switch (item.type) {

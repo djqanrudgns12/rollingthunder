@@ -4,6 +4,8 @@ import React, { useRef, useEffect, useState } from 'react'
 import { useEditorStore, EditorItem } from '@/store/editorStore'
 import { motion, useDragControls } from 'framer-motion'
 import { GripHorizontal } from 'lucide-react'
+import { computeWallSegments, WallStyle } from '@/engine/wallGeometry'
+import { itemRotationDeg } from '@/lib/render/rotation'
 
 const WORLD_WIDTH = 800
 
@@ -45,11 +47,8 @@ export default function MinimapOverlay() {
   const wh = worldHeight || 3300
   const MINIMAP_HEIGHT = Math.max(wh * scale, 300)
 
-  // 외벽 안쪽 면(StageChrome.createWallGuide 와 동일 수식)
-  const narrowInset = wallStyle === 'narrow' ? 100 : 0
-  const wideOutset = wallStyle === 'wide' ? -50 : 0
-  const leftWall = (narrowInset + wideOutset) * scale
-  const rightWall = (WORLD_WIDTH - narrowInset - wideOutset) * scale
+  // 게임과 동일한 외벽 지오메트리(단일 소스). 미니맵도 실제 외벽 세그먼트를 그린다.
+  const wallSegments = computeWallSegments(WORLD_WIDTH, wh, 100, (wallStyle as WallStyle) || 'straight')
 
   // 시작/종료선 Y (게임과 동일 우선순위)
   const startY = (layoutConfig?.startLineY ?? (layoutConfig?.startMarginPercent ? wh * layoutConfig.startMarginPercent : 70)) * scale
@@ -144,8 +143,9 @@ export default function MinimapOverlay() {
       dragControls={dragControls}
       dragListener={false}
       dragMomentum={false}
+      initial={{ x: typeof window !== 'undefined' ? window.innerWidth - 320 - minimapWidth - 20 : 1000, y: 80 }}
       onPointerDownCapture={() => bringToFront('minimap')}
-      className="absolute right-72 top-20 bg-[#0a0a10] border border-[#00ffcc]/40 rounded-lg overflow-hidden shadow-2xl pointer-events-auto flex flex-col"
+      className="absolute bg-[#0a0a10] border border-[#00ffcc]/40 rounded-lg overflow-hidden shadow-2xl pointer-events-auto flex flex-col"
       style={{ width: minimapWidth, zIndex }}
     >
       {/* Drag handle */}
@@ -162,18 +162,15 @@ export default function MinimapOverlay() {
         
         {/* 인디케이터 (배경 바로 위, 라인들 아래에 렌더링) */}
         <rect ref={indicatorRef} fill="#00ffcc" fillOpacity={0.15} stroke="#00ffcc" strokeWidth={1.5} style={{ pointerEvents: 'none' }} />
-        {/* 외벽(좌/우) */}
-        {wallStyle === 'zigzag' ? (
-          <>
-            <path d={`M ${leftWall} 0 ` + Array.from({ length: Math.ceil(MINIMAP_HEIGHT / (100 * scale)) + 1 }).map((_, i) => `L ${leftWall + (i % 2 === 0 ? 20 * scale : 0)} ${i * 100 * scale}`).join(' ')} stroke="#00ffff" strokeWidth={1.5} fill="none" strokeOpacity={0.5} />
-            <path d={`M ${rightWall} 0 ` + Array.from({ length: Math.ceil(MINIMAP_HEIGHT / (100 * scale)) + 1 }).map((_, i) => `L ${rightWall - (i % 2 === 0 ? 20 * scale : 0)} ${i * 100 * scale}`).join(' ')} stroke="#00ffff" strokeWidth={1.5} fill="none" strokeOpacity={0.5} />
-          </>
-        ) : (
-          <>
-            <line x1={leftWall} y1={0} x2={leftWall} y2={MINIMAP_HEIGHT} stroke="#00ffff" strokeWidth={1.5} strokeOpacity={0.5} />
-            <line x1={rightWall} y1={0} x2={rightWall} y2={MINIMAP_HEIGHT} stroke="#00ffff" strokeWidth={1.5} strokeOpacity={0.5} />
-          </>
-        )}
+        {/* 외벽: 게임 미니맵과 동일하게 실제 외벽 세그먼트를 회색 사각형으로 렌더 */}
+        {wallSegments.map(seg => {
+          const cx = seg.x * scale
+          const cy = seg.y * scale
+          const w = Math.max(1, seg.w * scale)
+          const h = Math.max(1, seg.h * scale)
+          const t = seg.rotation ? `rotate(${seg.rotation}, ${cx}, ${cy})` : undefined
+          return <rect key={seg.id} x={cx - w / 2} y={cy - h / 2} width={w} height={h} fill="#8888aa" opacity={0.5} transform={t} style={{ pointerEvents: 'none' }} />
+        })}
         {/* 시작선 / 종료선 */}
         <line x1={0} y1={startY} x2={minimapWidth} y2={startY} stroke="#00FFD0" strokeWidth={2} strokeOpacity={0.8} />
         <line x1={0} y1={endY} x2={minimapWidth} y2={endY} stroke="#FF00FF" strokeWidth={2} strokeOpacity={0.8} />
@@ -186,7 +183,7 @@ export default function MinimapOverlay() {
           const isSel = selectedItemId === item.id
           const fill = isSel ? '#ffffff' : itemColor(item.type, item)
           const onClick = (e: React.MouseEvent) => { e.stopPropagation(); setSelectedItemId(item.id) }
-          const rotationDeg = item.angle != null ? item.angle : (item.rotation ? item.rotation * 180 / Math.PI : 0)
+          const rotationDeg = itemRotationDeg(item)
           const transform = rotationDeg ? `rotate(${rotationDeg}, ${cx}, ${cy})` : undefined
 
           if (item.type === 'flipper') {

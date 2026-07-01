@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js'
 import type { RenderContext } from './RenderContext'
+import { itemRotationRad } from './rotation'
 
 export interface ObstacleGraphic {
   /** 메인 캔버스에 추가할 시각 노드 (월드 좌표 item.x,item.y 에 배치됨) */
@@ -313,7 +314,7 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
       // 본체(g)가 회전하더라도 가이드가 월드 좌표상의 waypointB를 정확히 가리키도록 역회전 변환
       const dx = bx - ax
       const dy = by - ay
-      const rot = item.angle != null ? (item.angle * Math.PI) / 180 : (item.rotation || 0)
+      const rot = itemRotationRad(item)
       const invRot = -rot
       const localX = dx * Math.cos(invRot) - dy * Math.sin(invRot)
       const localY = dx * Math.sin(invRot) + dy * Math.cos(invRot)
@@ -331,7 +332,8 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
 
   g.position.set(item.x, item.y)
   mg.position.set(item.x, item.y)
-  const finalRot = item.angle != null ? (item.angle * Math.PI) / 180 : (item.rotation || 0)
+  // 회전 단위 통일: item.angle/rotation 은 '도(degree)' 로 해석(→라디안). [rotation.ts]
+  const finalRot = itemRotationRad(item)
   g.rotation = finalRot
   mg.rotation = finalRot
   mg.scale.set(1.5)

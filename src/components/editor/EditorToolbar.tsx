@@ -6,7 +6,7 @@ import { useGameStore } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
 import { Save, Undo, Redo, Magnet, Plus, Play, Pause, Loader2, Upload, X, History, ChevronDown, ChevronRight, Clock } from 'lucide-react'
 import { MapPresets } from '@/engine/MapPresets'
-import { saveMapAction, deployMapAction } from '@/presentation/actions/mapActions'
+import { saveMapAction, deployMapAction, getMapsAction } from '@/presentation/actions/mapActions'
 import { getUserRoleAction } from '@/presentation/actions/authActions'
 import { logMapEditAction } from '@/presentation/actions/historyActions'
 import UnsavedChangesModal from './UnsavedChangesModal'
@@ -390,14 +390,23 @@ export default function EditorToolbar() {
                 <button 
                   onClick={async () => {
                     if (!confirm('이 커스텀 맵을 기본맵으로 배포하시겠습니까?')) return;
+                    // 1) 최종 편집본을 먼저 영속화 — 여러 번 수정했더라도 마지막 상태가 배포되도록 보장.
+                    await handleSave();
+                    // 2) 공식 배포(is_official=true) 설정.
                     const res = await deployMapAction(mapId);
                     if (res.success) {
-                      const gameStore = useGameStore.getState();
-                      const currentCache = gameStore.mapDataCache || { ...MapPresets };
-                      gameStore.setMapDataCache({
-                        ...currentCache,
-                        [mapId]: { ...currentCache[mapId], isOfficial: true }
-                      });
+                      // 3) 서버 권위 상태로 캐시 동기화 → 실행 중 클라이언트가 배포 결과를 즉시·정확히 반영.
+                      try {
+                        const fresh = await getMapsAction();
+                        useGameStore.getState().setMapDataCache(fresh);
+                      } catch {
+                        const gameStore = useGameStore.getState();
+                        const currentCache = gameStore.mapDataCache || { ...MapPresets };
+                        gameStore.setMapDataCache({
+                          ...currentCache,
+                          [mapId]: { ...currentCache[mapId], isOfficial: true }
+                        });
+                      }
                       toast.success('서버 배포 완료! 이제 기본맵 탭에 표시됩니다.');
                     } else {
                       toast.error(`배포 실패: ${res.error}`);

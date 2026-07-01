@@ -178,6 +178,8 @@ self.onmessage = async (e) => {
     core.init({
       width, height, worldHeight, wallStyle,
       mapItems, gimmickDensity, isCustomMap,
+      // 공식(배포) 맵은 편집본 정확 재현을 위해 밀도 절차를 우회한다.
+      isOfficial: activeMeta?.isOfficial === true,
       themeWeights,
       layoutConfig, // PRD v6.0: 커스텀 맵의 레이아웃 메타데이터도 반영
       mapKey: selectedMapPreset && selectedMapPreset !== 'random' ? selectedMapPreset : 'random',

@@ -1,82 +1,10 @@
 import RAPIER from '@dimforge/rapier2d-compat';
 import { UserData } from './types';
+import { computeWallSegments } from './wallGeometry';
+import type { WallStyle } from './wallGeometry';
 
-// 외벽 스타일: 맵마다 다른 외벽 형태를 지정하여 시각적·물리적 다양성 확보
-export type WallStyle = 'straight' | 'zigzag' | 'narrow' | 'wide' | 'funnel' | 'hourglass' | 'diamond' | 'wave' | 'sawtooth' | 'asymmetric';
-
-function getWallTransform(y: number, height: number, style: WallStyle) {
-  let leftOffset = 0, rightOffset = 0, leftAngle = 0, rightAngle = 0;
-  const progress = Math.max(0, Math.min(1, y / height));
-
-  switch (style) {
-    case 'narrow':
-      leftOffset = 100; rightOffset = 100;
-      break;
-    case 'wide':
-      leftOffset = -50; rightOffset = -50;
-      break;
-    case 'zigzag': {
-      const isBump = Math.round(y / 100) % 2 === 0;
-      leftOffset = isBump ? 20 : 0; rightOffset = isBump ? 20 : 0;
-      break;
-    }
-    case 'funnel': {
-      leftOffset = progress * 200; rightOffset = progress * 200;
-      const dx = 200 / height;
-      const angle = Math.atan(dx) * (180 / Math.PI);
-      leftAngle = angle; rightAngle = -angle; 
-      break;
-    }
-    case 'hourglass': {
-      const dist = Math.abs(progress - 0.5);
-      leftOffset = 150 - dist * 300; rightOffset = 150 - dist * 300;
-      const dx = progress < 0.5 ? (300 / height) : (-300 / height);
-      const angle = Math.atan(dx) * (180 / Math.PI);
-      leftAngle = angle; rightAngle = -angle;
-      break;
-    }
-    case 'diamond': {
-      const dist = Math.abs(progress - 0.5);
-      leftOffset = dist * 300 - 50; rightOffset = dist * 300 - 50;
-      const dx = progress < 0.5 ? (-300 / height) : (300 / height);
-      const angle = Math.atan(dx) * (180 / Math.PI);
-      leftAngle = angle; rightAngle = -angle;
-      break;
-    }
-    case 'wave': {
-      const freq = (2 * Math.PI) / 800;
-      leftOffset = Math.sin(y * freq) * 60 + 20;
-      rightOffset = Math.sin(y * freq) * 60 + 20;
-      const dx = Math.cos(y * freq) * 60 * freq;
-      const angle = Math.atan(dx) * (180 / Math.PI);
-      leftAngle = angle; rightAngle = -angle;
-      break;
-    }
-    case 'sawtooth': {
-      const localY = ((y % 400) + 400) % 400;
-      if (localY < 300) {
-        leftOffset = (localY / 300) * 120; rightOffset = (localY / 300) * 120;
-        const angle = Math.atan(120 / 300) * (180 / Math.PI);
-        leftAngle = angle; rightAngle = -angle;
-      } else {
-        leftOffset = 120 - ((localY - 300) / 100) * 120; rightOffset = 120 - ((localY - 300) / 100) * 120;
-        const angle = Math.atan(-120 / 100) * (180 / Math.PI);
-        leftAngle = angle; rightAngle = -angle;
-      }
-      break;
-    }
-    case 'asymmetric': {
-      const freq = (2 * Math.PI) / 1000;
-      const shift = Math.sin(y * freq) * 150;
-      leftOffset = shift; rightOffset = -shift;
-      const dx = Math.cos(y * freq) * 150 * freq;
-      const angle = Math.atan(dx) * (180 / Math.PI);
-      leftAngle = angle; rightAngle = angle; 
-      break;
-    }
-  }
-  return { leftOffset, rightOffset, leftAngle, rightAngle };
-}
+// 외벽 스타일은 단일 소스(wallGeometry)에서 정의하고 재노출한다.
+export type { WallStyle };
 
 export class MapBuilder {
   static createRect(world: RAPIER.World, x: number, y: number, w: number, h: number, type: 'wall', rotation: number = 0, restitution: number = 0.2, friction: number = 0.5) {
@@ -96,20 +24,11 @@ export class MapBuilder {
   }
 
   static createWalls(world: RAPIER.World, width: number, height: number, thickness: number = 100, style: WallStyle = 'zigzag') {
-    const startY = -500; // Match BG_PAD_TOP
-    const endY = height + 500; // Match BG_PAD_BOTTOM roughly
-    const step = 100;
-    
-    for (let y = startY; y <= endY; y += step) {
-      const { leftOffset, rightOffset, leftAngle, rightAngle } = getWallTransform(y, height, style);
-      
-      const leftId = `wall_l_${y}`;
-      const leftBody = this.createRect(world, -thickness / 2 + leftOffset, y, thickness, 100, 'wall', leftAngle, 0.2, 0.05);
-      if(leftBody.userData) (leftBody.userData as UserData).id = leftId;
-
-      const rightId = `wall_r_${y}`;
-      const rightBody = this.createRect(world, width + thickness / 2 - rightOffset, y, thickness, 100, 'wall', rightAngle, 0.2, 0.05);
-      if(rightBody.userData) (rightBody.userData as UserData).id = rightId;
+    // 외벽 좌표/기울기는 단일 소스(computeWallSegments)에서 계산 — 에디터·미니맵과 완전 동일.
+    const segments = computeWallSegments(width, height, thickness, style);
+    for (const seg of segments) {
+      const body = this.createRect(world, seg.x, seg.y, seg.w, seg.h, 'wall', seg.rotation, seg.restitution, seg.friction);
+      if (body.userData) (body.userData as UserData).id = seg.id;
     }
   }
 

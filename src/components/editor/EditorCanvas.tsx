@@ -6,10 +6,11 @@ import { Viewport } from 'pixi-viewport'
 import { useEditorStore, EditorItem } from '@/store/editorStore'
 import { createAppRenderContext } from '@/lib/render/RenderContext'
 import { createObstacleGraphic, ObstacleGraphic } from '@/lib/render/ObstacleRenderer'
+import { itemRotationRad } from '@/lib/render/rotation'
+import { computeWallSegments } from '@/engine/wallGeometry'
 import {
   createBackground,
   createStartEndLines,
-  createWallGuide,
   WORLD_WIDTH,
   getStartLineY,
 } from '@/lib/render/StageChrome'
@@ -24,8 +25,6 @@ const OBSTACLE_TEXTURES = [
   'obstacle_wall_gold', 'obstacle_wall_steampunk', 'obstacle_wall_gothic', 'obstacle_wall_space',
   'obstacle_wall_candy', 'obstacle_wall_arcade', 'obstacle_wall_plasma'
 ].map(n => `/images/assets/obstacles/${n}.png`)
-
-const deg2rad = (d: number) => (d * Math.PI) / 180
 
 // Pixi v8/v7 이벤트 호환: 로컬 좌표 변환
 function getLocalPos(ev: any, layer: PIXI.Container) {
@@ -49,7 +48,7 @@ function visualSignature(it: EditorItem, animated: boolean): string {
 }
 
 function applyRotation(node: PIXI.Container, it: EditorItem) {
-  node.rotation = it.angle != null ? deg2rad(it.angle) : (it.rotation || 0)
+  node.rotation = itemRotationRad(it)
 }
 
 interface NodeEntry { gfx: ObstacleGraphic; sig: string }
@@ -239,7 +238,13 @@ export default function EditorCanvas() {
     const bg = createBackground(ctx, st.bgImage || undefined, opts)
     if (bg) chrome.addChild(bg)
     const lines = createStartEndLines(opts); lines.zIndex = -1; chrome.addChild(lines)
-    const wallGuide = createWallGuide(opts); chrome.addChild(wallGuide)
+    // 실제 외벽(게임과 동일 지오메트리, 단일 소스 computeWallSegments) — 비상호작용 레이어.
+    // createObstacleGraphic 이 seg.x/y/rotation(도) 을 내부에서 배치·회전한다.
+    const wallSegs = computeWallSegments(WORLD_WIDTH, opts.worldHeight, 100, (st.wallStyle as any) || 'straight')
+    for (const seg of wallSegs) {
+      const wg = createObstacleGraphic(seg, ctx)
+      chrome.addChild(wg.node)
+    }
     chrome.sortableChildren = true
   }
 
@@ -469,8 +474,8 @@ export default function EditorCanvas() {
       // item.waypointB는 절대좌표이므로 sel 내부의 로컬 좌표로 변환하기 위해 역회전을 적용한다.
       const dx = item.waypointB.x - item.x
       const dy = item.waypointB.y - item.y
-      const rot = -(item.angle != null ? deg2rad(item.angle) : (item.rotation || 0))
-      
+      const rot = -itemRotationRad(item)
+
       const localX = dx * Math.cos(rot) - dy * Math.sin(rot)
       const localY = dx * Math.sin(rot) + dy * Math.cos(rot)
       
