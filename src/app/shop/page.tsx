@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import ChipHeader from "@/components/ChipHeader";
 import ShopTabs from "@/components/shop/ShopTabs";
 import ShopShowcase from "@/components/shop/ShopShowcase";
 import BlackMarket from "@/components/shop/BlackMarket";
@@ -32,8 +31,6 @@ export default function ShopPage() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white font-sans overflow-hidden">
-      <ChipHeader />
-
       <main className="max-w-7xl mx-auto pt-24 px-6 pb-12 grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         {/* 좌측: 3D 쇼케이스 및 암시장/룰렛 배너 */}
