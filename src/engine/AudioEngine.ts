@@ -114,7 +114,8 @@ class AudioEngine {
     
     if (Howler.ctx && Howler.ctx.state === 'suspended') {
       nextBgm.volume(this.bgmVol);
-      nextBgm.play();
+      // 브라우저 락 상태일 때는 play()를 호출하지 않고 대기합니다.
+      // 이후 유저가 클릭하면 unlockAudio()에서 play()를 안전하게 호출합니다.
     } else {
       nextBgm.volume(0);
       nextBgm.play();

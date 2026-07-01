@@ -95,13 +95,9 @@ export default function GameManager() {
   useEffect(() => {
     // 🎧 브라우저 Autoplay 정책 우회 (최초 클릭 시 오디오 컨텍스트 강제 활성화)
     const unlockAudio = () => {
-      import('howler').then(({ Howler }) => {
-        if (Howler.ctx && Howler.ctx.state === 'suspended') {
-          Howler.ctx.resume();
-        }
+      import('@/engine/AudioEngine').then(({ soundManager }) => {
+        soundManager.unlockAudio();
       });
-      window.removeEventListener('click', unlockAudio);
-      window.removeEventListener('touchstart', unlockAudio);
     };
     window.addEventListener('click', unlockAudio);
     window.addEventListener('touchstart', unlockAudio);
