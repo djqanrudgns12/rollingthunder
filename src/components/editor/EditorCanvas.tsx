@@ -111,6 +111,7 @@ export default function EditorCanvas() {
       viewportRef.current = viewport
       // 시작선이 보이도록 상단 중심으로 이동
       viewport.moveCenter(WORLD_WIDTH / 2, getStartLineY({ worldHeight, layoutConfig: st.layoutConfig }) + 300)
+      useEditorStore.getState().setEditorViewport(viewport)
 
       // 레이어: chrome(배경/벽/라인) → items(기물) → overlay(선택/핸들)
       const chrome = new PIXI.Container(); chrome.zIndex = -50; viewport.addChild(chrome); chromeRef.current = chrome
@@ -219,6 +220,7 @@ export default function EditorCanvas() {
       nodeMapRef.current.forEach(e => { e.gfx.dispose() })
       nodeMapRef.current.clear()
       if (viewportRef.current) { try { viewportRef.current.destroy() } catch {} viewportRef.current = null }
+      useEditorStore.getState().setEditorViewport(null)
       if (appRef.current) { try { appRef.current.destroy(false, { children: true }) } catch {} appRef.current = null }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -12,8 +12,8 @@ interface FloatingPanelProps {
   defaultPosition?: { x: number; y: number };
   defaultExpanded?: boolean;
   onClose?: () => void;
-  width?: string;
-  maxHeight?: string;
+  initialWidth?: number;
+  initialHeight?: number;
   style?: React.CSSProperties;
   panelId: string;
 }
@@ -25,13 +25,13 @@ export default function FloatingPanel({
   defaultPosition = { x: 0, y: 0 },
   defaultExpanded = true,
   onClose,
-  width = "w-80",
-  maxHeight = "max-h-[600px]",
+  initialWidth = 320,
+  initialHeight = 400,
   style,
   panelId
 }: FloatingPanelProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-  const [scale, setScale] = useState(1);
+  const [size, setSize] = useState({ width: initialWidth, height: initialHeight });
   
   const { panelOrder, bringToFront } = useEditorStore();
   const zIndex = 100 + panelOrder.indexOf(panelId);
@@ -41,13 +41,18 @@ export default function FloatingPanel({
     e.stopPropagation();
     
     const startX = e.clientX;
-    const startScale = scale;
+    const startY = e.clientY;
+    const startW = size.width;
+    const startH = size.height;
     
     const handlePointerMove = (moveEvent: PointerEvent) => {
       const dx = moveEvent.clientX - startX;
-      // 기준 패널 너비를 대략 300px로 가정하고 스케일 조정 (비율 유지)
-      const newScale = Math.min(Math.max(startScale + dx / 300, 0.5), 2.0);
-      setScale(newScale);
+      const dy = moveEvent.clientY - startY;
+      
+      setSize({
+        width: Math.max(200, startW + dx),
+        height: Math.max(100, startH + dy)
+      });
     };
     
     const handlePointerUp = () => {
@@ -67,23 +72,21 @@ export default function FloatingPanel({
       initial={defaultPosition}
       dragConstraints={{ left: 0, top: 0, right: typeof window !== 'undefined' ? window.innerWidth - 100 : 1920, bottom: typeof window !== 'undefined' ? window.innerHeight - 100 : 1080 }}
       onPointerDownCapture={() => bringToFront(panelId)}
-      className={`fixed flex flex-col ${width} bg-black/60 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl overflow-hidden`}
+      className={`fixed flex flex-col bg-black/60 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl overflow-hidden`}
       style={{ 
         touchAction: "none", 
         zIndex,
-        scale,
-        transformOrigin: "top left",
-        backfaceVisibility: "hidden",
-        willChange: "transform",
+        width: size.width,
+        height: isExpanded ? size.height : 'auto',
         ...style 
       }}
     >
       {/* Title Bar (Drag Handle) */}
-      <div className="drag-handle flex items-center justify-between p-2.5 bg-black/40 border-b border-white/10 cursor-grab active:cursor-grabbing group select-none">
+      <div className="drag-handle flex items-center justify-between p-2.5 bg-black/40 border-b border-white/10 cursor-grab active:cursor-grabbing group select-none shrink-0">
         <div className="flex items-center gap-2">
           <GripHorizontal className="w-4 h-4 text-gray-500 group-hover:text-gray-300 transition-colors" />
           {icon && <span className="text-blue-400">{icon}</span>}
-          <h3 className="font-bold text-sm text-gray-200 font-outfit tracking-wider uppercase">
+          <h3 className="font-bold text-sm text-gray-200 font-outfit tracking-wider uppercase truncate max-w-[150px]">
             {title}
           </h3>
         </div>
@@ -111,7 +114,7 @@ export default function FloatingPanel({
 
       {/* Content Body (Foldable) */}
       {isExpanded && (
-        <div className={`flex flex-col ${maxHeight} overflow-y-auto no-scrollbar relative`}>
+        <div className={`flex flex-col flex-1 overflow-y-auto no-scrollbar relative`}>
           {children}
         </div>
       )}

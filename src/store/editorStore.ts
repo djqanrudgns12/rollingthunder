@@ -132,6 +132,9 @@ interface EditorState {
   // 플로팅 패널 Z-Index 전역 관리 (패널 ID 배열 - 끝에 있을수록 맨 위)
   panelOrder: string[];
   bringToFront: (panelId: string) => void;
+
+  editorViewport: any | null;
+  setEditorViewport: (viewport: any | null) => void;
 }
 
 // 스냅샷 생성 유틸리티
@@ -177,6 +180,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     newOrder.push(panelId);
     return { panelOrder: newOrder };
   }),
+
+  editorViewport: null,
+  setEditorViewport: (viewport) => set({ editorViewport: viewport }),
 
   addTab: (mapId, type, customTitle) => set((state) => {
     // 이미 열려있는 맵 탭인지 확인

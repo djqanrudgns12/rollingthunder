@@ -24,7 +24,7 @@ function StageProperties() {
     <FloatingPanel 
       title="스테이지 속성 (Stage)" 
       icon={<MapIcon className="w-4 h-4 text-blue-400" />}
-      width="w-72"
+      initialWidth={288}
       style={{ top: '80px', right: '20px' }}
       panelId="stage-properties"
     >
@@ -119,11 +119,11 @@ function ItemProperties({ selectedItem }: { selectedItem: EditorItem }) {
       title="Properties" 
       icon={<Settings2 className="w-4 h-4 text-blue-400" />}
       onClose={() => setSelectedItemId(null)}
-      width="w-72"
+      initialWidth={288}
       style={{ bottom: '20px', right: '20px' }}
       panelId="item-properties"
     >
-      <div className="flex flex-col h-full max-h-[60vh]">
+      <div className="flex flex-col h-full">
         <div className="px-4 pb-2 border-b border-[#333]">
           <p className="text-xs text-blue-400 font-mono break-all">{selectedItem.id}</p>
         </div>

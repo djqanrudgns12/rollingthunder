@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef } from 'react'
+import React, { useRef, useEffect, useState } from 'react'
 import { useEditorStore, EditorItem } from '@/store/editorStore'
 import { motion, useDragControls } from 'framer-motion'
 import { GripHorizontal } from 'lucide-react'
@@ -37,9 +37,11 @@ export default function MinimapOverlay() {
   const { items, worldHeight, wallStyle, selectedItemId, setSelectedItemId, layoutConfig, panelOrder, bringToFront } = useEditorStore()
   const constraintsRef = useRef<HTMLDivElement>(null)
   const dragControls = useDragControls()
+  const svgRef = useRef<SVGSVGElement>(null)
+  const indicatorRef = useRef<SVGRectElement>(null)
 
-  const MINIMAP_WIDTH = 150
-  const scale = MINIMAP_WIDTH / WORLD_WIDTH
+  const [minimapWidth, setMinimapWidth] = useState(150)
+  const scale = minimapWidth / WORLD_WIDTH
   const wh = worldHeight || 3300
   const MINIMAP_HEIGHT = Math.max(wh * scale, 300)
 
@@ -55,6 +57,87 @@ export default function MinimapOverlay() {
 
   const zIndex = 100 + panelOrder.indexOf('minimap')
 
+  useEffect(() => {
+    let frameId: number
+    const loop = () => {
+      const vp = useEditorStore.getState().editorViewport
+      if (vp && indicatorRef.current) {
+        const vpScale = vp.scale.x
+        if (vpScale > 0) {
+          const visibleW = window.innerWidth / vpScale
+          const visibleH = window.innerHeight / vpScale
+          const cx = vp.center.x
+          const cy = vp.center.y
+          
+          const x0 = cx - visibleW / 2
+          const y0 = cy - visibleH / 2
+          
+          const scaledX0 = x0 * scale
+          const scaledY0 = y0 * scale
+          const scaledW = visibleW * scale
+          const scaledH = visibleH * scale
+          
+          indicatorRef.current.setAttribute('x', scaledX0.toString())
+          indicatorRef.current.setAttribute('y', scaledY0.toString())
+          indicatorRef.current.setAttribute('width', scaledW.toString())
+          indicatorRef.current.setAttribute('height', scaledH.toString())
+        }
+      }
+      frameId = requestAnimationFrame(loop)
+    }
+    frameId = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(frameId)
+  }, [scale])
+
+  const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (e.button !== 0) return
+    
+    const target = e.target as Element
+    if (target.id !== 'minimap-bg' && target.tagName.toLowerCase() !== 'svg') return;
+
+    const vp = useEditorStore.getState().editorViewport
+    if (!vp || !svgRef.current) return
+    
+    const rect = svgRef.current.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    
+    vp.moveCenter(x / scale, y / scale)
+    
+    const onMove = (ev: PointerEvent) => {
+      const nx = ev.clientX - rect.left
+      const ny = ev.clientY - rect.top
+      vp.moveCenter(nx / scale, ny / scale)
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
+  const handleResizeStart = (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const startX = e.clientX;
+    const startW = minimapWidth;
+    
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const dx = moveEvent.clientX - startX;
+      setMinimapWidth(Math.max(100, Math.min(600, startW + dx)));
+    };
+    
+    const handlePointerUp = () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+    
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  };
+
   return (
     <motion.div
       drag
@@ -63,7 +146,7 @@ export default function MinimapOverlay() {
       dragMomentum={false}
       onPointerDownCapture={() => bringToFront('minimap')}
       className="absolute right-72 top-20 bg-[#0a0a10] border border-[#00ffcc]/40 rounded-lg overflow-hidden shadow-2xl pointer-events-auto flex flex-col"
-      style={{ width: MINIMAP_WIDTH, zIndex }}
+      style={{ width: minimapWidth, zIndex }}
     >
       {/* Drag handle */}
       <div 
@@ -73,9 +156,12 @@ export default function MinimapOverlay() {
         <GripHorizontal size={14} className="text-[#00ffcc]/60" />
       </div>
       
-      <svg width={MINIMAP_WIDTH} height={MINIMAP_HEIGHT} className="block cursor-crosshair">
+      <svg ref={svgRef} width={minimapWidth} height={MINIMAP_HEIGHT} className="block cursor-crosshair" onPointerDown={handlePointerDown}>
         {/* 플레이필드 배경 */}
-        <rect x={0} y={0} width={MINIMAP_WIDTH} height={MINIMAP_HEIGHT} fill="#0a0a10" />
+        <rect id="minimap-bg" x={0} y={0} width={minimapWidth} height={MINIMAP_HEIGHT} fill="#0a0a10" />
+        
+        {/* 인디케이터 (배경 바로 위, 라인들 아래에 렌더링) */}
+        <rect ref={indicatorRef} fill="#00ffcc" fillOpacity={0.15} stroke="#00ffcc" strokeWidth={1.5} style={{ pointerEvents: 'none' }} />
         {/* 외벽(좌/우) */}
         {wallStyle === 'zigzag' ? (
           <>
@@ -89,8 +175,8 @@ export default function MinimapOverlay() {
           </>
         )}
         {/* 시작선 / 종료선 */}
-        <line x1={0} y1={startY} x2={MINIMAP_WIDTH} y2={startY} stroke="#00FFD0" strokeWidth={2} strokeOpacity={0.8} />
-        <line x1={0} y1={endY} x2={MINIMAP_WIDTH} y2={endY} stroke="#FF00FF" strokeWidth={2} strokeOpacity={0.8} />
+        <line x1={0} y1={startY} x2={minimapWidth} y2={startY} stroke="#00FFD0" strokeWidth={2} strokeOpacity={0.8} />
+        <line x1={0} y1={endY} x2={minimapWidth} y2={endY} stroke="#FF00FF" strokeWidth={2} strokeOpacity={0.8} />
 
         {items.map(item => {
           // 시작/종료선은 위에서 layoutConfig 로 이미 그림
@@ -142,6 +228,15 @@ export default function MinimapOverlay() {
           return <circle key={item.id} cx={cx} cy={cy} r={r} fill={fill} opacity={0.85} onClick={onClick} style={{ cursor: 'pointer' }} />
         })}
       </svg>
+      {/* Resize Handle */}
+      <div 
+        className="absolute bottom-0 right-0 w-5 h-5 cursor-nwse-resize z-50 flex items-center justify-center opacity-30 hover:opacity-100 transition-opacity"
+        onPointerDown={handleResizeStart}
+      >
+        <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 fill-current text-[#00ffcc]">
+          <polygon points="10,0 10,10 0,10"/>
+        </svg>
+      </div>
     </motion.div>
   )
 }

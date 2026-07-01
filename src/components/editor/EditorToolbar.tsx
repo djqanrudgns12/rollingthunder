@@ -196,7 +196,7 @@ export default function EditorToolbar() {
             return (
               <div 
                 key={tab.id}
-                draggable
+                draggable={editingTabId !== tab.id}
                 onDragStart={(e) => handleDragStart(e, index)}
                 onDrop={(e) => handleDrop(e, index)}
                 onDragOver={handleDragOver}

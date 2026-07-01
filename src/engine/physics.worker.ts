@@ -153,13 +153,20 @@ self.onmessage = async (e) => {
       selectedMapPreset
     } = payload;
 
-    const isCustomMap = !!(customMapData && customMapData.length > 0);
-    const worldHeight = isCustomMap && customMapMeta?.worldHeight ? customMapMeta.worldHeight : (presetMeta ? presetMeta.worldHeight : height);
-    const wallStyle: WallStyle = isCustomMap && customMapMeta?.wallStyle ? customMapMeta.wallStyle : (presetMeta ? presetMeta.wallStyle : 'zigzag');
+    // customMapData가 있으면 share code를 통해 강제 로드된 맵, 없더라도 presetMeta.isOfficial === false 이면 로컬에 임시 저장된 커스텀 맵으로 판별.
+    const hasShareCodeCustomMap = !!(customMapData && customMapData.length > 0);
+    const isCustomMap = hasShareCodeCustomMap || (presetMeta && presetMeta.isOfficial === false);
+    
+    // share code를 통해 로드된 맵이 우선순위를 가짐.
+    const activeMeta = hasShareCodeCustomMap ? customMapMeta : presetMeta;
+    
+    const worldHeight = activeMeta?.worldHeight || height;
+    const wallStyle: WallStyle = activeMeta?.wallStyle || 'zigzag';
     const presetData = presetMeta ? presetMeta.items : null;
-    const mapItems = isCustomMap ? customMapData : presetData;
-    const layoutConfig = isCustomMap && customMapMeta?.layoutConfig ? customMapMeta.layoutConfig : presetMeta?.layoutConfig;
-    const themeWeights = isCustomMap && customMapMeta?.themeWeights ? customMapMeta.themeWeights : presetMeta?.themeWeights;
+    // 실제 시뮬레이션에 전달할 아이템 데이터 (공유 코드 커스텀 맵 > 로컬 캐시 커스텀 맵/프리셋 맵)
+    const mapItems = hasShareCodeCustomMap ? customMapData : presetData;
+    const layoutConfig = activeMeta?.layoutConfig;
+    const themeWeights = activeMeta?.themeWeights;
 
     isSkillEnabled = isSkill ?? true;
     if (initBaseTimeScale !== undefined) {

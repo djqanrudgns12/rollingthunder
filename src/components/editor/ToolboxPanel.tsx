@@ -9,6 +9,7 @@ type TabType = 'obstacles' | 'frames' | 'backgrounds'
 interface ItemDef {
   type: EditorItemType;
   label: string;
+  desc?: string;
   icon?: React.FC<any>;
   imagePath?: string;
   color: string;
@@ -17,39 +18,39 @@ interface ItemDef {
 
 const CATEGORIES: Record<TabType, ItemDef[]> = {
   obstacles: [
-    { type: 'pin', label: '핀 (Pin)', imagePath: '/images/assets/obstacles/obstacle_pin.png', color: 'text-gray-300' },
-    { type: 'bumper', label: '범퍼 (Bumper)', imagePath: '/images/assets/obstacles/obstacle_bumper.png', color: 'text-yellow-400' },
-    { type: 'booster', label: '부스터 (Booster)', imagePath: '/images/assets/obstacles/obstacle_booster.png', color: 'text-orange-500' },
-    { type: 'windmill', label: '풍차 (Windmill)', imagePath: '/images/assets/obstacles/obstacle_windmill.png', color: 'text-blue-400' },
-    { type: 'piston', label: '피스톤 (Piston)', imagePath: '/images/assets/obstacles/obstacle_piston.png', color: 'text-red-400' },
-    { type: 'spinner', label: '스피너 (Spinner)', icon: Loader, color: 'text-indigo-400' },
-    { type: 'windcannon', label: '송풍기 (WindCannon)', imagePath: '/images/assets/obstacles/obstacle_blower.png', color: 'text-teal-300' },
-    { type: 'luckygate', label: '럭키게이트 (LuckyGate)', icon: Trophy, color: 'text-yellow-500' },
-    { type: 'flipper', label: '플리퍼 (Flipper)', icon: MoveDiagonal, color: 'text-pink-400' },
-    { type: 'hole', label: '구멍 (Hole)', imagePath: '/images/assets/obstacles/obstacle_hole.png', color: 'text-black' },
-    { type: 'portal', label: '포탈 (Portal)', imagePath: '/images/assets/obstacles/obstacle_portal.png', color: 'text-purple-500' },
-    { type: 'blackhole', label: '블랙홀 (Blackhole)', imagePath: '/images/assets/obstacles/obstacle_blackhole.png', color: 'text-gray-600' },
-    { type: 'whitehole', label: '화이트홀 (Whitehole)', imagePath: '/images/assets/obstacles/obstacle_whitehole.png', color: 'text-white' },
+    { type: 'pin', label: '핀 (Pin)', desc: '공이 닿으면 통통 튕겨내는 가장 기본적인 원형 핀입니다.', imagePath: '/images/assets/obstacles/obstacle_pin.png', color: 'text-gray-300' },
+    { type: 'bumper', label: '범퍼 (Bumper)', desc: '공이 강하게 부딪힐수록 더 멀리 튕겨내는 탄성 범퍼입니다.', imagePath: '/images/assets/obstacles/obstacle_bumper.png', color: 'text-yellow-400' },
+    { type: 'booster', label: '부스터 (Booster)', desc: '닿는 순간 공의 속도를 특정 방향으로 강하게 가속시킵니다.', imagePath: '/images/assets/obstacles/obstacle_booster.png', color: 'text-orange-500' },
+    { type: 'windmill', label: '풍차 (Windmill)', desc: '일정 속도로 회전하며 공의 경로를 방해하거나 쳐냅니다.', imagePath: '/images/assets/obstacles/obstacle_windmill.png', color: 'text-blue-400' },
+    { type: 'piston', label: '피스톤 (Piston)', desc: '주기적으로 튀어나와 공을 강제로 밀어냅니다.', imagePath: '/images/assets/obstacles/obstacle_piston.png', color: 'text-red-400' },
+    { type: 'spinner', label: '스피너 (Spinner)', desc: '제자리에서 빠르게 회전하며 공을 불규칙하게 튕겨냅니다.', icon: Loader, color: 'text-indigo-400' },
+    { type: 'windcannon', label: '송풍기 (WindCannon)', desc: '특정 방향으로 바람을 일으켜 공의 궤적을 밀어냅니다.', imagePath: '/images/assets/obstacles/obstacle_blower.png', color: 'text-teal-300' },
+    { type: 'luckygate', label: '럭키게이트 (LuckyGate)', desc: '통과 시 점수나 이로운 효과를 부여하는 특수 게이트입니다.', icon: Trophy, color: 'text-yellow-500' },
+    { type: 'flipper', label: '플리퍼 (Flipper)', desc: '핀볼처럼 공을 강하게 쳐서 위로 올려보냅니다.', icon: MoveDiagonal, color: 'text-pink-400' },
+    { type: 'hole', label: '구멍 (Hole)', desc: '공이 빠질 수 있는 구멍으로, 맵의 장애물 역할을 합니다.', imagePath: '/images/assets/obstacles/obstacle_hole.png', color: 'text-black' },
+    { type: 'portal', label: '포탈 (Portal)', desc: '진입한 공을 연결된 다른 포탈로 즉시 이동시킵니다.', imagePath: '/images/assets/obstacles/obstacle_portal.png', color: 'text-purple-500' },
+    { type: 'blackhole', label: '블랙홀 (Blackhole)', desc: '근처의 공을 중심부로 강력하게 빨아들입니다.', imagePath: '/images/assets/obstacles/obstacle_blackhole.png', color: 'text-gray-600' },
+    { type: 'whitehole', label: '화이트홀 (Whitehole)', desc: '빨아들인 공을 다른 곳으로 강하게 뱉어냅니다.', imagePath: '/images/assets/obstacles/obstacle_whitehole.png', color: 'text-white' },
   ],
   frames: [
-    { type: 'wall', label: '벽 (Wall)', imagePath: '/images/assets/obstacles/obstacle_wall.png', color: 'text-gray-500' },
-    { type: 'wall', variant: 'neon', label: '벽 (네온 사이버펑크)', imagePath: '/images/assets/obstacles/obstacle_wall_neon.png', color: 'text-pink-400' },
-    { type: 'wall', variant: 'circuit', label: '벽 (전자 기판)', imagePath: '/images/assets/obstacles/obstacle_wall_circuit.png', color: 'text-green-500' },
-    { type: 'wall', variant: 'matrix', label: '벽 (매트릭스)', imagePath: '/images/assets/obstacles/obstacle_wall_matrix.png', color: 'text-green-400' },
-    { type: 'wall', variant: 'lava', label: '벽 (용암 대장간)', imagePath: '/images/assets/obstacles/obstacle_wall_lava.png', color: 'text-red-500' },
-    { type: 'wall', variant: 'ice', label: '벽 (빙하 얼음)', imagePath: '/images/assets/obstacles/obstacle_wall_ice.png', color: 'text-cyan-300' },
-    { type: 'wall', variant: 'toxic', label: '벽 (맹독 지대)', imagePath: '/images/assets/obstacles/obstacle_wall_toxic.png', color: 'text-yellow-400' },
-    { type: 'wall', variant: 'crystal', label: '벽 (수정 동굴)', imagePath: '/images/assets/obstacles/obstacle_wall_crystal.png', color: 'text-purple-400' },
-    { type: 'wall', variant: 'grass', label: '벽 (잔디 숲)', imagePath: '/images/assets/obstacles/obstacle_wall_grass.png', color: 'text-green-600' },
-    { type: 'wall', variant: 'gold', label: '벽 (황금 신전)', imagePath: '/images/assets/obstacles/obstacle_wall_gold.png', color: 'text-yellow-500' },
-    { type: 'wall', variant: 'steampunk', label: '벽 (스팀펑크)', imagePath: '/images/assets/obstacles/obstacle_wall_steampunk.png', color: 'text-amber-700' },
-    { type: 'wall', variant: 'gothic', label: '벽 (고딕 호러)', imagePath: '/images/assets/obstacles/obstacle_wall_gothic.png', color: 'text-red-900' },
-    { type: 'wall', variant: 'space', label: '벽 (심우주)', imagePath: '/images/assets/obstacles/obstacle_wall_space.png', color: 'text-indigo-900' },
-    { type: 'wall', variant: 'candy', label: '벽 (캔디 랜드)', imagePath: '/images/assets/obstacles/obstacle_wall_candy.png', color: 'text-pink-300' },
-    { type: 'wall', variant: 'arcade', label: '벽 (레트로 아케이드)', imagePath: '/images/assets/obstacles/obstacle_wall_arcade.png', color: 'text-red-600' },
-    { type: 'wall', variant: 'plasma', label: '벽 (플라즈마 에너지)', imagePath: '/images/assets/obstacles/obstacle_wall_plasma.png', color: 'text-cyan-400' },
-    { type: 'iceblock', label: '얼음블록 (IceBlock)', icon: Box, color: 'text-cyan-200' },
-    { type: 'polygon', label: '자유형 블록 (Polygon)', icon: CircleDashed, color: 'text-fuchsia-400' },
+    { type: 'wall', label: '벽 (Wall)', desc: '콘셉트에 맞는 기본적인 경계 벽입니다.', imagePath: '/images/assets/obstacles/obstacle_wall.png', color: 'text-gray-500' },
+    { type: 'wall', variant: 'neon', label: '벽 (네온 사이버펑크)', desc: '화려한 네온 빛을 내는 벽입니다.', imagePath: '/images/assets/obstacles/obstacle_wall_neon.png', color: 'text-pink-400' },
+    { type: 'wall', variant: 'circuit', label: '벽 (전자 기판)', desc: '회로가 흐르는 듯한 기판 형태의 벽입니다.', imagePath: '/images/assets/obstacles/obstacle_wall_circuit.png', color: 'text-green-500' },
+    { type: 'wall', variant: 'matrix', label: '벽 (매트릭스)', desc: '디지털 데이터가 흐르는 벽입니다.', imagePath: '/images/assets/obstacles/obstacle_wall_matrix.png', color: 'text-green-400' },
+    { type: 'wall', variant: 'lava', label: '벽 (용암 대장간)', desc: '뜨거운 열기가 느껴지는 벽입니다.', imagePath: '/images/assets/obstacles/obstacle_wall_lava.png', color: 'text-red-500' },
+    { type: 'wall', variant: 'ice', label: '벽 (빙하 얼음)', desc: '차가운 얼음 형태의 벽입니다.', imagePath: '/images/assets/obstacles/obstacle_wall_ice.png', color: 'text-cyan-300' },
+    { type: 'wall', variant: 'toxic', label: '벽 (맹독 지대)', desc: '오염된 맹독이 흐르는 벽입니다.', imagePath: '/images/assets/obstacles/obstacle_wall_toxic.png', color: 'text-yellow-400' },
+    { type: 'wall', variant: 'crystal', label: '벽 (수정 동굴)', desc: '빛나는 수정이 박힌 벽입니다.', imagePath: '/images/assets/obstacles/obstacle_wall_crystal.png', color: 'text-purple-400' },
+    { type: 'wall', variant: 'grass', label: '벽 (잔디 숲)', desc: '자연의 기운을 담은 잔디 벽입니다.', imagePath: '/images/assets/obstacles/obstacle_wall_grass.png', color: 'text-green-600' },
+    { type: 'wall', variant: 'gold', label: '벽 (황금 신전)', desc: '고급스러운 황금빛 벽입니다.', imagePath: '/images/assets/obstacles/obstacle_wall_gold.png', color: 'text-yellow-500' },
+    { type: 'wall', variant: 'steampunk', label: '벽 (스팀펑크)', desc: '톱니바퀴가 돌아가는 기계 장치 벽입니다.', imagePath: '/images/assets/obstacles/obstacle_wall_steampunk.png', color: 'text-amber-700' },
+    { type: 'wall', variant: 'gothic', label: '벽 (고딕 호러)', desc: '으스스한 분위기의 벽입니다.', imagePath: '/images/assets/obstacles/obstacle_wall_gothic.png', color: 'text-red-900' },
+    { type: 'wall', variant: 'space', label: '벽 (심우주)', desc: '우주의 신비로움을 담은 벽입니다.', imagePath: '/images/assets/obstacles/obstacle_wall_space.png', color: 'text-indigo-900' },
+    { type: 'wall', variant: 'candy', label: '벽 (캔디 랜드)', desc: '달콤한 과자 모양의 벽입니다.', imagePath: '/images/assets/obstacles/obstacle_wall_candy.png', color: 'text-pink-300' },
+    { type: 'wall', variant: 'arcade', label: '벽 (레트로 아케이드)', desc: '고전 게임 스타일의 벽입니다.', imagePath: '/images/assets/obstacles/obstacle_wall_arcade.png', color: 'text-red-600' },
+    { type: 'wall', variant: 'plasma', label: '벽 (플라즈마 에너지)', desc: '에너지가 요동치는 벽입니다.', imagePath: '/images/assets/obstacles/obstacle_wall_plasma.png', color: 'text-cyan-400' },
+    { type: 'iceblock', label: '얼음블록 (IceBlock)', desc: '공이 부딪히면 내구도가 닳고 결국 깨지는 블록입니다.', icon: Box, color: 'text-cyan-200' },
+    { type: 'polygon', label: '자유형 블록 (Polygon)', desc: '꼭짓점을 직접 드래그하여 원하는 다각형 모양으로 만들 수 있는 블록입니다.', icon: CircleDashed, color: 'text-fuchsia-400' },
   ]
 }
 
@@ -229,8 +230,11 @@ export default function ToolboxPanel() {
                   <Icon className={`w-6 h-6 ${it.color}`} />
                 )}
               </div>
-              <div className="flex-1 pointer-events-none">
-                <div className="text-sm font-semibold text-gray-200 group-hover:text-white">{it.label}</div>
+              <div className="flex-1 pointer-events-none min-w-0">
+                <div className="text-sm font-semibold text-gray-200 group-hover:text-white truncate">{it.label}</div>
+                {it.desc && (
+                  <div className="text-[11px] text-gray-400 group-hover:text-gray-300 line-clamp-2 mt-0.5 leading-tight break-keep">{it.desc}</div>
+                )}
               </div>
               <Plus className="w-4 h-4 text-gray-500 group-hover:text-blue-400 pointer-events-none" />
             </div>

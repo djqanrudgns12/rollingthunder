@@ -57,7 +57,7 @@ export function applyDensity(
     const otherFillers: { item: EditorItem, priority: number }[] = [];
     
     const TYPE_PRIORITY: Record<string, number> = {
-      blackhole: 1, whitehole: 1, windmill: 2, booster: 3, bumper: 5, pin: 6, hole: 6
+      blackhole: 1, whitehole: 1, windmill: 2, booster: 3, windcannon: 3, luckygate: 3, flipper: 4, piston: 4, spinner: 4, iceblock: 4, bumper: 5, pin: 6, hole: 6
     };
 
     for (const f of fillers) {
@@ -71,7 +71,7 @@ export function applyDensity(
 
     // 최소 보장 (원본에 있을 경우 1개씩 강제 보장)
     const guaranteed: EditorItem[] = [];
-    const needed = { blackhole: 1, whitehole: 1, windmill: 1, booster: 1 };
+    const needed = { blackhole: 1, whitehole: 1, windmill: 1, booster: 1, windcannon: 1, luckygate: 1, piston: 1, spinner: 1, flipper: 1 };
     
     // 우선순위 정렬 (숫자가 낮을수록 높음)
     otherFillers.sort((a, b) => a.priority - b.priority);
