@@ -3,6 +3,7 @@
 import React from "react";
 
 const TABS = [
+  { id: "avatar", label: "아바타", icon: "👤" },
   { id: "skin", label: "스킨", icon: "👕" },
   { id: "piece", label: "말", icon: "♟️" },
   { id: "frame", label: "액자", icon: "🖼️" },

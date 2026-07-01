@@ -9,19 +9,14 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
-// 목업 데이터
-const MOCK_ITEMS = [
-  { item_id: "1", category: "skin", name: "네온 크롬 수트", price: 5000, rarity: "에픽", description: "눈부시게 빛나는 네온 수트입니다." },
-  { item_id: "2", category: "piece", name: "황금 폰", price: 10000, rarity: "전설", description: "순금으로 정교하게 만들어진 게임 말입니다." },
-  { item_id: "3", category: "frame", name: "루비 테두리", price: 2000, rarity: "희귀", description: "고급스러운 붉은빛 루비 프로필 액자입니다." },
-  { item_id: "4", category: "background", name: "카지노 네온사인", price: 3000, rarity: "에픽", description: "화려하고 역동적인 카지노 테마의 배경입니다." },
-];
+import { MOCK_ITEMS } from "@/data/shopData";
 
 export default function ShopPage() {
   const router = useRouter();
   const user = { id: "test-user-id" }; // 더미 유저
-  const [selectedItem, setSelectedItem] = useState(MOCK_ITEMS[1]); // 기본 선택 아이템
-  const [activeTab, setActiveTab] = useState("piece");
+  const defaultAvatar = MOCK_ITEMS.find(i => i.category === 'avatar') || MOCK_ITEMS[0];
+  const [selectedItem, setSelectedItem] = useState(defaultAvatar);
+  const [activeTab, setActiveTab] = useState("avatar");
 
   // 현재 탭에 맞는 아이템 필터링
   const filteredItems = MOCK_ITEMS.filter((item) => item.category === activeTab);
@@ -99,9 +94,12 @@ export default function ShopPage() {
                 } flex items-center justify-between group`}
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-lg bg-black/50 border border-neutral-700 flex items-center justify-center">
-                    {/* 썸네일 플레이스홀더 */}
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-neutral-600 to-neutral-800" />
+                  <div className="w-16 h-16 rounded-lg bg-black/50 border border-neutral-700 flex items-center justify-center overflow-hidden relative">
+                    {item.image ? (
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-neutral-600 to-neutral-800" />
+                    )}
                   </div>
                   <div>
                     <h3 className="font-bold text-lg text-neutral-200 group-hover:text-amber-400 transition-colors">{item.name}</h3>
