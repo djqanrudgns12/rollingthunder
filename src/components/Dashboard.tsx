@@ -8,6 +8,7 @@ import MapLoadModal, { DEFAULT_MAPS } from './MapLoadModal'
 import ListManagerModal from './ListManagerModal'
 import SettingsModal from './SettingsModal'
 import AuthModal from './AuthModal'
+import StampBookModal from './StampBookModal'
 import { Tv, Shield, ShieldOff, Video, Map, Circle, Car, Rocket, Zap, Cat, Target, Volume2, VolumeX, Settings, Ghost, Bot, Flame, Star, Smile, Cloud, Anchor, Wind } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEditorStore } from '@/store/editorStore'
@@ -55,6 +56,10 @@ export default function Dashboard() {
   const [localWinnerCount, setLocalWinnerCount] = useState(targetWinnerCount || 1)
   const [isMapModalOpen, setIsMapModalOpen] = useState(false)
   const [isListModalOpen, setIsListModalOpen] = useState(false)
+
+  const playClickSound = () => {
+    import('@/engine/AudioEngine').then(({ soundManager }) => soundManager.playSfx('ui_click'));
+  }
 
   // Undo/Redo states
   const [undoStack, setUndoStack] = useState<{ participants: Participant[], nameInput: string }[]>([])
@@ -133,6 +138,7 @@ export default function Dashboard() {
   }
 
   const handleAdd = (customInput?: string) => {
+    playClickSound();
     const textToProcess = customInput !== undefined ? customInput : nameInput
     if (!textToProcess.trim()) return
     
@@ -158,18 +164,21 @@ export default function Dashboard() {
   }
 
   const handleRemoveParticipant = (id: string) => {
+    playClickSound();
     saveStateForUndo(participants, nameInput)
     isTypingRef.current = false
     removeParticipant(id)
   }
 
   const handleClearParticipants = () => {
+    playClickSound();
     saveStateForUndo(participants, nameInput)
     isTypingRef.current = false
     clearParticipants()
   }
 
   const handleStart = async () => {
+    playClickSound();
     if (participants.length < 2) {
       toast.error('최소 2명 이상의 참가자가 필요합니다.')
       return
@@ -235,7 +244,10 @@ export default function Dashboard() {
           {isMuted ? <VolumeX className="w-6 h-6 text-white/50" /> : <Volume2 className="w-6 h-6 text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)] group-hover:text-cyan-300" />}
         </button>
         <button
-          onClick={() => useUIStore.getState().setActiveModal('settings')}
+          onClick={() => {
+            playClickSound();
+            useUIStore.getState().setActiveModal('settings');
+          }}
           className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-white/20 transition-all hover:scale-110 shadow-lg group"
         >
           <Settings className="w-6 h-6 text-white/70 group-hover:text-white" />
@@ -264,7 +276,10 @@ export default function Dashboard() {
           {/* 그룹 1: 기본 설정 (맵) */}
           <div className="flex gap-3 shrink-0 flex-col md:flex-row bg-black/20 p-4 rounded-2xl border border-white/5">
             <button 
-              onClick={() => setIsMapModalOpen(true)} 
+              onClick={() => {
+                playClickSound();
+                setIsMapModalOpen(true);
+              }} 
               className="relative w-full overflow-hidden bg-black/40 backdrop-blur-md border border-white/10 hover:border-[var(--accent-primary)] rounded-xl transition-all duration-300 group shadow-[0_4px_20px_rgba(0,0,0,0.5)] hover:shadow-[0_0_20px_var(--accent-primary)] hover:scale-[1.01]"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent-primary)]/0 via-[var(--accent-primary)]/10 to-[var(--accent-primary)]/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
@@ -290,6 +305,7 @@ export default function Dashboard() {
             {isAdmin && (
               <button
                 onClick={() => {
+                  playClickSound();
                   setEditorMode(true)
                   setGameStage('editor')
                 }}
@@ -309,25 +325,25 @@ export default function Dashboard() {
               <label className="text-xs text-white/50 font-bold tracking-widest uppercase whitespace-nowrap">게임 모드 (GAME MODE)</label>
               <div className="flex gap-2">
                 <button 
-                  onClick={() => setGameMode('speed')}
+                  onClick={() => { playClickSound(); setGameMode('speed'); }}
                   className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${gameMode === 'speed' ? 'bg-[var(--accent-primary)] text-black shadow-[0_0_10px_var(--accent-primary)]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                 >
                   스피드
                 </button>
                 <button 
-                  onClick={() => setGameMode('turtle')}
+                  onClick={() => { playClickSound(); setGameMode('turtle'); }}
                   className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${gameMode === 'turtle' ? 'bg-[var(--accent-secondary)] text-black shadow-[0_0_10px_var(--accent-secondary)]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                 >
                   거북이
                 </button>
                 <button 
-                  onClick={() => setGameMode('custom')}
+                  onClick={() => { playClickSound(); setGameMode('custom'); }}
                   className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${gameMode === 'custom' ? 'bg-purple-500 text-white shadow-[0_0_10px_#a855f7]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                 >
                   커스텀
                 </button>
                 <button 
-                  onClick={() => setGameMode('random')}
+                  onClick={() => { playClickSound(); setGameMode('random'); }}
                   className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${gameMode === 'random' ? 'bg-orange-500 text-white shadow-[0_0_10px_#f97316]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                 >
                   랜덤
@@ -382,7 +398,7 @@ export default function Dashboard() {
               <label className="text-xs text-[var(--accent-secondary)] font-bold tracking-widest uppercase whitespace-nowrap">스킬 (SKILLS)</label>
               <div className="flex items-center h-[38px]">
                 <button 
-                  onClick={() => setSkillEnabled(!isSkillEnabled)}
+                  onClick={() => { playClickSound(); setSkillEnabled(!isSkillEnabled); }}
                   className={`w-12 h-6 rounded-full relative transition-colors duration-300 ${isSkillEnabled ? 'bg-[var(--accent-primary)]' : 'bg-white/20'}`}
                 >
                   <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-black transition-transform duration-300 shadow-sm ${isSkillEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
@@ -479,7 +495,7 @@ export default function Dashboard() {
                   <button onClick={() => handleAdd()} className="w-16 bg-[var(--accent-secondary)] text-black font-bold rounded-xl hover:opacity-90 transition-opacity text-sm shadow-[0_0_15px_rgba(0,255,204,0.3)] whitespace-nowrap">
                     추가
                   </button>
-                  <button onClick={() => setIsListModalOpen(true)} className="w-16 bg-white/10 text-white/70 font-bold rounded-xl hover:bg-white/20 hover:text-white transition-colors text-xs border border-white/5 whitespace-nowrap" title="명단 관리">
+                  <button onClick={() => { playClickSound(); setIsListModalOpen(true); }} className="w-16 bg-white/10 text-white/70 font-bold rounded-xl hover:bg-white/20 hover:text-white transition-colors text-xs border border-white/5 whitespace-nowrap" title="명단 관리">
                     명단
                   </button>
                 </div>
@@ -526,6 +542,7 @@ export default function Dashboard() {
       />
       <SettingsModal />
       <AuthModal />
+      <StampBookModal />
     </div>
   )
 }

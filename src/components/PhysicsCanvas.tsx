@@ -59,16 +59,19 @@ export default function PhysicsCanvas() {
   }, [isMuted]);
 
   const handleToggleBgm = () => {
+    soundManager.playSfx('ui_click');
     const nextMuted = !isMuted;
     setMuted(nextMuted);
     soundManager.setMuted(nextMuted);
   };
 
   const handleTogglePause = () => {
+    soundManager.playSfx('ui_click');
     setIsPaused(prev => !prev);
   };
 
   const handleToggleFastForward = () => {
+    soundManager.playSfx('ui_click');
     setIsFastForward(prev => {
       const next = !prev;
       cameraDirectorRef.current?.setFastForward(next);
@@ -157,6 +160,7 @@ export default function PhysicsCanvas() {
   const handleStart = useCallback(() => {
     if (workerRef.current && gameState === 'idle' && isWorkerReady) {
       clearSkillLogs(); // 새 게임 시작 시 이전 스킬 로그 초기화
+      soundManager.playSfx('sys_start');
       workerRef.current.postMessage({ type: 'START' });
       setGameState('playing');
     }
@@ -164,6 +168,7 @@ export default function PhysicsCanvas() {
 
   const handleShuffle = useCallback(() => {
     if (workerRef.current && gameState === 'idle') {
+      soundManager.playSfx('ui_click');
       workerRef.current.postMessage({ type: 'SHUFFLE', payload: { width: WORLD_WIDTH } });
     }
   }, [gameState])

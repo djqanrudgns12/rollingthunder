@@ -7,6 +7,7 @@ import InspectorPanel from './InspectorPanel'
 import EditorToolbar from './EditorToolbar'
 import MinimapOverlay from './MinimapOverlay'
 import AlignToolbar from './AlignToolbar'
+import ValidationPanel from './ValidationPanel'
 import HistoryTimelinePanel from './HistoryTimelinePanel'
 import { useEditorStore } from '@/store/editorStore'
 
@@ -46,6 +47,9 @@ export default function MapEditorManager() {
 
       {/* 5. 정렬/미러/배열 도구 (다중 선택 시) */}
       <AlignToolbar />
+
+      {/* 5b. 맵 검증 + 히트맵 패널 */}
+      <ValidationPanel />
 
       {/* 6. 작업 내역 타임라인 패널 */}
       {showHistoryPanel && (

@@ -4,6 +4,7 @@ import { useGameStore } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
 import Confetti from 'react-confetti'
 import { saveResults } from '@/actions/db'
+import { stampService } from '@/lib/stampService'
 import { useEffect, useState } from 'react'
 
 export default function ResultScreen() {
@@ -19,7 +20,10 @@ export default function ResultScreen() {
     // 세션이 있고 생존자가 도출되었으며 아직 저장하지 않은 경우 DB에 최종 결과 기록
     if (sessionId && survivors.length > 0 && !isSaved) {
       saveResults(sessionId, survivors.map((s, idx) => ({ participantId: s.id, rank: idx + 1, score: 0 })))
-        .then(() => setIsSaved(true))
+        .then(() => {
+          setIsSaved(true);
+          stampService.flushPlayEvents();
+        })
         .catch(e => console.error("Failed to save results", e))
     }
   }, [sessionId, survivors, isSaved])

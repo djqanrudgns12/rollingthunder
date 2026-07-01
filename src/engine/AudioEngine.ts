@@ -66,7 +66,17 @@ class AudioEngine {
   // 브라우저 락 해제 보장
   unlockAudio() {
     if (Howler.ctx && Howler.ctx.state === 'suspended') {
-      Howler.ctx.resume().catch(() => {});
+      Howler.ctx.resume().then(() => {
+        if (this.currentBgm && !this.currentBgm.playing()) {
+          this.currentBgm.volume(this.bgmVol);
+          this.currentBgm.play();
+        }
+      }).catch(() => {});
+    } else {
+      if (this.currentBgm && !this.currentBgm.playing()) {
+        this.currentBgm.volume(this.bgmVol);
+        this.currentBgm.play();
+      }
     }
   }
 
@@ -102,9 +112,14 @@ class AudioEngine {
       setTimeout(() => prevBgm.pause(), fadeDuration);
     }
     
-    nextBgm.volume(0);
-    nextBgm.play();
-    nextBgm.fade(0, this.bgmVol, fadeDuration);
+    if (Howler.ctx && Howler.ctx.state === 'suspended') {
+      nextBgm.volume(this.bgmVol);
+      nextBgm.play();
+    } else {
+      nextBgm.volume(0);
+      nextBgm.play();
+      nextBgm.fade(0, this.bgmVol, fadeDuration);
+    }
   }
 
   duckBgm(durationMs: number = 1000) {

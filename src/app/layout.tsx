@@ -5,6 +5,8 @@ import { Toaster } from 'sonner';
 import "./globals.css";
 import ThemeProvider from "@/components/ThemeProvider";
 import GlobalAudioUnlocker from "@/components/GlobalAudioUnlocker";
+import ChipHeader from "@/components/ChipHeader";
+import JackpotEffect from "@/components/JackpotEffect";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -68,6 +70,8 @@ export default function RootLayout({
         <ThemeProvider>
           <GlobalAudioUnlocker>
             {children}
+            <ChipHeader />
+            <JackpotEffect />
             <Toaster theme="dark" position="bottom-right" />
           </GlobalAudioUnlocker>
         </ThemeProvider>

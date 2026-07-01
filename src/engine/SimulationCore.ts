@@ -479,14 +479,16 @@ export class SimulationCore {
         if (sensorData.type === 'portal') {
           const lastWarp = this.lastWarpFrame.get(chipData.id) || -99999;
           if (this.frame - lastWarp > PORTAL_COOLDOWN_FRAMES) {
-            let targetPortal: any = null;
+            const targetPortals: any[] = [];
             world.forEachRigidBody((b) => {
               const d = b.userData as any;
               if (d?.type === 'portal' && d.color === sensorData.color && b.handle !== sensorBody!.handle) {
-                targetPortal = b;
+                targetPortals.push(b);
               }
             });
-            if (targetPortal) {
+            if (targetPortals.length > 0) {
+              const idx = Math.floor(this.rng() * targetPortals.length);
+              const targetPortal = targetPortals[idx];
               const tPos = targetPortal.translation();
               chipBody.setTranslation({ x: tPos.x, y: tPos.y }, true);
               this.lastWarpFrame.set(chipData.id, this.frame);
