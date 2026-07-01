@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { useChipStore } from '@/store/chipStore';

@@ -159,7 +159,7 @@ export default function StampBookModal() {
                     <div className="mt-3 w-full max-w-md h-3 bg-gray-200 rounded-full overflow-hidden relative">
                       <motion.div 
                         initial={{ width: 0 }}
-                        animate={{ width: \`\${Math.min(100, (m.progress / m.mission.goal_amount) * 100)}%\` }}
+                        animate={{ width: `${Math.min(100, (m.progress / m.mission.goal_amount) * 100)}%` }}
                         className={`absolute top-0 left-0 h-full rounded-full ${
                           m.completed ? 'bg-gradient-to-r from-amber-400 to-amber-600' : 'bg-gradient-to-r from-blue-400 to-blue-600'
                         }`}
