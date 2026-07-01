@@ -36,7 +36,7 @@ export default function BlackMarket() {
 
       <div className="relative z-10 flex flex-col items-center text-center">
         <h3 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 tracking-widest uppercase mb-2">
-          Black Market
+          암시장 (Black Market)
         </h3>
         
         <div className="flex items-center gap-2 text-red-500 font-mono font-bold bg-black/50 px-4 py-1.5 rounded-full border border-red-900/50 mb-4">
@@ -50,8 +50,8 @@ export default function BlackMarket() {
               <span className="text-2xl">🎩</span>
             </div>
             <div className="text-left">
-              <div className="font-bold text-neutral-200 text-sm">Mystic Top Hat</div>
-              <div className="text-xs text-purple-400">Epic Skin</div>
+              <div className="font-bold text-neutral-200 text-sm">신비한 마술사 모자</div>
+              <div className="text-xs text-purple-400">에픽 스킨</div>
             </div>
           </div>
           <div className="text-right">

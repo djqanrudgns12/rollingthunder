@@ -6,16 +6,19 @@ import ShopShowcase from "@/components/shop/ShopShowcase";
 import BlackMarket from "@/components/shop/BlackMarket";
 import LuckyRoulette from "@/components/shop/LuckyRoulette";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 
 // 목업 데이터
 const MOCK_ITEMS = [
-  { item_id: "1", category: "skin", name: "Neon Chrome Suit", price: 5000, rarity: "Epic", description: "A shining neon suit." },
-  { item_id: "2", category: "piece", name: "Golden Pawn", price: 10000, rarity: "Legendary", description: "Solid gold game piece." },
-  { item_id: "3", category: "frame", name: "Ruby Border", price: 2000, rarity: "Rare", description: "Luxurious ruby profile border." },
-  { item_id: "4", category: "background", name: "Casino Lights", price: 3000, rarity: "Epic", description: "Vibrant casino background." },
+  { item_id: "1", category: "skin", name: "네온 크롬 수트", price: 5000, rarity: "에픽", description: "눈부시게 빛나는 네온 수트입니다." },
+  { item_id: "2", category: "piece", name: "황금 폰", price: 10000, rarity: "전설", description: "순금으로 정교하게 만들어진 게임 말입니다." },
+  { item_id: "3", category: "frame", name: "루비 테두리", price: 2000, rarity: "희귀", description: "고급스러운 붉은빛 루비 프로필 액자입니다." },
+  { item_id: "4", category: "background", name: "카지노 네온사인", price: 3000, rarity: "에픽", description: "화려하고 역동적인 카지노 테마의 배경입니다." },
 ];
 
 export default function ShopPage() {
+  const router = useRouter();
   const user = { id: "test-user-id" }; // 더미 유저
   const [selectedItem, setSelectedItem] = useState(MOCK_ITEMS[1]); // 기본 선택 아이템
   const [activeTab, setActiveTab] = useState("piece");
@@ -31,8 +34,19 @@ export default function ShopPage() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white font-sans overflow-hidden">
-      <main className="max-w-7xl mx-auto pt-24 px-6 pb-12 grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <main className="max-w-7xl mx-auto pt-24 px-6 pb-12 grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
         
+        {/* 상단: 메인으로 돌아가기 버튼 */}
+        <div className="absolute top-8 right-6 z-50">
+          <button 
+            onClick={() => router.push('/dashboard')}
+            className="flex items-center gap-2 px-5 py-2.5 bg-neutral-900/80 backdrop-blur-md border border-white/10 hover:border-amber-500/50 hover:bg-amber-500/10 rounded-full text-neutral-300 hover:text-amber-400 font-bold text-sm transition-all shadow-lg group"
+          >
+            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+            메인으로 돌아가기
+          </button>
+        </div>
+
         {/* 좌측: 3D 쇼케이스 및 암시장/룰렛 배너 */}
         <div className="lg:col-span-5 flex flex-col gap-6">
           {/* 3D 쇼케이스 뷰 */}
@@ -40,7 +54,7 @@ export default function ShopPage() {
             <div className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-t from-black/80 via-transparent to-black/20" />
             <div className="absolute top-4 left-4 z-20">
               <span className="px-3 py-1 bg-amber-500/20 text-amber-400 border border-amber-500/50 rounded-full text-xs font-bold uppercase tracking-wider">
-                VIP Showcase
+                VIP 쇼케이스
               </span>
             </div>
             
@@ -57,7 +71,7 @@ export default function ShopPage() {
                 onClick={() => handleBuy(selectedItem)}
                 className="mt-4 px-8 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold rounded-full shadow-[0_0_15px_rgba(245,158,11,0.5)] hover:shadow-[0_0_25px_rgba(245,158,11,0.8)] hover:scale-105 transition-all active:scale-95 flex items-center gap-2"
               >
-                <span>{selectedItem.price.toLocaleString()} Chips</span>
+                <span>{selectedItem.price.toLocaleString()} 칩 구매</span>
               </button>
             </div>
           </div>

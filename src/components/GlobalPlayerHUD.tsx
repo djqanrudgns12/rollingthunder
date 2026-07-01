@@ -85,7 +85,7 @@ export default function GlobalPlayerHUD() {
           </div>
           <div className="flex flex-col items-start">
              <span className="text-[10px] text-yellow-500/80 font-bold tracking-wider uppercase mb-[-4px]">
-               Balance
+               CHIP
              </span>
              <motion.span 
                className={`text-xl font-bold font-mono tracking-tight transition-all duration-300 ${textColorClass}`}

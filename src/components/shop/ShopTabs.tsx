@@ -3,10 +3,10 @@
 import React from "react";
 
 const TABS = [
-  { id: "skin", label: "Skins", icon: "👕" },
-  { id: "piece", label: "Pieces", icon: "♟️" },
-  { id: "frame", label: "Frames", icon: "🖼️" },
-  { id: "background", label: "Backgrounds", icon: "🌌" },
+  { id: "skin", label: "스킨", icon: "👕" },
+  { id: "piece", label: "말", icon: "♟️" },
+  { id: "frame", label: "액자", icon: "🖼️" },
+  { id: "background", label: "배경", icon: "🌌" },
 ];
 
 interface ShopTabsProps {
