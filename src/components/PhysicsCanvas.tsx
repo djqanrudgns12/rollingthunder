@@ -1400,7 +1400,12 @@ export default function PhysicsCanvas() {
           const target = viewport.getChildAt(0).children.find(c => (c as any).label === payload.id);
           if (target) {
             import('gsap').then(({ gsap }) => {
-              gsap.fromTo(target, { alpha: 1 }, { alpha: 0.5 + payload.remainingHp * 0.15, duration: 0.1 });
+              const crackOverlay = target.children.find((c: any) => c.label === 'crackOverlay');
+              if (crackOverlay && payload.maxHp) {
+                gsap.to(crackOverlay, { alpha: 1.0 - (payload.remainingHp / payload.maxHp), duration: 0.1 });
+              } else {
+                gsap.fromTo(target, { alpha: 1 }, { alpha: 0.5 + payload.remainingHp * 0.15, duration: 0.1 });
+              }
               gsap.fromTo(target.scale, { x: 1.1, y: 1.1 }, { x: 1, y: 1, duration: 0.2 });
             });
             for(let i=0; i<3; i++) {

@@ -233,6 +233,8 @@ export class SimulationCore {
           originX: userData.originX,
           originY: userData.originY,
           vertices: userData.vertices,
+          hp: userData.hp,
+          maxHp: userData.maxHp,
         });
       }
     });
@@ -459,7 +461,7 @@ export class SimulationCore {
           iceData.hp--;
           this.events.push({ 
             type: 'ICE_CRACK', 
-            payload: { id: iceData.id, remainingHp: iceData.hp, x: iceBody.translation().x, y: iceBody.translation().y } 
+            payload: { id: iceData.id, remainingHp: iceData.hp, maxHp: iceData.maxHp, x: iceBody.translation().x, y: iceBody.translation().y } 
           });
           
           if (iceData.hp <= 0) {
