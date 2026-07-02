@@ -132,7 +132,7 @@ export default function ShopShowcase({ selectedItem }: ShopShowcaseProps) {
                 src={selectedItem.image} 
                 alt={selectedItem?.name || "아이템"} 
                 fill
-                className={`${isFullScreenAsset ? 'object-cover' : 'object-contain drop-shadow-2xl'}`}
+                className={`${isFullScreenAsset ? 'object-cover' : 'object-contain p-1 drop-shadow-2xl [clip-path:inset(2%_round_20%)]'}`}
                 sizes="(max-width: 768px) 256px, 320px"
                 priority
               />

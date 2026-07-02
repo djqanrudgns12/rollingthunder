@@ -346,7 +346,7 @@ export default function ShopPage() {
                     <div className="flex items-center gap-4">
                       <div className="w-16 h-16 rounded-lg bg-black/50 border border-neutral-700 flex items-center justify-center overflow-hidden relative">
                         {item.image ? (
-                          <img src={item.image} alt={item.name} className="w-full h-full object-cover scale-[1.2]" />
+                          <img src={item.image} alt={item.name} className="w-full h-full object-contain p-0.5 [clip-path:inset(2%_round_20%)]" />
                         ) : IconComp ? (
                           <IconComp className="w-8 h-8 text-neutral-300" />
                         ) : (
