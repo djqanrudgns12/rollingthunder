@@ -1,4 +1,5 @@
 import type { Viewport } from 'pixi-viewport';
+import { useGameStore } from '@/store/gameStore';
 
 // ──────────────────────────────────────────────────────────────────────────
 // CameraDirector: 경기 카메라의 단일 두뇌.
@@ -299,6 +300,7 @@ export class CameraDirector {
 
   // 스크린 셰이크 효과
   addShake(intensity: number) {
+    if (!useGameStore.getState().isScreenShakeEnabled) return;
     this.shakeIntensity = Math.max(this.shakeIntensity, intensity);
   }
 

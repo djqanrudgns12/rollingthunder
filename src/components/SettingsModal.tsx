@@ -2,7 +2,7 @@
 
 import { useGameStore } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
-import { X, Moon, Sun, Type, Gauge, Zap, RotateCcw, Check } from 'lucide-react'
+import { X, Moon, Sun, Type, Gauge, Zap, RotateCcw, Check, Activity } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
 const FONTS = [
@@ -29,6 +29,7 @@ export default function SettingsModal() {
   const { 
     gimmickDensity, setGimmickDensity,
     baseTimeScale, setBaseTimeScale,
+    isScreenShakeEnabled, setScreenShakeEnabled,
     theme, setTheme,
     fontFamily, setFontFamily,
     bgmVolume, setBgmVolume,
@@ -37,10 +38,10 @@ export default function SettingsModal() {
   
   const { activeModal, setActiveModal } = useUIStore()
 
-  // 상태 백업용 ref (취소 시 롤백을 위함)
   const snapshotRef = useRef<{
     gimmickDensity: number;
     baseTimeScale: number;
+    isScreenShakeEnabled: boolean;
     theme: 'dark' | 'light';
     fontFamily: string;
     bgmVolume: number;
@@ -53,6 +54,7 @@ export default function SettingsModal() {
       snapshotRef.current = {
         gimmickDensity,
         baseTimeScale,
+        isScreenShakeEnabled,
         theme,
         fontFamily,
         bgmVolume,
@@ -71,6 +73,7 @@ export default function SettingsModal() {
     if (snapshotRef.current) {
       setGimmickDensity(snapshotRef.current.gimmickDensity)
       setBaseTimeScale(snapshotRef.current.baseTimeScale)
+      setScreenShakeEnabled(snapshotRef.current.isScreenShakeEnabled)
       setTheme(snapshotRef.current.theme)
       setFontFamily(snapshotRef.current.fontFamily)
       setBgmVolume(snapshotRef.current.bgmVolume)
@@ -89,6 +92,7 @@ export default function SettingsModal() {
     setTheme('dark')
     setFontFamily('pretendard')
     setBaseTimeScale(1.0)
+    setScreenShakeEnabled(true)
     setBgmVolume(100)
     setSfxVolume(100)
     setGimmickDensity(50)
@@ -159,21 +163,45 @@ export default function SettingsModal() {
             </div>
           </div>
 
-          {/* Speed */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs text-orange-400 font-bold tracking-widest uppercase flex items-center gap-2">
-              <Gauge className="w-4 h-4" /> 게임 속도 (SPEED)
-            </label>
-            <div className="flex gap-2">
-              {[0.5, 1.0, 1.5, 2.0].map((speed) => (
+          {/* Speed & Shake */}
+          <div className="flex gap-3">
+            {/* Speed */}
+            <div className="flex flex-col gap-2 flex-[5]">
+              <label className="text-xs text-orange-400 font-bold tracking-widest uppercase flex items-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis">
+                <Gauge className="w-4 h-4 shrink-0" /> 게임 속도
+              </label>
+              <div className="flex gap-1">
+                {[0.5, 1.0, 1.5, 2.0].map((speed) => (
+                  <button
+                    key={speed}
+                    onClick={() => setBaseTimeScale(speed)}
+                    className={`flex-1 py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${baseTimeScale === speed ? 'bg-orange-500 text-white shadow-[0_0_10px_#f97316]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                  >
+                    {speed}x
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Screen Shake */}
+            <div className="flex flex-col gap-2 flex-[3]">
+              <label className="text-xs text-orange-400 font-bold tracking-widest uppercase flex items-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis">
+                <Activity className="w-4 h-4 shrink-0" /> 화면 흔들림
+              </label>
+              <div className="flex gap-1">
                 <button
-                  key={speed}
-                  onClick={() => setBaseTimeScale(speed)}
-                  className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${baseTimeScale === speed ? 'bg-orange-500 text-white shadow-[0_0_10px_#f97316]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                  onClick={() => setScreenShakeEnabled(true)}
+                  className={`flex-1 py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${isScreenShakeEnabled ? 'bg-orange-500 text-white shadow-[0_0_10px_#f97316]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                 >
-                  {speed}x
+                  ON
                 </button>
-              ))}
+                <button
+                  onClick={() => setScreenShakeEnabled(false)}
+                  className={`flex-1 py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${!isScreenShakeEnabled ? 'bg-black/80 text-white/80 border border-orange-500/50' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                >
+                  OFF
+                </button>
+              </div>
             </div>
           </div>
 
