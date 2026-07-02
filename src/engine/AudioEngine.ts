@@ -132,6 +132,22 @@ class AudioEngine {
     }
   }
 
+  stopAllBgm() {
+    if (!this.currentBgm) return;
+    const fadeDuration = 1000;
+    
+    // 현재 BGM 서서히 볼륨 줄이기
+    this.currentBgm.fade(this.currentBgm.volume(), 0, fadeDuration);
+    
+    // 페이드아웃 후 재생 정지
+    const current = this.currentBgm;
+    setTimeout(() => {
+      current.pause();
+    }, fadeDuration);
+    
+    this.currentBgm = null;
+  }
+
   duckBgm(durationMs: number = 1000) {
     if (!this.currentBgm) return;
     const targetVol = this.bgmVol * 0.4;

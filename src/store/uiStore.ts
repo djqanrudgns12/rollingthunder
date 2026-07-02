@@ -7,8 +7,8 @@ interface UIState {
   setSidebarOpen: (isOpen: boolean) => void
   toggleSidebar: () => void
   
-  activeModal: 'none' | 'mapLoad' | 'listManager' | 'settings' | 'auth' | 'stampBook'
-  setActiveModal: (modal: 'none' | 'mapLoad' | 'listManager' | 'settings' | 'auth' | 'stampBook') => void
+  activeModal: 'none' | 'mapLoad' | 'listManager' | 'settings' | 'auth' | 'stampBook' | 'profile'
+  setActiveModal: (modal: 'none' | 'mapLoad' | 'listManager' | 'settings' | 'auth' | 'stampBook' | 'profile') => void
   authMode: 'login' | 'signup'
   setAuthMode: (mode: 'login' | 'signup') => void
 
@@ -36,6 +36,8 @@ interface UIState {
   setIsLoggedIn: (isLoggedIn: boolean) => void
   hasClaimableMissions: boolean
   setHasClaimableMissions: (hasClaimable: boolean) => void
+  userProfile: any | null // We use 'any' to avoid circular dependency or import issues, or we can import UserProfile
+  setUserProfile: (profile: any | null) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -69,6 +71,8 @@ export const useUIStore = create<UIState>()(
       setIsAdmin: (isAdmin) => set({ isAdmin: isAdmin }),
       setIsLoggedIn: (isLoggedIn) => set({ isLoggedIn: isLoggedIn }),
       setHasClaimableMissions: (hasClaimable) => set({ hasClaimableMissions: hasClaimable }),
+      userProfile: null,
+      setUserProfile: (profile) => set({ userProfile: profile }),
     }),
     {
       name: 'rt-ui-storage',

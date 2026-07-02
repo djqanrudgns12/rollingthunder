@@ -18,7 +18,7 @@ export async function getProfileOverviewAction(): Promise<UserProfile | null> {
 
     return {
       ...profile,
-      chips_balance: Number(profile.chips_balance ?? 0),
+      chips_balance: Number(profile.chips ?? profile.chips_balance ?? 0),
       total_games_played: Number(profile.total_games_played ?? 0),
       login_count: Number(profile.login_count ?? 0),
       total_achievements: stats.total_achievements,

@@ -1,14 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { login, signup } from './actions'
+import { soundManager } from '@/engine/AudioEngine'
+import { isRedirectError } from 'next/dist/client/components/redirect'
 
 export default function LoginPage() {
   const router = useRouter()
   const [isLogin, setIsLogin] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    soundManager.stopAllBgm();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -53,6 +59,9 @@ export default function LoginPage() {
         if (result?.error) setError(result.error)
       }
     } catch (err) {
+      if (isRedirectError(err) || (err instanceof Error && err.message === 'NEXT_REDIRECT')) {
+        throw err;
+      }
       setError("오류가 발생했습니다. 다시 시도해주세요.")
     } finally {
       setLoading(false)

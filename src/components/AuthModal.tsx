@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { login, signup } from '@/app/actions'
 import { useUIStore } from '@/store/uiStore'
 import { X, LogIn, UserPlus } from 'lucide-react'
+import { isRedirectError } from 'next/dist/client/components/redirect'
 
 export default function AuthModal() {
   const { activeModal, setActiveModal, authMode } = useUIStore()
@@ -60,7 +61,7 @@ export default function AuthModal() {
         if (result?.error) setError(result.error)
       }
     } catch (err) {
-      if (err instanceof Error && err.message === 'NEXT_REDIRECT') {
+      if (isRedirectError(err) || (err instanceof Error && err.message === 'NEXT_REDIRECT')) {
         throw err;
       }
       setError("오류가 발생했습니다. 다시 시도해주세요.")
@@ -70,7 +71,7 @@ export default function AuthModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative w-full max-w-sm bg-[var(--bg-secondary)] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         
         {/* 네온 장식 효과 */}

@@ -100,6 +100,7 @@ export default function ShopShowcase({ selectedItem }: ShopShowcaseProps) {
 
   const rarityStyle = getRarityStyles(selectedItem?.rarity);
   const IconComp = selectedItem?.iconName ? (LucideIcons as any)[selectedItem.iconName] : null;
+  const isFullScreenAsset = selectedItem?.category === 'background' || selectedItem?.category === 'frame';
 
   return (
     <div className="w-full h-full absolute inset-0 flex items-center justify-center pt-4">
@@ -122,22 +123,16 @@ export default function ShopShowcase({ selectedItem }: ShopShowcaseProps) {
         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
         className="relative w-64 h-64 sm:w-80 sm:h-80 z-10 cursor-pointer"
       >
-        <div className={`w-full h-full rounded-3xl border-2 ${rarityStyle.border} ${rarityStyle.glow} bg-black/60 backdrop-blur-md overflow-hidden flex items-center justify-center relative transition-colors duration-500`}>
+        <div className={`w-full h-full rounded-3xl border-2 ${rarityStyle.border} ${rarityStyle.glow} bg-black/60 backdrop-blur-md flex items-center justify-center relative transition-colors duration-500 overflow-hidden`}>
           
-          {/* Hologram Layer */}
-          <div className="absolute inset-0 opacity-20 mix-blend-overlay pointer-events-none bg-gradient-to-br from-white/40 via-transparent to-transparent" />
-          
-          {/* Shine Sweep Layer */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-[shimmer_3s_infinite] pointer-events-none" />
-
-          {/* 컨텐츠 렌더링 */}
-          <div style={{ transform: "translateZ(50px)" }} className="w-full h-full p-4 flex items-center justify-center">
+          {/* 컨텐츠 렌더링 (Image) - 가장 안쪽 레이어 */}
+          <div style={{ transform: "translateZ(20px)" }} className={`w-full h-full flex items-center justify-center relative ${isFullScreenAsset ? 'p-0' : 'p-4'}`}>
             {selectedItem?.image ? (
               <Image 
                 src={selectedItem.image} 
                 alt={selectedItem?.name || "아이템"} 
                 fill
-                className="object-contain p-2 drop-shadow-2xl"
+                className={`${isFullScreenAsset ? 'object-cover' : 'object-contain p-2 drop-shadow-2xl'}`}
                 sizes="(max-width: 768px) 256px, 320px"
                 priority
               />
@@ -154,6 +149,12 @@ export default function ShopShowcase({ selectedItem }: ShopShowcaseProps) {
                 </p>
               </div>
             )}
+          </div>
+
+          {/* Hologram & Shine Layers - 유리 표면 (가장 바깥쪽 Z) */}
+          <div style={{ transform: "translateZ(50px)" }} className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
+            <div className="absolute inset-0 opacity-20 mix-blend-overlay bg-gradient-to-br from-white/40 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-[shimmer_3s_infinite]" />
           </div>
         </div>
       </motion.div>

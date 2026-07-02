@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { useChipStore } from '@/store/chipStore';
 import { useUIStore } from '@/store/uiStore';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { ShoppingCart, User } from 'lucide-react';
 import { getProfileOverviewAction } from '@/presentation/actions/profileActions';
 import { UserProfile } from '@/types/user';
@@ -13,11 +13,14 @@ import Image from 'next/image';
 
 export default function GlobalPlayerHUD({ initialProfile = null }: { initialProfile?: UserProfile | null }) {
   const router = useRouter();
+  const pathname = usePathname();
   const chips = useChipStore((state) => state.chips);
   const setActiveModal = useUIStore((state) => state.setActiveModal);
   const activeModal = useUIStore((state) => state.activeModal);
   const isLoggedIn = useUIStore((state) => state.isLoggedIn);
   const gameStage = useUIStore((state) => state.gameStage);
+  const profile = useUIStore((state) => state.userProfile);
+  const setUserProfile = useUIStore((state) => state.setUserProfile);
   
   const count = useMotionValue(0);
   const rounded = useTransform(count, (latest) => Math.round(latest).toLocaleString());
@@ -26,7 +29,6 @@ export default function GlobalPlayerHUD({ initialProfile = null }: { initialProf
   const [prevChips, setPrevChips] = useState(0);
   const [isClient, setIsClient] = useState(false);
   const hasClaimableMissions = useUIStore((state) => state.hasClaimableMissions);
-  const [profile, setProfile] = useState<UserProfile | null>(initialProfile);
 
   useEffect(() => {
     setIsClient(true);
@@ -36,21 +38,22 @@ export default function GlobalPlayerHUD({ initialProfile = null }: { initialProf
     if (isLoggedIn) {
       getProfileOverviewAction().then(data => {
         if (data) {
-          setProfile(data);
+          setUserProfile(data);
           useChipStore.getState().setChips(data.chips_balance);
         }
       });
     } else {
-      setProfile(null);
+      setUserProfile(null);
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, setUserProfile]);
 
   // initialProfile이 있을 경우 초기 렌더링 시에도 칩을 동기화
   useEffect(() => {
     if (initialProfile) {
+      setUserProfile(initialProfile);
       useChipStore.getState().setChips(initialProfile.chips_balance);
     }
-  }, [initialProfile]);
+  }, [initialProfile, setUserProfile]);
 
   useEffect(() => {
     if (!isClient) return;
@@ -72,7 +75,11 @@ export default function GlobalPlayerHUD({ initialProfile = null }: { initialProf
     import('@/engine/AudioEngine').then(({ soundManager }) => soundManager.playSfx('ui_click'));
   };
 
-  if (!isClient || gameStage === 'editor' || gameStage === 'playing' || activeModal === 'auth') return null;
+  // 허용된 경로(대시보드 등)에서만 렌더링되도록 방어 로직 추가 (화이트리스트 방식)
+  const allowedPaths = ['/dashboard', '/shop', '/profile', '/gacha', '/sound-test'];
+  const isAllowedPath = allowedPaths.some(p => pathname?.startsWith(p));
+
+  if (!isClient || !isAllowedPath || gameStage === 'editor' || gameStage === 'playing' || activeModal === 'auth') return null;
 
   const glowColorClass = chips > prevChips ? 'bg-green-400' : 'bg-red-500';
   const textColorClass = isAnimating 
@@ -130,7 +137,7 @@ export default function GlobalPlayerHUD({ initialProfile = null }: { initialProf
         
         {/* 프로필 영역 */}
         <button 
-          onClick={() => { playClickSound(); router.push('/profile'); }}
+          onClick={() => { playClickSound(); setActiveModal('profile'); }}
           className="flex items-center gap-3 pr-4 pl-1 group cursor-pointer"
         >
           <div className={`relative w-12 h-12 rounded-full overflow-hidden bg-zinc-900 shrink-0 border-2 transition-all duration-300 ${avatarBorder} group-hover:scale-105 flex items-center justify-center`}>

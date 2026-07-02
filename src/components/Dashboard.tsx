@@ -6,9 +6,6 @@ import { useState, useEffect, useRef } from 'react'
 import { createSession } from '@/actions/db'
 import MapLoadModal, { DEFAULT_MAPS } from './MapLoadModal'
 import ListManagerModal from './ListManagerModal'
-import SettingsModal from './SettingsModal'
-import AuthModal from './AuthModal'
-import StampBookModal from './StampBookModal'
 import { Tv, Shield, ShieldOff, Video, Map, Circle, Car, Rocket, Zap, Cat, Target, Volume2, VolumeX, Settings, Ghost, Bot, Flame, Star, Smile, Cloud, Anchor, Wind } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEditorStore } from '@/store/editorStore'
@@ -540,9 +537,6 @@ export default function Dashboard() {
         currentParticipants={participants}
         onLoadList={(names) => setNameInput(names)}
       />
-      <SettingsModal />
-      <AuthModal />
-      <StampBookModal />
     </div>
   )
 }

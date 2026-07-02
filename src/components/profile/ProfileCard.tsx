@@ -146,7 +146,7 @@ export default function ProfileCard({ profile }: Props) {
   const totalAchievements = profile.total_achievements ?? 50;
 
   return (
-    <div className="flex flex-col items-center justify-center w-full min-h-[100dvh] bg-black bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-neutral-900 to-black p-4 overflow-hidden relative">
+    <div className="flex flex-col items-center justify-center w-full bg-black bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-neutral-900 to-black p-4 overflow-hidden relative rounded-3xl border border-white/10 shadow-2xl">
       
       {/* 앰비언트 라이트 배경 효과 */}
       <div className="absolute inset-0 pointer-events-none flex justify-center items-center opacity-40">
@@ -311,10 +311,10 @@ export default function ProfileCard({ profile }: Props) {
           </>
         )}
         <button 
-          onClick={() => window.location.href = '/dashboard'}
+          onClick={() => setActiveModal('none')}
           className="px-8 py-4 bg-indigo-600/90 hover:bg-indigo-500 text-white rounded-full font-bold transition-all duration-300 backdrop-blur-md border border-indigo-400/40 shadow-[0_0_20px_rgba(79,70,229,0.5)] hover:shadow-[0_0_35px_rgba(79,70,229,0.7)] whitespace-nowrap hover:-translate-y-1"
         >
-          ⬅ 메인으로 돌아가기
+          ⬅ 닫기 (Close)
         </button>
       </div>
 

@@ -126,8 +126,9 @@ export default function StampBookModal() {
       setTimeout(() => {
         setStampEffect(null)
       }, 1000)
-    } catch (e) {
+    } catch (e: any) {
       console.error(e)
+      alert(`보상 수령 실패: ${e.message || e}`);
       setStampEffect(null)
     }
   }
@@ -135,7 +136,7 @@ export default function StampBookModal() {
   if (activeModal !== 'stampBook' as any) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}

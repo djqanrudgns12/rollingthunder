@@ -7,6 +7,7 @@ import ThemeProvider from "@/components/ThemeProvider";
 import GlobalAudioUnlocker from "@/components/GlobalAudioUnlocker";
 import GlobalPlayerHUD from "@/components/GlobalPlayerHUD";
 import JackpotEffect from "@/components/JackpotEffect";
+import GlobalModals from "@/components/GlobalModals";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -78,6 +79,7 @@ export default async function RootLayout({
             <MissionSyncManager userId={profile?.id} />
             <GlobalPlayerHUD initialProfile={profile} />
             <JackpotEffect />
+            <GlobalModals />
             <Toaster theme="dark" position="bottom-right" />
           </GlobalAudioUnlocker>
         </ThemeProvider>
