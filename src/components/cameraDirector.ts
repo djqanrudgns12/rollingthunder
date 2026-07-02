@@ -91,7 +91,6 @@ export class CameraDirector {
   private smCentroidX: number;
   private smLeaderY = 0;
   private hasLeader = false;
-  private lastLeaderY = 0;
   private leaderVy = 0;
 
   private mode: Mode = 'idle';
@@ -401,8 +400,8 @@ export class CameraDirector {
     return { x: this.vp.center.x, y: this.vp.center.y, zoom: this.vp.scale.x };
   }
 
-  // 매 프레임 호출. chips: 활성 칩 위치 맵, leaderHintId: 랭킹 1위 힌트(없어도 됨)
-  update(dtSec: number, chips: Map<string, { x: number; y: number }>, leaderHintId: string | null) {
+  // 매 프레임 호출. chips: 활성 칩 위치+수직속도 맵, leaderHintId: 랭킹 1위 힌트(없어도 됨)
+  update(dtSec: number, chips: Map<string, { x: number; y: number; vy?: number }>, leaderHintId: string | null) {
     void leaderHintId;
     const dt = Math.min(Math.max(dtSec, 0.001), 0.05);
     this.calm = useGameStore.getState().calmMode; // 차분 모드 캐시(이하 저모션 게터 일괄 적용)
@@ -454,9 +453,10 @@ export class CameraDirector {
 
     // ── 1) 선두/2위/잔여주자 산출 ──
     // 선두 = (결승선 직전까지) 가장 멀리 내려간 칩. finished(아래로 빠진) 칩은 제외.
+    // 단, CROSS/LINGER 중에는 focusChipId(완주자)를 결승선 아래에서도 계속 추적(아래 락온).
     const finishLineY = this.finishLineY; // PRD v6.0
-    const racingCap = this.worldH + 60;
     let leaderY = -Infinity, leaderX = this.smCentroidX, leaderId: string | null = null;
+    let leaderVyRaw = 0;
     let secondY = -Infinity, secondX = this.smCentroidX;
     let racingCount = 0;
     for (const [id, p] of chips) {
@@ -464,7 +464,7 @@ export class CameraDirector {
         racingCount++; // 아직 결승선 통과 전 = 레이싱 중
         if (p.y > leaderY) {
           secondY = leaderY; secondX = leaderX;
-          leaderY = p.y; leaderX = p.x; leaderId = id;
+          leaderY = p.y; leaderX = p.x; leaderId = id; leaderVyRaw = p.vy ?? 0;
         } else if (p.y > secondY) {
           secondY = p.y; secondX = p.x;
         }
@@ -472,33 +472,28 @@ export class CameraDirector {
     }
     if (leaderY === -Infinity) {
       // 모두 결승선 통과 → 마지막 알려진 선두 유지 또는 가장 아래 칩
-      for (const [, p] of chips) if (p.y > leaderY) { leaderY = p.y; leaderX = p.x; }
+      for (const [, p] of chips) if (p.y > leaderY) { leaderY = p.y; leaderX = p.x; leaderVyRaw = p.vy ?? 0; }
     }
     if (leaderY === -Infinity) leaderY = this.smLeaderY; // 칩이 없으면 기존 유지
 
-    // 우승자/수동 칩 락온이 있으면 그 칩으로 선두 기준을 덮어씀(climax 중 통과자 추적)
+    // 완주자 락온(CROSS/LINGER) 또는 수동 칩 락온이 있으면 그 칩으로 선두 기준을 덮어씀
     if (this.focusChipId) {
       const fp = chips.get(this.focusChipId);
-      if (fp) { leaderY = fp.y; leaderX = fp.x; }
+      if (fp) { leaderY = fp.y; leaderX = fp.x; leaderVyRaw = fp.vy ?? 0; }
     }
 
     // 선두 그룹 가중 중심 대신 1등 플레이어(leaderX)를 1순위로 추적하여 중구난방 방지
     const centroidX = leaderX;
 
-    // Y축 속도 계산 및 저상통과 (정밀 예측 추적용)
-    let currentLeaderVy = 0;
-    if (this.lastLeaderId === leaderId && dt > 0) {
-      currentLeaderVy = (leaderY - this.lastLeaderY) / dt;
-    }
-    this.leaderVy = damp(this.leaderVy, currentLeaderVy, 10.0, dt);
-    this.lastLeaderY = leaderY;
+    // Y축 속도: 워커가 준 실제 vy를 가볍게 스무딩(유한차분 지연 제거 → 예측 정확도↑)
+    this.leaderVy = damp(this.leaderVy, leaderVyRaw, 12.0, dt);
 
-    // 예측 좌표를 이용해 카메라가 플레이어를 절대 놓치지 않도록 리드(Lead)
-    const predictedY = leaderY + this.leaderVy * 0.05;
+    // 실제 속도 피드포워드로 카메라가 고속 낙하 선두를 놓치지 않도록 리드(Lead)
+    const predictedY = leaderY + this.leaderVy * this.LOOKAHEAD_S;
 
     // 저상통과 → 떨림 제거
     this.smCentroidX = damp(this.smCentroidX, centroidX, this.CENTROID_K, dt);
-    this.smLeaderY = this.hasLeader ? damp(this.smLeaderY, predictedY, this.LEADER_K, dt) : leaderY;
+    this.smLeaderY = this.hasLeader ? damp(this.smLeaderY, predictedY, this.LEADER_K, dt) : predictedY;
     this.hasLeader = true;
 
     const progress = this.smLeaderY / this.worldH;
@@ -536,38 +531,41 @@ export class CameraDirector {
         this.overtakeCooldownT = this.OVERTAKE_CD_S;
       }
 
-      // 결승 직전 ANTICIPATION 무장/해제(통과 연출이 진행 중이 아닐 때만)
+      // 결승 직전 APPROACH(적응형 슬로우+줌) 무장/해제 — 속도 적응 ETA + 히스테리시스
       const distToFinish = finishLineY - leaderY;
       const etaSpeed = Math.max(this.leaderVy, 200); // 멈춰있을 때 무한대 방지
-      const eta = distToFinish / etaSpeed;
-      const imminent = distToFinish > 0 && distToFinish <= this.IMMINENT_PX && eta <= 2.5;
+      const eta = distToFinish > 0 ? distToFinish / etaSpeed : Infinity;
       const photoFinish = secondY > -Infinity && (leaderY - secondY) <= this.PHOTO_FINISH_PX;
       const dramaWorthy = this.nextFinishIsWinner || photoFinish || this.lastStandActive;
       if (this.finisherPhase === 'idle' && playing && !this.freeManual) {
         if (!this.anticipating) {
-          if (imminent && dramaWorthy && this.anticipationCooldownT <= 0 && this.establishingT <= 0) {
+          if (eta <= this.ETA_ARM && distToFinish > 0 && dramaWorthy
+              && this.anticipationCooldownT <= 0 && this.establishingT <= 0) {
             this.anticipating = true;
             this.anticipationT = 0;
-            this.photoFinishActive = photoFinish;
+            this.photoFinishActive = photoFinish; // arm 시 1회 확정(라이브 재판정 안 함 → 줌 튐 방지)
           }
         } else {
           this.anticipationT += dt;
-          this.photoFinishActive = photoFinish; // 프레이밍은 라이브로 갱신
-          if (!imminent || this.anticipationT > this.MAX_ANTICIPATION_S) {
-            // 선두 후퇴(짧은 쿨다운) 또는 스톨(긴 쿨다운) → 정상 속도 복귀
+          // 해제: ETA가 릴리즈 임계 초과(선두 후퇴) 또는 스톨 가드 초과 → 정상 속도 복귀
+          if (eta > this.ETA_RELEASE || this.anticipationT > this.MAX_ANTICIPATION_S) {
             this.anticipating = false;
             this.anticipationCooldownT = this.anticipationT > this.MAX_ANTICIPATION_S ? 1.2 : 0.4;
           }
         }
       }
+      // APPROACH 진행도(ETA_ARM→0 을 0→1로 매핑, S자 이즈) — 슬로우/줌을 연속 심화(끊김 제거)
+      this.anticipationRamp = this.anticipating
+        ? smoothstep(clamp01((this.ETA_ARM - eta) / this.ETA_ARM))
+        : 0;
     }
     if (leaderId) this.lastLeaderId = leaderId;
 
-    // 시간배율 타겟 결정(통과 연출 중이 아닐 때만 — climax는 스냅 가속을 직접 세팅)
+    // 시간배율 타겟 결정(통과 연출 중이 아닐 때만 — CROSS는 스냅 가속을 직접 세팅)
     if (this.finisherPhase === 'idle') {
       let tsT = 1.0;
       if (this.lastStandActive) tsT = this.lastStandScale;
-      if (this.anticipating) tsT = this.slowmoScale;
+      if (this.anticipating) tsT = lerp(1.0, this.slowmoScale, this.anticipationRamp); // 진행도 램프
       this.timeScaleTarget = playing ? tsT : 1.0;
     }
 
@@ -826,7 +824,8 @@ export class CameraDirector {
   }
 
   private clampZoom(z: number): number {
-    const minZ = Math.min(this.fitWidthZoom(), this.maxZoom);
-    return Math.min(this.maxZoom, Math.max(minZ, z));
+    const ceil = this.zoomCeiling; // 결승 연출 중엔 FINISH_ZOOM까지 허용
+    const minZ = Math.min(this.fitWidthZoom(), ceil);
+    return Math.min(ceil, Math.max(minZ, z));
   }
 }
