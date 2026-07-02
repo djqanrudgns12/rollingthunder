@@ -181,18 +181,24 @@ export default function PhysicsCanvas() {
     let bgSprite: PIXI.Sprite;
     let bgLayers: PIXI.Sprite[] = [];
     // 배경+장애물 전용 탈채도/감광 필터(참가자는 제외 → 상대적으로 도드라짐).
-    // 하나의 인스턴스를 bgSprite와 staticContainer가 공유한다.
-    let calmFilter: PIXI.ColorMatrixFilter | null = null;
+    // 배경과 장애물이 동일 필터 인스턴스를 공유하면 렌더 타겟 버퍼 글리치 현상이 발생하므로 독립된 인스턴스를 사용합니다.
+    let bgCalmFilter: PIXI.ColorMatrixFilter | null = null;
+    let staticCalmFilter: PIXI.ColorMatrixFilter | null = null;
     const applyCalmFilter = () => {
-      if (!calmFilter) return;
-      calmFilter.reset();
-      if (useGameStore.getState().calmMode) {
-        calmFilter.saturate(-0.4);        // 차분 모드: 강한 탈채도
-        calmFilter.brightness(0.9, true); // + 감광
-      } else {
-        calmFilter.saturate(-0.15);       // 기본(Tier1): 옅은 탈채도
-        calmFilter.brightness(0.96, true);
-      }
+      const isCalm = useGameStore.getState().calmMode;
+      const applyToFilter = (filter: PIXI.ColorMatrixFilter | null) => {
+        if (!filter) return;
+        filter.reset();
+        if (isCalm) {
+          filter.saturate(-0.4);        // 차분 모드: 강한 탈채도
+          filter.brightness(0.9, true); // + 감광
+        } else {
+          filter.saturate(-0.15);       // 기본(Tier1): 옅은 탈채도
+          filter.brightness(0.96, true);
+        }
+      };
+      applyToFilter(bgCalmFilter);
+      applyToFilter(staticCalmFilter);
     };
     const graphicsMap = new Map<string, PIXI.Container>();
     const minimapDotsMap = new Map<string, PIXI.Graphics>();
@@ -368,8 +374,8 @@ export default function PhysicsCanvas() {
         if (bg) {
           bgSprite = bg;
           viewport.addChild(bgSprite); // 제일 바닥에 렌더링
-          if (!calmFilter) { calmFilter = new PIXI.ColorMatrixFilter(); applyCalmFilter(); }
-          bgSprite.filters = [calmFilter];
+          if (!bgCalmFilter) { bgCalmFilter = new PIXI.ColorMatrixFilter(); applyCalmFilter(); }
+          bgSprite.filters = [bgCalmFilter];
         }
         // 줌(wheel/pinch)은 CameraDirector가 단독 소유 — pixi-viewport 플러그인은 drag/decelerate만 사용
         viewport.drag().decelerate()
@@ -1076,8 +1082,8 @@ export default function PhysicsCanvas() {
           if (payload.mapData) {
             const staticContainer = new PIXI.Container();
             staticContainer.zIndex = -10;
-            if (!calmFilter) { calmFilter = new PIXI.ColorMatrixFilter(); applyCalmFilter(); }
-            staticContainer.filters = [calmFilter]; // bgSprite와 동일 필터 공유
+            if (!staticCalmFilter) { staticCalmFilter = new PIXI.ColorMatrixFilter(); applyCalmFilter(); }
+            staticContainer.filters = [staticCalmFilter]; // bgSprite와 필터 인스턴스를 분리하여 잔상 버그 해결
             viewport.addChild(staticContainer);
 
             // PRD v4: Floor 레이어 추가 (라인 렌더링)
