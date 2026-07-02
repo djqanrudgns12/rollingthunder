@@ -208,7 +208,7 @@ export default function PhysicsCanvas() {
     let currentRankings: any[] = [];
     
     let activeChipsCount = 0;
-    const chipPositions = new Map<string, { x: number, y: number }>();
+    const chipPositions = new Map<string, { x: number, y: number, vy: number }>();
 
     // 스마트 카메라 디렉터(단일 두뇌). lastCamMs: 프레임 간 dt 계산용.
     let cameraDirector: CameraDirector | null = null;
@@ -314,6 +314,8 @@ export default function PhysicsCanvas() {
           '/images/assets/obstacles/obstacle_hole.png',
           '/images/assets/obstacles/obstacle_piston.png',
           '/images/assets/obstacles/windmill_rotor.png',
+          '/images/assets/obstacles/ice_block_base.png',
+          '/images/assets/obstacles/ice_block_crack.png',
           '/images/assets/skins/pr_dragon.png',
           '/images/assets/skins/pr_unicorn.png',
           '/images/assets/skins/pr_dino.png',
@@ -679,6 +681,8 @@ export default function PhysicsCanvas() {
             offsetX: 200,
             offsetY: 500
           };
+          // 실제 WebGL 렌더러도 창 크기에 맞춰 리사이즈 → 카메라 프레이밍 수식(screenH)과 표시면 일치.
+          try { app.renderer.resize(window.innerWidth, window.innerHeight); } catch {}
           cameraDirector?.resize(window.innerWidth, window.innerHeight);
         };
         updateMinimapPos();
@@ -1147,7 +1151,7 @@ export default function PhysicsCanvas() {
             const bodyId = survivor ? survivor.id : `entity_${rawId}_${dataIndex}`;
             
             if (isChip && survivor) {
-              chipPositions.set(survivor.id, { x, y });
+              chipPositions.set(survivor.id, { x, y, vy }); // vy: 카메라 예측 추적용 실제 수직속도
             }
 
             let container = graphicsMap.get(bodyId);
@@ -1522,7 +1526,10 @@ export default function PhysicsCanvas() {
         } else if (type === 'CHIP_FINISHED') {
           // 개별 피니셔 포커싱 & 카메라 셰이크 ("핵심 순간만" 슬로우/락온; 그 외엔 가벼운 펀치)
           const finishRank: number = payload.rank;
-          cameraDirector?.focusNextFinisher(payload.chipId, isWinnerRank(finishRank));
+          // 완주자 id는 payload.survivor.id (payload.chipId는 존재하지 않음 → 락온 위해 필수).
+          // 통과 지점 X를 넘겨 LINGER(여운) 프레이밍을 결승 통과 지점에 고정한다.
+          const finisherId: string = payload.survivor?.id ?? payload.chipId;
+          cameraDirector?.focusNextFinisher(finisherId, isWinnerRank(finishRank), payload.position?.x);
           cameraDirector?.addShake(15);
           // 다음 완주자가 우승 슬롯인지 갱신 → 결승 직전 슬로우 연출 재무장 여부 결정
           cameraDirector?.setDrama(isWinnerRank(finishRank + 1));

@@ -204,38 +204,21 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
     const h = item.h || 25
     
     // 1. 온전한 베이스 블록
-    const block = new PIXI.Graphics()
-    block.roundRect(-w / 2, -h / 2, w, h, 4)
-    block.fill({ color: 0x88ccff, alpha: 0.8 })
-    block.stroke({ color: 0xffffff, width: 2, alpha: 0.9 })
+    const baseTexture = ctx.getTexture(OBS('ice_block_base'))
+    const block = new PIXI.Sprite(baseTexture)
+    block.anchor.set(0.5)
+    block.width = w
+    block.height = h
     g.addChild(block)
 
     // 2. 균열 텍스처 오버레이 (Additive)
-    const crack = new PIXI.Graphics()
+    const crackTexture = ctx.getTexture(OBS('ice_block_crack'))
+    const crack = new PIXI.Sprite(crackTexture)
+    crack.anchor.set(0.5)
+    crack.width = w
+    crack.height = h
     crack.label = 'crackOverlay'
     crack.blendMode = 'add'
-    
-    // 중앙부에서 퍼져나가는 큰 균열
-    for(let i=0; i<4; i++) {
-       const startX = (Math.random() - 0.5) * (w * 0.5)
-       const startY = (Math.random() - 0.5) * (h * 0.5)
-       crack.moveTo(startX, startY)
-       let cx = startX
-       let cy = startY
-       for(let j=0; j<3; j++) {
-          cx += (Math.random() - 0.5) * (w * 0.6)
-          cy += (Math.random() - 0.5) * (h * 0.6)
-          crack.lineTo(cx, cy)
-       }
-    }
-    crack.stroke({ color: 0xffffff, width: 2, alpha: 0.9 })
-    
-    // 표면의 얕은 균열
-    for (let i = 0; i < 5; i++) {
-      crack.moveTo(-w / 2 + Math.random() * w, -h / 2 + Math.random() * h)
-      crack.lineTo(-w / 2 + Math.random() * w, -h / 2 + Math.random() * h)
-    }
-    crack.stroke({ color: 0x88ccff, width: 1, alpha: 0.6 })
     
     // 초기 투명도 설정 (수식: 1.0 - (현재 HP / 최대 HP))
     crack.alpha = item.maxHp ? Math.max(0, 1.0 - ((item.hp || item.maxHp) / item.maxHp)) : 0

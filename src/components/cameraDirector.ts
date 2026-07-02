@@ -108,7 +108,7 @@ export class CameraDirector {
   private winnerDecided = false; // 우승 확정 후엔 결착 시네마틱을 더 걸지 않고 남은 레이스만 추적
 
   // ── 시네마틱 비트 상태 ──
-  private finisherQueue: { chipId: string }[] = [];
+  private finisherQueue: { chipId: string; crossX?: number }[] = [];
   private finisherPhase: FinisherPhase = 'idle';
   private finisherPhaseT = 0;            // 현재 비트 경과(실시간 초)
   private anticipating = false;          // 결승 직전 줌인+슬로우 활성
@@ -386,10 +386,10 @@ export class CameraDirector {
 
   // 완주 발생 → 결승 연출 큐잉. dramatic=false(중상위권 다수)면 무거운 락온/슬로우 없이
   // 가벼운 줌 펀치만 주어 템포를 유지한다("핵심 순간만" 정책).
-  focusNextFinisher(chipId: string, dramatic: boolean) {
+  focusNextFinisher(chipId: string, dramatic: boolean, crossX?: number) {
     this.flashFinisher();
     if (dramatic || this.lastStandActive) {
-      this.finisherQueue.push({ chipId });
+      this.finisherQueue.push({ chipId, crossX });
     }
   }
 
@@ -658,14 +658,10 @@ export class CameraDirector {
     // 도달자 줌 펀치(감쇠)
     this.zoomPunch = damp(this.zoomPunch, 0, 6, dt);
 
-    // ── 댐핑 강도 선택(휘프팬/오프닝/캐치업) ──
+    // ── 댐핑 강도 선택(휘프팬/오프닝) ──
+    // 수직 캐치업은 SmoothDamp 스프링이 거리 비례로 자연 가속하므로 이진 부스트 불필요(제거).
     let currentPanK = this.PAN_K;
     let currentZoomK = this.establishingT > 0 ? this.ZOOM_K * 0.6 : this.ZOOM_K; // 오프닝은 완만한 푸시인
-    const distY = targetY - this.camY;
-    if (distY > this.screenH * 0.5 && this.mode !== 'manual') {
-      // 선두가 화면 밑으로 도망가면 카메라 속도 부스트
-      currentPanK = this.PAN_K * 2.5;
-    }
     if (this.finisherPhase === 'handoff') {
       // 다음 주자로 빠르게 스냅(휘프팬)
       currentPanK = this.handoffPanK;
@@ -687,7 +683,17 @@ export class CameraDirector {
       const effectiveZoomK = isReturning ? this.ZOOM_RETURN_K : currentZoomK;
 
       this.camX = damp(this.camX, targetX, effectivePanK, dt);
-      this.camY = damp(this.camY, targetY, effectivePanK, dt);
+      // 수직: 레이스/결승 추적은 SmoothDamp(실제 vy 피드포워드가 targetY에 반영됨) — 저지연·무오버슈트
+      const springY = (this.mode === 'race' || this.mode === 'finisher_focus') && !isReturning;
+      if (springY) {
+        let vertSmooth = this.VERT_SMOOTH_TIME;
+        if (this.finisherPhase === 'handoff') vertSmooth = this.HANDOFF_SMOOTH_TIME;
+        else if (this.establishingT > 0) vertSmooth = 0.45; // 오프닝 완만한 푸시인
+        this.camY = smoothDamp(this.camY, targetY, this.camVelYRef, vertSmooth, dt);
+      } else {
+        this.camVelYRef.v = 0; // 스프링 미사용 구간 진입/이탈 시 속도 리셋(복귀 점프 방지)
+        this.camY = damp(this.camY, targetY, effectivePanK, dt);
+      }
       this.camZoom = damp(this.camZoom, targetZoom, effectiveZoomK, dt);
 
       // ZOOMING/HOLDING: 댐핑 후 userZoom으로 스냅 (미세 오차 축적 방지)
@@ -736,14 +742,14 @@ export class CameraDirector {
     this.vp.scale.set(appliedZoom);
   }
 
-  // ── 결승 연출 시퀀스(프레임 구동): 큐 소비 → CLIMAX(스냅 가속) → HANDOFF(휘프팬) → idle ──
+  // ── 결승 연출 시퀀스(프레임 구동): 큐 소비 → CROSS(완주자 추적+스냅가속) → LINGER(여운) → HANDOFF(복귀) → idle ──
   private driveFinisherSequence(dt: number) {
     if (this.finisherPhase === 'idle') {
       if (this.finisherQueue.length > 0) {
-        this.finisherQueue.shift();
-        // 통과 직후 결승선 부근을 잡는다(아래 climax 프레이밍이 finishLineY를 직접 사용).
-        // 완주 칩은 이미 결승선 아래로 빠졌으므로 락온하지 않는다.
-        this.focusChipId = null;
+        const item = this.finisherQueue.shift()!;
+        // 완주자를 락온해 CROSS 동안 결승선 아래까지 따라간다(통과 순간 부각).
+        this.focusChipId = item.chipId || null;
+        this.finishFocusX = item.crossX ?? this.smCentroidX; // 통과 지점 X(LINGER 고정용)
         this.mode = 'finisher_focus';
         this.finisherPhase = 'climax';
         this.finisherPhaseT = 0;
@@ -765,10 +771,17 @@ export class CameraDirector {
 
     this.finisherPhaseT += dt;
     if (this.finisherPhase === 'climax') {
+      // CROSS(통과 순간 완주자 추적) → LINGER(결승선 여운)
       if (this.finisherPhaseT >= this.CLIMAX_S) {
+        this.finisherPhase = 'linger';
+        this.finisherPhaseT = 0;
+        this.focusChipId = null; // 락온 해제: LINGER는 결승선(고정 X)에 머무름
+      }
+    } else if (this.finisherPhase === 'linger') {
+      // LINGER(여운) → HANDOFF(다음 선두 복귀)
+      if (this.finisherPhaseT >= this.LINGER_S) {
         this.finisherPhase = 'handoff';
         this.finisherPhaseT = 0;
-        this.focusChipId = null; // 호흡 → 다음 선두로 휘프팬
       }
     } else if (this.finisherPhase === 'handoff') {
       if (this.finisherPhaseT >= this.HANDOFF_S) {

@@ -332,11 +332,14 @@ export class SimulationCore {
 
     const rawDt = (1 / 60) * GLOBAL_SPEED_MODIFIER * dtMultiplier;
     this.world.integrationParameters.dt = Math.min(rawDt, 4 / 60);
+
+    // 물리 스텝(world.step) 이전에 피스톤 등 강체의 이동 목표(선속도 등)를 갱신해야 엔진이 이번 프레임의 충돌(Sweep)을 정상 계산합니다.
+    this.applyPistons();
+
     this.world.step(this.eventQueue);
 
     this.handleCollisions();
     this.applyGravityWells();
-    this.applyPistons();
     this.applyWindCannons();
     this.applyFlippers();
     this.processHoleRespawns();
@@ -779,16 +782,27 @@ export class SimulationCore {
 
   private applyPistons() {
     const world = this.world!;
+    const dt = Math.max(world.integrationParameters.dt, 1 / 60);
+    
     world.forEachRigidBody((b) => {
       const d = b.userData as any;
       if (d?.type === 'piston' && d.waypointB) {
         const speed = d.speed || 2;
-        const t = (Math.sin(this.frame * speed * 0.01) + 1) / 2;
+        // 다음 프레임(this.frame + 1)의 목표 위치 계산
+        const tNext = (Math.sin((this.frame + 1) * speed * 0.01) + 1) / 2;
         const ax = d.originX, ay = d.originY;
         const bx = d.waypointB.x, by = d.waypointB.y;
-        const nx = ax + (bx - ax) * t;
-        const ny = ay + (by - ay) * t;
-        b.setNextKinematicTranslation({ x: nx, y: ny });
+        
+        const targetX = ax + (bx - ax) * tNext;
+        const targetY = ay + (by - ay) * tNext;
+        
+        const currentPos = b.translation();
+        
+        // 목표 위치에 도달하기 위한 정확한 선속도를 계산하여 적용 (VelocityBased Kinematic)
+        const vx = (targetX - currentPos.x) / dt;
+        const vy = (targetY - currentPos.y) / dt;
+        
+        b.setLinvel({ x: vx, y: vy }, true);
       }
     });
   }

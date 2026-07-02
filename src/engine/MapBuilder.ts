@@ -52,10 +52,8 @@ export class MapBuilder {
 
   static createKinematic(world: RAPIER.World, item: any) {
     // 동적(Kinematic) 장애물: 외부 힘에 밀리지 않고 프로그래밍된 속도(Speed)로만 움직입니다.
-    // 피스톤은 setNextKinematicTranslation으로 강제 좌표 이동을 하므로 위치 기반(PositionBased)을 사용해야 물리 엔진이 이동 속도를 역산하여 터널링을 방지합니다.
-    const desc = item.type === 'piston' 
-      ? RAPIER.RigidBodyDesc.kinematicPositionBased()
-      : RAPIER.RigidBodyDesc.kinematicVelocityBased();
+    // 피스톤은 터널링 방지를 위해 속도 기반(VelocityBased)으로 설정하고 매 프레임 정확한 선속도를 계산하여 이동시킵니다.
+    const desc = RAPIER.RigidBodyDesc.kinematicVelocityBased();
       
     desc.setTranslation(item.x, item.y)
       .setRotation((item.angle ?? item.rotation ?? 0) * (Math.PI / 180));
@@ -88,8 +86,8 @@ export class MapBuilder {
       // 피스톤: 직사각형 이동 플랫폼 (A↔B 왕복)
       const w = item.w || 100;
       const h = item.h || 20;
-      // 물리적 두께(Collider)를 렌더링 두께보다 약간 키워 초고속 칩 관통 방지 마진 확보
-      const physicsH = h + 8;
+      // 물리적 두께(Collider)를 렌더링 두께보다 키워 초고속 칩 관통(터널링) 방지 마진을 확실히 확보
+      const physicsH = h + 16;
       const colliderDesc = RAPIER.ColliderDesc.cuboid(w / 2, physicsH / 2)
         .setRestitution(0.3)
         .setFriction(0.8);
