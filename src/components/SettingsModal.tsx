@@ -30,6 +30,7 @@ export default function SettingsModal() {
     gimmickDensity, setGimmickDensity,
     baseTimeScale, setBaseTimeScale,
     isScreenShakeEnabled, setScreenShakeEnabled,
+    calmMode, setCalmMode,
     theme, setTheme,
     fontFamily, setFontFamily,
     bgmVolume, setBgmVolume,
@@ -42,6 +43,7 @@ export default function SettingsModal() {
     gimmickDensity: number;
     baseTimeScale: number;
     isScreenShakeEnabled: boolean;
+    calmMode: boolean;
     theme: 'dark' | 'light';
     fontFamily: string;
     bgmVolume: number;
@@ -55,6 +57,7 @@ export default function SettingsModal() {
         gimmickDensity,
         baseTimeScale,
         isScreenShakeEnabled,
+        calmMode,
         theme,
         fontFamily,
         bgmVolume,
@@ -74,6 +77,7 @@ export default function SettingsModal() {
       setGimmickDensity(snapshotRef.current.gimmickDensity)
       setBaseTimeScale(snapshotRef.current.baseTimeScale)
       setScreenShakeEnabled(snapshotRef.current.isScreenShakeEnabled)
+      setCalmMode(snapshotRef.current.calmMode)
       setTheme(snapshotRef.current.theme)
       setFontFamily(snapshotRef.current.fontFamily)
       setBgmVolume(snapshotRef.current.bgmVolume)
@@ -93,6 +97,7 @@ export default function SettingsModal() {
     setFontFamily('pretendard')
     setBaseTimeScale(1.0)
     setScreenShakeEnabled(true)
+    setCalmMode(false)
     setBgmVolume(100)
     setSfxVolume(100)
     setGimmickDensity(50)
@@ -203,6 +208,28 @@ export default function SettingsModal() {
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Calm / Reduced Motion */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-cyan-400 font-bold tracking-widest uppercase flex items-center gap-1.5">
+              <Activity className="w-4 h-4 shrink-0" /> 차분 모드 / 모션 줄이기
+            </label>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setCalmMode(true)}
+                className={`flex-1 py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${calmMode ? 'bg-cyan-500 text-white shadow-[0_0_10px_#06b6d4]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+              >
+                ON
+              </button>
+              <button
+                onClick={() => setCalmMode(false)}
+                className={`flex-1 py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${!calmMode ? 'bg-black/80 text-white/80 border border-cyan-500/50' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+              >
+                OFF
+              </button>
+            </div>
+            <p className="text-[10px] text-white/40 leading-tight">화면 채도·글로우·카메라 움직임을 더 줄여 눈피로/어지러움을 완화합니다. (장애물 글로우 제거는 다음 레이스부터 적용)</p>
           </div>
 
           {/* Audio Volumes */}

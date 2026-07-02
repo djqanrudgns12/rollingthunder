@@ -5,6 +5,7 @@ export async function createClient(keepLoggedIn?: boolean) {
   const cookieStore = await cookies()
   
   // 쿠키에서 기존 로그인 유지 설정 확인
+  // 주의: src/middleware.ts 에서도 이 쿠키 값을 읽어 세션 갱신 시 만료 시간을 조절합니다.
   const isKeepLoggedIn = keepLoggedIn ?? (cookieStore.get('keep_logged_in')?.value !== 'false')
 
   return createServerClient(

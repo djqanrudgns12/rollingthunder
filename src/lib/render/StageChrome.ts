@@ -116,7 +116,7 @@ export function createBackground(
   bgSprite.tileScale.set(scale, scale)
   bgSprite.x = bgX
   bgSprite.y = -BG_PAD_TOP
-  bgSprite.alpha = 0.4
+  bgSprite.alpha = 0.28 // 배경 존재감 완화(시각 과부하 저감): 0.4 → 0.28
   bgSprite.zIndex = -100
   return bgSprite
 }
@@ -144,23 +144,23 @@ export function createStartEndLines(opts: StageOpts): PIXI.Container {
 
   const startLine = new PIXI.Graphics()
   startLine.rect(0, startLineY - 10, WORLD_WIDTH, 20)
-  startLine.fill({ color: 0x00FFD0, alpha: 0.3 })
-  startLine.stroke({ width: 2, color: 0x00FFD0, alpha: 0.8 })
+  startLine.fill({ color: 0x00FFD0, alpha: 0.20 })
+  startLine.stroke({ width: 2, color: 0x00FFD0, alpha: 0.55 })
   for (let i = 0; i < WORLD_WIDTH; i += 40) {
     startLine.moveTo(i, startLineY - 10)
     startLine.lineTo(i + 20, startLineY + 10)
-    startLine.stroke({ width: 2, color: 0xFFFFFF, alpha: 0.5 })
+    startLine.stroke({ width: 2, color: 0xFFFFFF, alpha: 0.30 })
   }
   container.addChild(startLine)
 
   const endLine = new PIXI.Graphics()
   endLine.rect(0, endLineY - 10, WORLD_WIDTH, 20)
-  endLine.fill({ color: 0xFF00FF, alpha: 0.3 })
-  endLine.stroke({ width: 2, color: 0xFF00FF, alpha: 0.8 })
+  endLine.fill({ color: 0xFF00FF, alpha: 0.20 })
+  endLine.stroke({ width: 2, color: 0xFF00FF, alpha: 0.55 })
   for (let i = 0; i < WORLD_WIDTH; i += 40) {
     endLine.moveTo(i, endLineY - 10)
     endLine.lineTo(i + 20, endLineY + 10)
-    endLine.stroke({ width: 2, color: 0xFFFFFF, alpha: 0.5 })
+    endLine.stroke({ width: 2, color: 0xFFFFFF, alpha: 0.30 })
   }
   container.addChild(endLine)
 

@@ -78,6 +78,8 @@ interface GameState {
   setBaseTimeScale: (scale: number) => void
   isScreenShakeEnabled: boolean
   setScreenShakeEnabled: (enabled: boolean) => void
+  calmMode: boolean
+  setCalmMode: (enabled: boolean) => void
   theme: 'dark' | 'light'
   setTheme: (theme: 'dark' | 'light') => void
   fontFamily: string
@@ -148,6 +150,8 @@ export const useGameStore = create<GameState>()(
       setBaseTimeScale: (baseTimeScale) => set({ baseTimeScale }),
       isScreenShakeEnabled: true,
       setScreenShakeEnabled: (isScreenShakeEnabled) => set({ isScreenShakeEnabled }),
+      calmMode: false,
+      setCalmMode: (calmMode) => set({ calmMode }),
       theme: 'dark',
       setTheme: (theme) => set({ theme }),
       fontFamily: 'pretendard',
@@ -163,6 +167,7 @@ export const useGameStore = create<GameState>()(
         isMuted: state.isMuted,
         baseTimeScale: state.baseTimeScale,
         isScreenShakeEnabled: state.isScreenShakeEnabled,
+        calmMode: state.calmMode,
         theme: state.theme,
         fontFamily: state.fontFamily,
         participants: state.participants,

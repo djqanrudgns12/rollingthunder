@@ -57,6 +57,8 @@ export class CameraDirector {
   private smCentroidX: number;
   private smLeaderY = 0;
   private hasLeader = false;
+  private lastLeaderY = 0;
+  private leaderVy = 0;
 
   private mode: Mode = 'idle';
   private gameState: 'idle' | 'playing' | 'winner_declared' | 'all_finished' = 'idle';
@@ -99,38 +101,57 @@ export class CameraDirector {
   private isFastForward = false;
 
   // ── 튜닝 상수 ──
-  private readonly PAN_K = 5.0;          // 위치 댐핑 강도
-  private readonly ZOOM_K = 3.0;         // 줌 댐핑 강도
-  private readonly CENTROID_K = 3.0;     // 중심 X 저상통과
-  private readonly LEADER_K = 7.0;       // 선두 Y 저상통과(반응성 위해 다소 빠르게)
+  private readonly PAN_K = 15.0;         // 위치 댐핑 강도 (초정밀 추적)
+  private readonly ZOOM_K = 2.0;         // 줌 댐핑 강도 (부드럽게 줌인)
+  private readonly CENTROID_K = 15.0;    // 중심 X 저상통과 (정밀 추적)
+  private readonly LEADER_K = 18.0;      // 선두 Y 저상통과 (빠른 반응)
   private readonly LEAD_BATTLE_AT = 0.86; // 진행도 이 이상이면 결착 줌인 시작
-  private readonly MAX_ZOOM = 2.0;
-  private readonly BATTLE_ZOOM = 1.75;
-  private readonly WINNER_ZOOM = 2.0;
+  private readonly MAX_ZOOM = 3.5;       // 극대 확대
+  private readonly BATTLE_ZOOM = 2.0;
+  private readonly WINNER_ZOOM = 3.5;    // 극도의 줌인
 
   // 사용자 줌 튜닝
   private readonly USER_ZOOM_MIN = 0.25;      // 사용자 줌 최소 (맵 전체 조감)
-  private readonly USER_ZOOM_MAX = 3.5;       // 사용자 줌 최대 (극대 확대)
+  private readonly USER_ZOOM_MAX = 3.5;       // 사용자 줌 최대
   private readonly ZOOM_DEBOUNCE_MS = 300;    // ZOOMING→HOLDING 전환 대기
   private readonly ZOOM_HOLD_S = 5.0;         // HOLDING 유지 시간 (playing)
   private readonly ZOOM_HOLD_IDLE_S = 2.0;    // HOLDING 유지 시간 (idle)
-  private readonly ZOOM_RETURN_K = 1.5;       // 복귀 줌 댐핑 (ZOOM_K=3.0보다 느림)
-  private readonly PAN_RETURN_K = 2.0;        // 복귀 위치 댐핑 (PAN_K=5.0보다 느림)
+  private readonly ZOOM_RETURN_K = 1.5;       // 복귀 줌 댐핑
+  private readonly PAN_RETURN_K = 2.0;        // 복귀 위치 댐핑
 
   // 시네마틱 비트 튜닝
-  private readonly IMMINENT_PX = 260;        // 결승선까지 이 거리 안이면 "도달 직전"
+  private readonly IMMINENT_PX = 1500;       // 결승선까지 이 거리 안이면 ETA 체크
   private readonly PHOTO_FINISH_PX = 130;    // 1·2위 Y간격 이 이내면 접전(포토피니시)
-  private readonly SLOWMO_SCALE = 0.4;       // 결승 직전 슬로모션 배율
+  private readonly SLOWMO_SCALE = 0.15;      // 극도의 슬로우 모션 배율
   private readonly LASTSTAND_SCALE = 0.55;   // 마지막 주자 추적 슬로모션(완만)
-  private readonly RELEASE_SCALE = 1.18;     // 통과 순간 스냅 가속 펀치
+  private readonly RELEASE_SCALE = 1.12;     // 통과 순간 스냅 가속 펀치(완화: 1.18→1.12)
   private readonly MAX_ANTICIPATION_S = 1.2; // 슬로우 최대 지속(스톨 가드)
   private readonly CLIMAX_S = 0.55;          // 통과자 락온 유지 시간
   private readonly HANDOFF_S = 0.5;          // 다음 주자 휘프팬 시간
   private readonly ESTABLISH_S = 1.0;        // 오프닝 푸시인 시간
   private readonly OVERTAKE_CD_S = 1.5;      // 선두 교체 하이라이트 쿨다운
   private readonly TIMESCALE_K = 9.0;        // 시간배율 이즈 강도
-  private readonly HANDOFF_PAN_K = 11.0;     // 휘프팬 위치 댐핑(빠른 스냅)
-  private readonly HANDOFF_ZOOM_K = 7.0;     // 휘프팬 줌 댐핑
+  private readonly HANDOFF_PAN_K = 9.0;      // 휘프팬 위치 댐핑(빠른 스냅, 완화: 11→9)
+  private readonly HANDOFF_ZOOM_K = 6.0;     // 휘프팬 줌 댐핑(완화: 7→6)
+
+  // ── 차분 모드(calmMode) 저모션 세트(Tier 2). OFF면 위 Tier1 기본값 사용 ──
+  private calm = false;                       // update() 시작 시 매 프레임 캐시
+  private readonly CALM_SLOWMO_SCALE = 0.7;   // 슬로모션 급락 완화(전정계 자극 저감)
+  private readonly CALM_LASTSTAND_SCALE = 0.8;
+  private readonly CALM_RELEASE_SCALE = 1.0;  // 통과 순간 스냅 펀치 제거
+  private readonly CALM_MAX_ZOOM = 1.4;       // 얕은 줌 상한
+  private readonly CALM_BATTLE_ZOOM = 1.35;
+  private readonly CALM_WINNER_ZOOM = 1.4;
+  private readonly CALM_ESTABLISH_S = 0.4;    // 오프닝 스윕 완화
+  // 저모션 게터: this.calm에 따라 상수 선택(update 경유 호출 전체에 일관 적용)
+  private get maxZoom() { return this.calm ? this.CALM_MAX_ZOOM : this.MAX_ZOOM; }
+  private get battleZoom() { return this.calm ? this.CALM_BATTLE_ZOOM : this.BATTLE_ZOOM; }
+  private get winnerZoom() { return this.calm ? this.CALM_WINNER_ZOOM : this.WINNER_ZOOM; }
+  private get slowmoScale() { return this.calm ? this.CALM_SLOWMO_SCALE : this.SLOWMO_SCALE; }
+  private get lastStandScale() { return this.calm ? this.CALM_LASTSTAND_SCALE : this.LASTSTAND_SCALE; }
+  private get releaseScale() { return this.calm ? this.CALM_RELEASE_SCALE : this.RELEASE_SCALE; }
+  private get handoffPanK() { return this.calm ? this.PAN_K : this.HANDOFF_PAN_K; } // 차분: 급스냅 휘프팬 제거
+  private get handoffZoomK() { return this.calm ? this.ZOOM_K : this.HANDOFF_ZOOM_K; }
 
   constructor(vp: Viewport, opts: CameraDirectorOpts) {
     this.vp = vp;
@@ -175,7 +196,7 @@ export class CameraDirector {
       }
       // 오프닝 연출: idle→playing 전이 시 넓게 빠졌다가 출발 팩으로 푸시인
       if (prev !== 'playing') {
-        this.establishingT = this.ESTABLISH_S;
+        this.establishingT = useGameStore.getState().calmMode ? this.CALM_ESTABLISH_S : this.ESTABLISH_S;
         this.camZoom = this.fitWidthZoom(); // 즉시 줌아웃 → 추적 줌이 더 타이트해 자연스레 밀려들어옴
       }
     }
@@ -295,12 +316,14 @@ export class CameraDirector {
 
   // 도달자 가벼운 줌 펀치(감쇠)
   flashFinisher() {
-    this.zoomPunch = Math.max(this.zoomPunch, 0.18);
+    if (useGameStore.getState().calmMode) return; // 차분 모드: 줌 펀치 생략
+    this.zoomPunch = Math.max(this.zoomPunch, 0.14);
   }
 
   // 스크린 셰이크 효과
   addShake(intensity: number) {
-    if (!useGameStore.getState().isScreenShakeEnabled) return;
+    const s = useGameStore.getState();
+    if (!s.isScreenShakeEnabled || s.calmMode) return; // 차분 모드에서도 셰이크 억제
     this.shakeIntensity = Math.max(this.shakeIntensity, intensity);
   }
 
@@ -328,6 +351,7 @@ export class CameraDirector {
   update(dtSec: number, chips: Map<string, { x: number; y: number }>, leaderHintId: string | null) {
     void leaderHintId;
     const dt = Math.min(Math.max(dtSec, 0.001), 0.05);
+    this.calm = useGameStore.getState().calmMode; // 차분 모드 캐시(이하 저모션 게터 일괄 적용)
 
     // 시간배율은 전역(모드 무관) — 매 프레임 부드럽게 이즈(전 프레임 타겟 기준, 1프레임 지연은 무시 가능).
     this.tickTimeScale(dt);
@@ -407,9 +431,20 @@ export class CameraDirector {
     // 선두 그룹 가중 중심 대신 1등 플레이어(leaderX)를 1순위로 추적하여 중구난방 방지
     const centroidX = leaderX;
 
+    // Y축 속도 계산 및 저상통과 (정밀 예측 추적용)
+    let currentLeaderVy = 0;
+    if (this.lastLeaderId === leaderId && dt > 0) {
+      currentLeaderVy = (leaderY - this.lastLeaderY) / dt;
+    }
+    this.leaderVy = damp(this.leaderVy, currentLeaderVy, 10.0, dt);
+    this.lastLeaderY = leaderY;
+
+    // 예측 좌표를 이용해 카메라가 플레이어를 절대 놓치지 않도록 리드(Lead)
+    const predictedY = leaderY + this.leaderVy * 0.05;
+
     // 저상통과 → 떨림 제거
     this.smCentroidX = damp(this.smCentroidX, centroidX, this.CENTROID_K, dt);
-    this.smLeaderY = this.hasLeader ? damp(this.smLeaderY, leaderY, this.LEADER_K, dt) : leaderY;
+    this.smLeaderY = this.hasLeader ? damp(this.smLeaderY, predictedY, this.LEADER_K, dt) : leaderY;
     this.hasLeader = true;
 
     const progress = this.smLeaderY / this.worldH;
@@ -442,13 +477,16 @@ export class CameraDirector {
         progress >= 0.5 && this.overtakeCooldownT <= 0 &&
         this.finisherPhase === 'idle' && !this.anticipating && playing
       ) {
-        this.zoomPunch = Math.max(this.zoomPunch, 0.12);
+        this.zoomPunch = Math.max(this.zoomPunch, this.calm ? 0 : 0.09);
         this.addShake(6);
         this.overtakeCooldownT = this.OVERTAKE_CD_S;
       }
 
       // 결승 직전 ANTICIPATION 무장/해제(통과 연출이 진행 중이 아닐 때만)
-      const imminent = leaderY < finishLineY && (finishLineY - leaderY) <= this.IMMINENT_PX;
+      const distToFinish = finishLineY - leaderY;
+      const etaSpeed = Math.max(this.leaderVy, 200); // 멈춰있을 때 무한대 방지
+      const eta = distToFinish / etaSpeed;
+      const imminent = distToFinish > 0 && distToFinish <= this.IMMINENT_PX && eta <= 2.5;
       const photoFinish = secondY > -Infinity && (leaderY - secondY) <= this.PHOTO_FINISH_PX;
       const dramaWorthy = this.nextFinishIsWinner || photoFinish || this.lastStandActive;
       if (this.finisherPhase === 'idle' && playing && !this.freeManual) {
@@ -474,8 +512,8 @@ export class CameraDirector {
     // 시간배율 타겟 결정(통과 연출 중이 아닐 때만 — climax는 스냅 가속을 직접 세팅)
     if (this.finisherPhase === 'idle') {
       let tsT = 1.0;
-      if (this.lastStandActive) tsT = this.LASTSTAND_SCALE;
-      if (this.anticipating) tsT = this.SLOWMO_SCALE;
+      if (this.lastStandActive) tsT = this.lastStandScale;
+      if (this.anticipating) tsT = this.slowmoScale;
       this.timeScaleTarget = playing ? tsT : 1.0;
     }
 
@@ -487,7 +525,7 @@ export class CameraDirector {
       targetZoom = this.fitWidthZoom();
       targetX = this.worldW / 2;
       const visH = this.screenH / Math.max(targetZoom, 0.001);
-      targetY = 50 - visH * 0.12;
+      targetY = 50 - visH * 0.33;
 
       // 대기 상태에서는 떨림 보정 값들을 중앙/출발선으로 고정 (시작 시 부드러운 전환용)
       this.smCentroidX = targetX;
@@ -522,42 +560,42 @@ export class CameraDirector {
       // 결착(progress) 줌 램프 — ANTICIPATION/통과 연출이 없을 때만(서로 싸우지 않게 일원화)
       if (this.leadBattle && !this.anticipating && this.finisherPhase === 'idle') {
         const t = clamp01((progress - this.LEAD_BATTLE_AT) / (0.99 - this.LEAD_BATTLE_AT));
-        baseZoom = baseZoom + (this.BATTLE_ZOOM - baseZoom) * (t * t);
+        baseZoom = baseZoom + (this.battleZoom - baseZoom) * (t * t);
       }
 
       if (this.finisherPhase === 'climax') {
         // 통과 순간: 결승선 부근을 가장 타이트하게(WINNER_ZOOM) 잡는다 — 완주 VFX(파티클/등수)가 여기서 터짐.
-        targetZoom = this.WINNER_ZOOM;
+        targetZoom = this.winnerZoom;
         const visH = this.screenH / Math.max(targetZoom, 0.001);
         targetX = this.smCentroidX;
-        targetY = finishLineY - visH * 0.05;
+        targetY = this.smLeaderY - visH * 0.33;
       } else if (this.finisherPhase === 'handoff') {
         // 호흡: 한 단계 빠지며 다음 선두로 휘프팬
         targetZoom = Math.min(baseZoom, this.clampZoom(this.fitWidthZoom() * 1.2));
         const visH = this.screenH / Math.max(targetZoom, 0.001);
         targetX = this.smCentroidX;
-        targetY = this.smLeaderY - visH * 0.1;
+        targetY = this.smLeaderY - visH * 0.33;
       } else if (this.anticipating && this.photoFinishActive) {
         // 포토피니시: 1·2위를 한 화면에 담는다(둘의 중앙, 둘 다 보이게 줌 완화)
         const dx = Math.abs(leaderX - secondX);
         const dyy = Math.abs(leaderY - secondY);
         const fitBothW = this.screenW / (dx + 340);
         const fitBothH = this.screenH / (dyy + 380);
-        targetZoom = this.clampZoom(Math.min(fitBothW, fitBothH, this.BATTLE_ZOOM));
+        targetZoom = this.clampZoom(Math.min(fitBothW, fitBothH, this.battleZoom));
         targetX = (leaderX + secondX) / 2;
         targetY = (leaderY + secondY) / 2;
       } else if (this.anticipating) {
-        // 단독 선두 결승 직전: WINNER_ZOOM 푸시인 + 화면 정중앙 약간 아래
-        targetZoom = this.WINNER_ZOOM;
+        // 단독 선두 결승 직전: WINNER_ZOOM 푸시인 + 화면 정중앙 아래(1/3)
+        targetZoom = this.winnerZoom;
         const visH = this.screenH / Math.max(targetZoom, 0.001);
         targetX = this.smCentroidX;
-        targetY = this.smLeaderY - visH * 0.05;
+        targetY = this.smLeaderY - visH * 0.33;
       } else {
         // TRACKING
         targetZoom = baseZoom;
         const visH = this.screenH / Math.max(targetZoom, 0.001);
         targetX = this.smCentroidX;
-        targetY = this.smLeaderY - visH * 0.12;
+        targetY = this.smLeaderY - visH * 0.33;
       }
     }
 
@@ -574,8 +612,8 @@ export class CameraDirector {
     }
     if (this.finisherPhase === 'handoff') {
       // 다음 주자로 빠르게 스냅(휘프팬)
-      currentPanK = this.HANDOFF_PAN_K;
-      currentZoomK = this.HANDOFF_ZOOM_K;
+      currentPanK = this.handoffPanK;
+      currentZoomK = this.handoffZoomK;
     }
 
     // ── 사용자 줌 오버라이드: 추적 위치는 유지하되, 줌만 사용자 값으로 덮어씀 ──
@@ -645,11 +683,11 @@ export class CameraDirector {
         this.resetUserZoom();
         this.freeManual = false;
         // 통과 순간 = 갑자기 빨라짐: 시간배율을 즉시 1.0 위로 펀치 후 1.0로 정착
-        this.timeScaleCurrent = this.RELEASE_SCALE;
-        this.timeScaleSent = this.RELEASE_SCALE;
-        this.setTimeScale(this.RELEASE_SCALE);
+        this.timeScaleCurrent = this.releaseScale;
+        this.timeScaleSent = this.releaseScale;
+        this.setTimeScale(this.releaseScale);
         this.timeScaleTarget = 1.0;
-        this.zoomPunch = Math.max(this.zoomPunch, 0.2);
+        this.zoomPunch = Math.max(this.zoomPunch, this.calm ? 0 : 0.14);
         this.addShake(14);
       }
       return;
@@ -714,13 +752,13 @@ export class CameraDirector {
     return y === -Infinity ? this.smLeaderY : y;
   }
 
-  // 트랙 폭이 화면에 들어오는 줌(여백 포함)
+  // 트랙 폭이 화면에 들어오는 줌(여백 포함 - 와이드 베이스 줌)
   private fitWidthZoom(): number {
-    return this.screenW / (this.worldW + 300);
+    return this.screenW / (this.worldW + 800);
   }
 
   private clampZoom(z: number): number {
-    const minZ = Math.min(this.fitWidthZoom(), this.MAX_ZOOM);
-    return Math.min(this.MAX_ZOOM, Math.max(minZ, z));
+    const minZ = Math.min(this.fitWidthZoom(), this.maxZoom);
+    return Math.min(this.maxZoom, Math.max(minZ, z));
   }
 }

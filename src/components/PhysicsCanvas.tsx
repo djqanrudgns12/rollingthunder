@@ -180,6 +180,20 @@ export default function PhysicsCanvas() {
     let pipViewport: Viewport;
     let bgSprite: PIXI.Sprite | PIXI.TilingSprite;
     let bgLayers: PIXI.Sprite[] = [];
+    // 배경+장애물 전용 탈채도/감광 필터(참가자는 제외 → 상대적으로 도드라짐).
+    // 하나의 인스턴스를 bgSprite와 staticContainer가 공유한다.
+    let calmFilter: PIXI.ColorMatrixFilter | null = null;
+    const applyCalmFilter = () => {
+      if (!calmFilter) return;
+      calmFilter.reset();
+      if (useGameStore.getState().calmMode) {
+        calmFilter.saturate(-0.4);        // 차분 모드: 강한 탈채도
+        calmFilter.brightness(0.9, true); // + 감광
+      } else {
+        calmFilter.saturate(-0.15);       // 기본(Tier1): 옅은 탈채도
+        calmFilter.brightness(0.96, true);
+      }
+    };
     const graphicsMap = new Map<string, PIXI.Container>();
     const minimapDotsMap = new Map<string, PIXI.Graphics>();
     let minimapDynamic: PIXI.Container;
@@ -207,6 +221,13 @@ export default function PhysicsCanvas() {
     let tickers: Array<(ticker: PIXI.Ticker) => void> = [];
     // 공유 ObstacleRenderer 가 등록한 ticker/gsap 해제자 (cleanup 시 호출)
     const itemDisposers: Array<() => void> = [];
+
+    // 차분 모드 토글 → 배경/장애물 ColorMatrix 즉시 반영(품질 경로와 달리 라이브 갱신)
+    let lastCalmMode = useGameStore.getState().calmMode;
+    const unsubCalm = useGameStore.subscribe((state) => {
+      if (state.calmMode !== lastCalmMode) { lastCalmMode = state.calmMode; applyCalmFilter(); }
+    });
+    itemDisposers.push(unsubCalm);
 
     // 완주 등수가 "우승/드라마 슬롯"인지 모드별로 판정 → 카메라 결승 연출(슬로우/락온) 게이팅용.
     // 게임 로직(모드·목표 등수)을 아는 메인 스레드가 계산해, CameraDirector에는 boolean만 넘긴다.
@@ -347,6 +368,8 @@ export default function PhysicsCanvas() {
         if (bg) {
           bgSprite = bg;
           viewport.addChild(bgSprite); // 제일 바닥에 렌더링
+          if (!calmFilter) { calmFilter = new PIXI.ColorMatrixFilter(); applyCalmFilter(); }
+          bgSprite.filters = [calmFilter];
         }
         // 줌(wheel/pinch)은 CameraDirector가 단독 소유 — pixi-viewport 플러그인은 drag/decelerate만 사용
         viewport.drag().decelerate()
@@ -1053,6 +1076,8 @@ export default function PhysicsCanvas() {
           if (payload.mapData) {
             const staticContainer = new PIXI.Container();
             staticContainer.zIndex = -10;
+            if (!calmFilter) { calmFilter = new PIXI.ColorMatrixFilter(); applyCalmFilter(); }
+            staticContainer.filters = [calmFilter]; // bgSprite와 동일 필터 공유
             viewport.addChild(staticContainer);
 
             // PRD v4: Floor 레이어 추가 (라인 렌더링)
@@ -1071,7 +1096,8 @@ export default function PhysicsCanvas() {
             minimapStatic = new PIXI.Container();
             pipViewport.addChildAt(minimapStatic, 1);
 
-            const obsCtx = createAppRenderContext(app, { animated: true, quality: 'full' });
+            // 차분 모드 ON → 'lite'로 장애물 글로우/트레일 중앙 제거(레이스 시작 시 반영)
+            const obsCtx = createAppRenderContext(app, { animated: true, quality: useGameStore.getState().calmMode ? 'lite' : 'full' });
             const createEditorItemGraphic = (item: any) => {
               const r = createObstacleGraphic(item, obsCtx);
               itemDisposers.push(r.dispose);
@@ -1137,13 +1163,14 @@ export default function PhysicsCanvas() {
                 const R = 18; // Physics radius
                 
                 // 에셋별 렌더링 스케일 조정 (시각적 밸런스 패치)
-                let renderDiameter = R * 2;
-                const isLargeAsset = skinKey.startsWith('chip_base_') || 
+                // 참가자 강조: 장애물 대비 아이콘을 키움 (R*2→R*2.3, 대형에셋 R*1.3→R*1.6)
+                let renderDiameter = R * 2.3;
+                const isLargeAsset = skinKey.startsWith('chip_base_') ||
                                      skinKey.startsWith('pr_') ||
-                                     skinKey === 'blackhole' || 
+                                     skinKey === 'blackhole' ||
                                      skinKey === 'shuriken';
                 if (isLargeAsset) {
-                  renderDiameter = R * 1.3;
+                  renderDiameter = R * 1.6;
                 }
                 
                 const iconWrapper = new PIXI.Container();
@@ -1212,18 +1239,25 @@ export default function PhysicsCanvas() {
                   iconWrapper.addChild(fallback);
                 }
 
-                const text = new PIXI.Text({ 
-                  text: survivor.name, 
-                  style: { 
-                    fill: colNum, 
-                    fontSize: 14, 
-                    fontWeight: 'bold', 
-                    dropShadow: { alpha: 0.9, color: 0x000000, blur: 4, distance: 1 },
+                const text = new PIXI.Text({
+                  text: survivor.name,
+                  style: {
+                    fill: 0xffffff, // 어두운 배경판 위에서 일관되게 읽히도록 흰색(식별색은 칩 tint/테두리로)
+                    fontSize: 14,
+                    fontWeight: 'bold',
+                    dropShadow: { alpha: 0.9, color: 0x000000, blur: 2, distance: 1 },
                     stroke: { color: 0x000000, width: 3, join: 'round' }
-                  } 
+                  }
                 });
                 text.anchor.set(0.5);
                 text.y = -40;
+                // 이름표 배경판(반투명 다크 + 칩색 테두리): 어떤 배경/장애물 위에서도 가독성 확보
+                const plate = new PIXI.Graphics();
+                plate.roundRect(-text.width / 2 - 6, -text.height / 2 - 3, text.width + 12, text.height + 6, 6);
+                plate.fill({ color: 0x0a0a10, alpha: 0.62 });
+                plate.stroke({ width: 1.5, color: colNum, alpha: 0.9 });
+                plate.y = -40;
+                container.addChild(plate); // text보다 먼저 추가 → 뒤에 깔림
                 container.addChild(text);
               } else {
                 // Dynamic kinematics like windmill rotor

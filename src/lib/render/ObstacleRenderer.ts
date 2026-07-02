@@ -105,7 +105,7 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
       for (let i = 1; i <= 3; i++) {
         const trail = new PIXI.Graphics()
         trail.roundRect(-w / 2, -h / 2, w, h, h / 2)
-        trail.fill({ color: baseColor, alpha: 0.3 - i * 0.08 })
+        trail.fill({ color: baseColor, alpha: 0.18 - i * 0.05 })
         trail.rotation = -Math.sign(speed) * 0.15 * i
         g.addChild(trail)
       }
@@ -118,7 +118,7 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
     bar.stroke({ color: baseColor, width: 4, alpha: 0.8 })
     if (full) {
       import('pixi-filters').then(({ GlowFilter }) => {
-        if (!bar.destroyed) bar.filters = [new GlowFilter({ distance: 15, outerStrength: 2, innerStrength: 0, color: glowColor, quality: 0.5 })]
+        if (!bar.destroyed) bar.filters = [new GlowFilter({ distance: 8, outerStrength: 1.0, innerStrength: 0, color: glowColor, quality: 0.5 })]
       }).catch(() => {})
     }
     g.addChild(bar)
@@ -161,7 +161,7 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
     sprite.anchor.set(0.5)
     sprite.width = r * 2.5
     sprite.height = r * 2.5
-    if (isWhite) sprite.blendMode = 'add'
+    if (isWhite) { sprite.blendMode = 'add'; sprite.alpha = 0.8 } // 가산 블렌드 광량 억제
     g.addChild(sprite)
     gsapTo(sprite, { rotation: Math.PI * 2 * (isWhite ? -1 : 1), duration: 6, repeat: -1, ease: 'none' })
     // 미니맵: 게임 동작과 동일하게 그리지 않음(원본 유지)
@@ -173,6 +173,7 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
     sprite.height = r * 2.5
     if (item.color) sprite.tint = parseInt(item.color.replace('#', '0x'))
     sprite.blendMode = 'add'
+    sprite.alpha = 0.8 // 가산 블렌드 광량 억제
     g.addChild(sprite)
     gsapTo(sprite, { rotation: Math.PI * 2, duration: 5, repeat: -1, ease: 'none' })
     gsapTo(sprite.scale, { x: 1.1, y: 1.1, duration: 1, yoyo: true, repeat: -1, ease: 'sine.inOut' })
@@ -273,7 +274,7 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
     gate.stroke({ color: 0xffaa00, width: 3 })
     if (full) {
       import('pixi-filters').then(({ GlowFilter }) => {
-        if (!gate.destroyed) gate.filters = [new GlowFilter({ distance: 10, outerStrength: 2, innerStrength: 0, color: 0xffaa00, quality: 0.5 })]
+        if (!gate.destroyed) gate.filters = [new GlowFilter({ distance: 6, outerStrength: 1.0, innerStrength: 0, color: 0xffaa00, quality: 0.5 })]
       }).catch(() => {})
     }
     g.addChild(gate)

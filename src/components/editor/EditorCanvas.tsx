@@ -260,6 +260,8 @@ export default function EditorCanvas() {
     if (!itemsLayer || !app) return
     const st = useEditorStore.getState()
     const animated = st.previewAnimating
+    // 에디터는 맵 저작용 → 색 정확도 유지를 위해 차분 모드(Tier2: quality 'lite'/ColorMatrix/calmMode)를 의도적으로 미적용.
+    // 배경/라인/글로우 완화(Tier1)는 공유 모듈(StageChrome·ObstacleRenderer)을 통해 자동 반영된다.
     const ctx = createAppRenderContext(app, { animated, quality: 'full' })
     const map = nodeMapRef.current
     const seen = new Set<string>()
