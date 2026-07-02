@@ -24,7 +24,7 @@ const OBSTACLE_TEXTURES = [
   'obstacle_wall_ice', 'obstacle_wall_toxic', 'obstacle_wall_crystal', 'obstacle_wall_grass',
   'obstacle_wall_gold', 'obstacle_wall_steampunk', 'obstacle_wall_gothic', 'obstacle_wall_space',
   'obstacle_wall_candy', 'obstacle_wall_arcade', 'obstacle_wall_plasma',
-  'ice_block_base', 'ice_block_crack'
+  'ice_block_base', 'ice_block_crack_1', 'ice_block_crack_2', 'ice_block_crack_3', 'ice_block_crack_4', 'ice_block_shatter'
 ].map(n => `/images/assets/obstacles/${n}.png`)
 
 // Pixi v8/v7 이벤트 호환: 로컬 좌표 변환

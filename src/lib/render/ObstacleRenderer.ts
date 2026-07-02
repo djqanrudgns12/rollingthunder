@@ -14,6 +14,29 @@ export interface ObstacleGraphic {
 const OBS = (name: string) => `/images/assets/obstacles/${name}.png`
 
 /**
+ * 얼음블록 균열 단계 수. scripts/genIceAssets.ts 의 N_STAGES 와 반드시 일치해야 한다.
+ * (ice_block_crack_1..N.png)
+ */
+export const ICE_CRACK_STAGES = 4
+
+/**
+ * HP/maxHp → 균열 단계(0..N). 렌더러·런타임(PhysicsCanvas)이 동일 공식을 참조하도록 export.
+ *   hp === maxHp → 0 (온전, 균열 없음)
+ *   0 < hp < maxHp → 1..N (손상비율 d=1-hp/maxHp 를 반올림 매핑)
+ *   hp <= 0 → N (파괴 직전 최대 균열; 실제 소멸은 ICE_DESTROY 가 처리)
+ */
+export function iceStage(hp: number, maxHp: number): number {
+  if (!maxHp || maxHp <= 0) return 0
+  if (hp <= 0) return ICE_CRACK_STAGES
+  const d = 1 - hp / maxHp
+  if (d <= 0) return 0
+  return Math.min(ICE_CRACK_STAGES, Math.max(1, Math.round(d * ICE_CRACK_STAGES)))
+}
+
+/** 균열 단계 텍스처 이름 (stage 1..N) */
+export const iceCrackTexName = (stage: number) => `ice_block_crack_${stage}`
+
+/**
  * 단일 기물(EditorItem)을 게임과 동일한 비주얼로 렌더한다.
  * 기존 PhysicsCanvas.tsx 의 createEditorItemGraphic(L1094-1420) 로직을 그대로 이식하고
  * 환경 의존성을 RenderContext 로 분리했다.
@@ -211,17 +234,18 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
     block.height = h
     g.addChild(block)
 
-    // 2. 균열 텍스처 오버레이 (Additive)
-    const crackTexture = ctx.getTexture(OBS('ice_block_crack'))
-    const crack = new PIXI.Sprite(crackTexture)
+    // 2. 균열 오버레이 — HP 단계에 따라 이산 텍스처 선택 (normal 블렌드; 밝은 얼음 위 "진짜 금")
+    const maxHp = item.maxHp ?? item.hp ?? 0
+    const curHp = item.hp ?? maxHp
+    const stage = iceStage(curHp, maxHp)
+    const crack = new PIXI.Sprite(
+      stage > 0 ? ctx.getTexture(OBS(iceCrackTexName(stage))) : PIXI.Texture.EMPTY
+    )
     crack.anchor.set(0.5)
     crack.width = w
     crack.height = h
     crack.label = 'crackOverlay'
-    crack.blendMode = 'add'
-    
-    // 초기 투명도 설정 (수식: 1.0 - (현재 HP / 최대 HP))
-    crack.alpha = item.maxHp ? Math.max(0, 1.0 - ((item.hp || item.maxHp) / item.maxHp)) : 0
+    crack.visible = stage > 0
     g.addChild(crack)
 
     // 미니맵용

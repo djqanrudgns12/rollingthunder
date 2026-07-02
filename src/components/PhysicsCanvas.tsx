@@ -17,7 +17,7 @@ import { getPresetMeta, MapPresets } from '@/engine/MapPresets'
 import { CameraDirector } from './cameraDirector'
 import { useEditorStore } from '@/store/editorStore'
 import { createAppRenderContext } from '@/lib/render/RenderContext'
-import { createObstacleGraphic } from '@/lib/render/ObstacleRenderer'
+import { createObstacleGraphic, iceStage, iceCrackTexName } from '@/lib/render/ObstacleRenderer'
 import { createBackground, createStartEndLines } from '@/lib/render/StageChrome'
 // 맵 가로 폭은 고정 (물리엔진·카메라·미니맵 공유)
 const WORLD_WIDTH = 800;
@@ -315,7 +315,11 @@ export default function PhysicsCanvas() {
           '/images/assets/obstacles/obstacle_piston.png',
           '/images/assets/obstacles/windmill_rotor.png',
           '/images/assets/obstacles/ice_block_base.png',
-          '/images/assets/obstacles/ice_block_crack.png',
+          '/images/assets/obstacles/ice_block_crack_1.png',
+          '/images/assets/obstacles/ice_block_crack_2.png',
+          '/images/assets/obstacles/ice_block_crack_3.png',
+          '/images/assets/obstacles/ice_block_crack_4.png',
+          '/images/assets/obstacles/ice_block_shatter.png',
           '/images/assets/skins/pr_dragon.png',
           '/images/assets/skins/pr_unicorn.png',
           '/images/assets/skins/pr_dino.png',
@@ -1403,14 +1407,20 @@ export default function PhysicsCanvas() {
           soundManager.playSfx('gimmick_domino', 30, payload.x);
           const target = viewport.getChildAt(0).children.find(c => (c as any).label === payload.id);
           if (target) {
-            import('gsap').then(({ gsap }) => {
-              const crackOverlay = target.children.find((c: any) => c.label === 'crackOverlay');
-              if (crackOverlay && payload.maxHp) {
-                gsap.to(crackOverlay, { alpha: 1.0 - (payload.remainingHp / payload.maxHp), duration: 0.1 });
-              } else {
-                gsap.fromTo(target, { alpha: 1 }, { alpha: 0.5 + payload.remainingHp * 0.15, duration: 0.1 });
+            // HP 단계에 맞는 균열 텍스처로 교체 (alpha 페이드가 아닌 이산 단계)
+            const crackOverlay: any = target.children.find((c: any) => c.label === 'crackOverlay');
+            if (crackOverlay && payload.maxHp) {
+              const stage = iceStage(payload.remainingHp, payload.maxHp);
+              if (stage > 0) {
+                const url = '/images/assets/obstacles/' + iceCrackTexName(stage) + '.png';
+                const tex = PIXI.Assets.get(url) || PIXI.Texture.from(url);
+                if (tex) crackOverlay.texture = tex;
+                crackOverlay.visible = true;
+                crackOverlay.alpha = 1;
               }
-              gsap.fromTo(target.scale, { x: 1.1, y: 1.1 }, { x: 1, y: 1, duration: 0.2 });
+            }
+            import('gsap').then(({ gsap }) => {
+              gsap.fromTo(target.scale, { x: 1.12, y: 1.12 }, { x: 1, y: 1, duration: 0.2 });
             });
             for(let i=0; i<3; i++) {
               const p = new PIXI.Graphics();
@@ -1429,6 +1439,15 @@ export default function PhysicsCanvas() {
           soundManager.playSfx('ui_door_slam', 0, payload.x);
           const target = viewport.getChildAt(0).children.find(c => (c as any).label === payload.id);
           if (target) {
+            // 소멸 직전 파괴 플래시 프레임으로 교체
+            const crackOverlay: any = (target as any).children?.find((c: any) => c.label === 'crackOverlay');
+            if (crackOverlay) {
+              const url = '/images/assets/obstacles/ice_block_shatter.png';
+              const tex = PIXI.Assets.get(url) || PIXI.Texture.from(url);
+              if (tex) crackOverlay.texture = tex;
+              crackOverlay.visible = true;
+              crackOverlay.alpha = 1;
+            }
             import('gsap').then(({ gsap }) => {
               gsap.to(target.scale, { x: 0, y: 0, duration: 0.2, ease: 'back.in(1.5)', onComplete: () => target.destroy() });
             });
