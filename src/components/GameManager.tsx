@@ -39,9 +39,19 @@ export default function GameManager() {
           supabase.auth.getSession()
         ]);
         
-        // 개발자 여부 세팅 및 로그인 상태 세팅
-        const username = session?.user?.user_metadata?.username;
-        setIsAdmin(username === 'admin');
+        // 개발자 여부 세팅 및 로그인 상태 세팅 (단일 닉네임 의존성 제거, DB 권한 기반 적용)
+        let isAdminRole = false;
+        if (session?.user?.id) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+          if (profile?.role === 'admin') {
+            isAdminRole = true;
+          }
+        }
+        setIsAdmin(isAdminRole);
         setIsLoggedIn(!!session);
         
         // 캐시에 저장
