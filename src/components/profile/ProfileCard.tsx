@@ -74,16 +74,42 @@ export default function ProfileCard({ profile }: Props) {
   // Auth Handlers
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    await logout();
-    // Redirect is handled inside logout or dashboard page protection, but we can reset UI
-    setIsLoggingOut(false);
+    
+    // Clear client states directly using the hook's setter for modal
+    setActiveModal('none');
+    useUIStore.getState().setIsLoggedIn(false);
+    useUIStore.getState().setUserProfile(null);
+    
+    // Reset chips using useChipStore
+    import('@/store/chipStore').then(({ useChipStore }) => {
+      useChipStore.getState().setChips(0);
+    });
+
+    try {
+      await logout();
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   const handleDeleteAccount = async () => {
     if (confirm('정말로 회원탈퇴 하시겠습니까? 모든 데이터가 삭제되며 복구할 수 없습니다.')) {
       setIsDeleting(true);
-      await deleteAccount();
-      setIsDeleting(false);
+
+      // Clear client states
+      setActiveModal('none');
+      useUIStore.getState().setIsLoggedIn(false);
+      useUIStore.getState().setUserProfile(null);
+      
+      import('@/store/chipStore').then(({ useChipStore }) => {
+        useChipStore.getState().setChips(0);
+      });
+
+      try {
+        await deleteAccount();
+      } finally {
+        setIsDeleting(false);
+      }
     }
   };
 

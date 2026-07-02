@@ -12,16 +12,7 @@ import * as LucideIcons from "lucide-react";
 
 import { MOCK_ITEMS, ShopItem } from "@/data/shopData";
 
-// 임시 유저 상태 (테스트용)
-const MOCK_USER = {
-  id: "test-user-id",
-  role: "admin", // 'admin' | 'premium' | 'normal' | 'guest'
-  inventory: ["skin_cat", "avatar_pet_1", "bg_cyberpunk"], // 소유한 아이템 ID 배열
-  equipped: {
-    avatar: "avatar_pet_1",
-    border: null,
-  }
-};
+import { useUIStore } from "@/store/uiStore";
 
 const RARITY_ORDER: Record<string, number> = {
   'Mythic': 5,
@@ -34,12 +25,36 @@ const RARITY_ORDER: Record<string, number> = {
 export default function ShopPage() {
   const router = useRouter();
   
+  // Zustand store
+  const { userProfile, isLoggedIn } = useUIStore();
+  
   // 상태 관리
   const [viewMode, setViewMode] = useState<'shop' | 'inventory'>('shop');
   const [activeTab, setActiveTab] = useState("avatar");
   
   // 유저 상태 (클라이언트 사이드에서 상태 변이 테스트를 위해 useState 사용)
-  const [userState, setUserState] = useState(MOCK_USER);
+  const [userState, setUserState] = useState({
+    id: userProfile?.id || "guest",
+    role: userProfile?.role || "guest",
+    inventory: [] as string[],
+    equipped: {
+      avatar: userProfile?.avatar_id || null,
+      border: null as string | null,
+    }
+  });
+
+  // userProfile이 변경되면 userState도 업데이트
+  React.useEffect(() => {
+    setUserState({
+      id: userProfile?.id || "guest",
+      role: userProfile?.role || (isLoggedIn ? "user" : "guest"),
+      inventory: [] as string[], // 백엔드에서 inventory 데이터를 가져오도록 나중에 연동
+      equipped: {
+        avatar: userProfile?.avatar_id || null,
+        border: null,
+      }
+    });
+  }, [userProfile, isLoggedIn]);
 
   // 현재 선택된 아이템 (탭 변경 시 기본값 재설정)
   const [selectedItem, setSelectedItem] = useState<ShopItem | null>(null);

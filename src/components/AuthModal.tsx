@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { login, signup } from '@/app/actions'
 import { useUIStore } from '@/store/uiStore'
 import { X, LogIn, UserPlus } from 'lucide-react'
-import { isRedirectError } from 'next/dist/client/components/redirect'
 
 export default function AuthModal() {
   const { activeModal, setActiveModal, authMode } = useUIStore()
@@ -55,15 +54,27 @@ export default function AuthModal() {
     try {
       if (isLogin) {
         const result = await login(formData)
-        if (result?.error) setError(result.error)
+        if (result?.error) {
+          setError(result.error)
+          return
+        }
       } else {
         const result = await signup(formData)
-        if (result?.error) setError(result.error)
+        if (result?.error) {
+          setError(result.error)
+          return
+        }
       }
-    } catch (err) {
-      if (isRedirectError(err) || (err instanceof Error && err.message === 'NEXT_REDIRECT')) {
+      
+      setActiveModal('none')
+    } catch (err: any) {
+      // Server Action redirect throws an error on the client in some Next.js versions.
+      // err.digest is usually "NEXT_REDIRECT"
+      if (err?.message === 'NEXT_REDIRECT' || err?.digest?.startsWith('NEXT_REDIRECT')) {
+        setActiveModal('none')
         throw err;
       }
+      console.error(err)
       setError("오류가 발생했습니다. 다시 시도해주세요.")
     } finally {
       setLoading(false)

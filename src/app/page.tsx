@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { login, signup } from './actions'
 import { soundManager } from '@/engine/AudioEngine'
-import { isRedirectError } from 'next/dist/client/components/redirect'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -58,10 +57,11 @@ export default function LoginPage() {
         const result = await signup(formData)
         if (result?.error) setError(result.error)
       }
-    } catch (err) {
-      if (isRedirectError(err) || (err instanceof Error && err.message === 'NEXT_REDIRECT')) {
+    } catch (err: any) {
+      if (err?.message === 'NEXT_REDIRECT' || err?.digest?.startsWith('NEXT_REDIRECT')) {
         throw err;
       }
+      console.error(err)
       setError("오류가 발생했습니다. 다시 시도해주세요.")
     } finally {
       setLoading(false)
