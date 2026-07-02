@@ -9,6 +9,7 @@ import { MOCK_ITEMS } from '@/data/shopData';
 import { LogOut, UserX, LogIn, UserPlus } from 'lucide-react';
 import { logout, deleteAccount } from '@/app/actions';
 import { useUIStore } from '@/store/uiStore';
+import { useInventoryStore } from '@/store/inventoryStore';
 
 interface Props {
   profile: UserProfile;
@@ -22,6 +23,7 @@ export default function ProfileCard({ profile }: Props) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { setAuthMode, setActiveModal } = useUIStore();
+  const { equipped } = useInventoryStore();
   
   // Tilt Effect State
   const x = useMotionValue(0);
@@ -152,8 +154,11 @@ export default function ProfileCard({ profile }: Props) {
       break;
   }
 
-  if (profile.avatar_id) {
-    const customAvatar = MOCK_ITEMS.find(item => item.item_id === profile.avatar_id);
+  // 최우선으로 장착된 아바타 확인 (보관함 연동)
+  const activeAvatarId = equipped.avatar || profile?.avatar_id;
+
+  if (activeAvatarId) {
+    const customAvatar = MOCK_ITEMS.find(item => item.item_id === activeAvatarId);
     if (customAvatar && customAvatar.image) {
       avatarImage = customAvatar.image;
     }
@@ -224,7 +229,7 @@ export default function ProfileCard({ profile }: Props) {
                 src={avatarImage}
                 alt="Player Avatar"
                 fill
-                className="object-cover transition-transform duration-700 group-hover:scale-110"
+                className="object-cover object-center scale-[1.15] transition-transform duration-700 group-hover:scale-125"
                 sizes="(max-width: 640px) 160px, 224px"
                 priority
               />

@@ -9,6 +9,7 @@ import { ShoppingCart, User } from 'lucide-react';
 import { getProfileOverviewAction } from '@/presentation/actions/profileActions';
 import { UserProfile } from '@/types/user';
 import { MOCK_ITEMS } from '@/data/shopData';
+import { useInventoryStore } from '@/store/inventoryStore';
 import Image from 'next/image';
 
 export default function GlobalPlayerHUD({ initialProfile = null }: { initialProfile?: UserProfile | null }) {
@@ -21,6 +22,7 @@ export default function GlobalPlayerHUD({ initialProfile = null }: { initialProf
   const gameStage = useUIStore((state) => state.gameStage);
   const profile = useUIStore((state) => state.userProfile);
   const setUserProfile = useUIStore((state) => state.setUserProfile);
+  const { equipped } = useInventoryStore();
   
   const count = useMotionValue(0);
   const rounded = useTransform(count, (latest) => Math.round(latest).toLocaleString());
@@ -119,12 +121,15 @@ export default function GlobalPlayerHUD({ initialProfile = null }: { initialProf
       default:
         break;
     }
+  }
 
-    if (profile.avatar_id) {
-      const customAvatar = MOCK_ITEMS.find(item => item.item_id === profile.avatar_id);
-      if (customAvatar && customAvatar.image) {
-        avatarImage = customAvatar.image;
-      }
+  // 최우선으로 장착된 아바타 확인 (보관함 연동)
+  const activeAvatarId = equipped.avatar || profile?.avatar_id;
+  
+  if (activeAvatarId) {
+    const customAvatar = MOCK_ITEMS.find(item => item.item_id === activeAvatarId);
+    if (customAvatar && customAvatar.image) {
+      avatarImage = customAvatar.image;
     }
   }
 
@@ -145,7 +150,7 @@ export default function GlobalPlayerHUD({ initialProfile = null }: { initialProf
                src={avatarImage}
                alt="Avatar"
                fill
-               className="object-cover"
+               className="object-cover object-center scale-[1.15]"
                sizes="48px"
              />
              {(!profile && !avatarImage) && <User className="absolute inset-0 m-auto w-6 h-6 text-white/50" />}

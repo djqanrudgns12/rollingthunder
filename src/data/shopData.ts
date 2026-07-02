@@ -13,6 +13,11 @@ export interface ShopItem {
 
 export const MOCK_ITEMS: ShopItem[] = [
   // ===================== SKINS =====================
+  // Default (0)
+  { item_id: "skin_chip_base", category: "skin", name: "포커칩", price: 0, rarity: "Normal", description: "기본 지급되는 포커칩 스킨입니다.", image: "", iconName: "Circle", isDefault: true },
+  { item_id: "horse", category: "skin", name: "경주마", price: 0, rarity: "Normal", description: "기본 지급되는 경주마 스킨입니다.", image: "", iconName: "Zap", isDefault: true },
+  { item_id: "spaceship", category: "skin", name: "우주선", price: 0, rarity: "Normal", description: "기본 지급되는 우주선 스킨입니다.", image: "", iconName: "Rocket", isDefault: true },
+
   // Normal (500 ~ 1000)
   { item_id: "skin_shuriken", category: "skin", name: "표창", price: 500, rarity: "Normal", description: "날렵한 표창 스킨입니다.", image: "/images/assets/skins/shuriken.png" },
   { item_id: "skin_car", category: "skin", name: "스포츠카", price: 800, rarity: "Normal", description: "빠르게 질주하는 스포츠카 스킨입니다.", image: "/images/assets/skins/car.png" },
@@ -40,6 +45,12 @@ export const MOCK_ITEMS: ShopItem[] = [
   { item_id: "skin_pr_unicorn", category: "skin", name: "유니콘", price: 10000, rarity: "Legendary", description: "환상 속의 유니콘 스킨입니다.", image: "/images/assets/skins/pr_unicorn.png" },
 
   // ===================== AVATARS =====================
+  // Default (0)
+  { item_id: "avatar_guest", category: "avatar", name: "게스트 아바타", price: 0, rarity: "Normal", description: "방문자를 위한 기본 체스 폰 아바타입니다.", image: "/avatars/avatar_guest.png", isDefault: true },
+  { item_id: "avatar_user", category: "avatar", name: "기본 유저 아바타", price: 0, rarity: "Normal", description: "일반 유저를 위한 폰 아바타입니다.", image: "/avatars/avatar_normal.png", isDefault: true },
+  { item_id: "avatar_premium", category: "avatar", name: "프리미엄 아바타", price: 0, rarity: "Normal", description: "프리미엄 유저를 위한 폰 아바타입니다.", image: "/avatars/avatar_premium.png", isDefault: true },
+  { item_id: "avatar_admin", category: "avatar", name: "어드민 아바타", price: 0, rarity: "Normal", description: "관리자를 위한 폰 아바타입니다.", image: "/avatars/avatar_admin.png", isDefault: true },
+
   { item_id: "avatar_pet_1", category: "avatar", name: "웰시코기 딜러", price: 1000, rarity: "Normal", description: "딜러 보타이를 맨 귀여운 웰시코기 강아지입니다.", image: "/avatars/pet_corgi.png" },
   { item_id: "avatar_pet_2", category: "avatar", name: "턱시도 냥이", price: 1000, rarity: "Normal", description: "카지노 칩을 굴리며 노는 도도한 고양이입니다.", image: "/avatars/pet_cat.png" },
   { item_id: "avatar_pet_3", category: "avatar", name: "행운의 토끼", price: 1000, rarity: "Normal", description: "네잎클로버를 품은 행운의 토끼입니다.", image: "/avatars/pet_rabbit.png" },

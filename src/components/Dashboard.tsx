@@ -9,10 +9,16 @@ import ListManagerModal from './ListManagerModal'
 import { Tv, Shield, ShieldOff, Video, Map, Circle, Car, Rocket, Zap, Cat, Target, Volume2, VolumeX, Settings, Ghost, Bot, Flame, Star, Smile, Cloud, Anchor, Wind } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEditorStore } from '@/store/editorStore'
+import { useInventoryStore } from '@/store/inventoryStore'
+import { MOCK_ITEMS } from '@/data/shopData'
 
 // Skin Preview Helper Component
 function SkinPreviewIcon({ skinId }: { skinId: string }) {
-  switch (skinId) {
+  // shopData의 item_id가 "skin_"으로 시작할 수 있으므로 제거
+  const cleanId = skinId.replace(/^skin_/, '');
+  
+  switch (cleanId) {
+    case 'chip_base': return <Circle className="w-5 h-5" />
     case 'horse': return <Zap className="w-5 h-5" />
     case 'spaceship': return <Rocket className="w-5 h-5" />
     case 'shuriken': return <Target className="w-5 h-5" />
@@ -47,6 +53,7 @@ export default function Dashboard() {
   const { participants, addParticipant, removeParticipant, clearParticipants, setGimmickDensity, gimmickDensity, setSurvivors, targetWinnerCount, setTargetWinnerCount, setSessionId, gameMode, setGameMode, customWinningRank, setCustomWinningRank, globalSkin, setGlobalSkin, setParticipants, isSkillEnabled, setSkillEnabled, selectedMapPreset, setRandomWinningRanks, clearSkillLogs, isMuted, setMuted } = useGameStore()
   const { setGameStage, customMapData, customMapTitle, isBroadcasterMode, setBroadcasterMode, isAnonymized, setAnonymized, setGameTitle, isAdmin } = useUIStore()
   const setEditorMode = useEditorStore(state => state.setEditorMode)
+  const { hasItem } = useInventoryStore()
   
   const [nameInput, setNameInput] = useState('')
 
@@ -128,9 +135,13 @@ export default function Dashboard() {
 
   const handleSkinChange = (newSkin: string) => {
     setGlobalSkin(newSkin)
+    
+    // 포커칩(랜덤)인 경우 chip_base_* 로 할당
+    const cleanId = newSkin.replace(/^skin_/, '');
+    
     setParticipants(participants.map(p => ({
       ...p,
-      skinId: newSkin === '' ? `chip_base_${Math.floor(Math.random() * 6) + 1}` : newSkin
+      skinId: cleanId === 'chip_base' ? `chip_base_${Math.floor(Math.random() * 6) + 1}` : cleanId
     })))
   }
 
@@ -150,7 +161,8 @@ export default function Dashboard() {
       const finalName = isAnonymized ? getRandomAnimal() : name
       
       // 스킨 일괄 설정에 따라 배정
-      const finalSkinId = globalSkin === '' ? `chip_base_${Math.floor(Math.random() * 6) + 1}` : globalSkin
+      const cleanSkinId = globalSkin.replace(/^skin_/, '');
+      const finalSkinId = cleanSkinId === 'chip_base' ? `chip_base_${Math.floor(Math.random() * 6) + 1}` : cleanSkinId
       
       newParticipants.push({ id: newId, name: finalName, color: `hsl(${Math.random() * 360}, 80%, 50%)`, skinId: finalSkinId })
     })
@@ -430,30 +442,17 @@ export default function Dashboard() {
                 </div>
                 <select 
                   className="bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:border-[var(--accent-primary)] text-[11px] font-bold tracking-wide transition-colors flex-1 min-w-0 h-[32px]"
-                  value={globalSkin}
+                  value={globalSkin || "skin_chip_base"}
                   onChange={(e) => handleSkinChange(e.target.value)}
                 >
-                  <option value="">포커칩 (랜덤)</option>
-                  <option value="horse">경주마</option>
-                  <option value="spaceship">우주선</option>
-                  <option value="shuriken">표창</option>
-                  <option value="car">자동차</option>
-                  <option value="blackhole">블랙홀</option>
-                  <option value="cat">고양이</option>
-                  <option value="pr_dragon">[PR] 드래곤</option>
-                  <option value="pr_unicorn">[PR] 유니콘</option>
-                  <option value="pr_dino">[PR] 공룡</option>
-                  <option value="pr_slime">[PR] 슬라임</option>
-                  <option value="pr_robot">[PR] 로봇</option>
-                  <option value="pr_phoenix">[PR] 불사조</option>
-                  <option value="pr_alien">[PR] 외계인</option>
-                  <option value="pr_gummy">[PR] 구미베어</option>
-                  <option value="pr_astronaut">[PR] 우주비행사</option>
-                  <option value="pr_ghost">[PR] 꼬마 유령</option>
-                  <option value="pr_hamster">[PR] 햄스터</option>
-                  <option value="pr_hotairballoon">[PR] 열기구</option>
-                  <option value="pr_pirateship">[PR] 꼬마 해적선</option>
-                  <option value="pr_magiccarpet">[PR] 마법 양탄자</option>
+                  {MOCK_ITEMS
+                    .filter(item => item.category === 'skin')
+                    .filter(item => item.isDefault || isAdmin || hasItem(item.item_id))
+                    .map(item => (
+                      <option key={item.item_id} value={item.item_id}>
+                        {item.name} {item.item_id === 'skin_chip_base' && '(랜덤)'}
+                      </option>
+                    ))}
                 </select>
               </div>
             </div>

@@ -13,6 +13,7 @@ import * as LucideIcons from "lucide-react";
 import { MOCK_ITEMS, ShopItem } from "@/data/shopData";
 
 import { useUIStore } from "@/store/uiStore";
+import { useInventoryStore } from "@/store/inventoryStore";
 
 const RARITY_ORDER: Record<string, number> = {
   'Mythic': 5,
@@ -27,34 +28,13 @@ export default function ShopPage() {
   
   // Zustand store
   const { userProfile, isLoggedIn } = useUIStore();
+  const { inventory, equipped, buyItem, equipItem, unequipItem, hasItem } = useInventoryStore();
   
   // 상태 관리
   const [viewMode, setViewMode] = useState<'shop' | 'inventory'>('shop');
   const [activeTab, setActiveTab] = useState("avatar");
   
-  // 유저 상태 (클라이언트 사이드에서 상태 변이 테스트를 위해 useState 사용)
-  const [userState, setUserState] = useState({
-    id: userProfile?.id || "guest",
-    role: userProfile?.role || "guest",
-    inventory: [] as string[],
-    equipped: {
-      avatar: userProfile?.avatar_id || null,
-      border: null as string | null,
-    }
-  });
-
-  // userProfile이 변경되면 userState도 업데이트
-  React.useEffect(() => {
-    setUserState({
-      id: userProfile?.id || "guest",
-      role: userProfile?.role || (isLoggedIn ? "user" : "guest"),
-      inventory: [] as string[], // 백엔드에서 inventory 데이터를 가져오도록 나중에 연동
-      equipped: {
-        avatar: userProfile?.avatar_id || null,
-        border: null,
-      }
-    });
-  }, [userProfile, isLoggedIn]);
+  const role = userProfile?.role || (isLoggedIn ? "user" : "guest");
 
   // 현재 선택된 아이템 (탭 변경 시 기본값 재설정)
   const [selectedItem, setSelectedItem] = useState<ShopItem | null>(null);
@@ -62,12 +42,12 @@ export default function ShopPage() {
   // 권한 및 소유 로직
   const isItemOwned = (item: ShopItem) => {
     if (item.isDefault) return true;
-    if (userState.role === 'admin') return true;
-    return userState.inventory.includes(item.item_id);
+    if (role === 'admin') return true;
+    return hasItem(item.item_id);
   };
 
   const hasAccessToTab = (tabId: string) => {
-    if (userState.role === 'admin' || userState.role === 'premium') return true;
+    if (role === 'admin' || role === 'premium') return true;
     return !['piece', 'background', 'frame'].includes(tabId);
   };
 
@@ -96,7 +76,7 @@ export default function ShopPage() {
     });
 
     return items;
-  }, [activeTab, viewMode, userState]);
+  }, [activeTab, viewMode, inventory, role]);
 
   // 탭 변경 시 selectedItem 초기화
   React.useEffect(() => {
@@ -117,33 +97,24 @@ export default function ShopPage() {
         toast.info("이미 보유한 아이템입니다.");
         return;
       }
-      if (item.requiresPremium && !['admin', 'premium'].includes(userState.role)) {
+      if (item.requiresPremium && !['admin', 'premium'].includes(role)) {
         toast.error("프리미엄 등급 이상만 구매 가능합니다.");
         return;
       }
       // 구매 성공 처리 (목업)
       toast.success(`${item.name} 구매 완료!`);
-      setUserState(prev => ({
-        ...prev,
-        inventory: [...prev.inventory, item.item_id]
-      }));
+      buyItem(item.item_id);
     } else {
       // 장착 로직
-      if (item.category === 'avatar' || item.category === 'border') {
-        const currentEquipped = userState.equipped[item.category];
+      if (item.category === 'avatar' || item.category === 'border' || item.category === 'skin') {
+        const currentEquipped = equipped[item.category];
         if (currentEquipped === item.item_id) {
           // 장착 해제
-          setUserState(prev => ({
-            ...prev,
-            equipped: { ...prev.equipped, [item.category]: null }
-          }));
+          unequipItem(item.category);
           toast.success(`${item.name} 장착을 해제했습니다.`);
         } else {
           // 장착
-          setUserState(prev => ({
-            ...prev,
-            equipped: { ...prev.equipped, [item.category]: item.item_id }
-          }));
+          equipItem(item.category, item.item_id);
           toast.success(`${item.name} 장착 완료!`);
         }
       }
@@ -190,8 +161,8 @@ export default function ShopPage() {
     } 
     
     // 보관함 모드
-    if (item.category === 'avatar' || item.category === 'border') {
-      const isEquipped = userState.equipped[item.category] === item.item_id;
+    if (item.category === 'avatar' || item.category === 'border' || item.category === 'skin') {
+      const isEquipped = equipped[item.category as keyof typeof equipped] === item.item_id;
       return (
         <button 
           onClick={() => handleAction(item)}
@@ -203,14 +174,6 @@ export default function ShopPage() {
         >
           <span>{isEquipped ? '장착 해제' : '장착하기'}</span>
         </button>
-      );
-    }
-    
-    if (item.category === 'skin') {
-      return (
-        <div className="px-8 py-3 bg-neutral-800/80 text-cyan-400 font-bold rounded-full border border-cyan-900/50">
-          참가자 목록에 추가됨
-        </div>
       );
     }
 
@@ -327,8 +290,8 @@ export default function ShopPage() {
               filteredItems.map((item) => {
                 const isSelected = selectedItem?.item_id === item.item_id;
                 const isOwned = isItemOwned(item);
-                const isEquipped = item.category === 'avatar' || item.category === 'border' 
-                  ? userState.equipped[item.category] === item.item_id 
+                const isEquipped = ['avatar', 'border', 'skin'].includes(item.category)
+                  ? equipped[item.category as keyof typeof equipped] === item.item_id 
                   : false;
                 
                 const IconComp = item.iconName ? (LucideIcons as any)[item.iconName] : null;
