@@ -103,7 +103,7 @@ export default function ShopShowcase({ selectedItem }: ShopShowcaseProps) {
   const isFullScreenAsset = selectedItem?.category === 'background' || selectedItem?.category === 'frame';
 
   return (
-    <div className="w-full h-full absolute inset-0 flex items-center justify-center pt-4">
+    <div className="w-full h-full absolute inset-0 flex items-center justify-center pt-12">
       {/* 앰비언트 라이트 배경 효과 */}
       <div className="absolute inset-0 pointer-events-none flex justify-center items-center opacity-40">
         <div className={`w-[300px] h-[300px] rounded-full blur-[80px] bg-gradient-to-br ${rarityStyle.gradient}`} />
@@ -121,7 +121,7 @@ export default function ShopShowcase({ selectedItem }: ShopShowcaseProps) {
         // 공중에 둥둥 떠있는 애니메이션 (플로팅)
         animate={{ y: [0, -10, 0] }}
         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-        className="relative w-64 h-64 sm:w-80 sm:h-80 z-10 cursor-pointer"
+        className="relative w-56 h-56 sm:w-64 sm:h-64 z-10 cursor-pointer"
       >
         <div className={`w-full h-full rounded-3xl border-2 ${rarityStyle.border} ${rarityStyle.glow} bg-black/60 backdrop-blur-md flex items-center justify-center relative transition-colors duration-500 overflow-hidden`}>
           

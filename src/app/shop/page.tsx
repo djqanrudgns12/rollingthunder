@@ -157,8 +157,8 @@ export default function ShopPage() {
 
     if (!canAccess) {
       return (
-        <button disabled className="px-10 py-3.5 bg-neutral-800 text-neutral-500 font-extrabold text-lg rounded-full border border-neutral-700 flex items-center gap-2">
-          <Lock size={20} />
+        <button disabled className="px-8 py-2.5 bg-neutral-800 text-neutral-500 font-extrabold text-base rounded-full border border-neutral-700 flex items-center gap-2">
+          <Lock size={18} />
           <span>프리미엄 전용</span>
         </button>
       );
@@ -167,14 +167,14 @@ export default function ShopPage() {
     if (viewMode === 'shop') {
       if (item.isDefault) {
         return (
-          <button disabled className="px-10 py-3.5 bg-neutral-800 text-neutral-400 font-extrabold text-lg rounded-full border border-neutral-700">
+          <button disabled className="px-8 py-2.5 bg-neutral-800 text-neutral-400 font-extrabold text-base rounded-full border border-neutral-700">
             <span>기본 보유</span>
           </button>
         );
       }
       if (isOwned) {
         return (
-          <button disabled className="px-10 py-3.5 bg-neutral-800 text-neutral-400 font-extrabold text-lg rounded-full border border-neutral-700">
+          <button disabled className="px-8 py-2.5 bg-neutral-800 text-neutral-400 font-extrabold text-base rounded-full border border-neutral-700">
             <span>보유 중</span>
           </button>
         );
@@ -182,7 +182,7 @@ export default function ShopPage() {
       return (
         <button 
           onClick={() => handleAction(item)}
-          className="px-10 py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 text-black font-extrabold text-lg rounded-full shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:shadow-[0_0_30px_rgba(245,158,11,0.8)] hover:scale-105 transition-all active:scale-95 flex items-center gap-2 border border-yellow-400/50"
+          className="px-8 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-black font-extrabold text-base rounded-full shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:shadow-[0_0_30px_rgba(245,158,11,0.8)] hover:scale-105 transition-all active:scale-95 flex items-center gap-2 border border-yellow-400/50"
         >
           <span>{item.price.toLocaleString()} 칩 구매</span>
         </button>
@@ -195,7 +195,7 @@ export default function ShopPage() {
       return (
         <button 
           onClick={() => handleAction(item)}
-          className={`px-10 py-3.5 font-extrabold text-lg rounded-full transition-all active:scale-95 flex items-center gap-2 border ${
+          className={`px-8 py-2.5 font-extrabold text-base rounded-full transition-all active:scale-95 flex items-center gap-2 border ${
             isEquipped 
               ? "bg-red-500/20 text-red-400 border-red-500/50 hover:bg-red-500/30" 
               : "bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-cyan-400/50 hover:shadow-[0_0_20px_rgba(6,182,212,0.6)]"
@@ -280,13 +280,13 @@ export default function ShopPage() {
             </div>
 
             {selectedItem && (
-              <div className="relative z-20 flex flex-col items-center text-center px-6 py-6 bg-gradient-to-t from-black/90 via-black/80 to-transparent border-t border-white/5">
-                <h2 className={`text-3xl md:text-4xl font-bold tracking-tight text-transparent bg-clip-text drop-shadow-md mb-2 bg-gradient-to-r ${
+              <div className="relative z-20 flex flex-col items-center text-center px-4 py-4 bg-gradient-to-t from-black/95 via-black/80 to-transparent">
+                <h2 className={`text-2xl md:text-3xl font-bold tracking-tight text-transparent bg-clip-text drop-shadow-md mb-1 bg-gradient-to-r ${
                   viewMode === 'shop' ? 'from-amber-200 via-yellow-400 to-amber-600' : 'from-cyan-200 via-blue-400 to-cyan-600'
                 }`}>
                   {selectedItem.name}
                 </h2>
-                <p className="text-neutral-400 text-sm mb-4 max-w-sm leading-relaxed">{selectedItem.description}</p>
+                <p className="text-neutral-400 text-xs mb-3 max-w-sm leading-relaxed">{selectedItem.description}</p>
                 {renderActionButton(selectedItem)}
               </div>
             )}
