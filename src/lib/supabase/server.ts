@@ -21,11 +21,18 @@ export async function createClient(keepLoggedIn?: boolean) {
             cookiesToSet.forEach(({ name, value, options }) => {
               const cookieOptions = { ...options }
               
+              // 방어 로직: Supabase가 쿠키 삭제를 요청한 경우 (로그아웃, 세션 폐기 등)
+              if (options.maxAge === 0 || value === '') {
+                cookieOptions.maxAge = 0
+                cookieOptions.expires = new Date(0)
+              }
               // 로그인 상태 유지가 아닐 경우, 세션 쿠키로 만들기 위해 만료 시간 제거
-              if (!isKeepLoggedIn) {
+              else if (!isKeepLoggedIn) {
                 delete cookieOptions.maxAge
                 delete cookieOptions.expires
-              } else {
+              } 
+              // 로그인 상태 유지일 경우 명시적으로 1년으로 설정
+              else {
                 cookieOptions.maxAge = 60 * 60 * 24 * 365
                 cookieOptions.expires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365)
               }
