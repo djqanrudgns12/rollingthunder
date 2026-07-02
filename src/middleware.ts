@@ -25,6 +25,10 @@ export async function middleware(request: NextRequest) {
             if (!isKeepLoggedIn) {
               delete cookieOptions.maxAge
               delete cookieOptions.expires
+            } else {
+              // 로그인 상태 유지일 경우 명시적으로 1년으로 설정
+              cookieOptions.maxAge = 60 * 60 * 24 * 365
+              cookieOptions.expires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365)
             }
             
             request.cookies.set(name, value)
@@ -37,10 +41,13 @@ export async function middleware(request: NextRequest) {
           cookiesToSet.forEach(({ name, value, options }) => {
             const cookieOptions = { ...options }
             
-            // 동일하게 갱신되는 응답(Response) 쿠키에도 만료 시간을 제거
+            // 동일하게 갱신되는 응답(Response) 쿠키에도 만료 시간을 제거 또는 추가
             if (!isKeepLoggedIn) {
               delete cookieOptions.maxAge
               delete cookieOptions.expires
+            } else {
+              cookieOptions.maxAge = 60 * 60 * 24 * 365
+              cookieOptions.expires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365)
             }
             
             supabaseResponse.cookies.set(name, value, cookieOptions)

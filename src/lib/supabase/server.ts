@@ -25,6 +25,9 @@ export async function createClient(keepLoggedIn?: boolean) {
               if (!isKeepLoggedIn) {
                 delete cookieOptions.maxAge
                 delete cookieOptions.expires
+              } else {
+                cookieOptions.maxAge = 60 * 60 * 24 * 365
+                cookieOptions.expires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365)
               }
               
               cookieStore.set(name, value, cookieOptions)
