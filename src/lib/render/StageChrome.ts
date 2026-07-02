@@ -99,7 +99,7 @@ export function createBackground(
   ctx: RenderContext,
   bgImage: string | undefined,
   opts: StageOpts
-): PIXI.TilingSprite | null {
+): PIXI.Sprite | null {
   if (!bgImage) return null
   const bgTex = ctx.getTexture(bgImage)
   if (!bgTex || !bgTex.width || bgTex.width <= 1) return null
@@ -111,9 +111,9 @@ export function createBackground(
   else if (wallStyle === 'wide') { visibleWidth = 900; bgX = -50 }
 
   const totalHeight = BG_PAD_TOP + opts.worldHeight + BG_PAD_BOTTOM
-  const bgSprite = new PIXI.TilingSprite({ texture: bgTex, width: visibleWidth, height: totalHeight })
-  const scale = visibleWidth / bgTex.width
-  bgSprite.tileScale.set(scale, scale)
+  const bgSprite = new PIXI.Sprite(bgTex)
+  bgSprite.width = visibleWidth
+  bgSprite.height = totalHeight
   bgSprite.x = bgX
   bgSprite.y = -BG_PAD_TOP
   bgSprite.alpha = 0.28 // 배경 존재감 완화(시각 과부하 저감): 0.4 → 0.28

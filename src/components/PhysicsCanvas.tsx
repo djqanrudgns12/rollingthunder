@@ -178,7 +178,7 @@ export default function PhysicsCanvas() {
     let app: PIXI.Application;
     let viewport: Viewport;
     let pipViewport: Viewport;
-    let bgSprite: PIXI.Sprite | PIXI.TilingSprite;
+    let bgSprite: PIXI.Sprite;
     let bgLayers: PIXI.Sprite[] = [];
     // 배경+장애물 전용 탈채도/감광 필터(참가자는 제외 → 상대적으로 도드라짐).
     // 하나의 인스턴스를 bgSprite와 staticContainer가 공유한다.

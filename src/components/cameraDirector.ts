@@ -16,8 +16,9 @@ import { useGameStore } from '@/store/gameStore';
 // ──────────────────────────────────────────────────────────────────────────
 
 type Mode = 'idle' | 'race' | 'manual' | 'finisher_focus';
-// 결승 연출 비트(레이싱 중에만 활성). 'tracking'은 평상 추적.
-type FinisherPhase = 'idle' | 'climax' | 'handoff';
+// 결승 연출 비트(레이싱 중에만 활성). idle=평상 추적.
+//  climax=CROSS(통과 순간 완주자 추적) → linger=결승선 여운 → handoff=다음 선두 복귀
+type FinisherPhase = 'idle' | 'climax' | 'linger' | 'handoff';
 // 사용자 줌 상태머신
 type UserZoomState = 'INACTIVE' | 'ZOOMING' | 'HOLDING' | 'RETURNING';
 
@@ -37,6 +38,39 @@ function damp(cur: number, target: number, k: number, dt: number): number {
 
 function clamp01(v: number): number {
   return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+// 부드러운 S자 보간(0→1): 진입/이탈 램프에 사용
+function smoothstep(t: number): number {
+  const x = clamp01(t);
+  return x * x * (3 - 2 * x);
+}
+
+/**
+ * 임계감쇠 스프링(Unity SmoothDamp 이식). 움직이는 목표를 오버슈트 없이,
+ * 저장된 속도(velRef.v)를 누적해 낮은 지연으로 추종한다. 카메라 수직 추적용.
+ * @param velRef 외부에 보관하는 속도 상태 { v }
+ * @param smoothTime 대략적인 "목표 도달 시간"(작을수록 팽팽)
+ */
+function smoothDamp(cur: number, target: number, velRef: { v: number }, smoothTime: number, dt: number): number {
+  const st = Math.max(0.0001, smoothTime);
+  const omega = 2 / st;
+  const x = omega * dt;
+  const exp = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+  const change = cur - target;
+  const temp = (velRef.v + omega * change) * dt;
+  velRef.v = (velRef.v - omega * temp) * exp;
+  let out = target + (change + temp) * exp;
+  // 목표를 지나치는 경우(오버슈트) 방지
+  if ((target - cur > 0) === (out > target)) {
+    out = target;
+    velRef.v = (out - target) / dt;
+  }
+  return out;
 }
 
 export class CameraDirector {
@@ -87,6 +121,10 @@ export class CameraDirector {
   private establishingT = 0;             // 오프닝(줌아웃→푸시인) 잔여
   private lastLeaderId: string | null = null; // 선두 교체 감지용
   private overtakeCooldownT = 0;         // 선두 교체 하이라이트 쿨다운
+  // 정밀 추적/결승 연출 상태
+  private camVelYRef = { v: 0 };         // 수직 SmoothDamp 속도 상태
+  private finishFocusX = 0;              // 결승 통과 지점 X(LINGER 프레이밍 고정용)
+  private anticipationRamp = 0;          // APPROACH 진행도(0→1, 슬로우·줌 램프)
 
   // ── 사용자 줌 상태 ──
   private userZoomState: UserZoomState = 'INACTIVE';
@@ -119,15 +157,24 @@ export class CameraDirector {
   private readonly ZOOM_RETURN_K = 1.5;       // 복귀 줌 댐핑
   private readonly PAN_RETURN_K = 2.0;        // 복귀 위치 댐핑
 
+  // 정밀 추적 튜닝
+  private readonly LEADER_SCREEN_BIAS = 0.167; // 1등 화면 세로 위치(0.5+bias=하단 1/3, ~67%)
+  private readonly LOOKAHEAD_S = 0.15;         // 실제 vy 예측 룩어헤드(추적 지연 상쇄)
+  private readonly VERT_SMOOTH_TIME = 0.18;    // 수직 SmoothDamp 팽팽함(작을수록 타이트)
+  private readonly HANDOFF_SMOOTH_TIME = 0.28; // 핸드오프(다음 선두 복귀) 수직 완만도
+
   // 시네마틱 비트 튜닝
-  private readonly IMMINENT_PX = 1500;       // 결승선까지 이 거리 안이면 ETA 체크
   private readonly PHOTO_FINISH_PX = 130;    // 1·2위 Y간격 이 이내면 접전(포토피니시)
-  private readonly SLOWMO_SCALE = 0.15;      // 극도의 슬로우 모션 배율
+  private readonly SLOWMO_SCALE = 0.12;       // 극도의 슬로우 모션 배율(결승 순간)
   private readonly LASTSTAND_SCALE = 0.55;   // 마지막 주자 추적 슬로모션(완만)
   private readonly RELEASE_SCALE = 1.12;     // 통과 순간 스냅 가속 펀치(완화: 1.18→1.12)
-  private readonly MAX_ANTICIPATION_S = 1.2; // 슬로우 최대 지속(스톨 가드)
-  private readonly CLIMAX_S = 0.55;          // 통과자 락온 유지 시간
-  private readonly HANDOFF_S = 0.5;          // 다음 주자 휘프팬 시간
+  private readonly ETA_ARM = 2.0;            // 결승 예상도달(초) 이하면 APPROACH 진입
+  private readonly ETA_RELEASE = 2.6;        // ETA 이 이상이면 APPROACH 해제(히스테리시스)
+  private readonly FINISH_ZOOM = 4.0;        // 결승 극대 줌(평상 상한 3.5보다 더 확대)
+  private readonly MAX_ANTICIPATION_S = 1.6; // 슬로우 최대 지속(스톨 가드)
+  private readonly CLIMAX_S = 0.4;           // CROSS(통과 순간 완주자 추적) 유지 시간
+  private readonly LINGER_S = 1.5;           // 결승선 여운(머무름) 시간
+  private readonly HANDOFF_S = 0.6;          // 다음 주자 복귀 시간
   private readonly ESTABLISH_S = 1.0;        // 오프닝 푸시인 시간
   private readonly OVERTAKE_CD_S = 1.5;      // 선두 교체 하이라이트 쿨다운
   private readonly TIMESCALE_K = 9.0;        // 시간배율 이즈 강도
@@ -143,7 +190,14 @@ export class CameraDirector {
   private readonly CALM_BATTLE_ZOOM = 1.35;
   private readonly CALM_WINNER_ZOOM = 1.4;
   private readonly CALM_ESTABLISH_S = 0.4;    // 오프닝 스윕 완화
+  private readonly CALM_FINISH_ZOOM = 1.6;    // 차분 모드 결승 줌(완만)
   // 저모션 게터: this.calm에 따라 상수 선택(update 경유 호출 전체에 일관 적용)
+  private get finishZoom() { return this.calm ? this.CALM_FINISH_ZOOM : this.FINISH_ZOOM; }
+  // 결승 연출 중(APPROACH/CROSS/LINGER)에는 줌 상한을 FINISH_ZOOM으로 한시 상향
+  private get zoomCeiling() {
+    const finishing = this.anticipating || this.finisherPhase === 'climax' || this.finisherPhase === 'linger';
+    return finishing ? this.finishZoom : this.maxZoom;
+  }
   private get maxZoom() { return this.calm ? this.CALM_MAX_ZOOM : this.MAX_ZOOM; }
   private get battleZoom() { return this.calm ? this.CALM_BATTLE_ZOOM : this.BATTLE_ZOOM; }
   private get winnerZoom() { return this.calm ? this.CALM_WINNER_ZOOM : this.WINNER_ZOOM; }
