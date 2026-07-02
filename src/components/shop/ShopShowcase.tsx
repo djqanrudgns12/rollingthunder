@@ -100,7 +100,7 @@ export default function ShopShowcase({ selectedItem }: ShopShowcaseProps) {
   const rarityStyle = getRarityStyles(selectedItem?.rarity);
 
   return (
-    <div className="w-full h-full absolute inset-0 flex items-center justify-center pt-8 pb-32">
+    <div className="w-full h-full absolute inset-0 flex items-center justify-center pt-4">
       {/* 앰비언트 라이트 배경 효과 */}
       <div className="absolute inset-0 pointer-events-none flex justify-center items-center opacity-40">
         <div className={`w-[300px] h-[300px] rounded-full blur-[80px] bg-gradient-to-br ${rarityStyle.gradient}`} />

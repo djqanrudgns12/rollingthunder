@@ -114,9 +114,9 @@ class AudioEngine {
       // 브라우저 락 상태일 때는 play()를 호출하지 않고 대기합니다.
       // 이후 유저가 클릭하면 unlockAudio()에서 play()를 안전하게 호출합니다.
     } else {
-      nextBgm.volume(0);
+      // ⚠️ html5: true 모드에서는 fade()가 즉시 중단되어 볼륨이 0에 머무는 버그가 자주 발생하므로, 직접 volume을 세팅합니다.
+      nextBgm.volume(this.bgmVol);
       nextBgm.play();
-      nextBgm.fade(0, this.bgmVol, fadeDuration);
     }
   }
 

@@ -12,7 +12,7 @@ import EditorToolbar from './EditorToolbar'
 import HistoryViewer from './HistoryViewer'
 import HistoryTimelinePanel from './HistoryTimelinePanel'
 import { Play, X, Share2 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/client'
 
 export default function EditorContainer() {
   const { items, addItem, tabs, activeTabId, showHistoryPanel, setShowHistoryPanel } = useEditorStore()
@@ -103,6 +103,7 @@ export default function EditorContainer() {
               }
               const code = Math.random().toString(36).substring(2, 8).toUpperCase();
               const store = useEditorStore.getState();
+              const supabase = createClient();
               const { error } = await supabase.from('map_presets').insert({
                 creator_id: 'guest',
                 title: 'Custom Map',

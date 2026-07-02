@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { createClient } from '@/lib/supabase/client';
 
 export interface Mission {
   id: string;
@@ -40,6 +40,7 @@ class StampService {
     if (Object.keys(this.localEvents).length === 0) return;
 
     try {
+      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return; // 로그인 안 된 경우 무시
 
@@ -61,6 +62,7 @@ class StampService {
 
   // 일일/주간 미션 강제 할당 (보통 로그인 시 혹은 백그라운드에서 호출)
   public async assignMissions(userId: string) {
+    const supabase = createClient();
     const { error } = await supabase.rpc('assign_random_missions', {
       p_user_id: userId
     });
@@ -71,6 +73,7 @@ class StampService {
 
   // 보상 수령
   public async claimReward(userId: string, tableType: 'mission' | 'achievement', recordId: string) {
+    const supabase = createClient();
     const { data, error } = await supabase.rpc('claim_mission_reward', {
       p_user_id: userId,
       p_table_type: tableType,
@@ -87,6 +90,7 @@ class StampService {
 
   // 데이터 로드
   public async getUserMissions(userId: string, type: 'daily' | 'weekly') {
+    const supabase = createClient();
     const { data, error } = await supabase
       .from('user_missions')
       .select('*, mission:missions(*)')
@@ -104,6 +108,7 @@ class StampService {
   public async getUserAchievements(userId: string) {
     // 모든 업적 목록과 유저의 진행 상태를 가져옴
     // Left join 처리가 필요하므로, missions 테이블을 기준으로 쿼리
+    const supabase = createClient();
     const { data, error } = await supabase
       .from('missions')
       .select('*, user_achievements(*)')

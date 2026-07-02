@@ -33,4 +33,26 @@ export class UserRepository {
 
     return data;
   }
+
+  static async getProfileStats(userId: string): Promise<{ total_achievements: number, achievements_completed: number }> {
+    const supabase = await createClient();
+    
+    // 전체 업적 개수 (achievement, hidden)
+    const { count: total_achievements } = await supabase
+      .from('missions')
+      .select('*', { count: 'exact', head: true })
+      .in('type', ['achievement', 'hidden']);
+
+    // 완료한 업적 개수
+    const { count: achievements_completed } = await supabase
+      .from('user_achievements')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('completed', true);
+
+    return {
+      total_achievements: total_achievements || 0,
+      achievements_completed: achievements_completed || 0
+    };
+  }
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/client'
 import { stampService, UserMission } from '@/lib/stampService'
 import { useChipStore } from '@/store/chipStore'
 import { useUIStore } from '@/store/uiStore'
@@ -31,6 +31,7 @@ export default function StampBookModal() {
     const init = async () => {
       setIsLoading(true);
       setErrorMsg(null);
+      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setUserId(user.id)

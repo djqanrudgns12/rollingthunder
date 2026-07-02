@@ -28,7 +28,7 @@ export default function ShopPage() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white font-sans overflow-hidden">
+    <div className="min-h-screen bg-neutral-950 text-white overflow-hidden">
       <main className="max-w-7xl mx-auto pt-24 px-6 pb-12 grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
         
         {/* 상단: 메인으로 돌아가기 버튼 */}
@@ -45,26 +45,28 @@ export default function ShopPage() {
         {/* 좌측: 3D 쇼케이스 및 암시장/룰렛 배너 */}
         <div className="lg:col-span-5 flex flex-col gap-6">
           {/* 3D 쇼케이스 뷰 */}
-          <div className="relative w-full aspect-square bg-black/50 border border-amber-500/20 rounded-2xl overflow-hidden shadow-2xl shadow-amber-900/20 backdrop-blur-sm">
-            <div className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-t from-black/80 via-transparent to-black/20" />
+          <div className="relative w-full aspect-square md:aspect-auto md:h-[480px] bg-neutral-900/50 border border-amber-500/30 rounded-2xl overflow-hidden shadow-2xl shadow-amber-900/20 backdrop-blur-md flex flex-col">
             <div className="absolute top-4 left-4 z-20">
-              <span className="px-3 py-1 bg-amber-500/20 text-amber-400 border border-amber-500/50 rounded-full text-xs font-bold uppercase tracking-wider">
-                VIP 쇼케이스
+              <span className="px-3 py-1 bg-gradient-to-r from-amber-600 to-yellow-500 text-black border border-yellow-400 rounded-sm text-xs font-extrabold uppercase tracking-widest shadow-md">
+                쇼케이스
               </span>
             </div>
             
-            {/* React Three Fiber Showcase Component */}
-            <ShopShowcase selectedItem={selectedItem} />
+            {/* 상단: 이미지 플로팅 영역 (Flex 1) */}
+            <div className="relative flex-1 w-full h-full min-h-[280px]">
+              <ShopShowcase selectedItem={selectedItem} />
+            </div>
 
-            <div className="absolute bottom-6 left-0 right-0 z-20 flex flex-col items-center text-center px-4">
-              <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-600 drop-shadow-md">
+            {/* 하단: 고급 정보 패널 영역 */}
+            <div className="relative z-20 flex flex-col items-center text-center px-6 py-6 bg-gradient-to-t from-black/90 via-black/80 to-transparent border-t border-white/5">
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-600 drop-shadow-md mb-2">
                 {selectedItem.name}
               </h2>
-              <p className="text-neutral-400 text-sm mt-1">{selectedItem.description}</p>
+              <p className="text-neutral-400 text-sm mb-4 max-w-sm leading-relaxed">{selectedItem.description}</p>
               
               <button 
                 onClick={() => handleBuy(selectedItem)}
-                className="mt-4 px-8 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold rounded-full shadow-[0_0_15px_rgba(245,158,11,0.5)] hover:shadow-[0_0_25px_rgba(245,158,11,0.8)] hover:scale-105 transition-all active:scale-95 flex items-center gap-2"
+                className="px-10 py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 text-black font-extrabold text-lg rounded-full shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:shadow-[0_0_30px_rgba(245,158,11,0.8)] hover:scale-105 transition-all active:scale-95 flex items-center gap-2 border border-yellow-400/50"
               >
                 <span>{selectedItem.price.toLocaleString()} 칩 구매</span>
               </button>

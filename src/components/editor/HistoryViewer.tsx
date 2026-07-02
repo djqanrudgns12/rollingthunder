@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { useEditorStore } from '@/store/editorStore';
 
@@ -32,6 +32,7 @@ export default function HistoryViewer() {
 
   const fetchLogs = async () => {
     setLoading(true);
+    const supabase = createClient();
     const { data, error } = await supabase
       .from('map_edit_history')
       .select('*')

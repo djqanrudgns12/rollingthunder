@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/client'
 import { useUIStore } from '@/store/uiStore'
 import { useGameStore } from '@/store/gameStore'
 import { toast } from 'sonner'
@@ -43,6 +43,7 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
     if (activeTab === 'custom' && mapCode.length === 6) {
       const fetchPreview = async () => {
         setIsLoading(true)
+        const supabase = createClient()
         const { data, error } = await supabase
           .from('map_presets')
           .select('map_data, title')
@@ -85,6 +86,7 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
   const handleLoadCustomMap = async () => {
     if (!mapCode.trim()) return
     setIsLoading(true)
+    const supabase = createClient()
     const { data, error } = await supabase
       .from('map_presets')
       .select('map_data, title')
