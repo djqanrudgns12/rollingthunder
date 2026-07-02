@@ -8,6 +8,7 @@ import LuckyRoulette from "@/components/shop/LuckyRoulette";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Package, ShoppingCart, Lock } from "lucide-react";
+import * as LucideIcons from "lucide-react";
 
 import { MOCK_ITEMS, ShopItem } from "@/data/shopData";
 
@@ -45,6 +46,7 @@ export default function ShopPage() {
 
   // 권한 및 소유 로직
   const isItemOwned = (item: ShopItem) => {
+    if (item.isDefault) return true;
     if (userState.role === 'admin') return true;
     return userState.inventory.includes(item.item_id);
   };
@@ -63,12 +65,14 @@ export default function ShopPage() {
       items = items.filter(isItemOwned);
     }
     
-    // 정렬: 보유 여부 (상점 모드일 때만, 소유한 것을 위로) -> 희귀도 높은 순 -> 이름 순
+    // 정렬: 보유 여부 (상점 모드일 때만) -> 희귀도 높은 순 -> 이름 순
     items.sort((a, b) => {
       if (viewMode === 'shop') {
+        if (a.isDefault !== b.isDefault) return a.isDefault ? 1 : -1; // 기본 아이템은 항상 맨 아래로
+        
         const aOwned = isItemOwned(a) ? 1 : 0;
         const bOwned = isItemOwned(b) ? 1 : 0;
-        if (aOwned !== bOwned) return bOwned - aOwned; // 소유한게 먼저 (내림차순)
+        if (aOwned !== bOwned) return bOwned - aOwned; // 소유한게 먼저 (내림차순, 기본 아닌 것들 중)
       }
       
       const rA = RARITY_ORDER[a.rarity] || 0;
@@ -148,6 +152,13 @@ export default function ShopPage() {
     }
 
     if (viewMode === 'shop') {
+      if (item.isDefault) {
+        return (
+          <button disabled className="px-10 py-3.5 bg-neutral-800 text-neutral-400 font-extrabold text-lg rounded-full border border-neutral-700">
+            <span>기본 보유</span>
+          </button>
+        );
+      }
       if (isOwned) {
         return (
           <button disabled className="px-10 py-3.5 bg-neutral-800 text-neutral-400 font-extrabold text-lg rounded-full border border-neutral-700">
@@ -307,6 +318,8 @@ export default function ShopPage() {
                   ? userState.equipped[item.category] === item.item_id 
                   : false;
                 
+                const IconComp = item.iconName ? (LucideIcons as any)[item.iconName] : null;
+                
                 return (
                   <div 
                     key={item.item_id}
@@ -321,6 +334,8 @@ export default function ShopPage() {
                       <div className="w-16 h-16 rounded-lg bg-black/50 border border-neutral-700 flex items-center justify-center overflow-hidden relative">
                         {item.image ? (
                           <img src={item.image} alt={item.name} className="w-full h-full object-contain p-1" />
+                        ) : IconComp ? (
+                          <IconComp className="w-8 h-8 text-neutral-300" />
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-neutral-600 to-neutral-800" />
                         )}
@@ -350,7 +365,7 @@ export default function ShopPage() {
                     
                     <div className="text-right">
                       {isOwned && viewMode === 'shop' ? (
-                        <div className="font-bold text-neutral-500 text-sm">보유 중</div>
+                        <div className="font-bold text-neutral-500 text-sm">{item.isDefault ? '기본 보유' : '보유 중'}</div>
                       ) : (
                         viewMode === 'shop' && (
                           <div className="font-bold text-amber-500">{item.price.toLocaleString()} C</div>

@@ -17,6 +17,11 @@ export default function StampBookModal() {
   const [isLoading, setIsLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   
+  // 탭별 알림 뱃지 상태
+  const [hasClaimableDaily, setHasClaimableDaily] = useState(false)
+  const [hasClaimableWeekly, setHasClaimableWeekly] = useState(false)
+  const [hasClaimableAchiev, setHasClaimableAchiev] = useState(false)
+  
   // 스탬프 이펙트용 상태
   const [stampEffect, setStampEffect] = useState<{ id: string, x: number, y: number } | null>(null)
 
@@ -39,7 +44,8 @@ export default function StampBookModal() {
         try {
           // 미션이 아직 할당되지 않았을 경우를 대비해 랜덤 미션 할당 호출
           await stampService.assignMissions(user.id);
-          await loadMissions(user.id, activeTab)
+          await loadMissions(user.id, activeTab);
+          await updateTabBadges(user.id);
         } catch (err: any) {
           setErrorMsg('DB 연결 오류가 발생했습니다. 마이그레이션이 적용되었는지 확인해 주세요.');
           console.error(err);
@@ -51,6 +57,26 @@ export default function StampBookModal() {
     }
     init()
   }, [activeModal, activeTab])
+
+  const updateTabBadges = async (uid: string) => {
+    try {
+      const [daily, weekly, achievements] = await Promise.all([
+        stampService.getUserMissions(uid, 'daily'),
+        stampService.getUserMissions(uid, 'weekly'),
+        stampService.getUserAchievements(uid)
+      ]);
+      const dailyClaimable = daily.some(m => m.completed && !m.is_collected);
+      const weeklyClaimable = weekly.some(m => m.completed && !m.is_collected);
+      const achievClaimable = achievements.some(m => m.completed && !m.is_collected);
+      
+      setHasClaimableDaily(dailyClaimable);
+      setHasClaimableWeekly(weeklyClaimable);
+      setHasClaimableAchiev(achievClaimable);
+      setHasClaimableMissions(dailyClaimable || weeklyClaimable || achievClaimable);
+    } catch(e) {
+      console.error(e)
+    }
+  }
 
   const loadMissions = async (uid: string, type: string) => {
     try {
@@ -82,27 +108,18 @@ export default function StampBookModal() {
                         ? 'achievement' : 'mission';
       const res = await stampService.claimReward(userId, tableType, mission.id);
       
-      // 로컬 스토어 칩 업데이트
-      if (res.chips > 0) {
+      // 로컬 스토어 칩 업데이트 (안전성 검사 강화)
+      if (res && typeof res.chips === 'number' && res.chips > 0) {
         addChipsLocally(res.chips);
       }
       
       // UI 업데이트
       setMissions(prev => prev.map(m => m.id === mission.id ? { ...m, is_collected: true } : m));
       
-      // 다른 탭에 수령 가능한 보상이 남아있는지 확인하여 전역 알림 상태 갱신
+      // 다른 탭에 수령 가능한 보상이 남아있는지 확인하여 전역 알림 및 탭 알림 상태 갱신
       setTimeout(async () => {
-        try {
-          const [daily, weekly, achievements] = await Promise.all([
-            stampService.getUserMissions(userId, 'daily'),
-            stampService.getUserMissions(userId, 'weekly'),
-            stampService.getUserAchievements(userId)
-          ]);
-          const allMissions = [...daily, ...weekly, ...achievements];
-          const hasClaimable = allMissions.some(m => m.completed && !m.is_collected);
-          setHasClaimableMissions(hasClaimable);
-        } catch (err) {
-          console.error(err);
+        if (userId) {
+          await updateTabBadges(userId);
         }
       }, 500);
 
@@ -156,13 +173,23 @@ export default function StampBookModal() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-6 py-3 font-bold text-lg transition-all rounded-t-lg ${
+              className={`relative px-6 py-3 font-bold text-lg transition-all rounded-t-lg ${
                 activeTab === tab 
                   ? 'bg-[#efefef] text-[#3e2723] shadow-[0_-5px_15px_rgba(0,0,0,0.3)]' 
                   : 'text-[#d4af37] hover:bg-white/10'
               }`}
             >
               {tab === 'daily' ? '일일 미션' : tab === 'weekly' ? '주간 미션' : '업적'}
+              {/* 탭별 뱃지 */}
+              {tab === 'daily' && hasClaimableDaily && (
+                <span className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2 border-[#efefef] animate-pulse"></span>
+              )}
+              {tab === 'weekly' && hasClaimableWeekly && (
+                <span className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2 border-[#efefef] animate-pulse"></span>
+              )}
+              {tab === 'achievement' && hasClaimableAchiev && (
+                <span className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2 border-[#efefef] animate-pulse"></span>
+              )}
             </button>
           ))}
         </div>

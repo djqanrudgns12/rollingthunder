@@ -19,6 +19,9 @@ const sfxPathMap: Record<string, string> = {
   sys_finish: '/sounds/ui/sys_finish.mp3'
 };
 
+const BASE_BGM_VOL = 0.5;
+const BASE_SFX_VOL = 0.3;
+
 class AudioEngine {
   private static instance: AudioEngine;
   
@@ -40,8 +43,8 @@ class AudioEngine {
   
   // Volumes
   private masterVol: number = 1.0;
-  private bgmVol: number = 1.0; // BGM은 1.0 (최대)
-  private sfxVol: number = 0.6; // 효과음은 0.6으로 낮춤
+  private bgmVol: number = BASE_BGM_VOL;
+  private sfxVol: number = BASE_SFX_VOL;
 
   private constructor() {
     Howler.volume(this.masterVol);
@@ -181,15 +184,15 @@ class AudioEngine {
   }
 
   // --- Controls ---
-  setVolumes(master: number, bgm: number, sfx: number) {
+  setVolumes(master: number, bgmScale: number, sfxScale: number) {
     this.masterVol = master;
-    this.bgmVol = bgm;
-    this.sfxVol = sfx;
+    this.bgmVol = bgmScale * BASE_BGM_VOL;
+    this.sfxVol = sfxScale * BASE_SFX_VOL;
     Howler.volume(master);
-    if (this.currentBgm) this.currentBgm.volume(bgm);
+    if (this.currentBgm) this.currentBgm.volume(this.bgmVol);
     
     // Update all cached SFX base volumes
-    Object.values(this.sfxCache).forEach(howl => howl.volume(sfx));
+    Object.values(this.sfxCache).forEach(howl => howl.volume(this.sfxVol));
   }
 
   setMuted(muted: boolean) {

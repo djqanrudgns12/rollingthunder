@@ -3,6 +3,7 @@
 import React, { useRef, useEffect } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import Image from 'next/image';
+import * as LucideIcons from 'lucide-react';
 
 interface ShopShowcaseProps {
   selectedItem: any;
@@ -98,6 +99,7 @@ export default function ShopShowcase({ selectedItem }: ShopShowcaseProps) {
   };
 
   const rarityStyle = getRarityStyles(selectedItem?.rarity);
+  const IconComp = selectedItem?.iconName ? (LucideIcons as any)[selectedItem.iconName] : null;
 
   return (
     <div className="w-full h-full absolute inset-0 flex items-center justify-center pt-4">
@@ -139,6 +141,8 @@ export default function ShopShowcase({ selectedItem }: ShopShowcaseProps) {
                 sizes="(max-width: 768px) 256px, 320px"
                 priority
               />
+            ) : IconComp ? (
+              <IconComp className={`w-32 h-32 ${rarityStyle.text} drop-shadow-2xl`} />
             ) : (
               // 이미지가 없는 경우 표시될 고급스러운 플레이스홀더
               <div className="flex flex-col items-center justify-center text-center">

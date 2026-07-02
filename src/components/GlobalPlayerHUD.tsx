@@ -16,6 +16,7 @@ export default function GlobalPlayerHUD({ initialProfile = null }: { initialProf
   const chips = useChipStore((state) => state.chips);
   const setActiveModal = useUIStore((state) => state.setActiveModal);
   const isLoggedIn = useUIStore((state) => state.isLoggedIn);
+  const gameStage = useUIStore((state) => state.gameStage);
   
   const count = useMotionValue(0);
   const rounded = useTransform(count, (latest) => Math.round(latest).toLocaleString());
@@ -33,12 +34,22 @@ export default function GlobalPlayerHUD({ initialProfile = null }: { initialProf
   useEffect(() => {
     if (isLoggedIn) {
       getProfileOverviewAction().then(data => {
-        if (data) setProfile(data);
+        if (data) {
+          setProfile(data);
+          useChipStore.getState().setChips(data.chips_balance);
+        }
       });
     } else {
       setProfile(null);
     }
   }, [isLoggedIn]);
+
+  // initialProfile이 있을 경우 초기 렌더링 시에도 칩을 동기화
+  useEffect(() => {
+    if (initialProfile) {
+      useChipStore.getState().setChips(initialProfile.chips_balance);
+    }
+  }, [initialProfile]);
 
   useEffect(() => {
     if (!isClient) return;
@@ -60,7 +71,7 @@ export default function GlobalPlayerHUD({ initialProfile = null }: { initialProf
     import('@/engine/AudioEngine').then(({ soundManager }) => soundManager.playSfx('ui_click'));
   };
 
-  if (!isClient) return null;
+  if (!isClient || gameStage === 'editor' || gameStage === 'playing') return null;
 
   const glowColorClass = chips > prevChips ? 'bg-green-400' : 'bg-red-500';
   const textColorClass = isAnimating 

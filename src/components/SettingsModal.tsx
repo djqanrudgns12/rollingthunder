@@ -2,10 +2,8 @@
 
 import { useGameStore } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
-import { X, Moon, Sun, Type, Gauge, Zap, LogOut, UserX } from 'lucide-react'
-import { useState } from 'react'
-import { logout, deleteAccount } from '@/app/actions'
-import { LogIn, UserPlus } from 'lucide-react'
+import { X, Moon, Sun, Type, Gauge, Zap, RotateCcw, Check } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 
 const FONTS = [
   { id: 'pretendard', name: 'Pretendard (기본)' },
@@ -37,26 +35,63 @@ export default function SettingsModal() {
     sfxVolume, setSfxVolume
   } = useGameStore()
   
-  const { activeModal, setActiveModal, isLoggedIn, setAuthMode } = useUIStore()
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
+  const { activeModal, setActiveModal } = useUIStore()
+
+  // 상태 백업용 ref (취소 시 롤백을 위함)
+  const snapshotRef = useRef<{
+    gimmickDensity: number;
+    baseTimeScale: number;
+    theme: 'dark' | 'light';
+    fontFamily: string;
+    bgmVolume: number;
+    sfxVolume: number;
+  } | null>(null)
+
+  // 모달이 열릴 때 초기 상태를 저장
+  useEffect(() => {
+    if (activeModal === 'settings') {
+      snapshotRef.current = {
+        gimmickDensity,
+        baseTimeScale,
+        theme,
+        fontFamily,
+        bgmVolume,
+        sfxVolume
+      }
+    } else {
+      snapshotRef.current = null
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeModal])
 
   if (activeModal !== 'settings') return null
 
-  const handleLogout = async () => {
-    setIsLoggingOut(true)
-    await logout()
+  const handleCancel = () => {
+    // 백업된 상태로 원복
+    if (snapshotRef.current) {
+      setGimmickDensity(snapshotRef.current.gimmickDensity)
+      setBaseTimeScale(snapshotRef.current.baseTimeScale)
+      setTheme(snapshotRef.current.theme)
+      setFontFamily(snapshotRef.current.fontFamily)
+      setBgmVolume(snapshotRef.current.bgmVolume)
+      setSfxVolume(snapshotRef.current.sfxVolume)
+    }
     setActiveModal('none')
-    setIsLoggingOut(false)
   }
 
-  const handleDeleteAccount = async () => {
-    if (confirm('정말로 회원탈퇴 하시겠습니까? 모든 데이터가 삭제되며 복구할 수 없습니다.')) {
-      setIsDeleting(true)
-      await deleteAccount()
-      setActiveModal('none')
-      setIsDeleting(false)
-    }
+  const handleApply = () => {
+    // 현재 상태를 유지하고 닫기만 함 (zustand가 이미 실시간 반영 중)
+    setActiveModal('none')
+  }
+
+  const handleReset = () => {
+    // 기획된 기본값 적용
+    setTheme('dark')
+    setFontFamily('pretendard')
+    setBaseTimeScale(1.0)
+    setBgmVolume(100)
+    setSfxVolume(100)
+    setGimmickDensity(50)
   }
 
   return (
@@ -70,7 +105,7 @@ export default function SettingsModal() {
             환경설정
           </h2>
           <button 
-            onClick={() => setActiveModal('none')}
+            onClick={handleCancel}
             className="p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
@@ -199,51 +234,29 @@ export default function SettingsModal() {
 
         </div>
 
-        {/* Account Actions */}
-        <div className="p-6 pt-0 flex gap-3">
-          {isLoggedIn ? (
-            <>
-              <button
-                onClick={handleLogout}
-                disabled={isLoggingOut || isDeleting}
-                className="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <LogOut className="w-4 h-4" />
-                {isLoggingOut ? '로그아웃 중...' : '로그아웃'}
-              </button>
-              <button
-                onClick={handleDeleteAccount}
-                disabled={isLoggingOut || isDeleting}
-                className="flex-1 py-3 px-4 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <UserX className="w-4 h-4" />
-                {isDeleting ? '처리 중...' : '회원탈퇴'}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => {
-                  setAuthMode('login')
-                  setActiveModal('auth')
-                }}
-                className="flex-1 py-3 px-4 bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/20 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
-              >
-                <LogIn className="w-4 h-4" />
-                로그인
-              </button>
-              <button
-                onClick={() => {
-                  setAuthMode('signup')
-                  setActiveModal('auth')
-                }}
-                className="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
-              >
-                <UserPlus className="w-4 h-4" />
-                회원가입
-              </button>
-            </>
-          )}
+        {/* Setting Actions */}
+        <div className="p-6 pt-0 flex gap-2">
+          <button
+            onClick={handleReset}
+            className="flex-1 py-3 px-2 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5"
+          >
+            <RotateCcw className="w-4 h-4" />
+            초기화하기
+          </button>
+          <button
+            onClick={handleCancel}
+            className="flex-1 py-3 px-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5"
+          >
+            <X className="w-4 h-4" />
+            취소하기
+          </button>
+          <button
+            onClick={handleApply}
+            className="flex-[1.5] py-3 px-2 bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/20 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5"
+          >
+            <Check className="w-4 h-4" />
+            적용하기
+          </button>
         </div>
       </div>
     </div>

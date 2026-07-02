@@ -6,6 +6,9 @@ import { UserProfile } from '@/types/user';
 import PasswordChangeModal from './PasswordChangeModal';
 import Image from 'next/image';
 import { MOCK_ITEMS } from '@/data/shopData';
+import { LogOut, UserX, LogIn, UserPlus } from 'lucide-react';
+import { logout, deleteAccount } from '@/app/actions';
+import { useUIStore } from '@/store/uiStore';
 
 interface Props {
   profile: UserProfile;
@@ -14,6 +17,11 @@ interface Props {
 export default function ProfileCard({ profile }: Props) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  
+  // Auth states
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { setAuthMode, setActiveModal } = useUIStore();
   
   // Tilt Effect State
   const x = useMotionValue(0);
@@ -62,6 +70,22 @@ export default function ProfileCard({ profile }: Props) {
     }
     return () => window.removeEventListener('deviceorientation', handleOrientation);
   }, [x, y]);
+
+  // Auth Handlers
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    await logout();
+    // Redirect is handled inside logout or dashboard page protection, but we can reset UI
+    setIsLoggingOut(false);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (confirm('정말로 회원탈퇴 하시겠습니까? 모든 데이터가 삭제되며 복구할 수 없습니다.')) {
+      setIsDeleting(true);
+      await deleteAccount();
+      setIsDeleting(false);
+    }
+  };
 
   // Determine card style based on role
   let themeClasses = '';
@@ -236,13 +260,56 @@ export default function ProfileCard({ profile }: Props) {
       </motion.div>
 
       {/* 하단 버튼 영역 (Glassmorphism & 호버 효과 강화) */}
-      <div className="mt-12 flex flex-wrap justify-center gap-5 z-10 relative">
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="px-8 py-4 bg-white/5 hover:bg-white/10 text-white rounded-full font-medium transition-all duration-300 backdrop-blur-md border border-white/10 shadow-lg hover:shadow-white/10 whitespace-nowrap"
-        >
-          비밀번호 변경
-        </button>
+      <div className="mt-12 flex flex-wrap justify-center gap-3 md:gap-5 z-10 relative">
+        {profile.role === 'guest' ? (
+          <>
+            <button
+              onClick={() => {
+                setAuthMode('login');
+                setActiveModal('auth');
+              }}
+              className="px-6 py-4 bg-white/10 hover:bg-white/20 text-white rounded-full font-bold transition-all duration-300 backdrop-blur-md border border-white/20 shadow-lg hover:shadow-white/20 flex items-center gap-2"
+            >
+              <LogIn className="w-5 h-5" />
+              로그인
+            </button>
+            <button
+              onClick={() => {
+                setAuthMode('signup');
+                setActiveModal('auth');
+              }}
+              className="px-6 py-4 bg-[var(--accent-primary)]/20 hover:bg-[var(--accent-primary)]/30 text-[var(--accent-primary)] rounded-full font-bold transition-all duration-300 backdrop-blur-md border border-[var(--accent-primary)]/30 shadow-lg hover:shadow-[var(--accent-primary)]/20 flex items-center gap-2"
+            >
+              <UserPlus className="w-5 h-5" />
+              회원가입
+            </button>
+          </>
+        ) : (
+          <>
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="px-6 py-4 bg-white/5 hover:bg-white/10 text-white rounded-full font-medium transition-all duration-300 backdrop-blur-md border border-white/10 shadow-lg hover:shadow-white/10 whitespace-nowrap"
+            >
+              비밀번호 변경
+            </button>
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut || isDeleting}
+              className="px-6 py-4 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white rounded-full font-medium transition-all duration-300 backdrop-blur-md border border-white/10 shadow-lg hover:shadow-white/10 whitespace-nowrap flex items-center gap-2 disabled:opacity-50"
+            >
+              <LogOut className="w-5 h-5" />
+              {isLoggingOut ? '처리 중...' : '로그아웃'}
+            </button>
+            <button
+              onClick={handleDeleteAccount}
+              disabled={isLoggingOut || isDeleting}
+              className="px-6 py-4 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-full font-medium transition-all duration-300 backdrop-blur-md border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.2)] hover:shadow-[0_0_25px_rgba(239,68,68,0.4)] whitespace-nowrap flex items-center gap-2 disabled:opacity-50"
+            >
+              <UserX className="w-5 h-5" />
+              {isDeleting ? '처리 중...' : '회원탈퇴'}
+            </button>
+          </>
+        )}
         <button 
           onClick={() => window.location.href = '/dashboard'}
           className="px-8 py-4 bg-indigo-600/90 hover:bg-indigo-500 text-white rounded-full font-bold transition-all duration-300 backdrop-blur-md border border-indigo-400/40 shadow-[0_0_20px_rgba(79,70,229,0.5)] hover:shadow-[0_0_35px_rgba(79,70,229,0.7)] whitespace-nowrap hover:-translate-y-1"
@@ -251,10 +318,12 @@ export default function ProfileCard({ profile }: Props) {
         </button>
       </div>
 
-      <PasswordChangeModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-      />
+      {profile.role !== 'guest' && (
+        <PasswordChangeModal 
+          isOpen={isModalOpen} 
+          onClose={() => setIsModalOpen(false)} 
+        />
+      )}
       
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes shimmer {
