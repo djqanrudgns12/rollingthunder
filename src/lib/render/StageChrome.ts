@@ -3,7 +3,7 @@ import type { RenderContext } from './RenderContext'
 
 export const WORLD_WIDTH = 800
 export const BG_PAD_TOP = 500
-export const BG_PAD_BOTTOM = 200
+export const BG_PAD_BOTTOM = 800
 
 export type WallStyle = 'straight' | 'zigzag' | 'narrow' | 'wide' | 'funnel' | 'hourglass' | 'diamond' | 'wave' | 'sawtooth' | 'asymmetric'
 

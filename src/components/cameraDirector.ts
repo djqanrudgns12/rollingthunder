@@ -662,6 +662,20 @@ export class CameraDirector {
       finalY += (Math.random() - 0.5) * this.shakeIntensity;
     }
 
+    // ── 카메라 뷰포트 내부 자체 Clamp (배경 클리핑 방어 로직) ──
+    // pixi-viewport clamp가 매 프레임 moveCenter로 인해 우회되는 현상을 막고,
+    // 극단적인 셰이크/줌 변화 시 배경 아래로 캔버스(검은 박스)가 보이지 않게 막습니다.
+    const visW = this.screenW / appliedZoom;
+    const visH = this.screenH / appliedZoom;
+    const minX = -200 + visW / 2;
+    const maxX = this.worldW + 200 - visW / 2;
+    const minY = -500 + visH / 2;
+    const maxY = this.worldH + 200 - visH / 2; // PhysicsCanvas clamp 바운더리 일치
+
+    // 화면이 허용된 맵 바운더리보다 더 클 경우 중앙에 고정, 아니면 Clamp 적용
+    finalX = minX <= maxX ? Math.max(minX, Math.min(maxX, finalX)) : this.worldW / 2;
+    finalY = minY <= maxY ? Math.max(minY, Math.min(maxY, finalY)) : (this.worldH - 300) / 2;
+
     this.vp.moveCenter(finalX, finalY);
     this.vp.scale.set(appliedZoom);
   }
