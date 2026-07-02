@@ -43,10 +43,10 @@ export async function createClient(keepLoggedIn?: boolean) {
             // 로그인 상태 유지 옵션 자체를 쿠키에 저장
             if (keepLoggedIn !== undefined) {
               if (keepLoggedIn) {
-                cookieStore.set('keep_logged_in', 'true', { path: '/', maxAge: 60 * 60 * 24 * 365 })
+                cookieStore.set('keep_logged_in', 'true', { path: '/', maxAge: 60 * 60 * 24 * 365, httpOnly: false })
               } else {
                 // 브라우저 종료 시 이 쿠키도 함께 삭제되도록 만료 시간 지정 안 함
-                cookieStore.set('keep_logged_in', 'false', { path: '/' })
+                cookieStore.set('keep_logged_in', 'false', { path: '/', httpOnly: false })
               }
             }
           } catch {

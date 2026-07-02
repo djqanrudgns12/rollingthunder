@@ -58,10 +58,18 @@ export default function AuthModal() {
           setError(result.error)
           return
         }
+        if (result?.success) {
+          window.location.href = '/dashboard'
+          return
+        }
       } else {
         const result = await signup(formData)
         if (result?.error) {
           setError(result.error)
+          return
+        }
+        if (result?.success) {
+          window.location.href = '/dashboard'
           return
         }
       }
@@ -179,6 +187,7 @@ export default function AuthModal() {
                 id="keepLoggedIn"
                 name="keepLoggedIn"
                 type="checkbox"
+                value="true"
                 defaultChecked={true}
                 className="w-4 h-4 rounded border-white/20 bg-black/30 text-[var(--accent-primary)] focus:ring-[var(--accent-primary)]/50 focus:ring-offset-0 cursor-pointer"
               />

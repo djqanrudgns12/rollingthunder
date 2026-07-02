@@ -53,9 +53,11 @@ export default function LoginPage() {
       if (isLogin) {
         const result = await login(formData)
         if (result?.error) setError(result.error)
+        if (result?.success) window.location.href = '/dashboard'
       } else {
         const result = await signup(formData)
         if (result?.error) setError(result.error)
+        if (result?.success) window.location.href = '/dashboard'
       }
     } catch (err: any) {
       if (err?.message === 'NEXT_REDIRECT' || err?.digest?.startsWith('NEXT_REDIRECT')) {
@@ -157,6 +159,7 @@ export default function LoginPage() {
               id="keepLoggedIn"
               name="keepLoggedIn"
               type="checkbox"
+              value="true"
               defaultChecked={true}
               className="w-4 h-4 rounded border-white/20 bg-black/30 text-[var(--accent-primary)] focus:ring-[var(--accent-primary)]/50 focus:ring-offset-0 cursor-pointer"
             />

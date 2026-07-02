@@ -10,7 +10,7 @@ const FAKE_DOMAIN = '@rt.local'
 export async function login(formData: FormData) {
   const username = formData.get('username') as string
   const password = formData.get('password') as string
-  const keepLoggedIn = formData.get('keepLoggedIn') === 'on'
+  const keepLoggedIn = formData.get('keepLoggedIn') === 'true'
 
   const supabase = await createClient(keepLoggedIn)
 
@@ -24,14 +24,14 @@ export async function login(formData: FormData) {
   }
 
   revalidatePath('/dashboard', 'layout')
-  redirect('/dashboard')
+  return { success: true }
 }
 
 export async function signup(formData: FormData) {
   const username = formData.get('username') as string
   const password = formData.get('password') as string
   const name = formData.get('name') as string
-  const keepLoggedIn = formData.get('keepLoggedIn') === 'on'
+  const keepLoggedIn = formData.get('keepLoggedIn') === 'true'
 
   const supabase = await createClient(keepLoggedIn)
 
@@ -54,7 +54,7 @@ export async function signup(formData: FormData) {
   }
 
   revalidatePath('/dashboard', 'layout')
-  redirect('/dashboard')
+  return { success: true }
 }
 
 export async function logout() {

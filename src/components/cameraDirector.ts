@@ -143,9 +143,8 @@ export class CameraDirector {
   private readonly CENTROID_K = 15.0;    // 중심 X 저상통과 (정밀 추적)
   private readonly LEADER_K = 18.0;      // 선두 Y 저상통과 (빠른 반응)
   private readonly LEAD_BATTLE_AT = 0.86; // 진행도 이 이상이면 결착 줌인 시작
-  private readonly MAX_ZOOM = 3.5;       // 극대 확대
-  private readonly BATTLE_ZOOM = 2.0;
-  private readonly WINNER_ZOOM = 3.5;    // 극도의 줌인
+  private readonly MAX_ZOOM = 3.5;       // 극대 확대(평상 상한)
+  private readonly BATTLE_ZOOM = 2.0;    // 결착 구간 줌
 
   // 사용자 줌 튜닝
   private readonly USER_ZOOM_MIN = 0.25;      // 사용자 줌 최소 (맵 전체 조감)
@@ -187,7 +186,6 @@ export class CameraDirector {
   private readonly CALM_RELEASE_SCALE = 1.0;  // 통과 순간 스냅 펀치 제거
   private readonly CALM_MAX_ZOOM = 1.4;       // 얕은 줌 상한
   private readonly CALM_BATTLE_ZOOM = 1.35;
-  private readonly CALM_WINNER_ZOOM = 1.4;
   private readonly CALM_ESTABLISH_S = 0.4;    // 오프닝 스윕 완화
   private readonly CALM_FINISH_ZOOM = 1.6;    // 차분 모드 결승 줌(완만)
   // 저모션 게터: this.calm에 따라 상수 선택(update 경유 호출 전체에 일관 적용)
@@ -199,7 +197,6 @@ export class CameraDirector {
   }
   private get maxZoom() { return this.calm ? this.CALM_MAX_ZOOM : this.MAX_ZOOM; }
   private get battleZoom() { return this.calm ? this.CALM_BATTLE_ZOOM : this.BATTLE_ZOOM; }
-  private get winnerZoom() { return this.calm ? this.CALM_WINNER_ZOOM : this.WINNER_ZOOM; }
   private get slowmoScale() { return this.calm ? this.CALM_SLOWMO_SCALE : this.SLOWMO_SCALE; }
   private get lastStandScale() { return this.calm ? this.CALM_LASTSTAND_SCALE : this.LASTSTAND_SCALE; }
   private get releaseScale() { return this.calm ? this.CALM_RELEASE_SCALE : this.RELEASE_SCALE; }
@@ -616,17 +613,24 @@ export class CameraDirector {
       }
 
       if (this.finisherPhase === 'climax') {
-        // 통과 순간: 결승선 부근을 가장 타이트하게(WINNER_ZOOM) 잡는다 — 완주 VFX(파티클/등수)가 여기서 터짐.
-        targetZoom = this.winnerZoom;
+        // CROSS: 통과 순간 완주자를 결승선 아래로 따라가며 극대 줌(FINISH_ZOOM). 완주 VFX가 여기서 터짐.
+        targetZoom = this.finishZoom;
         const visH = this.screenH / Math.max(targetZoom, 0.001);
         targetX = this.smCentroidX;
-        targetY = this.smLeaderY - visH * 0.33;
+        targetY = this.smLeaderY - visH * this.LEADER_SCREEN_BIAS;
+      } else if (this.finisherPhase === 'linger') {
+        // LINGER(여운): 결승선 통과 지점에 머무르며 극대 줌에서 서서히 줌아웃
+        const lingerT = smoothstep(clamp01(this.finisherPhaseT / this.LINGER_S));
+        targetZoom = lerp(this.finishZoom, this.finishZoom * 0.72, lingerT);
+        const visH = this.screenH / Math.max(targetZoom, 0.001);
+        targetX = this.finishFocusX;                                  // 통과 지점 X 고정
+        targetY = this.finishLineY - visH * this.LEADER_SCREEN_BIAS;  // 결승선을 하단 1/3에
       } else if (this.finisherPhase === 'handoff') {
-        // 호흡: 한 단계 빠지며 다음 선두로 휘프팬
+        // 호흡: 한 단계 빠지며 다음 선두로 복귀
         targetZoom = Math.min(baseZoom, this.clampZoom(this.fitWidthZoom() * 1.2));
         const visH = this.screenH / Math.max(targetZoom, 0.001);
         targetX = this.smCentroidX;
-        targetY = this.smLeaderY - visH * 0.33;
+        targetY = this.smLeaderY - visH * this.LEADER_SCREEN_BIAS;
       } else if (this.anticipating && this.photoFinishActive) {
         // 포토피니시: 1·2위를 한 화면에 담는다(둘의 중앙, 둘 다 보이게 줌 완화)
         const dx = Math.abs(leaderX - secondX);
@@ -637,17 +641,17 @@ export class CameraDirector {
         targetX = (leaderX + secondX) / 2;
         targetY = (leaderY + secondY) / 2;
       } else if (this.anticipating) {
-        // 단독 선두 결승 직전: WINNER_ZOOM 푸시인 + 화면 정중앙 아래(1/3)
-        targetZoom = this.winnerZoom;
+        // 단독 선두 APPROACH: baseZoom→FINISH_ZOOM 진행도 램프(연속 심화) + 하단 1/3
+        targetZoom = lerp(baseZoom, this.finishZoom, this.anticipationRamp);
         const visH = this.screenH / Math.max(targetZoom, 0.001);
         targetX = this.smCentroidX;
-        targetY = this.smLeaderY - visH * 0.33;
+        targetY = this.smLeaderY - visH * this.LEADER_SCREEN_BIAS;
       } else {
-        // TRACKING
+        // TRACKING — 1등을 하단 1/3 선에 고정
         targetZoom = baseZoom;
         const visH = this.screenH / Math.max(targetZoom, 0.001);
         targetX = this.smCentroidX;
-        targetY = this.smLeaderY - visH * 0.33;
+        targetY = this.smLeaderY - visH * this.LEADER_SCREEN_BIAS;
       }
     }
 
