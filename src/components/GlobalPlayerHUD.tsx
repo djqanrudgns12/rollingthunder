@@ -15,6 +15,7 @@ export default function GlobalPlayerHUD({ initialProfile = null }: { initialProf
   const router = useRouter();
   const chips = useChipStore((state) => state.chips);
   const setActiveModal = useUIStore((state) => state.setActiveModal);
+  const activeModal = useUIStore((state) => state.activeModal);
   const isLoggedIn = useUIStore((state) => state.isLoggedIn);
   const gameStage = useUIStore((state) => state.gameStage);
   
@@ -71,7 +72,7 @@ export default function GlobalPlayerHUD({ initialProfile = null }: { initialProf
     import('@/engine/AudioEngine').then(({ soundManager }) => soundManager.playSfx('ui_click'));
   };
 
-  if (!isClient || gameStage === 'editor' || gameStage === 'playing') return null;
+  if (!isClient || gameStage === 'editor' || gameStage === 'playing' || activeModal === 'auth') return null;
 
   const glowColorClass = chips > prevChips ? 'bg-green-400' : 'bg-red-500';
   const textColorClass = isAnimating 

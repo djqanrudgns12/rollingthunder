@@ -99,21 +99,7 @@ export default function GameManager() {
     });
   }, [gameStage, isMuted, assetsLoaded]);
 
-  useEffect(() => {
-    // 🎧 브라우저 Autoplay 정책 우회 (최초 클릭 시 오디오 컨텍스트 강제 활성화)
-    const unlockAudio = () => {
-      // ⚠️ 비동기(import) 없이 즉시 실행해야 브라우저 사용자 제스처 토큰이 유지되어 HTML5 오디오가 락 해제됨!
-      if (soundManagerRef.current) {
-        soundManagerRef.current.unlockAudio();
-      }
-    };
-    window.addEventListener('click', unlockAudio);
-    window.addEventListener('touchstart', unlockAudio);
-    return () => {
-      window.removeEventListener('click', unlockAudio);
-      window.removeEventListener('touchstart', unlockAudio);
-    };
-  }, []);
+
 
   // 에셋이 아직 로딩 중이면 로딩 화면 표시 (모든 Hook 선언 이후에 조기 return)
   if (!assetsLoaded) {

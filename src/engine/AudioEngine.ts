@@ -109,7 +109,14 @@ class AudioEngine {
 
     if (prevBgm) {
       prevBgm.fade(prevBgm.volume(), 0, fadeDuration);
-      setTimeout(() => prevBgm.pause(), fadeDuration);
+      const timeoutId = setTimeout(() => prevBgm.pause(), fadeDuration);
+      (prevBgm as any)._bgmFadeTimeout = timeoutId;
+    }
+    
+    // 이전에 예약된 정지 타이머가 있다면 취소 (빠르게 복귀한 경우 대비)
+    if ((nextBgm as any)._bgmFadeTimeout) {
+      clearTimeout((nextBgm as any)._bgmFadeTimeout);
+      (nextBgm as any)._bgmFadeTimeout = undefined;
     }
     
     if (Howler.ctx && Howler.ctx.state === 'suspended') {
@@ -119,7 +126,9 @@ class AudioEngine {
     } else {
       // ⚠️ html5: true 모드에서는 fade()가 즉시 중단되어 볼륨이 0에 머무는 버그가 자주 발생하므로, 직접 volume을 세팅합니다.
       nextBgm.volume(this.bgmVol);
-      nextBgm.play();
+      if (!nextBgm.playing()) {
+        nextBgm.play();
+      }
     }
   }
 
