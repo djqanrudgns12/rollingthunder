@@ -7,11 +7,14 @@ import { useGameStore } from '@/store/gameStore'
 import { getMapsAction } from '@/presentation/actions/mapActions'
 import { createClient } from '@/lib/supabase/client'
 import Dashboard from './Dashboard'
+import { useRosterSync } from '@/hooks/useRosterSync'
 import dynamic from 'next/dynamic';
 const PhysicsCanvas = dynamic(() => import('./PhysicsCanvas'), { ssr: false });
 const MapEditorManager = dynamic(() => import('./editor/MapEditorManager'), { ssr: false });
 
 export default function GameManager() {
+  useRosterSync() // Roster Realtime Sync 훅 호출
+
   const gameStage = useUIStore(state => state.gameStage)
   const isMuted = useGameStore(state => state.isMuted)
   const setMapDataCache = useGameStore(state => state.setMapDataCache)
