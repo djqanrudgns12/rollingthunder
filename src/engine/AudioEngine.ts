@@ -65,18 +65,15 @@ class AudioEngine {
 
   // 브라우저 락 해제 보장
   unlockAudio() {
+    // 1. 동기적으로 즉시 play() 호출 (비동기 then 안으로 들어가면 HTML5 오디오 제스처 토큰이 날아감)
+    if (this.currentBgm && !this.currentBgm.playing()) {
+      this.currentBgm.volume(this.bgmVol);
+      this.currentBgm.play();
+    }
+    
+    // 2. Web Audio API 컨텍스트 리줌 (효과음 등을 위해 필요)
     if (Howler.ctx && Howler.ctx.state === 'suspended') {
-      Howler.ctx.resume().then(() => {
-        if (this.currentBgm && !this.currentBgm.playing()) {
-          this.currentBgm.volume(this.bgmVol);
-          this.currentBgm.play();
-        }
-      }).catch(() => {});
-    } else {
-      if (this.currentBgm && !this.currentBgm.playing()) {
-        this.currentBgm.volume(this.bgmVol);
-        this.currentBgm.play();
-      }
+      Howler.ctx.resume().catch(() => {});
     }
   }
 

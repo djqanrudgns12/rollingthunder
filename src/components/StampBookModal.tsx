@@ -14,6 +14,8 @@ export default function StampBookModal() {
   const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'achievement'>('daily')
   const [missions, setMissions] = useState<UserMission[]>([])
   const [userId, setUserId] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
   
   // 스탬프 이펙트용 상태
   const [stampEffect, setStampEffect] = useState<{ id: string, x: number, y: number } | null>(null)
@@ -27,11 +29,24 @@ export default function StampBookModal() {
     }
     
     const init = async () => {
+      setIsLoading(true);
+      setErrorMsg(null);
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setUserId(user.id)
-        loadMissions(user.id, activeTab)
+        
+        try {
+          // 미션이 아직 할당되지 않았을 경우를 대비해 랜덤 미션 할당 호출
+          await stampService.assignMissions(user.id);
+          await loadMissions(user.id, activeTab)
+        } catch (err: any) {
+          setErrorMsg('DB 연결 오류가 발생했습니다. 마이그레이션이 적용되었는지 확인해 주세요.');
+          console.error(err);
+        }
+      } else {
+        setErrorMsg('로그인이 필요한 기능입니다.');
       }
+      setIsLoading(false);
     }
     init()
   }, [activeModal, activeTab])
@@ -140,8 +155,12 @@ export default function StampBookModal() {
              style={{ backgroundImage: 'radial-gradient(#e5e0d8 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
           
           <div className="space-y-4 max-w-3xl mx-auto">
-            {missions.length === 0 ? (
-              <div className="text-center py-20 text-gray-400 font-bold">로딩 중이거나 미션이 없습니다.</div>
+            {isLoading ? (
+              <div className="text-center py-20 text-gray-400 font-bold">로딩 중...</div>
+            ) : errorMsg ? (
+              <div className="text-center py-20 text-red-400 font-bold">{errorMsg}</div>
+            ) : missions.length === 0 ? (
+              <div className="text-center py-20 text-gray-400 font-bold">진행 가능한 미션이 없습니다.</div>
             ) : (
               missions.map(m => (
                 <div key={m.id} className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${

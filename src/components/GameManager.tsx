@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 import { useUIStore } from '@/store/uiStore'
 import { useGameStore } from '@/store/gameStore'
@@ -18,6 +18,9 @@ export default function GameManager() {
   const { setIsAdmin, setIsLoggedIn } = useUIStore()
   const [assetsLoaded, setAssetsLoaded] = useState(false)
   const [loadError, setLoadError] = useState(false)
+  
+  // 사운드 매니저 동기 호출용 캐시
+  const soundManagerRef = useRef<any>(null)
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
@@ -78,16 +81,20 @@ export default function GameManager() {
   // 조건부 return 문보다 반드시 앞에 위치해야 합니다. 그렇지 않으면 
   // 렌더링마다 Hook 호출 횟수가 달라져 React 310 에러가 발생합니다.
   useEffect(() => {
-    // 에셋 로딩이 아직 안 되었으면 BGM을 재생하지 않음
-    if (!assetsLoaded) return;
+    // 미리 사운드 매니저를 로드해 둠 (클릭 시 동기 호출을 위해)
     import('@/engine/AudioEngine').then(({ soundManager }) => {
-      soundManager.setMuted(isMuted);
-      if (gameStage === 'dashboard') {
-        soundManager.playStandbyBgm();
-      } else if (gameStage === 'playing') {
-        soundManager.playGameBgm();
-      } else if (gameStage === 'editor') {
-        soundManager.playMapEditorBgm();
+      soundManagerRef.current = soundManager;
+      
+      // 에셋 로딩이 완료되었을 때만 BGM 실행
+      if (assetsLoaded) {
+        soundManager.setMuted(isMuted);
+        if (gameStage === 'dashboard') {
+          soundManager.playStandbyBgm();
+        } else if (gameStage === 'playing') {
+          soundManager.playGameBgm();
+        } else if (gameStage === 'editor') {
+          soundManager.playMapEditorBgm();
+        }
       }
     });
   }, [gameStage, isMuted, assetsLoaded]);
@@ -95,9 +102,10 @@ export default function GameManager() {
   useEffect(() => {
     // 🎧 브라우저 Autoplay 정책 우회 (최초 클릭 시 오디오 컨텍스트 강제 활성화)
     const unlockAudio = () => {
-      import('@/engine/AudioEngine').then(({ soundManager }) => {
-        soundManager.unlockAudio();
-      });
+      // ⚠️ 비동기(import) 없이 즉시 실행해야 브라우저 사용자 제스처 토큰이 유지되어 HTML5 오디오가 락 해제됨!
+      if (soundManagerRef.current) {
+        soundManagerRef.current.unlockAudio();
+      }
     };
     window.addEventListener('click', unlockAudio);
     window.addEventListener('touchstart', unlockAudio);
