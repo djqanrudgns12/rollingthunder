@@ -80,7 +80,7 @@ export default function ShopPage() {
       items = items.filter(isItemOwned);
     }
     
-    // 정렬: 보유 여부 (상점 모드일 때만) -> 희귀도 높은 순 -> 이름 순
+    // 정렬: 보유 여부 (상점 모드일 때만) -> 가격 싼 순 -> 이름 순
     items.sort((a, b) => {
       if (viewMode === 'shop') {
         if (a.isDefault !== b.isDefault) return a.isDefault ? 1 : -1; // 기본 아이템은 항상 맨 아래로
@@ -90,9 +90,7 @@ export default function ShopPage() {
         if (aOwned !== bOwned) return bOwned - aOwned; // 소유한게 먼저 (내림차순, 기본 아닌 것들 중)
       }
       
-      const rA = RARITY_ORDER[a.rarity] || 0;
-      const rB = RARITY_ORDER[b.rarity] || 0;
-      if (rA !== rB) return rB - rA; // 등급 높은게 먼저
+      if (a.price !== b.price) return a.price - b.price; // 가격 싼게 먼저
       
       return a.name.localeCompare(b.name);
     });
@@ -348,7 +346,7 @@ export default function ShopPage() {
                     <div className="flex items-center gap-4">
                       <div className="w-16 h-16 rounded-lg bg-black/50 border border-neutral-700 flex items-center justify-center overflow-hidden relative">
                         {item.image ? (
-                          <img src={item.image} alt={item.name} className="w-full h-full object-contain p-1" />
+                          <img src={item.image} alt={item.name} className="w-full h-full object-cover scale-[1.2]" />
                         ) : IconComp ? (
                           <IconComp className="w-8 h-8 text-neutral-300" />
                         ) : (

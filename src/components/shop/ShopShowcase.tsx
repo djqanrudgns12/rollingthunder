@@ -126,13 +126,13 @@ export default function ShopShowcase({ selectedItem }: ShopShowcaseProps) {
         <div className={`w-full h-full rounded-3xl border-2 ${rarityStyle.border} ${rarityStyle.glow} bg-black/60 backdrop-blur-md flex items-center justify-center relative transition-colors duration-500 overflow-hidden`}>
           
           {/* 컨텐츠 렌더링 (Image) - 가장 안쪽 레이어 */}
-          <div style={{ transform: "translateZ(20px)" }} className={`w-full h-full flex items-center justify-center relative ${isFullScreenAsset ? 'p-0' : 'p-4'}`}>
+          <div className={`w-full h-full flex items-center justify-center absolute inset-0 z-0 ${isFullScreenAsset ? 'p-0' : 'p-6'}`}>
             {selectedItem?.image ? (
               <Image 
                 src={selectedItem.image} 
                 alt={selectedItem?.name || "아이템"} 
                 fill
-                className={`${isFullScreenAsset ? 'object-cover' : 'object-contain p-2 drop-shadow-2xl'}`}
+                className={`${isFullScreenAsset ? 'object-cover' : 'object-contain drop-shadow-2xl'}`}
                 sizes="(max-width: 768px) 256px, 320px"
                 priority
               />
@@ -152,7 +152,7 @@ export default function ShopShowcase({ selectedItem }: ShopShowcaseProps) {
           </div>
 
           {/* Hologram & Shine Layers - 유리 표면 (가장 바깥쪽 Z) */}
-          <div style={{ transform: "translateZ(50px)" }} className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
+          <div className="absolute inset-0 z-10 pointer-events-none">
             <div className="absolute inset-0 opacity-20 mix-blend-overlay bg-gradient-to-br from-white/40 via-transparent to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-[shimmer_3s_infinite]" />
           </div>

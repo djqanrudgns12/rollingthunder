@@ -49,9 +49,9 @@ class AudioEngine {
   private constructor() {
     Howler.volume(this.masterVol);
 
-    this.standbyBgm = new Howl({ src: ['/sounds/bgm/Standby.mp3'], loop: true, volume: this.bgmVol, preload: true, html5: true });
-    this.playgameBgm = new Howl({ src: ['/sounds/bgm/Playgame.mp3'], loop: true, volume: this.bgmVol, preload: true, html5: true });
-    this.mapeditorBgm = new Howl({ src: ['/sounds/bgm/Mapeditor.mp3'], loop: true, volume: this.bgmVol, preload: true, html5: true });
+    this.standbyBgm = new Howl({ src: ['/sounds/bgm/Standby.mp3'], loop: true, volume: this.bgmVol, preload: true });
+    this.playgameBgm = new Howl({ src: ['/sounds/bgm/Playgame.mp3'], loop: true, volume: this.bgmVol, preload: true });
+    this.mapeditorBgm = new Howl({ src: ['/sounds/bgm/Mapeditor.mp3'], loop: true, volume: this.bgmVol, preload: true });
 
     // SFX 프리로딩
     const uniquePaths = Array.from(new Set(Object.values(sfxPathMap)));
@@ -68,13 +68,7 @@ class AudioEngine {
 
   // 브라우저 락 해제 보장
   unlockAudio() {
-    // 1. 동기적으로 즉시 play() 호출 (비동기 then 안으로 들어가면 HTML5 오디오 제스처 토큰이 날아감)
-    if (this.currentBgm && !this.currentBgm.playing()) {
-      this.currentBgm.volume(this.bgmVol);
-      this.currentBgm.play();
-    }
-    
-    // 2. Web Audio API 컨텍스트 리줌 (효과음 등을 위해 필요)
+    // Web Audio API 전역 오디오 컨텍스트 락 해제
     if (Howler.ctx && Howler.ctx.state === 'suspended') {
       Howler.ctx.resume().catch(() => {});
     }
@@ -119,17 +113,12 @@ class AudioEngine {
       (nextBgm as any)._bgmFadeTimeout = undefined;
     }
     
-    if (Howler.ctx && Howler.ctx.state === 'suspended') {
-      nextBgm.volume(this.bgmVol);
-      // 브라우저 락 상태일 때는 play()를 호출하지 않고 대기합니다.
-      // 이후 유저가 클릭하면 unlockAudio()에서 play()를 안전하게 호출합니다.
-    } else {
-      // ⚠️ html5: true 모드에서는 fade()가 즉시 중단되어 볼륨이 0에 머무는 버그가 자주 발생하므로, 직접 volume을 세팅합니다.
-      nextBgm.volume(this.bgmVol);
-      if (!nextBgm.playing()) {
-        nextBgm.play();
-      }
+    // Web Audio API를 사용하므로 매우 부드럽고 안정적인 페이드인 지원
+    if (!nextBgm.playing()) {
+      nextBgm.volume(0); // 0부터 부드럽게 페이드인
+      nextBgm.play();
     }
+    nextBgm.fade(nextBgm.volume(), this.bgmVol, fadeDuration);
   }
 
   stopAllBgm() {
