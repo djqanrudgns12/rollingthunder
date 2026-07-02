@@ -8,7 +8,7 @@ import { useChipStore } from '@/store/chipStore'
 import { useUIStore } from '@/store/uiStore'
 
 export default function StampBookModal() {
-  const { activeModal, setActiveModal } = useUIStore()
+  const { activeModal, setActiveModal, setHasClaimableMissions } = useUIStore()
   const { addChipsLocally } = useChipStore()
   
   const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'achievement'>('daily')
@@ -90,6 +90,22 @@ export default function StampBookModal() {
       // UI 업데이트
       setMissions(prev => prev.map(m => m.id === mission.id ? { ...m, is_collected: true } : m));
       
+      // 다른 탭에 수령 가능한 보상이 남아있는지 확인하여 전역 알림 상태 갱신
+      setTimeout(async () => {
+        try {
+          const [daily, weekly, achievements] = await Promise.all([
+            stampService.getUserMissions(userId, 'daily'),
+            stampService.getUserMissions(userId, 'weekly'),
+            stampService.getUserAchievements(userId)
+          ]);
+          const allMissions = [...daily, ...weekly, ...achievements];
+          const hasClaimable = allMissions.some(m => m.completed && !m.is_collected);
+          setHasClaimableMissions(hasClaimable);
+        } catch (err) {
+          console.error(err);
+        }
+      }, 500);
+
       setTimeout(() => {
         setStampEffect(null)
       }, 1000)

@@ -11,7 +11,7 @@ import { UserProfile } from '@/types/user';
 import { MOCK_ITEMS } from '@/data/shopData';
 import Image from 'next/image';
 
-export default function GlobalPlayerHUD() {
+export default function GlobalPlayerHUD({ initialProfile = null }: { initialProfile?: UserProfile | null }) {
   const router = useRouter();
   const chips = useChipStore((state) => state.chips);
   const setActiveModal = useUIStore((state) => state.setActiveModal);
@@ -23,7 +23,8 @@ export default function GlobalPlayerHUD() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [prevChips, setPrevChips] = useState(0);
   const [isClient, setIsClient] = useState(false);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const hasClaimableMissions = useUIStore((state) => state.hasClaimableMissions);
+  const [profile, setProfile] = useState<UserProfile | null>(initialProfile);
 
   useEffect(() => {
     setIsClient(true);
@@ -184,7 +185,9 @@ export default function GlobalPlayerHUD() {
         title="Stamp Book (Missions)"
       >
         <span className="text-2xl group-hover:scale-110 transition-transform duration-300 drop-shadow-[0_0_8px_rgba(248,113,113,0.6)]">📖</span>
-        <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full border-2 border-black animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.9)]"></span>
+        {hasClaimableMissions && (
+          <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full border-2 border-black animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.9)]"></span>
+        )}
       </button>
 
     </div>

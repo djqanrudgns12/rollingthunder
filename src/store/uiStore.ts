@@ -34,6 +34,8 @@ interface UIState {
   setIsAdmin: (isAdmin: boolean) => void
   isLoggedIn: boolean
   setIsLoggedIn: (isLoggedIn: boolean) => void
+  hasClaimableMissions: boolean
+  setHasClaimableMissions: (hasClaimable: boolean) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -53,6 +55,7 @@ export const useUIStore = create<UIState>()(
       authMode: 'login',
       isAdmin: false,
       isLoggedIn: false,
+      hasClaimableMissions: false,
       gameStage: 'dashboard',
       setGameStage: (stage) => set({ gameStage: stage }),
       setCustomMapData: (data) => set({ customMapData: data }),
@@ -65,6 +68,7 @@ export const useUIStore = create<UIState>()(
       setAuthMode: (mode) => set({ authMode: mode }),
       setIsAdmin: (isAdmin) => set({ isAdmin: isAdmin }),
       setIsLoggedIn: (isLoggedIn) => set({ isLoggedIn: isLoggedIn }),
+      setHasClaimableMissions: (hasClaimable) => set({ hasClaimableMissions: hasClaimable }),
     }),
     {
       name: 'rt-ui-storage',

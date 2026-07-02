@@ -37,6 +37,9 @@ const schoolsafel = localFont({ src: '../../public/fonts/SchoolSafeNadeuriL.woff
 
 const customFonts = `${bmdohyeon.variable} ${bmeuljiro.variable} ${bmjua.variable} ${bmyeonsung.variable} ${cafe24dongdong.variable} ${cafe24ssukssuk.variable} ${jnaughtyl.variable} ${jnaughtym.variable} ${kccganpan.variable} ${kccdodam.variable} ${maplestoryb.variable} ${maplestoryl.variable} ${ownglyph2022.variable} ${ridibatang.variable} ${schoolsafeb.variable} ${schoolsafel.variable}`;
 
+import { getProfileOverviewAction } from "@/presentation/actions/profileActions";
+import MissionSyncManager from "@/components/MissionSyncManager";
+
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -51,11 +54,13 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const profile = await getProfileOverviewAction();
+
   return (
     <html lang="ko" className={`${outfit.variable} ${jetbrainsMono.variable} ${customFonts}`}>
       <head>
@@ -70,7 +75,8 @@ export default function RootLayout({
         <ThemeProvider>
           <GlobalAudioUnlocker>
             {children}
-            <GlobalPlayerHUD />
+            <MissionSyncManager userId={profile?.id} />
+            <GlobalPlayerHUD initialProfile={profile} />
             <JackpotEffect />
             <Toaster theme="dark" position="bottom-right" />
           </GlobalAudioUnlocker>
