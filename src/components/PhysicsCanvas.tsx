@@ -52,7 +52,21 @@ export default function PhysicsCanvas() {
   const [isFastForward, setIsFastForward] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [isMapMenuOpen, setIsMapMenuOpen] = useState(false);
+  const mapMenuRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mapMenuRef.current && !mapMenuRef.current.contains(event.target as Node)) {
+        setIsMapMenuOpen(false);
+      }
+    };
+    if (isMapMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMapMenuOpen]);
 
 
   useEffect(() => {
@@ -1741,7 +1755,7 @@ export default function PhysicsCanvas() {
         });
       }
     }
-  }, [survivors, targetWinnerCount, gimmickDensity, setSurvivors, setGameStage, customMapData, gameMode, customWinningRank, isSkillEnabled, randomWinningRanks])
+  }, [survivors, targetWinnerCount, gimmickDensity, setSurvivors, setGameStage, customMapData, gameMode, customWinningRank, isSkillEnabled, randomWinningRanks, selectedMapPreset])
   const getOrdinalSuffix = (n: number) => {
     const v = n % 100;
     if (v >= 11 && v <= 13) return `${n}TH`;
@@ -1892,18 +1906,7 @@ export default function PhysicsCanvas() {
         <div className={`flex items-center gap-3 transition-all duration-700 ease-in-out origin-left ${gameState !== 'idle' ? 'max-w-[0px] opacity-0 m-0 p-0 !gap-0 overflow-hidden' : 'max-w-[600px] opacity-100 overflow-visible'}`}>
           
           {/* 맵 교체 버튼 및 드롭업 */}
-          <div className="relative">
-            {/* Click-away backdrop */}
-            {isMapMenuOpen && typeof window !== 'undefined' && createPortal(
-              <div 
-                className="fixed inset-0 z-[90] cursor-default" 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsMapMenuOpen(false);
-                }}
-              ></div>,
-              document.body
-            )}
+          <div className="relative" ref={mapMenuRef}>
 
             <button 
               onClick={() => setIsMapMenuOpen(!isMapMenuOpen)}
