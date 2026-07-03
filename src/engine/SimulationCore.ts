@@ -63,6 +63,16 @@ const MAX_CHIP_SPEED = 2000;
 
 // 부스터 1레벨당 부여 Δv(px/s). v2: 빨라진 칩 대비 체감 유지 위해 상향(160→210).
 const BOOSTER_DV_PER_LEVEL = 210;
+// 얼음블록 타격 시 칩을 법선 방향으로 "확정 반발"시키는 속도(px/s) — 범퍼식 강한 아케이드 반발.
+// 매 타격마다 일정 속도로 튕겨나가므로(에너지 감쇠로 얹혀 멈추지 않음) HP가 끝까지 소진되어 파괴된다.
+const ICE_BOUNCE_SPEED = 280;
+// 한 번의 접촉(바운스)이 여러 hp 감소로 중복 카운트되지 않도록 하는 최소 타격 간격(프레임).
+const ICE_HIT_COOLDOWN_FRAMES = 8;
+// 얼음 HP를 깎는 최소 충돌 상대속도(px/s). 낮춰서 약한 접촉도 균열이 진행되게 함(기존 20).
+const ICE_HIT_MIN_IMPACT = 10;
+// 물리 구동으로 시각을 매 프레임 동기화해야 하는 "움직이는" 기물 타입.
+// (렌더가 로컬 타이머로 독립 애니메이션하면 물리 콜라이더와 어긋나므로 실제 트랜스폼을 전송한다.)
+const MOVING_OBSTACLE_TYPES = new Set(['spinner', 'piston', 'windmill', 'flipper']);
 // 중력장 force 1당 중심부 Δv/frame(px/s). v2: 칩이 빨라 well 통과 시간이 짧아진 만큼 상향(0.4→0.52).
 // force 5 ≈ 중력과 맞먹는 휨(통과 가능), force 9~10 ≈ 강한 포획. 폭주/영구포획 방지용 상한 적용.
 const WELL_DV_PER_FORCE = 0.52;
@@ -82,6 +92,10 @@ export class SimulationCore {
   activeChips: RAPIER.RigidBody[] = [];
   mapData: any[] = [];
   events: SimEvent[] = [];
+
+  // 이동/회전 기물(스피너·피스톤·풍차·플리퍼)을 init 에서 고정 순서로 수집.
+  // 워커가 매 프레임 이 순서대로 [x, y, rotationRad] 를 브로드캐스트해 렌더 시각을 물리와 일치시킨다.
+  movingBodies: { id: string; body: RAPIER.RigidBody }[] = [];
 
   gameOver = false;
 
@@ -113,6 +127,9 @@ export class SimulationCore {
   private chipLastProgressFrame = new Map<string, number>();
   private lowSpeedFrames = 0;
 
+  // 피스톤 위상 시계(프레임 등가). sim 시간(dt)에 비례 누적 → 전역 배속/슬로모션과 속도 일관.
+  private pistonClock = 0;
+
   frame = 0; // 게임 시작 이후 경과 프레임
 
   // RAPIER WASM 초기화(1회). 워커/하네스 모두 init 전에 호출해야 함.
@@ -135,6 +152,7 @@ export class SimulationCore {
     this.gameOver = false;
     this.frame = 0;
     this.lowSpeedFrames = 0;
+    this.pistonClock = 0;
     this.finishedChips.clear();
     this.finishOrder.length = 0;
     this.lastWarpFrame.clear();
@@ -214,6 +232,7 @@ export class SimulationCore {
 
     // 렌더링용 맵 데이터 스냅샷
     this.mapData = [];
+    this.movingBodies = [];
     this.world.forEachRigidBody((body) => {
       const userData = body.userData as any;
       if (userData && userData.type && userData.type !== 'chip') {
@@ -236,6 +255,10 @@ export class SimulationCore {
           hp: userData.hp,
           maxHp: userData.maxHp,
         });
+        // 움직이는 기물은 매 프레임 트랜스폼을 렌더로 보내기 위해 고정 순서로 수집
+        if (MOVING_OBSTACLE_TYPES.has(userData.type) && userData.id) {
+          this.movingBodies.push({ id: userData.id, body });
+        }
       }
     });
 
@@ -383,6 +406,7 @@ export class SimulationCore {
     }
     this.eventQueue = null;
     this.activeChips = [];
+    this.movingBodies = [];
   }
 
   // ── 내부 로직 ─────────────────────────────────────────────────────────
@@ -459,20 +483,43 @@ export class SimulationCore {
         const iceBody = d1?.type === 'iceblock' ? b1 : b2;
         const iceData = iceBody.userData as any;
         const theChip = d1?.type === 'chip' ? b1 : (d2?.type === 'chip' ? b2 : null);
-        
-        if (theChip && iceData.hp > 0 && impactV > 20) {
-          iceData.hp--;
-          this.events.push({ 
-            type: 'ICE_CRACK', 
-            payload: { id: iceData.id, remainingHp: iceData.hp, maxHp: iceData.maxHp, x: iceBody.translation().x, y: iceBody.translation().y } 
-          });
-          
-          if (iceData.hp <= 0) {
-            this.pendingRemovals.push(iceBody);
-            this.events.push({ 
-              type: 'ICE_DESTROY', 
-              payload: { id: iceData.id, x: iceBody.translation().x, y: iceBody.translation().y } 
+
+        if (theChip && iceData.hp > 0 && impactV > ICE_HIT_MIN_IMPACT) {
+          // 한 번의 접촉(짧은 시간 내 반복 start 이벤트)이 여러 hp 감소로 중복 카운트되는 것을 방지.
+          const chipId = (theChip.userData as any)?.id ?? 'unknown';
+          const hitKey = `ice_${chipId}_${iceData.id}`;
+          const lastHit = this.lastWarpFrame.get(hitKey) ?? -99999;
+          if (this.frame - lastHit >= ICE_HIT_COOLDOWN_FRAMES) {
+            this.lastWarpFrame.set(hitKey, this.frame);
+            iceData.hp--;
+
+            // 강한 아케이드 반발(범퍼식): 블록 중심→칩 방향(법선)으로 확정된 속도로 튕겨낸다.
+            // 법선 성분을 ICE_BOUNCE_SPEED 로 재설정(접선 성분 보존) → 매 타격마다 확실히 분리되어
+            // 재낙하·재타격이 반복되고 HP가 끝까지 소진되어 파괴된다(공이 얹혀 멈추지 않음).
+            const cp = theChip.translation();
+            const bp = iceBody.translation();
+            let nx = cp.x - bp.x, ny = cp.y - bp.y;
+            const dist = Math.sqrt(nx * nx + ny * ny);
+            if (dist > 0.001) { nx /= dist; ny /= dist; } else { nx = 0; ny = -1; }
+            const cv = theChip.linvel();
+            const vn = cv.x * nx + cv.y * ny;
+            theChip.setLinvel({
+              x: cv.x - vn * nx + ICE_BOUNCE_SPEED * nx,
+              y: cv.y - vn * ny + ICE_BOUNCE_SPEED * ny,
+            }, true);
+
+            this.events.push({
+              type: 'ICE_CRACK',
+              payload: { id: iceData.id, remainingHp: iceData.hp, maxHp: iceData.maxHp, x: bp.x, y: bp.y }
             });
+
+            if (iceData.hp <= 0) {
+              this.pendingRemovals.push(iceBody);
+              this.events.push({
+                type: 'ICE_DESTROY',
+                payload: { id: iceData.id, x: bp.x, y: bp.y }
+              });
+            }
           }
         }
       }
@@ -482,7 +529,8 @@ export class SimulationCore {
         const sensorData = sensorBody.userData as any;
 
         if (sensorData.type === 'portal') {
-          const lastWarp = this.lastWarpFrame.get(chipData.id) || -99999;
+          const portalKey = `portal_${chipData.id}`;
+          const lastWarp = this.lastWarpFrame.get(portalKey) ?? -99999;
           if (this.frame - lastWarp > PORTAL_COOLDOWN_FRAMES) {
             const targetPortals: any[] = [];
             world.forEachRigidBody((b) => {
@@ -496,19 +544,20 @@ export class SimulationCore {
               const targetPortal = targetPortals[idx];
               const tPos = targetPortal.translation();
               chipBody.setTranslation({ x: tPos.x, y: tPos.y }, true);
-              this.lastWarpFrame.set(chipData.id, this.frame);
+              this.lastWarpFrame.set(portalKey, this.frame);
               this.events.push({ type: 'SOUND_EFFECT', payload: { type: 'warp' } });
             }
           }
         } else if (sensorData.type === 'booster') {
-          const angle = (sensorData.rotation || 0) * (Math.PI / 180);
+          const angle = (sensorData.rotation ?? 0) * (Math.PI / 180);
           const dv = (sensorData.power || 3) * BOOSTER_DV_PER_LEVEL;
           this.applyDeltaV(chipBody, Math.sin(angle) * dv, -Math.cos(angle) * dv);
           this.events.push({ type: 'SOUND_EFFECT', payload: { type: 'bumperHit', impulse: dv, x: sensorBody.translation().x } });
         } else if (sensorData.type === 'hole') {
-          const lastWarp = this.lastWarpFrame.get(chipData.id) || -99999;
+          const holeKey = `hole_${chipData.id}`;
+          const lastWarp = this.lastWarpFrame.get(holeKey) ?? -99999;
           if (this.frame - lastWarp > HOLE_COOLDOWN_FRAMES) {
-            this.lastWarpFrame.set(chipData.id, this.frame);
+            this.lastWarpFrame.set(holeKey, this.frame);
             chipBody.setLinvel({ x: 0, y: 0 }, true);
             chipBody.setGravityScale(0, true);
             this.events.push({ type: 'SOUND_EFFECT', payload: { type: 'holeTrapped' } });
@@ -782,29 +831,35 @@ export class SimulationCore {
 
   private applyPistons() {
     const world = this.world!;
-    const dt = Math.max(world.integrationParameters.dt, 1 / 60);
-    
+    // 실제 적분 dt(sim 시간). 전역 배속(0.7)·슬로모션이 반영된 값이라 피스톤이 다른 물리와 같은 시간축을 탄다.
+    const dtSim = world.integrationParameters.dt;
+    if (dtSim <= 0) return;
+
+    // 위상 시계를 sim 시간에 비례해 진행(프레임 등가: dt*60). 스텝 후 도달할 "다음" 위상.
+    const clockNext = this.pistonClock + dtSim * 60;
+
     world.forEachRigidBody((b) => {
       const d = b.userData as any;
       if (d?.type === 'piston' && d.waypointB) {
         const speed = d.speed || 2;
-        // 다음 프레임(this.frame + 1)의 목표 위치 계산
-        const tNext = (Math.sin((this.frame + 1) * speed * 0.01) + 1) / 2;
+        const tNext = (Math.sin(clockNext * speed * 0.01) + 1) / 2;
         const ax = d.originX, ay = d.originY;
         const bx = d.waypointB.x, by = d.waypointB.y;
-        
+
         const targetX = ax + (bx - ax) * tNext;
         const targetY = ay + (by - ay) * tNext;
-        
+
         const currentPos = b.translation();
-        
-        // 목표 위치에 도달하기 위한 정확한 선속도를 계산하여 적용 (VelocityBased Kinematic)
-        const vx = (targetX - currentPos.x) / dt;
-        const vy = (targetY - currentPos.y) / dt;
-        
+
+        // 목표 위치에 도달하기 위한 정확한 선속도(VelocityBased Kinematic). 분모는 실제 적분 dt.
+        const vx = (targetX - currentPos.x) / dtSim;
+        const vy = (targetY - currentPos.y) / dtSim;
+
         b.setLinvel({ x: vx, y: vy }, true);
       }
     });
+
+    this.pistonClock = clockNext;
   }
 
   // 칩 순회: 완주 판정 + 게임오버 판정. totalSpeed 반환(anti-stuck용)

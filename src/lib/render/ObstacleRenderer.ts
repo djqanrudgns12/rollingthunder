@@ -102,7 +102,9 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
     g.addChild(sprite)
 
     const speed = item.speed || 3
-    if (animated) {
+    if (ctx.physicsDriven) {
+      // 게임: 물리가 매 프레임 g.rotation 을 구동(OBSTACLE_FRAME) → 로컬 회전 타이머 생략
+    } else if (animated) {
       const windTick = (ticker: PIXI.Ticker) => {
         if (g.destroyed || mg.destroyed) return
         g.rotation += speed * (ticker.deltaMS / 1000)
@@ -165,8 +167,11 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
       const windTick = (ticker: PIXI.Ticker) => {
         if (g.destroyed || mg.destroyed) return
         const dt = ticker.deltaMS / 1000
-        g.rotation += speed * dt
-        mg.rotation += speed * dt
+        // 게임(physicsDriven): 회전은 물리(OBSTACLE_FRAME)가 구동 → 여기선 코어 펄스만.
+        if (!ctx.physicsDriven) {
+          g.rotation += speed * dt
+          mg.rotation += speed * dt
+        }
         time += dt
         core.scale.set(1 + Math.sin(time * 10) * 0.1)
       }
@@ -335,7 +340,9 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
     const speed = item.speed || 2
     const ax = item.x, ay = item.y
     const bx = item.waypointB.x, by = item.waypointB.y
-    if (animated) {
+    if (ctx.physicsDriven) {
+      // 게임: 물리가 매 프레임 g.position 을 구동(OBSTACLE_FRAME) → 로컬 왕복 타이머 생략
+    } else if (animated) {
       let t = 0
       const pistonTick = (ticker: PIXI.Ticker) => {
         if (g.destroyed || mg.destroyed) return

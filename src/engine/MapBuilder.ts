@@ -58,8 +58,8 @@ export class MapBuilder {
     desc.setTranslation(item.x, item.y)
       .setRotation((item.angle ?? item.rotation ?? 0) * (Math.PI / 180));
       
-    // 피스톤(얇은 강체) 터널링 방지를 위해 CCD 활성화
-    if (item.type === 'piston') {
+    // 얇은/빠른 강체의 칩 관통(터널링) 방지를 위해 CCD 활성화 (피스톤 이동 + 스피너/풍차 회전바)
+    if (item.type === 'piston' || item.type === 'spinner' || item.type === 'windmill') {
       desc.setCcdEnabled(true);
     }
     
@@ -86,8 +86,9 @@ export class MapBuilder {
       // 피스톤: 직사각형 이동 플랫폼 (A↔B 왕복)
       const w = item.w || 100;
       const h = item.h || 20;
-      // 물리적 두께(Collider)를 렌더링 두께보다 키워 초고속 칩 관통(터널링) 방지 마진을 확실히 확보
-      const physicsH = h + 16;
+      // 콜라이더 두께를 렌더 두께와 거의 일치시킴(과대 마진 제거) — 보이는 판 밖에서 튕기는 문제 해소.
+      // 시각=콜라이더 동기화(OBSTACLE_FRAME) + 칩 CCD 로 관통은 별도 방지된다.
+      const physicsH = h + 4;
       const colliderDesc = RAPIER.ColliderDesc.cuboid(w / 2, physicsH / 2)
         .setRestitution(0.3)
         .setFriction(0.8);
@@ -141,7 +142,9 @@ export class MapBuilder {
       id: item.id,
       color: item.color,
       power: item.power,
-      rotation: item.rotation,
+      // 회전 소스 통일: 바디 회전/화살표 렌더(itemRotationRad)와 동일하게 angle 우선.
+      // (기존엔 item.rotation 만 저장해 에디터에서 각도(angle)로 조준한 부스터의 힘이 무시됐다.)
+      rotation: item.angle ?? item.rotation ?? 0,
       force: item.force,
       radius: item.radius
     } as UserData;
@@ -154,11 +157,13 @@ export class MapBuilder {
     
     const w = item.w || 60;
     const h = item.h || 25;
+    // 강한 아케이드 반발: 공이 얹혀 멈추지 않고 확실히 튕겨나가도록 restitution 상향.
+    // (낮은 반발이면 수평 블록 위에 공이 정지 → 재타격이 없어 균열이 진행되지 않았다.)
     const colliderDesc = RAPIER.ColliderDesc.cuboid(w / 2, h / 2)
-      .setRestitution(0.1)
-      .setFriction(0.05)
+      .setRestitution(0.55)
+      .setFriction(0.15)
       .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
-    
+
     world.createCollider(colliderDesc, body);
     body.userData = {
       type: 'iceblock',

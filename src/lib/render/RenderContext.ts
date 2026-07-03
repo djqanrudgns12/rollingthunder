@@ -16,12 +16,18 @@ export interface RenderContext {
   animated: boolean
   /** 'lite'면 글로우 필터/트레일 등 고비용 이펙트 생략 (저줌/성능) */
   quality: 'full' | 'lite'
+  /**
+   * true면 이동/회전 기물(스피너·피스톤·풍차·플리퍼)의 위치·회전을 로컬 타이머로 구동하지 않는다.
+   * 대신 워커의 실제 물리 트랜스폼(OBSTACLE_FRAME)이 매 프레임 노드에 반영된다 → 시각=콜라이더 일치.
+   * 게임(PhysicsCanvas)만 true. 물리가 없는 에디터 미리보기는 undefined/false 로 두어 자체 애니메이션 유지.
+   */
+  physicsDriven?: boolean
 }
 
 /** PIXI.Application 으로부터 게임용 기본 RenderContext 생성 */
 export function createAppRenderContext(
   app: PIXI.Application,
-  opts: { animated?: boolean; quality?: 'full' | 'lite' } = {}
+  opts: { animated?: boolean; quality?: 'full' | 'lite'; physicsDriven?: boolean } = {}
 ): RenderContext {
   return {
     getTexture: (url: string) => PIXI.Assets.get(url) || PIXI.Texture.from(url),
@@ -33,5 +39,6 @@ export function createAppRenderContext(
     },
     animated: opts.animated ?? true,
     quality: opts.quality ?? 'full',
+    physicsDriven: opts.physicsDriven ?? false,
   }
 }

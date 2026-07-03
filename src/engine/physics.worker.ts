@@ -98,6 +98,23 @@ function broadcastFrame() {
   (self.postMessage as any)({ type: 'FRAME', payload: bufferToUse }, [bufferToUse]);
 }
 
+// 이동/회전 기물(스피너·피스톤·풍차·플리퍼)의 실제 물리 트랜스폼을 렌더로 전송.
+// 포맷: 기물당 [x, y, rotationRad], 순서는 core.movingBodies(=INIT_DONE.movingObstacleIds)와 동일.
+// 칩 버퍼(FRAME)와 분리된 별도 채널 → 칩 인덱스 매핑에 영향 없음.
+function broadcastObstacles() {
+  if (!core || core.movingBodies.length === 0) return;
+  const bodies = core.movingBodies;
+  const buf = new Float32Array(bodies.length * 3);
+  for (let i = 0; i < bodies.length; i++) {
+    const b = bodies[i].body;
+    const t = b.translation();
+    buf[i * 3 + 0] = t.x;
+    buf[i * 3 + 1] = t.y;
+    buf[i * 3 + 2] = b.rotation();
+  }
+  (self.postMessage as any)({ type: 'OBSTACLE_FRAME', payload: buf.buffer }, [buf.buffer]);
+}
+
 // core.events 를 그대로 메인 스레드로 중계
 function flushEvents() {
   if (!core) return;
@@ -200,8 +217,9 @@ self.onmessage = async (e) => {
       }
     }
 
-    self.postMessage({ type: 'INIT_DONE', payload: { activeChipsCount: core.activeChips.length, mapData: core.mapData } });
+    self.postMessage({ type: 'INIT_DONE', payload: { activeChipsCount: core.activeChips.length, mapData: core.mapData, movingObstacleIds: core.movingBodies.map((m) => m.id) } });
     broadcastFrame();
+    broadcastObstacles();
 
   } else if (type === 'SHUFFLE') {
     if (!core || isRunning) return;
@@ -225,6 +243,7 @@ self.onmessage = async (e) => {
     core.step(baseTimeScale * effectTimeScale);
     flushEvents();
     broadcastFrame();
+    broadcastObstacles();
 
     // 워커 루프는 "우승 확정(gameOver)"이 아니라 "마지막 주자까지 완주(allFinished)" 시 종료.
     // 우승자가 나와도 남은 주자들이 결승선을 통과할 때까지 시뮬레이션을 계속 진행한다.

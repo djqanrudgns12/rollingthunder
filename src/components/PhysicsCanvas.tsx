@@ -216,6 +216,9 @@ export default function PhysicsCanvas() {
       applyToFilter(staticCalmFilter);
     };
     const graphicsMap = new Map<string, PIXI.Container>();
+    // 이동/회전 기물 물리 동기화: 워커가 보낸 순서(movingObstacleIds)대로 OBSTACLE_FRAME 을 노드에 반영.
+    let movingObstacleIds: string[] = [];
+    const movingObstacleMinimaps = new Map<string, PIXI.Graphics>();
     const minimapDotsMap = new Map<string, PIXI.Graphics>();
     let minimapDynamic: PIXI.Container;
     let minimapStatic: PIXI.Container;
@@ -1093,6 +1096,7 @@ export default function PhysicsCanvas() {
         if (type === 'INIT_DONE') {
           setIsWorkerReady(true);
           activeChipsCount = payload.activeChipsCount;
+          movingObstacleIds = payload.movingObstacleIds || [];
           // 첫 완주자가 우승 슬롯인지 알려 결승 직전 슬로우 연출 게이팅을 무장
           cameraDirector?.setDrama(isWinnerRank(1));
 
@@ -1126,12 +1130,13 @@ export default function PhysicsCanvas() {
             pipViewport.addChildAt(minimapStatic, 1);
 
             // 차분 모드 ON → 'lite'로 장애물 글로우/트레일 중앙 제거(레이스 시작 시 반영)
-            const obsCtx = createAppRenderContext(app, { animated: true, quality: useGameStore.getState().calmMode ? 'lite' : 'full' });
+            // physicsDriven: 이동/회전 기물의 위치·회전을 로컬 타이머가 아닌 실제 물리(OBSTACLE_FRAME)로 구동
+            const obsCtx = createAppRenderContext(app, { animated: true, quality: useGameStore.getState().calmMode ? 'lite' : 'full', physicsDriven: true });
             const createEditorItemGraphic = (item: any) => {
               const r = createObstacleGraphic(item, obsCtx);
               itemDisposers.push(r.dispose);
               minimapStatic.addChild(r.minimap);
-              if (item.id) { r.node.label = item.id; graphicsMap.set(item.id, r.node); }
+              if (item.id) { r.node.label = item.id; graphicsMap.set(item.id, r.node); movingObstacleMinimaps.set(item.id, r.minimap); }
               staticContainer.addChild(r.node);
             };
 
@@ -1146,6 +1151,20 @@ export default function PhysicsCanvas() {
           // NOTE: 자동 시작 제거. 칩은 출발선(y=50)에 정지 상태로 렌더링되며,
           // 사용자가 "게임 시작" 버튼(handleStart)을 눌러야 워커에 START가 전송된다.
           // 그 전까지는 "자리 섞기"(SHUFFLE)로 위치를 재배치할 수 있다.
+        } else if (type === 'OBSTACLE_FRAME') {
+          // 이동/회전 기물의 실제 물리 트랜스폼을 노드에 반영 → "보이는 형태 = 실제 충돌 위치".
+          // payload: 기물당 [x, y, rotationRad], 순서는 movingObstacleIds 와 동일.
+          const buf = new Float32Array(payload);
+          for (let i = 0; i < movingObstacleIds.length; i++) {
+            const id = movingObstacleIds[i];
+            const x = buf[i * 3];
+            const y = buf[i * 3 + 1];
+            const rot = buf[i * 3 + 2];
+            const node = graphicsMap.get(id);
+            if (node) { node.position.set(x, y); node.rotation = rot; }
+            const mm = movingObstacleMinimaps.get(id);
+            if (mm) { mm.position.set(x, y); mm.rotation = rot; }
+          }
         } else if (type === 'FRAME') {
           const buffer = new Float32Array(payload);
           
