@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createSession } from '@/actions/db'
 import MapLoadModal, { DEFAULT_MAPS } from './MapLoadModal'
 import ListManagerModal from './ListManagerModal'
-import { Tv, Shield, ShieldOff, Video, Map, Circle, Car, Rocket, Zap, Cat, Target, Volume2, VolumeX, Settings, Ghost, Bot, Flame, Star, Smile, Cloud, Anchor, Wind } from 'lucide-react'
+import { Video, Map, Circle, Car, Rocket, Zap, Cat, Target, Volume2, VolumeX, Settings, Ghost, Bot, Flame, Star, Smile, Cloud, Anchor, Wind } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEditorStore } from '@/store/editorStore'
 import { useInventoryStore } from '@/store/inventoryStore'
@@ -230,7 +230,7 @@ export default function Dashboard() {
         if (session) sid = session.id
         setSessionId(sid)
       } catch {
-        console.log("Guest mode. Skipping DB session creation.")
+
       }
     } catch (e) {
       console.error(e)
@@ -268,7 +268,7 @@ export default function Dashboard() {
         <div className="relative text-center flex flex-col items-center shrink-0 mb-6 animate-in fade-in slide-in-from-top-4 w-full">
           <div className="flex items-center justify-center gap-3 md:gap-4">
             <img 
-              src="/custom-icon.png" 
+              src="/icon.png" 
               alt="Rolling Thunder Icon" 
               className="h-12 md:h-16 w-auto object-contain drop-shadow-[0_0_15px_rgba(0,255,255,0.5)] transition-transform duration-300 hover:rotate-6 hover:scale-110"
             />

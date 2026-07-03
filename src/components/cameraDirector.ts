@@ -161,29 +161,32 @@ export class CameraDirector {
   private readonly VERT_SMOOTH_TIME = 0.18;    // 수직 SmoothDamp 팽팽함(작을수록 타이트)
   private readonly HANDOFF_SMOOTH_TIME = 0.28; // 핸드오프(다음 선두 복귀) 수직 완만도
 
+  // 스크린 셰이크 전역 스케일: ON일 때도 카메라 흔들림을 최소화(거의 없는 수준). OFF는 완전 0.
+  private readonly SHAKE_SCALE = 0.10;
+
   // 시네마틱 비트 튜닝
   private readonly PHOTO_FINISH_PX = 130;    // 1·2위 Y간격 이 이내면 접전(포토피니시)
   private readonly SLOWMO_SCALE = 0.12;       // 극도의 슬로우 모션 배율(결승 순간)
   private readonly LASTSTAND_SCALE = 0.55;   // 마지막 주자 추적 슬로모션(완만)
-  private readonly RELEASE_SCALE = 1.12;     // 통과 순간 스냅 가속 펀치(완화: 1.18→1.12)
   private readonly ETA_ARM = 2.0;            // 결승 예상도달(초) 이하면 APPROACH 진입
   private readonly ETA_RELEASE = 2.6;        // ETA 이 이상이면 APPROACH 해제(히스테리시스)
   private readonly FINISH_ZOOM = 4.0;        // 결승 극대 줌(평상 상한 3.5보다 더 확대)
+  private readonly FINISH_ZOOM_K = 5.0;      // 결승 접근/통과 시 줌 수렴 가속(극대 줌 실제 도달)
+  private readonly FINISH_LOCK_PX = 260;     // 이 거리 이내면 결승 임박 → 슬로우 유지(스톨 가드 예외)
   private readonly MAX_ANTICIPATION_S = 1.6; // 슬로우 최대 지속(스톨 가드)
-  private readonly CLIMAX_S = 0.4;           // CROSS(통과 순간 완주자 추적) 유지 시간
+  private readonly CLIMAX_S = 0.7;           // CROSS(통과 순간 극대 줌+슬로우 유지) 시간(0.4→0.7)
   private readonly LINGER_S = 1.5;           // 결승선 여운(머무름) 시간
-  private readonly HANDOFF_S = 0.6;          // 다음 주자 복귀 시간
+  private readonly HANDOFF_S = 1.0;          // 다음 주자 복귀 시간(0.6→1.0, 부드러운 활공)
   private readonly ESTABLISH_S = 1.0;        // 오프닝 푸시인 시간
   private readonly OVERTAKE_CD_S = 1.5;      // 선두 교체 하이라이트 쿨다운
   private readonly TIMESCALE_K = 9.0;        // 시간배율 이즈 강도
-  private readonly HANDOFF_PAN_K = 9.0;      // 휘프팬 위치 댐핑(빠른 스냅, 완화: 11→9)
-  private readonly HANDOFF_ZOOM_K = 6.0;     // 휘프팬 줌 댐핑(완화: 7→6)
+  private readonly HANDOFF_PAN_K = 5.0;      // 핸드오프 위치 댐핑(휘프팬→활공, 9→5)
+  private readonly HANDOFF_ZOOM_K = 3.5;     // 핸드오프 줌 댐핑(완만한 줌아웃, 6→3.5)
 
   // ── 차분 모드(calmMode) 저모션 세트(Tier 2). OFF면 위 Tier1 기본값 사용 ──
   private calm = false;                       // update() 시작 시 매 프레임 캐시
   private readonly CALM_SLOWMO_SCALE = 0.7;   // 슬로모션 급락 완화(전정계 자극 저감)
   private readonly CALM_LASTSTAND_SCALE = 0.8;
-  private readonly CALM_RELEASE_SCALE = 1.0;  // 통과 순간 스냅 펀치 제거
   private readonly CALM_MAX_ZOOM = 1.4;       // 얕은 줌 상한
   private readonly CALM_BATTLE_ZOOM = 1.35;
   private readonly CALM_ESTABLISH_S = 0.4;    // 오프닝 스윕 완화
@@ -199,9 +202,10 @@ export class CameraDirector {
   private get battleZoom() { return this.calm ? this.CALM_BATTLE_ZOOM : this.BATTLE_ZOOM; }
   private get slowmoScale() { return this.calm ? this.CALM_SLOWMO_SCALE : this.SLOWMO_SCALE; }
   private get lastStandScale() { return this.calm ? this.CALM_LASTSTAND_SCALE : this.LASTSTAND_SCALE; }
-  private get releaseScale() { return this.calm ? this.CALM_RELEASE_SCALE : this.RELEASE_SCALE; }
   private get handoffPanK() { return this.calm ? this.PAN_K : this.HANDOFF_PAN_K; } // 차분: 급스냅 휘프팬 제거
   private get handoffZoomK() { return this.calm ? this.ZOOM_K : this.HANDOFF_ZOOM_K; }
+  // 결승 접근/통과 시 줌 수렴 가속(차분 모드는 완만한 기본 ZOOM_K 유지)
+  private get finishZoomK() { return this.calm ? this.ZOOM_K : this.FINISH_ZOOM_K; }
 
   constructor(vp: Viewport, opts: CameraDirectorOpts) {
     this.vp = vp;
@@ -370,11 +374,12 @@ export class CameraDirector {
     this.zoomPunch = Math.max(this.zoomPunch, 0.14);
   }
 
-  // 스크린 셰이크 효과
+  // 스크린 셰이크 효과. ON일 때도 SHAKE_SCALE로 대폭 축소(관전 어지러움 방지 → 거의 없는 수준).
+  // OFF/차분 모드는 조기 return → 완전 0.
   addShake(intensity: number) {
     const s = useGameStore.getState();
     if (!s.isScreenShakeEnabled || s.calmMode) return; // 차분 모드에서도 셰이크 억제
-    this.shakeIntensity = Math.max(this.shakeIntensity, intensity);
+    this.shakeIntensity = Math.max(this.shakeIntensity, intensity * this.SHAKE_SCALE);
   }
 
   // PhysicsCanvas가 게임 로직(모드/목표 등수)으로 계산해 알려주는 드라마 컨텍스트.
@@ -544,8 +549,10 @@ export class CameraDirector {
           }
         } else {
           this.anticipationT += dt;
+          // 결승 임박(매우 가까움) 시엔 해제하지 않음 → 슬로우/줌이 통과 순간까지 지속되어 피크에 도달.
+          const veryClose = distToFinish > 0 && distToFinish <= this.FINISH_LOCK_PX;
           // 해제: ETA가 릴리즈 임계 초과(선두 후퇴) 또는 스톨 가드 초과 → 정상 속도 복귀
-          if (eta > this.ETA_RELEASE || this.anticipationT > this.MAX_ANTICIPATION_S) {
+          if (!veryClose && (eta > this.ETA_RELEASE || this.anticipationT > this.MAX_ANTICIPATION_S)) {
             this.anticipating = false;
             this.anticipationCooldownT = this.anticipationT > this.MAX_ANTICIPATION_S ? 1.2 : 0.4;
           }
@@ -621,7 +628,7 @@ export class CameraDirector {
       } else if (this.finisherPhase === 'linger') {
         // LINGER(여운): 결승선 통과 지점에 머무르며 극대 줌에서 서서히 줌아웃
         const lingerT = smoothstep(clamp01(this.finisherPhaseT / this.LINGER_S));
-        targetZoom = lerp(this.finishZoom, this.finishZoom * 0.72, lingerT);
+        targetZoom = lerp(this.finishZoom, this.finishZoom * 0.82, lingerT); // 완주자에 더 머무름(0.72→0.82)
         const visH = this.screenH / Math.max(targetZoom, 0.001);
         targetX = this.finishFocusX;                                  // 통과 지점 X 고정
         targetY = this.finishLineY - visH * this.LEADER_SCREEN_BIAS;  // 결승선을 하단 1/3에
@@ -662,6 +669,10 @@ export class CameraDirector {
     // 수직 캐치업은 SmoothDamp 스프링이 거리 비례로 자연 가속하므로 이진 부스트 불필요(제거).
     let currentPanK = this.PAN_K;
     let currentZoomK = this.establishingT > 0 ? this.ZOOM_K * 0.6 : this.ZOOM_K; // 오프닝은 완만한 푸시인
+    // 결승 접근/통과 중엔 줌을 빠르게 수렴시켜 극대 줌에 실제로 도달(느린 ZOOM_K로는 창이 짧아 못 미침)
+    if (this.anticipating || this.finisherPhase === 'climax') {
+      currentZoomK = this.finishZoomK;
+    }
     if (this.finisherPhase === 'handoff') {
       // 다음 주자로 빠르게 스냅(휘프팬)
       currentPanK = this.handoffPanK;
@@ -742,7 +753,7 @@ export class CameraDirector {
     this.vp.scale.set(appliedZoom);
   }
 
-  // ── 결승 연출 시퀀스(프레임 구동): 큐 소비 → CROSS(완주자 추적+스냅가속) → LINGER(여운) → HANDOFF(복귀) → idle ──
+  // ── 결승 연출 시퀀스(프레임 구동): 큐 소비 → CROSS(완주자 추적+극슬로우 유지) → LINGER(여운·정상속도 복귀) → HANDOFF(활공) → idle ──
   private driveFinisherSequence(dt: number) {
     if (this.finisherPhase === 'idle') {
       if (this.finisherQueue.length > 0) {
@@ -758,11 +769,9 @@ export class CameraDirector {
         // 사용자 줌 강제 해제 (결정적 연출 우선)
         this.resetUserZoom();
         this.freeManual = false;
-        // 통과 순간 = 갑자기 빨라짐: 시간배율을 즉시 1.0 위로 펀치 후 1.0로 정착
-        this.timeScaleCurrent = this.releaseScale;
-        this.timeScaleSent = this.releaseScale;
-        this.setTimeScale(this.releaseScale);
-        this.timeScaleTarget = 1.0;
+        // 통과 순간 = 극도의 슬로우 유지(가속 아님). 접근 슬로우에서 이어받아 급변 없이 피크 유지.
+        this.timeScaleTarget = this.slowmoScale;
+        this.timeScaleCurrent = Math.min(this.timeScaleCurrent, this.slowmoScale);
         this.zoomPunch = Math.max(this.zoomPunch, this.calm ? 0 : 0.14);
         this.addShake(14);
       }
@@ -771,11 +780,12 @@ export class CameraDirector {
 
     this.finisherPhaseT += dt;
     if (this.finisherPhase === 'climax') {
-      // CROSS(통과 순간 완주자 추적) → LINGER(결승선 여운)
+      // CROSS(통과 순간 극슬로우 유지) → LINGER(결승선 여운)
       if (this.finisherPhaseT >= this.CLIMAX_S) {
         this.finisherPhase = 'linger';
         this.finisherPhaseT = 0;
-        this.focusChipId = null; // 락온 해제: LINGER는 결승선(고정 X)에 머무름
+        this.focusChipId = null;        // 락온 해제: LINGER는 결승선(고정 X)에 머무름
+        this.timeScaleTarget = 1.0;     // 여운 동안 정상 속도로 부드럽게 복귀
       }
     } else if (this.finisherPhase === 'linger') {
       // LINGER(여운) → HANDOFF(다음 선두 복귀)

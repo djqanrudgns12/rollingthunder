@@ -1,22 +1,22 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { createPortal } from 'react-dom'
+
 import * as PIXI from 'pixi.js'
 import { Viewport } from 'pixi-viewport'
-import { RankingTracker, ParticipantRank } from '@/engine/RankingTracker'
+import { ParticipantRank } from '@/engine/RankingTracker'
 import { soundManager } from '@/engine/AudioEngine'
 import { useGameStore } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
-import type { EditorItem } from '@/store/editorStore'
+
 import LiveLeaderboard from './LiveLeaderboard'
 import { generateSkillMessage } from './SkillLogOverlay'
-import { Hand, Maximize, Video, Map as MapIcon, Dices, Rocket, Music4, Pause, FastForward, ChevronUp, Play, VolumeX } from 'lucide-react'
+import { Map as MapIcon, Dices, Rocket, Music4, Pause, FastForward, ChevronUp, Play, VolumeX } from 'lucide-react'
 import gsap from 'gsap'
-import { GlowFilter, MotionBlurFilter, ShockwaveFilter, ColorOverlayFilter } from 'pixi-filters'
+import { GlowFilter, ShockwaveFilter, ColorOverlayFilter } from 'pixi-filters'
 import { getPresetMeta, MapPresets } from '@/engine/MapPresets'
 import { CameraDirector } from './cameraDirector'
-import { useEditorStore } from '@/store/editorStore'
+
 import { createAppRenderContext } from '@/lib/render/RenderContext'
 import { createObstacleGraphic, iceStage, iceCrackTexName } from '@/lib/render/ObstacleRenderer'
 import { createBackground, createStartEndLines } from '@/lib/render/StageChrome'
@@ -168,7 +168,8 @@ export default function PhysicsCanvas() {
   const handleNudge = useCallback(() => {
     if (workerRef.current && (gameState === 'playing' || gameState === 'winner_declared')) {
       workerRef.current.postMessage({ type: 'NUDGE', payload: { force: 200 } });
-      if (navigator.vibrate) navigator.vibrate(50);
+      // 흔들림 OFF 시 기기 진동(햅틱)도 함께 끔
+      if (navigator.vibrate && useGameStore.getState().isScreenShakeEnabled) navigator.vibrate(50);
     }
   }, [gameState])
 
@@ -1562,7 +1563,8 @@ export default function PhysicsCanvas() {
             teleport: [30, 40, 30], tank: [80], booster: [20, 20, 20],
             magnet: [50], ghost: [15, 30], slime: [60],
           };
-          if (navigator.vibrate) navigator.vibrate(SKILL_VIBE[payload.skill] ?? 50);
+          // 흔들림 OFF 시 기기 진동(햅틱)도 함께 끔
+          if (navigator.vibrate && useGameStore.getState().isScreenShakeEnabled) navigator.vibrate(SKILL_VIBE[payload.skill] ?? 50);
 
           // VFX 적용
           applySkillVFX(payload.chipId, payload.skill);
