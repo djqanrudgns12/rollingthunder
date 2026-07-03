@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import * as PIXI from 'pixi.js'
 import { Viewport } from 'pixi-viewport'
 import { RankingTracker, ParticipantRank } from '@/engine/RankingTracker'
@@ -1888,19 +1889,20 @@ export default function PhysicsCanvas() {
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-black/40 backdrop-blur-xl border border-white/10 px-4 py-3 rounded-[2rem] shadow-[0_4px_30px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] transition-all duration-700 ease-in-out">
         
         {/* 그룹 1: 게임 설정 (게임 시작 시 숨김 처리) */}
-        <div className={`flex items-center gap-3 overflow-hidden transition-all duration-700 ease-in-out origin-left ${gameState !== 'idle' ? 'max-w-[0px] opacity-0 m-0 p-0 !gap-0' : 'max-w-[600px] opacity-100'}`}>
+        <div className={`flex items-center gap-3 transition-all duration-700 ease-in-out origin-left ${gameState !== 'idle' ? 'max-w-[0px] opacity-0 m-0 p-0 !gap-0 overflow-hidden' : 'max-w-[600px] opacity-100 overflow-visible'}`}>
           
           {/* 맵 교체 버튼 및 드롭업 */}
           <div className="relative">
             {/* Click-away backdrop */}
-            {isMapMenuOpen && (
+            {isMapMenuOpen && typeof window !== 'undefined' && createPortal(
               <div 
                 className="fixed inset-0 z-[90] cursor-default" 
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsMapMenuOpen(false);
                 }}
-              ></div>
+              ></div>,
+              document.body
             )}
 
             <button 
