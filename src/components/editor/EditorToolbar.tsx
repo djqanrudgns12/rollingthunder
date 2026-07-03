@@ -64,10 +64,13 @@ export default function EditorToolbar() {
 
     let finalMapName = activeTab.title.trim()
     if (finalMapName === '새 맵') finalMapName = '커스텀 맵'
-    
-    // 공식맵이 아닌 경우에만 [커스텀] 말머리 부착 (서버와 동일한 판별 로직)
-    const isOfficial = existingMap?.isOfficial ?? (MapPresets[targetMapId] ? true : false)
-    if (!isOfficial && !finalMapName.startsWith('[커스텀]')) {
+
+    // 서버(SaveMapUseCase)와 동일 판별: 기본 프리셋 id 는 항상 공식맵.
+    const isOfficial = MapPresets[targetMapId] ? true : (existingMap?.isOfficial ?? false)
+    if (MapPresets[targetMapId]) {
+      // 기본 프리셋: [커스텀] 말머리 금지 (오염 자동 제거)
+      finalMapName = finalMapName.replace(/^\[커스텀\]\s*/, '')
+    } else if (!finalMapName.startsWith('[커스텀]')) {
       finalMapName = `[커스텀] ${finalMapName}`
     }
 
@@ -100,7 +103,7 @@ export default function EditorToolbar() {
             wallStyle,
             bgImage: bgImage || existingMap?.bgImage,
             items,
-            isOfficial: existingMap?.isOfficial ?? false
+            isOfficial   // 위에서 계산한 값 사용 (프리셋이면 true 유지 → 캐시 오염 방지)
           }
         })
         

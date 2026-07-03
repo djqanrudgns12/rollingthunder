@@ -7,6 +7,7 @@ import { useGameStore } from '@/store/gameStore'
 import { toast } from 'sonner'
 import { X, Search, Map } from 'lucide-react'
 import { getPresetMeta } from '@/engine/MapPresets'
+import { getMapsAction } from '@/presentation/actions/mapActions'
 import MapPreviewCanvas from './MapPreviewCanvas'
 
 interface MapLoadModalProps {
@@ -37,6 +38,18 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
 
   const { setCustomMapData, setCustomMapMeta, setCustomMapTitle } = useUIStore()
   const { setSelectedMapPreset } = useGameStore()
+  // 미리보기가 최신 서버 배포 상태를 반영하도록 캐시를 반응형으로 구독한다.
+  const mapDataCache = useGameStore(state => state.mapDataCache)
+
+  // 모달이 열릴 때마다 서버에서 최신 맵을 다시 불러와 캐시를 갱신한다(미리보기 stale 방지).
+  useEffect(() => {
+    if (!isOpen) return
+    let cancelled = false
+    getMapsAction()
+      .then(fresh => { if (!cancelled) useGameStore.getState().setMapDataCache(fresh) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [isOpen])
 
   // 커스텀 맵 코드 입력 시 미리보기 데이터를 가져옵니다.
   useEffect(() => {
@@ -141,7 +154,7 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
   let previewMeta: any = null
   if (activeTab === 'default') {
     if (hoveredMapId && hoveredMapId !== 'random') {
-      const p = useGameStore.getState().mapDataCache?.[hoveredMapId] || getPresetMeta(hoveredMapId)
+      const p = mapDataCache?.[hoveredMapId] || getPresetMeta(hoveredMapId)
       if (p) {
         previewMeta = {
            title: p.name,

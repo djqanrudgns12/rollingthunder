@@ -33,24 +33,20 @@ export class SaveMapUseCase {
     // 기존 맵 정보 조회 (isOfficial 상태 유지를 위해)
     const existingMaps = await MapRepository.findAll();
     const existingMap = existingMaps.find(m => m.id === mapData.id);
-    const presetMap = MapPresets[mapData.id as string];
-    
-    let isOfficial = false;
-    let finalName = mapData.name;
+    // 불변식: 엔진 기본 프리셋 id 는 항상 공식(기본) 맵이다. 커스텀 맵은 UUID id 라 프리셋에 없다.
+    const isPreset = !!MapPresets[mapData.id as string];
 
-    if (existingMap || presetMap) {
-      // 기존에 DB에 공식맵이거나 원본 프리셋이면 유지
-      isOfficial = existingMap?.isOfficial ?? presetMap?.isOfficial ?? (presetMap ? true : false);
-      // 공식맵이 아닌 커스텀 맵인데 이름에 [커스텀]이 없으면 붙여줌
-      if (!isOfficial && !finalName.startsWith('[커스텀]')) {
-        finalName = `[커스텀] ${finalName}`;
-      }
-    } else {
-      // 완전히 새 맵이면 무조건 커스텀 맵으로 강제
-      isOfficial = false;
-      if (!finalName.startsWith('[커스텀]')) {
-        finalName = `[커스텀] ${finalName}`;
-      }
+    // 공식맵 판별: 기본 프리셋 id 는 무조건 공식. 그 외는 DB 의 기존 상태를 따른다.
+    const isOfficial = isPreset ? true : (existingMap?.isOfficial ?? false);
+
+    // 이름 정규화:
+    //  - 기본 프리셋: [커스텀] 말머리 금지 (과거에 잘못 붙었어도 자동 제거 → 자가 치유)
+    //  - 커스텀 맵: [커스텀] 말머리 강제 (배포되어 공식이 되어도 이름은 유지)
+    let finalName = mapData.name.trim();
+    if (isPreset) {
+      finalName = finalName.replace(/^\[커스텀\]\s*/, '');
+    } else if (!finalName.startsWith('[커스텀]')) {
+      finalName = `[커스텀] ${finalName}`;
     }
 
     // 빈 가중치 검사 후 기본값 주입
