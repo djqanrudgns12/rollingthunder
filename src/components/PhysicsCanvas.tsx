@@ -1585,7 +1585,7 @@ export default function PhysicsCanvas() {
           // 통과 지점 X를 넘겨 LINGER(여운) 프레이밍을 결승 통과 지점에 고정한다.
           const finisherId: string = payload.survivor?.id ?? payload.chipId;
           cameraDirector?.focusNextFinisher(finisherId, isWinnerRank(finishRank), payload.position?.x);
-          cameraDirector?.addShake(15);
+          cameraDirector?.addShake(5); // 결승 흔들림(어지러움) 완화
           // 다음 완주자가 우승 슬롯인지 갱신 → 결승 직전 슬로우 연출 재무장 여부 결정
           cameraDirector?.setDrama(isWinnerRank(finishRank + 1));
           

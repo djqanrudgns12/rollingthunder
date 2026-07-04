@@ -141,7 +141,7 @@ export class CameraDirector {
   private readonly PAN_K = 15.0;         // 위치 댐핑 강도 (초정밀 추적)
   private readonly ZOOM_K = 2.0;         // 줌 댐핑 강도 (부드럽게 줌인)
   private readonly CENTROID_K = 15.0;    // 중심 X 저상통과 (정밀 추적)
-  private readonly LEADER_K = 18.0;      // 선두 Y 저상통과 (빠른 반응)
+  private readonly LEADER_K = 22.0;      // 선두 Y 저상통과 (빠른 반응, 하단 1/3 고정 강화)
   private readonly LEAD_BATTLE_AT = 0.86; // 진행도 이 이상이면 결착 줌인 시작
   private readonly MAX_ZOOM = 3.5;       // 극대 확대(평상 상한)
   private readonly BATTLE_ZOOM = 2.0;    // 결착 구간 줌
@@ -158,7 +158,7 @@ export class CameraDirector {
   // 정밀 추적 튜닝
   private readonly LEADER_SCREEN_BIAS = 0.167; // 1등 화면 세로 위치(0.5+bias=하단 1/3, ~67%)
   private readonly LOOKAHEAD_S = 0.15;         // 실제 vy 예측 룩어헤드(추적 지연 상쇄)
-  private readonly VERT_SMOOTH_TIME = 0.18;    // 수직 SmoothDamp 팽팽함(작을수록 타이트)
+  private readonly VERT_SMOOTH_TIME = 0.14;    // 수직 SmoothDamp 팽팽함(작을수록 타이트, 하단 1/3 고정 강화)
   private readonly HANDOFF_SMOOTH_TIME = 0.28; // 핸드오프(다음 선두 복귀) 수직 완만도
 
   // 스크린 셰이크 전역 스케일: ON일 때도 카메라 흔들림을 최소화(거의 없는 수준). OFF는 완전 0.
@@ -166,11 +166,11 @@ export class CameraDirector {
 
   // 시네마틱 비트 튜닝
   private readonly PHOTO_FINISH_PX = 130;    // 1·2위 Y간격 이 이내면 접전(포토피니시)
-  private readonly SLOWMO_SCALE = 0.12;       // 극도의 슬로우 모션 배율(결승 순간)
+  private readonly SLOWMO_SCALE = 0.16;       // 극도의 슬로우 모션 배율(결승 순간, 살짝 빠르게)
   private readonly LASTSTAND_SCALE = 0.55;   // 마지막 주자 추적 슬로모션(완만)
-  private readonly ETA_ARM = 2.0;            // 결승 예상도달(초) 이하면 APPROACH 진입
-  private readonly ETA_RELEASE = 2.6;        // ETA 이 이상이면 APPROACH 해제(히스테리시스)
-  private readonly FINISH_ZOOM = 4.0;        // 결승 극대 줌(평상 상한 3.5보다 더 확대)
+  private readonly ETA_ARM = 1.4;            // 결승 예상도달(초) 이하면 APPROACH 진입(더 늦게 진입)
+  private readonly ETA_RELEASE = 1.9;        // ETA 이 이상이면 APPROACH 해제(히스테리시스)
+  private readonly FINISH_ZOOM = 3.2;        // 결승 극대 줌(과한 확대 완화)
   private readonly FINISH_ZOOM_K = 5.0;      // 결승 접근/통과 시 줌 수렴 가속(극대 줌 실제 도달)
   private readonly FINISH_LOCK_PX = 260;     // 이 거리 이내면 결승 임박 → 슬로우 유지(스톨 가드 예외)
   private readonly MAX_ANTICIPATION_S = 1.6; // 슬로우 최대 지속(스톨 가드)
@@ -393,7 +393,7 @@ export class CameraDirector {
   // 가벼운 줌 펀치만 주어 템포를 유지한다("핵심 순간만" 정책).
   focusNextFinisher(chipId: string, dramatic: boolean, crossX?: number) {
     this.flashFinisher();
-    if (dramatic || this.lastStandActive) {
+    if (dramatic) {
       this.finisherQueue.push({ chipId, crossX });
     }
   }
@@ -490,8 +490,10 @@ export class CameraDirector {
     // Y축 속도: 워커가 준 실제 vy를 가볍게 스무딩(유한차분 지연 제거 → 예측 정확도↑)
     this.leaderVy = damp(this.leaderVy, leaderVyRaw, 12.0, dt);
 
-    // 실제 속도 피드포워드로 카메라가 고속 낙하 선두를 놓치지 않도록 리드(Lead)
-    const predictedY = leaderY + this.leaderVy * this.LOOKAHEAD_S;
+    // 실제 속도 피드포워드로 카메라가 고속 낙하 선두를 놓치지 않도록 리드(Lead).
+    // 슬로우모션 중에는 vy가 실시간 속도라 마블 실제 이동량보다 과하게 앞서 예측→끊김.
+    // timeScaleCurrent를 곱해 슬로우 중 룩어헤드를 줄여 오버슈트/뚝뚝 끊김을 제거.
+    const predictedY = leaderY + this.leaderVy * this.LOOKAHEAD_S * this.timeScaleCurrent;
 
     // 저상통과 → 떨림 제거
     this.smCentroidX = damp(this.smCentroidX, centroidX, this.CENTROID_K, dt);
@@ -538,7 +540,8 @@ export class CameraDirector {
       const etaSpeed = Math.max(this.leaderVy, 200); // 멈춰있을 때 무한대 방지
       const eta = distToFinish > 0 ? distToFinish / etaSpeed : Infinity;
       const photoFinish = secondY > -Infinity && (leaderY - secondY) <= this.PHOTO_FINISH_PX;
-      const dramaWorthy = this.nextFinishIsWinner || photoFinish || this.lastStandActive;
+      // 극도의 슬로우/줌은 모드별 실제 당첨자(nextFinishIsWinner)에게만 한정 — 접전/최후2인 확장 제거.
+      const dramaWorthy = this.nextFinishIsWinner;
       if (this.finisherPhase === 'idle' && playing && !this.freeManual) {
         if (!this.anticipating) {
           if (eta <= this.ETA_ARM && distToFinish > 0 && dramaWorthy
@@ -772,8 +775,8 @@ export class CameraDirector {
         // 통과 순간 = 극도의 슬로우 유지(가속 아님). 접근 슬로우에서 이어받아 급변 없이 피크 유지.
         this.timeScaleTarget = this.slowmoScale;
         this.timeScaleCurrent = Math.min(this.timeScaleCurrent, this.slowmoScale);
-        this.zoomPunch = Math.max(this.zoomPunch, this.calm ? 0 : 0.14);
-        this.addShake(14);
+        this.zoomPunch = Math.max(this.zoomPunch, this.calm ? 0 : 0.08);
+        this.addShake(5);
       }
       return;
     }
