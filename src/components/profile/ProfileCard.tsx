@@ -10,6 +10,7 @@ import { LogOut, UserX, LogIn, UserPlus } from 'lucide-react';
 import { logout, deleteAccount } from '@/app/actions';
 import { useUIStore } from '@/store/uiStore';
 import { useInventoryStore } from '@/store/inventoryStore';
+import { stampService } from '@/lib/stampService';
 
 interface Props {
   profile: UserProfile;
@@ -24,6 +25,12 @@ export default function ProfileCard({ profile }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const { setAuthMode, setActiveModal } = useUIStore();
   const { equipped } = useInventoryStore();
+  
+  // 미션 이벤트: 프로필 방문
+  useEffect(() => {
+    stampService.trackEvent('visit_profile', 1);
+    stampService.flushPlayEvents();
+  }, []);
   
   // Tilt Effect State
   const x = useMotionValue(0);

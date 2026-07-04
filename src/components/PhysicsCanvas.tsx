@@ -9,6 +9,9 @@ import { soundManager } from '@/engine/AudioEngine'
 import { useGameStore } from '@/store/gameStore'
 import { useShallow } from 'zustand/react/shallow'
 import { useUIStore } from '@/store/uiStore'
+import { stampService } from '@/lib/stampService'
+import { useChipStore } from '@/store/chipStore'
+import { createClient } from '@/lib/supabase/client'
 
 import LiveLeaderboard from './LiveLeaderboard'
 import { generateSkillMessage } from './SkillLogOverlay'
@@ -1791,6 +1794,26 @@ export default function PhysicsCanvas() {
           // ⚠️ DO NOT MODIFY: 사용자 요청에 의해 영구 고정된 로직입니다.
           // ═══════════════════════════════════════════════════════════════════
           setGameState('all_finished');
+
+          // 미션 이벤트: 게임 끝까지 관전 완료
+          stampService.trackEvent('watch_finish', 1);
+          stampService.flushPlayEvents();
+
+          // 게임 완주 관전 30칩 자동 지급
+          (async () => {
+            try {
+              const supabase = createClient();
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user) {
+                await supabase.rpc('add_chips', {
+                  p_user_id: user.id,
+                  p_amount: 30,
+                  p_reason: 'Game Play Reward'
+                });
+                useChipStore.getState().addChipsLocally(30);
+              }
+            } catch (e) { console.error('Game reward error:', e); }
+          })();
         }
       };
 
@@ -1905,7 +1928,10 @@ export default function PhysicsCanvas() {
 
       <div className="absolute bottom-6 left-6 z-50 flex gap-4">
         <button 
-          onClick={() => setGameStage('dashboard')}
+          onClick={() => {
+            stampService.flushPlayEvents();
+            setGameStage('dashboard');
+          }}
           className={`glass-panel-heavy text-white font-bold px-6 py-4 rounded-2xl transition-all flex items-center justify-center gap-2 group w-48 ${
             (gameState === 'winner_declared' || gameState === 'all_finished')
               ? 'animate-bounce shadow-[0_0_25px_rgba(255,255,255,0.6)] border-2 border-white bg-white/20 hover:bg-white/30'

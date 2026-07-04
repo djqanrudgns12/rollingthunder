@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, useSensor, useSensors, PointerSensor } from '@dnd-kit/core'
 import { toast } from 'sonner'
 import { useEditorStore, EditorItemType } from '@/store/editorStore'
@@ -13,6 +13,7 @@ import HistoryViewer from './HistoryViewer'
 import HistoryTimelinePanel from './HistoryTimelinePanel'
 import { Play, X, Share2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { stampService } from '@/lib/stampService'
 
 export default function EditorContainer() {
   const { items, addItem, tabs, activeTabId, showHistoryPanel, setShowHistoryPanel } = useEditorStore()
@@ -22,6 +23,12 @@ export default function EditorContainer() {
 
   const activeTab = tabs.find(t => t.id === activeTabId)
   const isHistoryTab = activeTab?.type === 'history'
+
+  // 미션 이벤트: 에디터 열기
+  useEffect(() => {
+    stampService.trackEvent('open_editor', 1);
+    stampService.flushPlayEvents();
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {

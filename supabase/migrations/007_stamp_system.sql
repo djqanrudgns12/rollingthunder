@@ -149,8 +149,19 @@ INSERT INTO public.missions (type, title, description, goal_amount, reward_chips
 CREATE OR REPLACE FUNCTION public.assign_random_missions(p_user_id UUID)
 RETURNS void AS $$\
 BEGIN
-    -- 기존 할당된 오늘/이번주 미션 확인
-    -- 일일 미션
+    -- 오래된 일일 미션 정리 (오늘 이전 것 삭제)
+    DELETE FROM public.user_missions
+    WHERE user_id = p_user_id
+      AND mission_id IN (SELECT id FROM public.missions WHERE type = 'daily')
+      AND assigned_date < CURRENT_DATE;
+
+    -- 오래된 주간 미션 정리 (이번 주 이전 것 삭제)
+    DELETE FROM public.user_missions
+    WHERE user_id = p_user_id
+      AND mission_id IN (SELECT id FROM public.missions WHERE type = 'weekly')
+      AND assigned_date < date_trunc('week', CURRENT_DATE)::DATE;
+
+    -- 일일 미션: 오늘 할당된 것이 없으면 5개 랜덤 할당
     IF NOT EXISTS (
         SELECT 1 FROM public.user_missions um
         JOIN public.missions m ON um.mission_id = m.id
@@ -161,10 +172,10 @@ BEGIN
         FROM public.missions
         WHERE type = 'daily'
         ORDER BY random()
-        LIMIT 3;
+        LIMIT 5;
     END IF;
 
-    -- 주간 미션 (이번주 월요일을 기준으로 체크)
+    -- 주간 미션: 이번 주 할당된 것이 없으면 5개 랜덤 할당
     IF NOT EXISTS (
         SELECT 1 FROM public.user_missions um
         JOIN public.missions m ON um.mission_id = m.id
@@ -175,7 +186,7 @@ BEGIN
         FROM public.missions
         WHERE type = 'weekly'
         ORDER BY random()
-        LIMIT 3;
+        LIMIT 5;
     END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

@@ -11,6 +11,7 @@ import { toast } from 'sonner'
 import { useEditorStore } from '@/store/editorStore'
 import { useInventoryStore } from '@/store/inventoryStore'
 import { MOCK_ITEMS } from '@/data/shopData'
+import { stampService } from '@/lib/stampService'
 
 // Skin Preview Helper Component
 function SkinPreviewIcon({ skinId }: { skinId: string }) {
@@ -167,6 +168,10 @@ export default function Dashboard() {
       newParticipants.push({ id: newId, name: finalName, color: `hsl(${Math.random() * 360}, 80%, 50%)`, skinId: finalSkinId })
     })
     setParticipants(newParticipants)
+    // 미션: 참가자 5명 이상 등록 시 추적
+    if (newParticipants.length >= 5) {
+      stampService.trackEvent('add_5_participants', 1);
+    }
     if (customInput === undefined || customInput === nameInput) {
       setNameInput('')
     }
@@ -216,6 +221,12 @@ export default function Dashboard() {
     // It's handled per-component to prevent green-screen bleeding to Dashboard.
 
     try {
+      // 미션 이벤트 추적: 게임 시작
+      stampService.trackEvent('play_game', 1);
+      if (participants.length >= 10) stampService.trackEvent('play_10plus', 1);
+      if (participants.length >= 100) stampService.trackEvent('play_100plus', 1);
+      stampService.flushPlayEvents();
+
       // Optimistic UI - Start game instantly, save session in background
       clearSkillLogs()
       setSurvivors(participants)

@@ -46,6 +46,9 @@ export default function StampBookModal() {
           await stampService.assignMissions(user.id);
           await loadMissions(user.id, activeTab);
           await updateTabBadges(user.id);
+          // 미션 이벤트: 스탬프북 열기
+          stampService.trackEvent('open_stampbook', 1);
+          stampService.flushPlayEvents();
         } catch (err: any) {
           setErrorMsg('DB 연결 오류가 발생했습니다. 마이그레이션이 적용되었는지 확인해 주세요.');
           console.error(err);
@@ -112,6 +115,10 @@ export default function StampBookModal() {
       if (res && typeof res.chips === 'number' && res.chips > 0) {
         addChipsLocally(res.chips);
       }
+      
+      // 미션 이벤트: 보상 수령
+      stampService.trackEvent('claim_reward', 1);
+      stampService.flushPlayEvents();
       
       // UI 업데이트
       setMissions(prev => prev.map(m => m.id === mission.id ? { ...m, is_collected: true } : m));

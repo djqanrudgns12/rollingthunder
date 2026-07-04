@@ -67,95 +67,94 @@ CREATE POLICY "Users can update own achievements" ON public.user_achievements FO
 `;
 
 const dailyMissions = [
-  { t: "출석 체크", d: "게임 로그인하기", g: 1, c: 30, cond: "login" },
-  { t: "워밍업", d: "싱글 플레이 1회 완료하기", g: 1, c: 50, cond: "play_single" },
-  { t: "경쟁의 시작", d: "멀티 플레이 1회 참여하기", g: 1, c: 50, cond: "play_multi" },
-  { t: "아이쇼핑", d: "상점 1회 방문하기", g: 1, c: 10, cond: "visit_shop" },
-  { t: "창작의 고통", d: "맵 에디터 1회 열기", g: 1, c: 20, cond: "open_editor" },
-  { t: "탐험가", d: "다른 유저의 맵 1회 플레이하기", g: 1, c: 50, cond: "play_custom" },
-  { t: "거울 보기", d: "내 프로필 1회 확인하기", g: 1, c: 10, cond: "view_profile" },
-  { t: "단골 손님", d: "VVIP 라운지 1회 확인하기", g: 1, c: 10, cond: "visit_vvip" },
-  { t: "가속 페달", d: "부스트 5회 사용하기", g: 5, c: 40, cond: "boost" },
-  { t: "점핑 잭", d: "점프 10회 하기", g: 10, c: 30, cond: "jump" },
-  { t: "아얏!", d: "벽에 5회 부딪히기", g: 5, c: 30, cond: "hit_wall" },
-  { t: "러닝맨", d: "총 이동 거리 1,000 채우기", g: 1000, c: 50, cond: "distance" },
-  { t: "안전 제일", d: "체크포인트 3회 통과하기", g: 3, c: 40, cond: "checkpoint" },
-  { t: "타임어택", d: "플레이 타임 10분 달성하기", g: 600, c: 50, cond: "play_time" },
-  { t: "인싸력", d: "멀티 플레이에서 이모티콘 1회 사용", g: 1, c: 20, cond: "emote" },
-  { t: "인맥 관리", d: "친구 목록 1회 확인하기", g: 1, c: 10, cond: "view_friends" },
-  { t: "차원 이동", d: "포털 1회 타기", g: 1, c: 30, cond: "portal" },
-  { t: "따끔", d: "함정에 1회 피격당하기", g: 1, c: 20, cond: "trap" },
-  { t: "바람을 타고", d: "송풍기 1회 타기", g: 1, c: 30, cond: "fan" },
-  { t: "끌림", d: "자석 작동 1회", g: 1, c: 30, cond: "magnet" },
-  { t: "오늘의 주인공", d: "멀티 플레이 1승 달성", g: 1, c: 100, cond: "win" },
-  { t: "포디움", d: "멀티 플레이 3위 이내 완주", g: 1, c: 70, cond: "top3" },
-  { t: "자유 낙하", d: "낙사 1회", g: 1, c: 20, cond: "fall" },
-  { t: "칭찬해", d: "좋아요 1회 누르기", g: 1, c: 20, cond: "like" },
-  { t: "수다쟁이", d: "채팅 1회 입력", g: 1, c: 10, cond: "chat" },
-  { t: "설계자", d: "맵 1회 저장", g: 1, c: 30, cond: "save_map" },
-  { t: "풀 액셀", d: "최고 속도 도달", g: 1, c: 40, cond: "max_speed" },
-  { t: "신속 배달", d: "5분 안 완주", g: 1, c: 50, cond: "finish_under_5m" },
-  { t: "연속 출석", d: "연속 로그인 2일", g: 2, c: 50, cond: "consecutive_login" },
-  { t: "단장하기", d: "스킨 변경 1회", g: 1, c: 20, cond: "change_skin" },
+  // 기본 활동 (쉬움, 80~100칩)
+  { t: "출석 체크", d: "게임 로그인하기", g: 1, c: 100, cond: "login" },
+  { t: "아이쇼핑", d: "상점 1회 방문하기", g: 1, c: 80, cond: "visit_shop" },
+  { t: "창작의 고통", d: "맵 에디터 1회 열기", g: 1, c: 100, cond: "open_editor" },
+  { t: "자유 낙하", d: "낙사 1회", g: 1, c: 80, cond: "fall" },
+  { t: "칭찬해", d: "좋아요 1회 누르기", g: 1, c: 80, cond: "like" },
+  { t: "수다쟁이", d: "채팅 1회 입력", g: 1, c: 80, cond: "chat" },
+  { t: "인싸력", d: "이모티콘 1회 사용", g: 1, c: 80, cond: "emote" },
+  { t: "따끔", d: "함정에 1회 피격당하기", g: 1, c: 80, cond: "trap" },
+  { t: "차원 이동", d: "포털 1회 타기", g: 1, c: 100, cond: "portal" },
+  { t: "바람을 타고", d: "송풍기 1회 타기", g: 1, c: 100, cond: "fan" },
+  // 플레이 활동 (보통, 120~200칩)
+  { t: "워밍업", d: "싱글 플레이 1회 완료하기", g: 1, c: 150, cond: "play_single" },
+  { t: "경쟁의 시작", d: "멀티 플레이 1회 참여하기", g: 1, c: 150, cond: "play_multi" },
+  { t: "탐험가", d: "다른 유저의 맵 1회 플레이하기", g: 1, c: 150, cond: "play_custom" },
+  { t: "설계자", d: "맵 1회 저장", g: 1, c: 120, cond: "save_map" },
+  { t: "가속 페달", d: "부스트 3회 사용하기", g: 3, c: 150, cond: "boost" },
+  { t: "점핑 잭", d: "점프 5회 하기", g: 5, c: 120, cond: "jump" },
+  { t: "아얏!", d: "벽에 3회 부딪히기", g: 3, c: 100, cond: "hit_wall" },
+  { t: "안전 제일", d: "체크포인트 2회 통과하기", g: 2, c: 120, cond: "checkpoint" },
+  { t: "스피드 러너", d: "맵 완주 3회", g: 3, c: 200, cond: "finish_map" },
+  // 도전 활동 (어려움, 200칩 이상)
+  { t: "러닝맨", d: "총 이동 거리 500 채우기", g: 500, c: 200, cond: "distance" },
+  { t: "타임어택", d: "플레이 타임 5분 달성하기", g: 300, c: 200, cond: "play_time" },
+  { t: "포디움", d: "멀티 플레이 3위 이내 완주", g: 1, c: 200, cond: "top3" },
+  { t: "오늘의 주인공", d: "멀티 플레이 1승 달성", g: 1, c: 300, cond: "win" },
+  { t: "해트트릭", d: "멀티 플레이 3승 달성", g: 3, c: 500, cond: "win" },
+  { t: "범퍼카", d: "벽에 10회 부딪히기", g: 10, c: 200, cond: "hit_wall" },
 ];
 
 const weeklyMissions = [
-  { t: "성실한 일꾼", d: "일일 미션 15회 완료", g: 15, c: 500, cond: "daily_clear" },
-  { t: "배틀 마스터", d: "멀티 플레이 30회 참여", g: 30, c: 400, cond: "play_multi" },
-  { t: "승부사", d: "멀티 5승 달성", g: 5, c: 600, cond: "win" },
-  { t: "마라토너", d: "거리 50,000", g: 50000, c: 400, cond: "distance" },
-  { t: "부스트 중독", d: "부스트 100회", g: 100, c: 300, cond: "boost" },
-  { t: "테스터", d: "다른 유저 맵 20회", g: 20, c: 400, cond: "play_custom" },
-  { t: "죽돌이", d: "플레이 타임 5시간", g: 18000, c: 500, cond: "play_time" },
-  { t: "체크포인트 수집", d: "체크포인트 100회", g: 100, c: 350, cond: "checkpoint" },
-  { t: "메달리스트", d: "탑3 10회", g: 10, c: 450, cond: "top3" },
-  { t: "포탈 매니아", d: "포탈 50회", g: 50, c: 300, cond: "portal" },
-  { t: "신입 건축가", d: "맵 퍼블리싱 1회", g: 1, c: 600, cond: "publish_map" },
-  { t: "인기 맵", d: "내 맵 좋아요 5회", g: 5, c: 500, cond: "receive_like" },
-  { t: "플렉스", d: "상점 구매 1회", g: 1, c: 300, cond: "buy_item" },
-  { t: "수익 창출", d: "누적 5,000 칩", g: 5000, c: 400, cond: "earn_chips" },
-  { t: "근태 우수", d: "연속 로그인 5일", g: 5, c: 300, cond: "consecutive_login" },
-  { t: "선플러", d: "좋아요 10회", g: 10, c: 200, cond: "like" },
-  { t: "방방이", d: "점프 500회", g: 500, c: 300, cond: "jump" },
-  { t: "네트워킹", d: "친구 1명 추가", g: 1, c: 200, cond: "add_friend" },
-  { t: "바람막이", d: "송풍기 50회", g: 50, c: 300, cond: "fan" },
-  { t: "불시착", d: "낙사 30회", g: 30, c: 200, cond: "fall" },
-  { t: "맷집왕", d: "함정 피격 50회", g: 50, c: 250, cond: "trap" },
-  { t: "완주자", d: "맵 완주 20회", g: 20, c: 400, cond: "finish_map" },
-  { t: "자유로운 영혼", d: "자유형 블록 맵 5회", g: 5, c: 300, cond: "play_free_block" },
-  { t: "퍼펙트 위크", d: "일일 올클리어 3회", g: 3, c: 600, cond: "daily_all_clear" },
-  { t: "사진 판독", d: "1초 이내 차이 완주", g: 1, c: 400, cond: "close_finish" },
-  { t: "표정 부자", d: "이모티콘 50회", g: 50, c: 200, cond: "emote" },
-  { t: "핵인싸", d: "채팅 50회", g: 50, c: 200, cond: "chat" },
-  { t: "새 마음 새 뜻", d: "프로필 사진 변경", g: 1, c: 100, cond: "change_pfp" },
-  { t: "불굴의 의지", d: "10분 이상 걸려 완주", g: 1, c: 350, cond: "long_finish" },
-  { t: "휴식", d: "VVIP 5분 머무르기", g: 300, c: 200, cond: "vvip_stay" }
+  // 보통 난이도 (500~800칩)
+  { t: "선플러", d: "좋아요 5회 누르기", g: 5, c: 500, cond: "like" },
+  { t: "불시착", d: "낙사 15회", g: 15, c: 500, cond: "fall" },
+  { t: "핵인싸", d: "채팅 20회 입력", g: 20, c: 500, cond: "chat" },
+  { t: "플렉스", d: "상점 구매 1회", g: 1, c: 500, cond: "buy_item" },
+  { t: "표정 부자", d: "이모티콘 20회 사용", g: 20, c: 600, cond: "emote" },
+  { t: "맷집왕", d: "함정 피격 25회", g: 25, c: 600, cond: "trap" },
+  { t: "방방이", d: "점프 200회", g: 200, c: 700, cond: "jump" },
+  { t: "포탈 매니아", d: "포탈 30회 타기", g: 30, c: 700, cond: "portal" },
+  { t: "바람막이", d: "송풍기 20회 타기", g: 20, c: 700, cond: "fan" },
+  { t: "부스트 중독", d: "부스트 50회 사용", g: 50, c: 800, cond: "boost" },
+  { t: "맵 건축가", d: "맵 5회 저장", g: 5, c: 800, cond: "save_map" },
+  { t: "체크포인트 수집", d: "체크포인트 50회 통과", g: 50, c: 800, cond: "checkpoint" },
+  // 어려운 난이도 (1,000칩 이상)
+  { t: "배틀 마스터", d: "멀티 플레이 15회 참여", g: 15, c: 1000, cond: "play_multi" },
+  { t: "테스터", d: "다른 유저 맵 10회 플레이", g: 10, c: 1000, cond: "play_custom" },
+  { t: "마라토너", d: "총 이동 거리 20,000", g: 20000, c: 1000, cond: "distance" },
+  { t: "완주자", d: "맵 완주 10회", g: 10, c: 1000, cond: "finish_map" },
+  { t: "죽돌이", d: "플레이 타임 2시간", g: 7200, c: 1200, cond: "play_time" },
+  { t: "메달리스트", d: "탑3 5회 달성", g: 5, c: 1200, cond: "top3" },
+  { t: "승부사", d: "멀티 3승 달성", g: 3, c: 1500, cond: "win" },
+  { t: "신입 건축가", d: "맵 퍼블리싱 1회", g: 1, c: 1500, cond: "publish_map" },
 ];
 
 const achievements = [
-  { t: "첫 걸음", d: "누적 10판", g: 10, c: 200, cond: "play_any" },
-  { t: "익숙한 발걸음", d: "누적 100판", g: 100, c: 1000, cond: "play_any" },
-  { t: "롤링 마스터", d: "누적 1000판", g: 1000, c: 5000, cond: "play_any", rt: "title", rc: "master" },
-  { t: "승리의 맛", d: "첫 1승", g: 1, c: 300, cond: "win" },
-  { t: "도박사", d: "누적 백만 칩", g: 1000000, c: 10000, cond: "earn_chips", rt: "skin", rc: "gold" },
-  { t: "지구 한 바퀴", d: "이동거리 1,000,000", g: 1000000, c: 5000, cond: "distance", rt: "trail", rc: "globe" },
-  { t: "폴짝폴짝", d: "점프 10,000회", g: 10000, c: 1000, cond: "jump" },
-  { t: "포탈 여행자", d: "포탈 1,000회", g: 1000, c: 1500, cond: "portal" },
-  { t: "꼬마 건축가", d: "맵 5개 퍼블리싱", g: 5, c: 2000, cond: "publish_map" },
-  { t: "마스터 빌더", d: "좋아요 1,000개", g: 1000, c: 20000, cond: "receive_like", rt: "title", rc: "architect" },
-  { t: "개근상 (금)", d: "로그인 365일", g: 365, c: 50000, cond: "login", rt: "skin", rc: "anniversary1" },
-  { t: "최고의 경지", d: "크롬 랭크 달성", g: 1, c: 20000, cond: "reach_chrome", rt: "trail", rc: "vvip" },
-  { t: "고인물", d: "상위 1% 기록", g: 1, c: 5000, cond: "top_1_percent" },
-  { t: "올라운더", d: "10가지 스킨 승리", g: 10, c: 3000, cond: "win_diff_skins" },
-  { t: "구사일생", d: "체력 1% 완주", g: 1, c: 2000, cond: "finish_1hp" }
+  // 초반 업적 (쉬움)
+  { t: "첫 걸음", d: "누적 5판 플레이", g: 5, c: 500, cond: "play_any" },
+  { t: "승리의 맛", d: "첫 1승 달성", g: 1, c: 1000, cond: "win" },
+  // 중반 업적 (보통)
+  { t: "익숙한 발걸음", d: "누적 50판 플레이", g: 50, c: 3000, cond: "play_any" },
+  { t: "폴짝폴짝", d: "점프 3,000회 달성", g: 3000, c: 5000, cond: "jump" },
+  { t: "포탈 여행자", d: "포탈 300회 이용", g: 300, c: 5000, cond: "portal" },
+  { t: "꼬마 건축가", d: "맵 3개 퍼블리싱", g: 3, c: 5000, cond: "publish_map" },
+  { t: "구사일생", d: "체력 1%로 완주", g: 1, c: 5000, cond: "finish_1hp" },
+  { t: "콜렉터", d: "상점 아이템 10개 구매", g: 10, c: 5000, cond: "buy_item" },
+  { t: "소셜 나비", d: "채팅 500회 달성", g: 500, c: 5000, cond: "chat" },
+  { t: "불사신", d: "낙사 1,000회", g: 1000, c: 5000, cond: "fall", rt: "skin", rc: "zombie" },
+  // 후반 업적 (어려움)
+  { t: "올라운더", d: "5가지 스킨으로 승리", g: 5, c: 8000, cond: "win_diff_skins" },
+  { t: "부스터 매니아", d: "부스트 5,000회", g: 5000, c: 8000, cond: "boost" },
+  { t: "롤링 마스터", d: "누적 300판 플레이", g: 300, c: 10000, cond: "play_any", rt: "title", rc: "master" },
+  { t: "고인물", d: "상위 1% 기록 달성", g: 1, c: 10000, cond: "top_1_percent" },
+  { t: "이벤트 헌터", d: "맵 완주 500회", g: 500, c: 15000, cond: "finish_map", rt: "title", rc: "hunter" },
+  { t: "지구 한 바퀴", d: "이동거리 200,000", g: 200000, c: 15000, cond: "distance", rt: "trail", rc: "globe" },
+  // 최종 업적 (매우 어려움)
+  { t: "도박사", d: "누적 100,000칩 획득", g: 100000, c: 20000, cond: "earn_chips", rt: "skin", rc: "gold" },
+  { t: "마스터 빌더", d: "좋아요 100개 받기", g: 100, c: 30000, cond: "receive_like", rt: "title", rc: "architect" },
+  { t: "최고의 경지", d: "크롬 랭크 달성", g: 1, c: 30000, cond: "reach_chrome", rt: "trail", rc: "vvip" },
+  { t: "개근상 (금)", d: "로그인 100일", g: 100, c: 50000, cond: "login", rt: "skin", rc: "anniversary1" },
 ];
 
 const hiddenAchievements = [
-  { t: "비밀번호가 뭔가요?", d: "비밀번호 3회 변경", g: 3, c: 777, cond: "change_pw", rt: "title", rc: "amnesia" },
-  { t: "럭키 세븐", d: "정확히 7777칩", g: 1, c: 7777, cond: "exact_7777" },
-  { t: "평화주의자", d: "부스트 없이 완주", g: 1, c: 2000, cond: "no_boost_finish", rt: "skin", rc: "turtle" },
-  { t: "텅장", d: "칩 0개 만들기", g: 1, c: 100, cond: "zero_chips" },
-  { t: "마우스 압수", d: "키보드만으로 완주", g: 1, c: 2000, cond: "keyboard_only" }
+  { t: "비밀번호가 뭔가요?", d: "비밀번호 3회 변경", g: 3, c: 2000, cond: "change_pw", rt: "title", rc: "amnesia" },
+  { t: "럭키 세븐", d: "정확히 7777칩 보유", g: 1, c: 7777, cond: "exact_7777" },
+  { t: "평화주의자", d: "부스트 없이 완주", g: 1, c: 5000, cond: "no_boost_finish", rt: "skin", rc: "turtle" },
+  { t: "텅장", d: "칩 0개 만들기", g: 1, c: 1000, cond: "zero_chips" },
+  { t: "마우스 압수", d: "키보드만으로 완주", g: 1, c: 5000, cond: "keyboard_only" }
 ];
 
 let inserts = 'INSERT INTO public.missions (type, title, description, goal_amount, reward_chips, condition_type, reward_item_type, reward_item_code) VALUES\n';
@@ -182,8 +181,19 @@ const rpcAndCron = `
 CREATE OR REPLACE FUNCTION public.assign_random_missions(p_user_id UUID)
 RETURNS void AS $$\\
 BEGIN
-    -- 기존 할당된 오늘/이번주 미션 확인
-    -- 일일 미션
+    -- 오래된 일일 미션 정리 (오늘 이전 것 삭제)
+    DELETE FROM public.user_missions
+    WHERE user_id = p_user_id
+      AND mission_id IN (SELECT id FROM public.missions WHERE type = 'daily')
+      AND assigned_date < CURRENT_DATE;
+
+    -- 오래된 주간 미션 정리 (이번 주 이전 것 삭제)
+    DELETE FROM public.user_missions
+    WHERE user_id = p_user_id
+      AND mission_id IN (SELECT id FROM public.missions WHERE type = 'weekly')
+      AND assigned_date < date_trunc('week', CURRENT_DATE)::DATE;
+
+    -- 일일 미션: 오늘 할당된 것이 없으면 5개 랜덤 할당
     IF NOT EXISTS (
         SELECT 1 FROM public.user_missions um
         JOIN public.missions m ON um.mission_id = m.id
@@ -194,10 +204,10 @@ BEGIN
         FROM public.missions
         WHERE type = 'daily'
         ORDER BY random()
-        LIMIT 3;
+        LIMIT 5;
     END IF;
 
-    -- 주간 미션 (이번주 월요일을 기준으로 체크)
+    -- 주간 미션: 이번 주 할당된 것이 없으면 5개 랜덤 할당
     IF NOT EXISTS (
         SELECT 1 FROM public.user_missions um
         JOIN public.missions m ON um.mission_id = m.id
@@ -208,7 +218,7 @@ BEGIN
         FROM public.missions
         WHERE type = 'weekly'
         ORDER BY random()
-        LIMIT 3;
+        LIMIT 5;
     END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

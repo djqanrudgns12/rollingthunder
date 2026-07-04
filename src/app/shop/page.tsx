@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import ShopTabs from "@/components/shop/ShopTabs";
 import ShopShowcase from "@/components/shop/ShopShowcase";
 import BlackMarket from "@/components/shop/BlackMarket";
@@ -14,6 +14,7 @@ import { MOCK_ITEMS, ShopItem } from "@/data/shopData";
 
 import { useUIStore } from "@/store/uiStore";
 import { useInventoryStore } from "@/store/inventoryStore";
+import { stampService } from '@/lib/stampService';
 
 const RARITY_ORDER: Record<string, number> = {
   'Mythic': 5,
@@ -35,6 +36,12 @@ export default function ShopPage() {
   const [activeTab, setActiveTab] = useState("avatar");
   
   const role = userProfile?.role || (isLoggedIn ? "user" : "guest");
+
+  // 미션 이벤트: 상점 방문
+  useEffect(() => {
+    stampService.trackEvent('visit_shop', 1);
+    stampService.flushPlayEvents();
+  }, []);
 
   // 현재 선택된 아이템 (탭 변경 시 기본값 재설정)
   const [selectedItem, setSelectedItem] = useState<ShopItem | null>(null);
@@ -104,6 +111,9 @@ export default function ShopPage() {
       // 구매 성공 처리 (목업)
       toast.success(`${item.name} 구매 완료!`);
       buyItem(item.item_id);
+      // 미션 이벤트: 아이템 구매
+      stampService.trackEvent('buy_item', 1);
+      stampService.flushPlayEvents();
     } else {
       // 장착 로직
       if (item.category === 'avatar' || item.category === 'border' || item.category === 'skin') {

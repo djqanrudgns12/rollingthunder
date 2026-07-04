@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Participant } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
 import { createClient } from '@/lib/supabase/client'
+import { stampService } from '@/lib/stampService'
 
 interface ListManagerModalProps {
   isOpen: boolean
@@ -102,6 +103,9 @@ export default function ListManagerModal({ isOpen, onClose, currentParticipants,
 
         if (error) throw error
         toast.success('서버에 명단이 저장되었습니다.')
+        // 미션 이벤트: 명단 저장
+        stampService.trackEvent('save_list', 1);
+        stampService.flushPlayEvents();
         loadLists()
       } catch (error) {
         console.error('Save to server error', error)

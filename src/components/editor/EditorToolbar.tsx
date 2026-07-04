@@ -7,6 +7,7 @@ import { useUIStore } from '@/store/uiStore'
 import { Save, Undo, Redo, Magnet, Plus, Play, Pause, Loader2, Upload, X, History, ChevronDown, ChevronRight, Clock } from 'lucide-react'
 import { MapPresets } from '@/engine/MapPresets'
 import { saveMapAction, deployMapAction, getMapsAction } from '@/presentation/actions/mapActions'
+import { stampService } from '@/lib/stampService'
 import { getUserRoleAction } from '@/presentation/actions/authActions'
 import { logMapEditAction } from '@/presentation/actions/historyActions'
 import UnsavedChangesModal from './UnsavedChangesModal'
@@ -123,6 +124,9 @@ export default function EditorToolbar() {
         });
 
         toast.success('맵이 성공적으로 저장되었습니다!')
+        // 미션 이벤트: 맵 저장
+        stampService.trackEvent('save_map', 1);
+        stampService.flushPlayEvents();
       } else {
         toast.error(`저장 실패: ${result.error}`)
       }
@@ -411,6 +415,9 @@ export default function EditorToolbar() {
                         });
                       }
                       toast.success('서버 배포 완료! 이제 기본맵 탭에 표시됩니다.');
+                      // 미션 이벤트: 맵 배포
+                      stampService.trackEvent('publish_map', 1);
+                      stampService.flushPlayEvents();
                     } else {
                       toast.error(`배포 실패: ${res.error}`);
                     }
