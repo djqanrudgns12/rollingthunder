@@ -44,7 +44,7 @@ export interface SimInitConfig {
   comebackStrength?: number; // 역전 다이내믹스 강도(0~100, 기본 50). 0이면 완전 비활성
 }
 
-const GLOBAL_SPEED_MODIFIER = 0.7; // 전체 게임 배속 하향 조정치
+const GLOBAL_SPEED_MODIFIER = 0.9; // 전체 게임 배속 하향 조정치
 const COOLDOWN_SCALE = 1 / GLOBAL_SPEED_MODIFIER; // 프레임 기반 쿨타임 길이 비례 증가 상수
 
 const PORTAL_COOLDOWN_FRAMES = Math.round(60 * COOLDOWN_SCALE);   // 1초
