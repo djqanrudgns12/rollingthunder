@@ -239,6 +239,7 @@ export class SimulationCore {
         const t = body.translation();
         this.mapData.push({
           type: userData.type,
+          id: userData.id,
           x: t.x,
           y: t.y,
           w: userData.w,
@@ -840,6 +841,13 @@ export class SimulationCore {
 
     world.forEachRigidBody((b) => {
       const d = b.userData as any;
+
+      // 풍차/스피너: kinematicVelocityBased는 매 프레임 속도를 재설정해야 유지됨
+      if ((d?.type === 'windmill' || d?.type === 'spinner') && d.speed) {
+        b.setAngvel(d.speed, true);
+        return;
+      }
+
       if (d?.type === 'piston' && d.waypointB) {
         const speed = d.speed || 2;
         const tNext = (Math.sin(clockNext * speed * 0.01) + 1) / 2;
