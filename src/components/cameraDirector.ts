@@ -92,6 +92,8 @@ export class CameraDirector {
   private smLeaderY = 0;
   private hasLeader = false;
   private leaderVy = 0;
+  // 팩 스팬 저역통과: 칩이 팩 창(1000px)을 드나들거나 완주로 빠질 때 이산 점프 → 줌 튐 방지
+  private smPackSpan = 400;
 
   private mode: Mode = 'idle';
   private gameState: 'idle' | 'playing' | 'winner_declared' | 'all_finished' = 'idle';
@@ -174,9 +176,11 @@ export class CameraDirector {
   private readonly FINISH_ZOOM_K = 5.0;      // 결승 접근/통과 시 줌 수렴 가속(극대 줌 실제 도달)
   private readonly FINISH_LOCK_PX = 260;     // 이 거리 이내면 결승 임박 → 슬로우 유지(스톨 가드 예외)
   private readonly MAX_ANTICIPATION_S = 1.6; // 슬로우 최대 지속(스톨 가드)
-  private readonly CLIMAX_S = 0.7;           // CROSS(통과 순간 극대 줌+슬로우 유지) 시간(0.4→0.7)
-  private readonly LINGER_S = 1.5;           // 결승선 여운(머무름) 시간
-  private readonly HANDOFF_S = 1.0;          // 다음 주자 복귀 시간(0.6→1.0, 부드러운 활공)
+  private readonly CLIMAX_S = 0.6;           // CROSS(통과 순간 극대 줌+슬로우 유지) 시간(0.7→0.6)
+  private readonly LINGER_S = 0.5;           // 여운+리포커스 블렌드 시간(1.5→0.5: 여운 총 ~1.1초)
+  private readonly HANDOFF_S = 1.2;          // 다음 주자 복귀 활공 시간(1.0→1.2, 리포커스 여속)
+  private readonly LEADER_SWITCH_PX = 14;    // 선두 교체 히스테리시스(px): 이 이상 앞서야 포커스 전환(미세 추월 반복 시 좌우 튐 방지)
+  private readonly RAMP_K = 7.0;             // APPROACH 램프 이징 강도(무장/해제 스냅 제거)
   private readonly ESTABLISH_S = 1.0;        // 오프닝 푸시인 시간
   private readonly OVERTAKE_CD_S = 1.5;      // 선두 교체 하이라이트 쿨다운
   private readonly TIMESCALE_K = 9.0;        // 시간배율 이즈 강도
@@ -478,6 +482,17 @@ export class CameraDirector {
     }
     if (leaderY === -Infinity) leaderY = this.smLeaderY; // 칩이 없으면 기존 유지
 
+    // 선두 스위치 히스테리시스: 접전에서 미세 추월이 매 프레임 반복되면 포커스 X가 좌우로
+    // 튀며 "툭툭 끊기는" 모션이 된다. 새 선두가 기존 선두보다 LEADER_SWITCH_PX 이상
+    // 확실히 앞설 때만 포커스를 넘긴다(포토피니시 판정·순위 로직과는 무관, 프레이밍 전용).
+    if (leaderId && this.lastLeaderId && leaderId !== this.lastLeaderId) {
+      const prev = chips.get(this.lastLeaderId);
+      if (prev && prev.y <= finishLineY && leaderY - prev.y < this.LEADER_SWITCH_PX) {
+        leaderId = this.lastLeaderId;
+        leaderX = prev.x; leaderY = prev.y; leaderVyRaw = prev.vy ?? 0;
+      }
+    }
+
     // 완주자 락온(CROSS/LINGER) 또는 수동 칩 락온이 있으면 그 칩으로 선두 기준을 덮어씀
     if (this.focusChipId) {
       const fp = chips.get(this.focusChipId);
@@ -561,10 +576,13 @@ export class CameraDirector {
           }
         }
       }
-      // APPROACH 진행도(ETA_ARM→0 을 0→1로 매핑, S자 이즈) — 슬로우/줌을 연속 심화(끊김 제거)
-      this.anticipationRamp = this.anticipating
+      // APPROACH 진행도(ETA_ARM→0 을 0→1로 매핑, S자 이즈) — 슬로우/줌을 연속 심화.
+      // 무장/해제 순간 램프가 0↔값으로 스냅하면 줌 타겟이 점프해 "툭" 끊기므로,
+      // 램프 자체를 저역통과해 진입·이탈 모두 연속 곡선으로 만든다.
+      const rampTarget = this.anticipating
         ? smoothstep(clamp01((this.ETA_ARM - eta) / this.ETA_ARM))
         : 0;
+      this.anticipationRamp = damp(this.anticipationRamp, rampTarget, this.RAMP_K, dt);
     }
     if (leaderId) this.lastLeaderId = leaderId;
 
@@ -609,11 +627,14 @@ export class CameraDirector {
 
       let packSpan = this.smLeaderY - packBackY;
       packSpan = Math.max(200, Math.min(packSpan, 700));
+      // 팩 스팬 저역통과: 칩이 1000px 창을 드나들거나 완주로 빠지면 packSpan이 이산 점프
+      // → baseZoom이 튀며 하단부 실시간 줌이 "툭툭" 끊긴다. 스팬 자체를 부드럽게.
+      this.smPackSpan = damp(this.smPackSpan, packSpan, 4.0, dt);
 
       // 경기 진행도에 따라 카메라가 서서히 줌인(기본 여백 감소): 초반 넓게, 후반 타이트하게.
       const progressFactor = clamp01(progress);
       const dynamicPadding = 500 - (progressFactor * 250);
-      const fitPack = this.screenH / (packSpan + dynamicPadding);
+      const fitPack = this.screenH / (this.smPackSpan + dynamicPadding);
       let baseZoom = this.clampZoom(fitPack);
 
       // 결착(progress) 줌 램프 — ANTICIPATION/통과 연출이 없을 때만(서로 싸우지 않게 일원화)
@@ -629,15 +650,19 @@ export class CameraDirector {
         targetX = this.smCentroidX;
         targetY = this.smLeaderY - visH * this.LEADER_SCREEN_BIAS;
       } else if (this.finisherPhase === 'linger') {
-        // LINGER(여운): 결승선 통과 지점에 머무르며 극대 줌에서 서서히 줌아웃
+        // LINGER(짧은 여운 → 연속 리포커스): 결승 지점 프레이밍에서 다음 주자 추적 프레이밍으로
+        // S자 곡선 블렌드. 줌도 같은 곡선으로 극대 줌 → 추적 줌(baseZoom)으로 줌아웃 —
+        // "확 축소"가 아니라 실제 카메라를 돌리듯 초점 이동과 줌아웃이 동시에 서서히 진행된다.
+        // (focusChipId는 CROSS 종료 시 해제됨 → smCentroidX/smLeaderY가 이미 다음 선두를 향해 수렴 중)
         const lingerT = smoothstep(clamp01(this.finisherPhaseT / this.LINGER_S));
-        targetZoom = lerp(this.finishZoom, this.finishZoom * 0.82, lingerT); // 완주자에 더 머무름(0.72→0.82)
+        targetZoom = lerp(this.finishZoom, baseZoom, lingerT);
         const visH = this.screenH / Math.max(targetZoom, 0.001);
-        targetX = this.finishFocusX;                                  // 통과 지점 X 고정
-        targetY = this.finishLineY - visH * this.LEADER_SCREEN_BIAS;  // 결승선을 하단 1/3에
+        targetX = lerp(this.finishFocusX, this.smCentroidX, lingerT);
+        targetY = lerp(this.finishLineY, this.smLeaderY, lingerT) - visH * this.LEADER_SCREEN_BIAS;
       } else if (this.finisherPhase === 'handoff') {
-        // 호흡: 한 단계 빠지며 다음 선두로 복귀
-        targetZoom = Math.min(baseZoom, this.clampZoom(this.fitWidthZoom() * 1.2));
+        // HANDOFF: LINGER 블렌드의 종점(다음 선두 추적 프레이밍)을 그대로 이어받아 활공.
+        // 기존 fitWidthZoom()*1.2 과줌아웃(화면이 확 빠지는 점프)을 제거 — 추적 줌으로 자연 수렴.
+        targetZoom = baseZoom;
         const visH = this.screenH / Math.max(targetZoom, 0.001);
         targetX = this.smCentroidX;
         targetY = this.smLeaderY - visH * this.LEADER_SCREEN_BIAS;
@@ -676,8 +701,8 @@ export class CameraDirector {
     if (this.anticipating || this.finisherPhase === 'climax') {
       currentZoomK = this.finishZoomK;
     }
-    if (this.finisherPhase === 'handoff') {
-      // 다음 주자로 빠르게 스냅(휘프팬)
+    if (this.finisherPhase === 'handoff' || this.finisherPhase === 'linger') {
+      // 리포커스 활공(LINGER 블렌드~HANDOFF 수렴): 조금 빠르되 연속적인 팬/줌아웃
       currentPanK = this.handoffPanK;
       currentZoomK = this.handoffZoomK;
     }
@@ -701,7 +726,7 @@ export class CameraDirector {
       const springY = (this.mode === 'race' || this.mode === 'finisher_focus') && !isReturning;
       if (springY) {
         let vertSmooth = this.VERT_SMOOTH_TIME;
-        if (this.finisherPhase === 'handoff') vertSmooth = this.HANDOFF_SMOOTH_TIME;
+        if (this.finisherPhase === 'handoff' || this.finisherPhase === 'linger') vertSmooth = this.HANDOFF_SMOOTH_TIME;
         else if (this.establishingT > 0) vertSmooth = 0.45; // 오프닝 완만한 푸시인
         this.camY = smoothDamp(this.camY, targetY, this.camVelYRef, vertSmooth, dt);
       } else {

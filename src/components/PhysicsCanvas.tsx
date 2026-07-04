@@ -203,25 +203,32 @@ export default function PhysicsCanvas() {
     let pipViewport: Viewport;
     let bgSprite: PIXI.Sprite;
     let bgLayers: PIXI.Sprite[] = [];
-    // 배경+장애물 전용 탈채도/감광 필터(참가자는 제외 → 상대적으로 도드라짐).
-    // 배경과 장애물이 동일 필터 인스턴스를 공유하면 렌더 타겟 버퍼 글리치 현상이 발생하므로 독립된 인스턴스를 사용합니다.
+    // 배경+장애물 전용 탈채도/감광 처리(참가자는 제외 → 상대적으로 도드라짐).
+    // 차분 모드: ColorMatrix 필터(강한 탈채도+감광) 부착.
+    // 평상시: 컨테이너 필터는 render-to-texture를 강제해 빠른 카메라 팬/줌 시 기물 잔상·글리치를
+    // 만들므로 필터를 완전히 떼고 tint(무비용 색 곱)로 옅은 감광만 근사한다.
+    // (배경/장애물이 동일 필터 인스턴스를 공유하면 렌더 타겟 버퍼 글리치 → 독립 인스턴스 유지)
     let bgCalmFilter: PIXI.ColorMatrixFilter | null = null;
     let staticCalmFilter: PIXI.ColorMatrixFilter | null = null;
+    let bgCalmNode: PIXI.Container | null = null;      // 필터/tint 적용 대상(배경 스프라이트)
+    let staticCalmNode: PIXI.Container | null = null;  // 필터/tint 적용 대상(기물 컨테이너)
     const applyCalmFilter = () => {
       const isCalm = useGameStore.getState().calmMode;
-      const applyToFilter = (filter: PIXI.ColorMatrixFilter | null) => {
-        if (!filter) return;
-        filter.reset();
-        if (isCalm) {
+      const setup = (node: PIXI.Container | null, filter: PIXI.ColorMatrixFilter | null) => {
+        if (!node) return;
+        if (isCalm && filter) {
+          filter.reset();
           filter.saturate(-0.4);        // 차분 모드: 강한 탈채도
           filter.brightness(0.9, true); // + 감광
+          node.filters = [filter];
+          node.tint = 0xffffff;
         } else {
-          filter.saturate(-0.15);       // 기본(Tier1): 옅은 탈채도
-          filter.brightness(0.96, true);
+          node.filters = null;          // 잔상 방지: 평상시 필터 미사용
+          node.tint = 0xf5f5f5;         // brightness 0.96 근사(옅은 감광)
         }
       };
-      applyToFilter(bgCalmFilter);
-      applyToFilter(staticCalmFilter);
+      setup(bgCalmNode, bgCalmFilter);
+      setup(staticCalmNode, staticCalmFilter);
     };
     const graphicsMap = new Map<string, PIXI.Container>();
     // 이동/회전 기물 물리 동기화: 워커가 보낸 순서(movingObstacleIds)대로 OBSTACLE_FRAME 을 노드에 반영.
@@ -406,8 +413,9 @@ export default function PhysicsCanvas() {
         if (bg) {
           bgSprite = bg;
           viewport.addChild(bgSprite); // 제일 바닥에 렌더링
-          if (!bgCalmFilter) { bgCalmFilter = new PIXI.ColorMatrixFilter(); applyCalmFilter(); }
-          bgSprite.filters = [bgCalmFilter];
+          if (!bgCalmFilter) bgCalmFilter = new PIXI.ColorMatrixFilter();
+          bgCalmNode = bgSprite;
+          applyCalmFilter(); // 차분 모드면 필터 부착, 평상시엔 tint만(잔상 방지)
         }
         // 줌(wheel/pinch)은 CameraDirector가 단독 소유 — pixi-viewport 플러그인은 drag/decelerate만 사용
         viewport.drag().decelerate()
@@ -1117,8 +1125,9 @@ export default function PhysicsCanvas() {
           if (payload.mapData) {
             const staticContainer = new PIXI.Container();
             staticContainer.zIndex = -10;
-            if (!staticCalmFilter) { staticCalmFilter = new PIXI.ColorMatrixFilter(); applyCalmFilter(); }
-            staticContainer.filters = [staticCalmFilter]; // bgSprite와 필터 인스턴스를 분리하여 잔상 버그 해결
+            if (!staticCalmFilter) staticCalmFilter = new PIXI.ColorMatrixFilter();
+            staticCalmNode = staticContainer;
+            applyCalmFilter(); // 차분 모드면 필터 부착, 평상시엔 tint만(잔상 방지)
             viewport.addChild(staticContainer);
 
             // PRD v4: Floor 레이어 추가 (라인 렌더링)
