@@ -1412,7 +1412,8 @@ export default function PhysicsCanvas() {
             soundManager.playSfx('gimmick_domino', payload.impulse, payload.x);
             // Visual Shake on Bumper Hit
             if (payload.targetId) {
-              const target = viewport.getChildAt(0).children.find(c => c.label === payload.targetId);
+              // 기물 노드 조회는 graphicsMap 단일 경로 사용 (viewport.getChildAt(n)은 sortableChildren으로 인덱스 불안정 → 항상 미스)
+              const target = graphicsMap.get(payload.targetId);
               if (target) {
                 import('gsap').then(({ gsap }) => {
                   gsap.fromTo(target.scale, { x: 1.3, y: 1.3 }, { x: 1, y: 1, duration: 0.3, ease: 'elastic.out(1, 0.3)' });
@@ -1430,7 +1431,7 @@ export default function PhysicsCanvas() {
             soundManager.playSfx('spinner_whoosh', payload.impulse, payload.x);
           }
         } else if (type === 'FLIPPER_SWING') {
-          const target = viewport.getChildAt(0).children.find(c => (c as any).label === payload.id);
+          const target = graphicsMap.get(payload.id);
           if (target) {
             import('gsap').then(({ gsap }) => {
               gsap.fromTo(target.scale as any, { x: 1.2, y: 1.2 }, { x: 1, y: 1, duration: 0.3, ease: 'elastic.out(1, 0.3)' });
@@ -1440,7 +1441,7 @@ export default function PhysicsCanvas() {
           soundManager.playSfx('ui_nudge', 50, payload.x);
         } else if (type === 'ICE_CRACK') {
           soundManager.playSfx('gimmick_domino', 30, payload.x);
-          const target = viewport.getChildAt(0).children.find(c => (c as any).label === payload.id);
+          const target = graphicsMap.get(payload.id);
           if (target) {
             // HP 단계에 맞는 균열 텍스처로 교체 (alpha 페이드가 아닌 이산 단계)
             const crackOverlay: any = target.children.find((c: any) => c.label === 'crackOverlay');
@@ -1472,7 +1473,7 @@ export default function PhysicsCanvas() {
         } else if (type === 'ICE_DESTROY') {
           // 얼음 파괴 파티클 및 짧은 금속성/유리 깨짐 효과음
           soundManager.playSfx('ui_door_slam', 0, payload.x);
-          const target = viewport.getChildAt(0).children.find(c => (c as any).label === payload.id);
+          const target = graphicsMap.get(payload.id);
           if (target) {
             // 소멸 직전 파괴 플래시 프레임으로 교체
             const crackOverlay: any = (target as any).children?.find((c: any) => c.label === 'crackOverlay');
@@ -1484,8 +1485,15 @@ export default function PhysicsCanvas() {
               crackOverlay.alpha = 1;
             }
             import('gsap').then(({ gsap }) => {
-              gsap.to(target.scale, { x: 0, y: 0, duration: 0.2, ease: 'back.in(1.5)', onComplete: () => target.destroy() });
+              gsap.to(target.scale, { x: 0, y: 0, duration: 0.2, ease: 'back.in(1.5)', onComplete: () => { if (!target.destroyed) target.destroy(); } });
             });
+            // 파괴된 노드로의 후속 조회 방지 + 미니맵 마커 제거(파괴된 얼음이 미니맵에 잔존하지 않게)
+            graphicsMap.delete(payload.id);
+            const iceMinimap = movingObstacleMinimaps.get(payload.id);
+            if (iceMinimap) {
+              iceMinimap.destroy();
+              movingObstacleMinimaps.delete(payload.id);
+            }
           }
           for(let i=0; i<15; i++) {
             const p = new PIXI.Graphics();
@@ -1514,7 +1522,7 @@ export default function PhysicsCanvas() {
               gsap.to(p, { rotation: Math.random()*Math.PI*4, duration: 0.6, onComplete: () => p.destroy() });
             });
           }
-          const gate = viewport.getChildAt(0).children.find(c => (c as any).label === payload.gateId);
+          const gate = graphicsMap.get(payload.gateId);
           if (gate) {
             import('gsap').then(({ gsap }) => {
               gsap.fromTo(gate.scale, { x: 1.5, y: 1.5 }, { x: 1, y: 1, duration: 0.4, ease: 'bounce.out' });
