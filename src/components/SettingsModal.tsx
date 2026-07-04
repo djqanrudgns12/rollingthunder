@@ -29,6 +29,7 @@ export default function SettingsModal() {
   const { 
     gimmickDensity, setGimmickDensity,
     baseTimeScale, setBaseTimeScale,
+    comebackStrength, setComebackStrength,
     isScreenShakeEnabled, setScreenShakeEnabled,
     calmMode, setCalmMode,
     theme, setTheme,
@@ -42,6 +43,7 @@ export default function SettingsModal() {
   const snapshotRef = useRef<{
     gimmickDensity: number;
     baseTimeScale: number;
+    comebackStrength: number;
     isScreenShakeEnabled: boolean;
     calmMode: boolean;
     theme: 'dark' | 'light';
@@ -56,6 +58,7 @@ export default function SettingsModal() {
       snapshotRef.current = {
         gimmickDensity,
         baseTimeScale,
+        comebackStrength,
         isScreenShakeEnabled,
         calmMode,
         theme,
@@ -76,6 +79,7 @@ export default function SettingsModal() {
     if (snapshotRef.current) {
       setGimmickDensity(snapshotRef.current.gimmickDensity)
       setBaseTimeScale(snapshotRef.current.baseTimeScale)
+      setComebackStrength(snapshotRef.current.comebackStrength)
       setScreenShakeEnabled(snapshotRef.current.isScreenShakeEnabled)
       setCalmMode(snapshotRef.current.calmMode)
       setTheme(snapshotRef.current.theme)
@@ -101,6 +105,7 @@ export default function SettingsModal() {
     setBgmVolume(100)
     setSfxVolume(100)
     setGimmickDensity(50)
+    setComebackStrength(50)
   }
 
   return (
@@ -276,15 +281,36 @@ export default function SettingsModal() {
               <span className="text-[10px] text-[var(--accent-secondary)] font-mono bg-black/50 px-2 py-0.5 rounded-lg border border-white/10 ml-2 whitespace-nowrap">{gimmickDensity}%</span>
             </div>
             <div className="flex items-center h-[38px] pt-1">
-              <input 
-                type="range" 
-                min={10} 
+              <input
+                type="range"
+                min={10}
                 max={90}
                 value={gimmickDensity}
                 onChange={(e) => setGimmickDensity(Number(e.target.value))}
                 className="w-full neon-slider"
               />
             </div>
+          </div>
+
+          {/* Comeback Dynamics (역전 다이내믹스) */}
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-between items-center">
+              <label className="text-xs text-[var(--accent-secondary)] font-bold tracking-widest uppercase whitespace-nowrap">순위 역동성 (COMEBACK)</label>
+              <span className="text-[10px] text-[var(--accent-secondary)] font-mono bg-black/50 px-2 py-0.5 rounded-lg border border-white/10 ml-2 whitespace-nowrap">{comebackStrength === 0 ? 'OFF' : `${comebackStrength}%`}</span>
+            </div>
+            <div className="flex items-center h-[38px] pt-1">
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={comebackStrength}
+                onChange={(e) => setComebackStrength(Number(e.target.value))}
+                className="w-full neon-slider"
+              />
+            </div>
+            <p className="text-[10px] text-white/40 leading-relaxed -mt-1">
+              하위권 추격·선두 접전을 유도하는 강도입니다. 0이면 순수 물리로만 진행되고, 높을수록 역전이 자주 일어납니다. 레이스 도중에도 즉시 반영됩니다.
+            </p>
           </div>
 
         </div>

@@ -41,6 +41,7 @@ export interface SimInitConfig {
   customRank: number;
   randomRanks?: number[];   // 랜덤 모드에서 컴퓨터가 뽑은 당첨 등수 배열
   rng?: () => number;      // 결정론적 재현을 위한 난수 주입(스폰 위치). 기본 Math.random
+  comebackStrength?: number; // 역전 다이내믹스 강도(0~100, 기본 50). 0이면 완전 비활성
 }
 
 const GLOBAL_SPEED_MODIFIER = 0.7; // 전체 게임 배속 하향 조정치
@@ -60,6 +61,25 @@ export const GRAVITY_Y = 9.81 * 15;
 // 매 프레임 모든 칩의 선속도 크기를 이 값으로 클램프해 어떤 스킬 조합에서도 카메라 추적 한계
 // 안에 머물게 하는 최종 안전장치다(개별 스킬 밸런스와 독립적으로 동작).
 const MAX_CHIP_SPEED = 2000;
+
+// ── 수직 낙하감 튜닝 (PRD-gameplay-dynamics §4.A) ──
+// 수평 속도 전용 지수 감쇠(초당). 기물이 주는 측면 킥(임펄스)은 그대로 들어오되
+// 이후 공기저항처럼 자연 감쇠해 수직 낙하로 복귀 → "해파리 글라이딩" 질감 제거.
+// linearDamping(0.18, 종단 낙하속도 결정)은 축 구분이 없으므로 건드리지 않고 여기서 x축만 처리.
+// 바람 대포(~300px/s² 연속 가속)의 평형 측면 속도 ≈ 300/0.9 ≈ 330px/s → 기물 체감 보존.
+const H_DAMP = 0.9;
+// 수평 속도 소프트 캡(px/s): 초과분만 강감쇠(하드 클램프 아님) — 극단적 측면 발사 방지.
+const LAT_SOFT_CAP = 900;
+
+// ── 역전 다이내믹스 (PRD-gameplay-dynamics §4.B) — comebackStrength(0~1)로 일괄 스케일 ──
+// B1 팩 압축: 선두와의 Y 격차에 비례한 미세 하향 어시스트. GAP_REF에서 최대치 도달.
+const GAP_REF = 1200;          // 격차 정규화 기준(px)
+const CATCHUP_ACCEL = 90;      // 최대 어시스트 가속(px/s²) ≈ 중력(147)의 60% — 보이지 않는 미풍 수준
+// B2 선두 미세 역풍: 2위와 이 거리 이상 벌어진 독주에만 하향 속도 드래그(접전 시 즉시 해제).
+const LEAD_GAP_PX = 400;
+const LEADER_DRAG_PER_S = 0.06; // 초당 하향 속도 감쇠율(강도 1 기준 ~6%/s)
+// B4 후반 증폭: 진행도 0.5부터 B1을 1.0→1.5배 선형 증폭(후반부 역전 지원).
+const LATE_RAMP_MAX = 1.5;
 
 // 부스터 1레벨당 부여 Δv(px/s). v2: 빨라진 칩 대비 체감 유지 위해 상향(160→210).
 const BOOSTER_DV_PER_LEVEL = 210;
@@ -111,7 +131,13 @@ export class SimulationCore {
   private randomWinners: any[] = [];      // 랜덤 모드에서 당첨된 참가자 누적 배열
   private customWinningRank = 1;
   private worldHeight = 1200;
+  private worldWidth = 800;
   private rng: () => number = Math.random;
+
+  // 역전 다이내믹스 강도(0~1). 환경설정 슬라이더(0~100)에서 스케일. 실시간 변경 가능.
+  comebackStrength01 = 0.5;
+  // 최근 순위 스냅샷(10프레임 주기 갱신). 워커의 순위 가중 스킬 추첨(B3)이 참조.
+  latestRanks: { id: string; y: number; rank: number }[] = [];
 
   finishedChips = new Set<string>();
   private finishOrder: string[] = [];
@@ -164,6 +190,9 @@ export class SimulationCore {
     this.events = [];
 
     this.worldHeight = config.worldHeight;
+    this.worldWidth = config.width || 800;
+    this.comebackStrength01 = Math.max(0, Math.min(1, (config.comebackStrength ?? 50) / 100));
+    this.latestRanks = [];
     this.targetCount = config.targetCount;
     this.gameMode = config.mode;
     this.randomRanks = config.randomRanks || [];
@@ -378,9 +407,13 @@ export class SimulationCore {
       }
     }
 
+    // 역전 다이내믹스(팩 압축·선두 역풍) — 클램프 직전에 적용해 캡의 보호를 받는다.
+    const simDt = this.world.integrationParameters.dt;
+    this.applyComebackDynamics(simDt);
+
     // 모든 임펄스(중력장/스킬) 적용 이후 net 속도를 전역 상한으로 클램프 →
     // 다음 스텝의 적분·렌더 브로드캐스트 모두 캡 적용된 속도를 본다.
-    this.clampVelocities();
+    this.clampVelocities(simDt);
 
     const totalSpeed = this.scanChipsAndFinish();
 
@@ -394,8 +427,14 @@ export class SimulationCore {
 
     if (this.frame % 10 === 0) {
       const ranks = RankingTracker.updateRankings(this.world);
+      this.latestRanks = ranks; // 워커의 순위 가중 스킬 추첨(B3)용 스냅샷
       this.events.push({ type: 'RANKINGS_UPDATE', payload: ranks });
     }
+  }
+
+  // 역전 다이내믹스 강도 실시간 변경(환경설정 슬라이더 → SET_COMEBACK_STRENGTH)
+  setComebackStrength(value: number) {
+    this.comebackStrength01 = Math.max(0, Math.min(1, value / 100));
   }
 
   free() {
@@ -419,16 +458,80 @@ export class SimulationCore {
     chip.applyImpulse({ x: dvx * m, y: dvy * m }, true);
   }
 
-  // 모든 활성 칩의 선속도 크기를 MAX_CHIP_SPEED로 제한(방향 보존).
-  // 칩이 화면 밖으로 로켓처럼 튀어나가 카메라가 추적을 놓치는 현상의 최종 안전장치.
-  private clampVelocities() {
+  // 칩 속도 후처리(매 스텝): ① 수평 전용 감쇠(수직 낙하감 복원) ② 수평 소프트 캡
+  // ③ 전역 크기 상한(MAX_CHIP_SPEED, 방향 보존) — 화면 밖 로켓 방지 최종 안전장치.
+  // 수직(vy)은 ①②에서 건드리지 않아 낙하/기물 수직 효과는 불변.
+  // ①은 "빠르게 하강 중"일 때만 적용(fallFactor): 저속·굴림·끼임 탈출 상황의 측면 이동은
+  // 보존해야 정체(gravityStorm)가 늘지 않는다(시뮬레이터 A/B로 확인된 회귀 방지).
+  private clampVelocities(dt: number) {
+    const softDecay = Math.exp(-6 * dt);          // 소프트 캡 초과분 강감쇠 계수
     for (let i = 0; i < this.activeChips.length; i++) {
       const body = this.activeChips[i];
       const v = body.linvel();
-      const speed = Math.sqrt(v.x * v.x + v.y * v.y);
+      // 하강 속도 400px/s 이상에서 완전 적용, 0에 가까울수록(정체/상승) 무감쇠
+      const fallFactor = Math.min(Math.max(v.y, 0) / 400, 1);
+      let vx = fallFactor > 0 ? v.x * Math.exp(-H_DAMP * fallFactor * dt) : v.x;
+      const ax = Math.abs(vx);
+      if (ax > LAT_SOFT_CAP) {
+        vx = Math.sign(vx) * (LAT_SOFT_CAP + (ax - LAT_SOFT_CAP) * softDecay);
+      }
+      let vy = v.y;
+      const speed = Math.sqrt(vx * vx + vy * vy);
       if (speed > MAX_CHIP_SPEED) {
         const k = MAX_CHIP_SPEED / speed;
-        body.setLinvel({ x: v.x * k, y: v.y * k }, true);
+        vx *= k; vy *= k;
+      }
+      if (vx !== v.x || vy !== v.y) {
+        body.setLinvel({ x: vx, y: vy }, true);
+      }
+    }
+  }
+
+  // ── 역전 다이내믹스 (PRD-gameplay-dynamics §4.B) ──
+  // B1 팩 압축: 선두와의 격차 비례 미세 하향 어시스트(연속·질량 정규화 → 순간 역전 아님).
+  // B2 선두 미세 역풍: 2위와 LEAD_GAP_PX 이상 독주 시에만 하향 속도 드래그(접전 복귀 시 해제).
+  // B4 후반 증폭: 진행도 0.5+에서 B1을 최대 LATE_RAMP_MAX배.
+  // comebackStrength01=0이면 전체 비활성(순수 물리). 스턴/홀 동결(gravityScale 0) 칩 제외.
+  private applyComebackDynamics(dt: number) {
+    const s = this.comebackStrength01;
+    if (s <= 0 || this.activeChips.length < 2 || this.gameOver && this.allFinished) return;
+
+    // 미완주 칩 기준 선두/2위 Y 산출
+    let leaderY = -Infinity, secondY = -Infinity;
+    let leader: RAPIER.RigidBody | null = null;
+    for (const chip of this.activeChips) {
+      const d = chip.userData as any;
+      if (!d || this.finishedChips.has(d.id)) continue;
+      const y = chip.translation().y;
+      if (y > leaderY) { secondY = leaderY; leaderY = y; leader = chip; }
+      else if (y > secondY) { secondY = y; }
+    }
+    if (!leader) return;
+
+    const progress = Math.max(0, Math.min(1, leaderY / this.worldHeight));
+    const lateRamp = progress >= 0.5 ? 1 + ((progress - 0.5) / 0.5) * (LATE_RAMP_MAX - 1) : 1;
+
+    for (const chip of this.activeChips) {
+      const d = chip.userData as any;
+      if (!d || this.finishedChips.has(d.id)) continue;
+      if (chip.gravityScale() === 0) continue; // 스턴/홀 트랩 동결 상태 제외
+
+      if (chip === leader) {
+        // B2: 독주 억제 — 하향 이동 중일 때만 미세 드래그
+        if (secondY > -Infinity && leaderY - secondY > LEAD_GAP_PX) {
+          const v = chip.linvel();
+          if (v.y > 0) {
+            chip.setLinvel({ x: v.x, y: v.y * (1 - LEADER_DRAG_PER_S * s * dt) }, true);
+          }
+        }
+        continue;
+      }
+
+      // B1: 격차 비례 하향 어시스트 (순수 하향 — 수직 낙하감과 정합)
+      const gap = leaderY - chip.translation().y;
+      const t = Math.min(gap / GAP_REF, 1);
+      if (t > 0) {
+        this.applyDeltaV(chip, 0, t * CATCHUP_ACCEL * s * lateRamp * dt);
       }
     }
   }
@@ -941,16 +1044,23 @@ export class SimulationCore {
 
   private applyAntiStuck(totalSpeed: number) {
     const world = this.world!;
-    const avgSpeed = totalSpeed / this.activeChips.length;
+    // totalSpeed는 미완주 칩만 합산(scanChipsAndFinish)하므로 분모도 미완주 수로 맞춘다.
+    // (기존: 전체 칩 수로 나눠 완주자가 늘수록 평균이 과소평가 → 종반 폭풍 과발동 버그)
+    const racingCount = Math.max(1, this.activeChips.length - this.finishedChips.size);
+    const avgSpeed = totalSpeed / racingCount;
 
     // Level 1: Gravity Storm — 평균 속도 < 10 이 5초(300프레임) 지속 시 전체 넉백
     if (avgSpeed < 10) {
       this.lowSpeedFrames++;
       if (this.lowSpeedFrames > 300) {
         this.events.push({ type: 'GRAVITY_STORM' });
-        // 질량정규화 넉백(Δv px/s): 가로로 흩고 약하게 위로 띄운 뒤 다시 낙하시킴
+        // 질량정규화 넉백(Δv px/s): 가로로 흩고 약하게 위로 띄운 뒤 다시 낙하시킴.
+        // 수평 성분 축소(±350→±150): 정체 해소 목적은 유지하되 측면 산포(해파리 표류) 완화.
+        // 완주해 결승선 아래 정지한 칩은 제외(흔들 이유가 없음).
         this.activeChips.forEach((chip) => {
-          this.applyDeltaV(chip, (Math.random() - 0.5) * 700, -Math.random() * 350);
+          const d = chip.userData as any;
+          if (d && this.finishedChips.has(d.id)) return;
+          this.applyDeltaV(chip, (Math.random() - 0.5) * 300, -Math.random() * 350);
         });
         this.lowSpeedFrames = 0;
       }
@@ -971,11 +1081,12 @@ export class SimulationCore {
         }
       }
       const lastProgress = this.chipLastProgressFrame.get(data.id) || 0;
-      // 5초(300프레임) 진전 없으면 탈출 임펄스. 코너 끼임 대비 "중앙으로" 밀어내고
-      // 강하게 아래로 보낸다(벽 코너에서 빠져나오도록 수평 성분을 중앙 지향으로).
+      // 5초(300프레임) 진전 없으면 탈출 임펄스 — 수직 주도 재설계(PRD-gameplay-dynamics §4.A3).
+      // 기존 수평 최대 ±450(중앙 x=400 하드코딩)이 "갑자기 옆으로 발사"의 주범이었으므로
+      // 수평은 중앙 지향 ±150으로 캡하고 하향 500 주도로 끼임을 해소한다.
       if (this.frame - lastProgress > Math.round(300 * COOLDOWN_SCALE)) {
-        const towardCenter = (400 - t.x) * 1.5; // 중앙(x=400)으로 향하는 Δv (기존 0.9에서 강화)
-        this.applyDeltaV(chip, towardCenter + (Math.random() - 0.5) * 150, 450); // 아래로 보내는 힘 강화 (기존 360 -> 450)
+        const towardCenter = Math.max(-150, Math.min(150, (this.worldWidth / 2 - t.x) * 0.5));
+        this.applyDeltaV(chip, towardCenter + (Math.random() - 0.5) * 80, 500);
         this.chipLastProgressFrame.set(data.id, this.frame);
       }
     });

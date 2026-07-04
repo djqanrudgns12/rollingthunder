@@ -76,6 +76,9 @@ interface GameState {
   setMuted: (muted: boolean) => void
   baseTimeScale: number
   setBaseTimeScale: (scale: number) => void
+  // 순위 역동성(역전 다이내믹스) 강도 0~100. 0=끄기, 50=중간(기본), 100=최대
+  comebackStrength: number
+  setComebackStrength: (strength: number) => void
   isScreenShakeEnabled: boolean
   setScreenShakeEnabled: (enabled: boolean) => void
   calmMode: boolean
@@ -148,6 +151,8 @@ export const useGameStore = create<GameState>()(
       setMuted: (isMuted) => set({ isMuted }),
       baseTimeScale: 1.0,
       setBaseTimeScale: (baseTimeScale) => set({ baseTimeScale }),
+      comebackStrength: 50,
+      setComebackStrength: (comebackStrength) => set({ comebackStrength }),
       isScreenShakeEnabled: true,
       setScreenShakeEnabled: (isScreenShakeEnabled) => set({ isScreenShakeEnabled }),
       calmMode: false,
@@ -166,6 +171,7 @@ export const useGameStore = create<GameState>()(
       partialize: (state) => ({
         isMuted: state.isMuted,
         baseTimeScale: state.baseTimeScale,
+        comebackStrength: state.comebackStrength,
         isScreenShakeEnabled: state.isScreenShakeEnabled,
         calmMode: state.calmMode,
         theme: state.theme,

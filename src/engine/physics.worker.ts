@@ -123,6 +123,43 @@ function flushEvents() {
   }
 }
 
+// ── 순위 가중 스킬 추첨 (PRD-gameplay-dynamics §4.B3) ──
+// 하위권일수록 전진계(booster/tank/teleport), 상위권일수록 slime(자기 감속) 확률↑.
+// 스킬 발동은 화면에 보이므로 역전이 "조작"이 아니라 "스킬 덕분"으로 읽힌다.
+// comebackStrength 0이면 가중 없이 균등 추첨(기존 동작). 가중치는 강도에 비례해 1↔목표값 보간.
+const SKILL_TIER_WEIGHTS: Record<SkillType, { top: number; bottom: number }> = {
+  booster:  { top: 0.5, bottom: 2.0 },
+  tank:     { top: 0.5, bottom: 2.0 },
+  teleport: { top: 0.5, bottom: 2.0 },
+  slime:    { top: 2.0, bottom: 0.5 },
+  ghost:    { top: 1.0, bottom: 1.0 },
+  magnet:   { top: 1.0, bottom: 1.0 }, // 시전자 주변을 끌어당김 — 하위권이 쓰면 자연 견제
+  none:     { top: 1.0, bottom: 1.0 }, // 타입 충족용 — AVAILABLE_SKILLS에 없어 추첨되지 않음
+};
+
+function pickSkillForChip(chipId: string): SkillType {
+  const uniform = () => AVAILABLE_SKILLS[Math.floor(Math.random() * AVAILABLE_SKILLS.length)];
+  const s = core?.comebackStrength01 ?? 0;
+  const ranks = core?.latestRanks ?? [];
+  if (s <= 0 || ranks.length < 3) return uniform();
+  const entry = ranks.find((r) => r.id === chipId);
+  if (!entry) return uniform();
+
+  const pct = entry.rank / ranks.length; // 0에 가까울수록 선두, 1에 가까울수록 꼴등
+  const tier: 'top' | 'bottom' | null = pct <= 1 / 3 ? 'top' : pct >= 2 / 3 ? 'bottom' : null;
+  if (!tier) return uniform(); // 중위권은 균등
+
+  // 강도 비례 보간된 가중 랜덤 추첨
+  const weights = AVAILABLE_SKILLS.map((sk) => 1 + (SKILL_TIER_WEIGHTS[sk][tier] - 1) * s);
+  const total = weights.reduce((a, b) => a + b, 0);
+  let roll = Math.random() * total;
+  for (let i = 0; i < AVAILABLE_SKILLS.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) return AVAILABLE_SKILLS[i];
+  }
+  return AVAILABLE_SKILLS[AVAILABLE_SKILLS.length - 1];
+}
+
 // ── 개별 쿨타임 처리 (매 물리 스텝마다 호출) ──
 // 각 칩의 쿨타임을 1씩 증가시키고, max에 도달하면 스킬을 발동한 뒤 즉시 초기화한다.
 // 이 방식은 게임 속도(dtMultiplier)에 영향을 받지 않으며, 순수 프레임 카운트 기반이다.
@@ -141,8 +178,8 @@ function processSkillCooldowns() {
     cd.currentCooldown++;
 
     if (cd.currentCooldown >= cd.maxCooldown) {
-      // 쿨타임 도달 → 스킬 발동
-      const randomSkill = AVAILABLE_SKILLS[Math.floor(Math.random() * AVAILABLE_SKILLS.length)];
+      // 쿨타임 도달 → 스킬 발동 (역전 다이내믹스: 순위 가중 추첨, 강도 0이면 기존 균등 추첨)
+      const randomSkill = pickSkillForChip(cd.chipId);
 
       // 메인 스레드에 스킬 발동 이벤트 전달 (UI 컷씬 연출 트리거)
       self.postMessage({ type: 'SKILL_FIRED', payload: { chipId: cd.chipId, skill: randomSkill } });
@@ -167,7 +204,8 @@ self.onmessage = async (e) => {
       width, height, customMapData, customMapMeta, presetMeta, gimmickDensity,
       survivors, targetCount, mode, customRank, randomRanks, isSkillEnabled: isSkill,
       baseTimeScale: initBaseTimeScale,
-      selectedMapPreset
+      selectedMapPreset,
+      comebackStrength
     } = payload;
 
     // customMapData가 있으면 share code를 통해 강제 로드된 맵, 없더라도 presetMeta.isOfficial === false 이면 로컬에 임시 저장된 커스텀 맵으로 판별.
@@ -201,6 +239,7 @@ self.onmessage = async (e) => {
       layoutConfig, // PRD v6.0: 커스텀 맵의 레이아웃 메타데이터도 반영
       mapKey: selectedMapPreset && selectedMapPreset !== 'random' ? selectedMapPreset : 'random',
       survivors, targetCount, mode, customRank, randomRanks,
+      comebackStrength, // 역전 다이내믹스 강도(0~100, 미지정 시 코어 기본 50)
     });
 
     positionsBuffer = new Float32Array(core.activeChips.length * 5);
@@ -285,6 +324,9 @@ self.onmessage = async (e) => {
   } else if (type === 'SET_BASE_TIME_SCALE') {
     // 환경 설정용
     baseTimeScale = payload.scale;
+  } else if (type === 'SET_COMEBACK_STRENGTH') {
+    // 환경설정 "순위 역동성" 슬라이더(0~100) 실시간 반영
+    core?.setComebackStrength(payload.value);
   } else if (type === 'STOP') {
     isRunning = false;
     chipCooldowns = [];

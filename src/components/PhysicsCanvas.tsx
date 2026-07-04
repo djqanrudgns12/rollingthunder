@@ -43,7 +43,7 @@ export default function PhysicsCanvas() {
   const finishedFeedRef = useRef(finishedFeed);
   useEffect(() => { finishedFeedRef.current = finishedFeed; }, [finishedFeed]);
   
-  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, setSelectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks, baseTimeScale, isMuted, setMuted, mapDataCache } = useGameStore()
+  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, setSelectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks, baseTimeScale, comebackStrength, isMuted, setMuted, mapDataCache } = useGameStore()
   const { setGameStage, customMapData, customMapMeta, isBroadcasterMode, gameTitle } = useUIStore()
   const workerRef = useRef<Worker | null>(null)
   
@@ -155,6 +155,13 @@ export default function PhysicsCanvas() {
       workerRef.current.postMessage({ type: 'SET_BASE_TIME_SCALE', payload: { scale: baseTimeScale } });
     }
   }, [baseTimeScale, isWorkerReady]);
+
+  // 순위 역동성(역전 다이내믹스) 강도 — 환경설정 슬라이더 변경을 레이스 도중에도 실시간 반영
+  useEffect(() => {
+    if (workerRef.current && isWorkerReady) {
+      workerRef.current.postMessage({ type: 'SET_COMEBACK_STRENGTH', payload: { value: comebackStrength } });
+    }
+  }, [comebackStrength, isWorkerReady]);
 
   // WebGL Filters ref
   const shockwaveRef = useRef<any>(null)
@@ -1723,7 +1730,8 @@ export default function PhysicsCanvas() {
             customRank: customWinningRank,
             randomRanks: randomWinningRanks,
             isSkillEnabled,
-            selectedMapPreset
+            selectedMapPreset,
+            comebackStrength
           }
         });
       }
