@@ -1,5 +1,6 @@
 'use client'
 
+import { memo, useMemo } from 'react'
 import { useGameStore } from '@/store/gameStore'
 import { ParticipantRank } from '@/engine/RankingTracker'
 import { cn } from '@/lib/utils'
@@ -12,41 +13,48 @@ interface LiveLeaderboardProps {
   finishedFeed?: {rank: number, survivor: any}[]
 }
 
-export default function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLeaderboardProps) {
+// memo: 부모(PhysicsCanvas) 재렌더 시 props(rankings/finishedFeed)가 같으면 스킵.
+// (skillCooldowns 구독에 의한 자체 재렌더는 쿨타임 게이지 표시에 필요 — 유지)
+function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLeaderboardProps) {
   const survivors = useGameStore(state => state.survivors)
   const skillCooldowns = useGameStore(state => state.skillCooldowns)
-  
+
   const gameMode = useGameStore(state => state.gameMode)
   const targetWinnerCount = useGameStore(state => state.targetWinnerCount)
   const customWinningRank = useGameStore(state => state.customWinningRank)
   const randomWinningRanks = useGameStore(state => state.randomWinningRanks)
   const totalParticipantsCount = useGameStore(state => state.participants.length)
 
-  // ── 순위 목록 구성 ──
+  // id → survivor 사전(참가자 수 n에 대해 기존 map 안 find의 O(n²) 스캔 제거)
+  const survivorById = useMemo(() => new Map(survivors.map(s => [s.id, s])), [survivors])
+
+  // ── 순위 목록 구성 (입력이 바뀔 때만 재계산) ──
   // 완주자(finished)를 맨 위에, 그 아래에 레이스 진행 중인 참가자를 현재 순위대로 표시한다.
-  const finishedItems = finishedFeed.map(f => ({
-    id: f.survivor.id,
-    rank: f.rank,
-    isFinished: true,
-    survivor: f.survivor
-  }))
+  const combinedRankings = useMemo(() => {
+    const finishedItems = finishedFeed.map(f => ({
+      id: f.survivor.id,
+      rank: f.rank,
+      isFinished: true,
+      survivor: f.survivor
+    }))
 
-  const finishedIds = new Set(finishedItems.map(f => f.id))
+    const finishedIds = new Set(finishedItems.map(f => f.id))
 
-  let activeRankOffset = finishedItems.length + 1;
-  const activeItems = rankings
-    .filter(p => !finishedIds.has(p.id))
-    .map(p => {
-      const survivor = survivors.find(s => s.id === p.id)
-      return {
-        id: p.id,
-        rank: activeRankOffset++,
-        isFinished: false,
-        survivor: survivor || { id: p.id, name: p.id, color: '#ffffff' }
-      }
-    })
+    let activeRankOffset = finishedItems.length + 1;
+    const activeItems = rankings
+      .filter(p => !finishedIds.has(p.id))
+      .map(p => {
+        const survivor = survivorById.get(p.id)
+        return {
+          id: p.id,
+          rank: activeRankOffset++,
+          isFinished: false,
+          survivor: survivor || { id: p.id, name: p.id, color: '#ffffff' }
+        }
+      })
 
-  const combinedRankings = [...finishedItems, ...activeItems]
+    return [...finishedItems, ...activeItems]
+  }, [rankings, finishedFeed, survivorById])
 
   const getOrdinalSuffix = (i: number) => {
     const j = i % 10, k = i % 100;
@@ -228,3 +236,5 @@ export default function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLea
     </div>
   )
 }
+
+export default memo(LiveLeaderboard)

@@ -6,12 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@dimforge/rapier2d-compat": "^0.19.3",
     "@dnd-kit/core": "^6.3.1",
-    "@dnd-kit/modifiers": "^9.0.0",
     "@ducanh2912/next-pwa": "^10.2.6",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",

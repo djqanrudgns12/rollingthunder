@@ -65,9 +65,11 @@ export default async function RootLayout({
   return (
     <html lang="ko" className={`${outfit.variable} ${jetbrainsMono.variable} ${customFonts}`}>
       <head>
+        {/* CDN 연결 선(preconnect)으로 폰트 CSS 왕복 지연 단축. as="style"은 stylesheet 링크에
+            무효(preload 전용 속성)라 제거 — 브라우저 콘솔 경고/무시 대상이었음 */}
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="" />
         <link
           rel="stylesheet"
-          as="style"
           crossOrigin=""
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
         />

@@ -6,6 +6,13 @@ export async function middleware(request: NextRequest) {
     request,
   })
 
+  // env 누락 가드: Supabase env가 없으면 auth 시도 자체가 매 요청을 깨뜨린다.
+  // 이 경우 인증 없이 통과시켜 앱(로컬 프리셋 폴백 경로)이 최소한 구동되게 한다.
+  // 정상 env에서는 아래 로직이 기존과 완전히 동일하게 동작한다.
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return supabaseResponse
+  }
+
   // 클라이언트 쿠키에서 '로그인 상태 유지' 여부 확인 (문자열 'false'가 아니면 true로 간주)
   const isKeepLoggedIn = request.cookies.get('keep_logged_in')?.value !== 'false'
 

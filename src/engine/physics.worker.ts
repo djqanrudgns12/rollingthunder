@@ -18,6 +18,7 @@ let postFinishFrames = 0;
 
 let positionsBuffer: Float32Array;
 let bufferPool: ArrayBuffer[] = [];
+let obstacleBufferPool: ArrayBuffer[] = []; // OBSTACLE_FRAME 전용 풀(FRAME과 크기 다름)
 let isSkillEnabled = true;
 let baseTimeScale = 1.0; // 환경설정에서 지정한 기본 배속
 let effectTimeScale = 1.0; // 카메라 연출용 (슬로모션, 스냅 등)
@@ -104,7 +105,21 @@ function broadcastFrame() {
 function broadcastObstacles() {
   if (!core || core.movingBodies.length === 0) return;
   const bodies = core.movingBodies;
-  const buf = new Float32Array(bodies.length * 3);
+  const byteLen = bodies.length * 3 * 4;
+
+  // FRAME과 동일한 버퍼 풀 패턴: 매 스텝 new Float32Array 할당(GC 압박) 제거.
+  // 메인 스레드가 소비 후 RECYCLE_OBSTACLE_BUFFER로 되돌려준다.
+  let bufferToUse: ArrayBuffer;
+  if (obstacleBufferPool.length > 0) {
+    bufferToUse = obstacleBufferPool.pop()!;
+    if (bufferToUse.byteLength !== byteLen) {
+      bufferToUse = new ArrayBuffer(byteLen);
+    }
+  } else {
+    bufferToUse = new ArrayBuffer(byteLen);
+  }
+
+  const buf = new Float32Array(bufferToUse);
   for (let i = 0; i < bodies.length; i++) {
     const b = bodies[i].body;
     const t = b.translation();
@@ -112,7 +127,7 @@ function broadcastObstacles() {
     buf[i * 3 + 1] = t.y;
     buf[i * 3 + 2] = b.rotation();
   }
-  (self.postMessage as any)({ type: 'OBSTACLE_FRAME', payload: buf.buffer }, [buf.buffer]);
+  (self.postMessage as any)({ type: 'OBSTACLE_FRAME', payload: bufferToUse }, [bufferToUse]);
 }
 
 // core.events 를 그대로 메인 스레드로 중계
@@ -313,6 +328,10 @@ self.onmessage = async (e) => {
   } else if (type === 'RECYCLE_BUFFER') {
     if (payload && payload.byteLength) {
       bufferPool.push(payload);
+    }
+  } else if (type === 'RECYCLE_OBSTACLE_BUFFER') {
+    if (payload && payload.byteLength) {
+      obstacleBufferPool.push(payload);
     }
   } else if (type === 'NUDGE') {
     if (core && core.world) {

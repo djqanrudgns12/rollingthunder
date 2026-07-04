@@ -15,6 +15,10 @@ interface MapLoadModalProps {
   onClose: () => void
 }
 
+// 맵 목록 재조회 staleness 게이트: 60초 이내 재오픈 시 DB 왕복 스킵(미리보기 stale 방지 목적은 유지)
+const MAPS_STALE_MS = 60_000
+let lastMapsFetchMs = 0
+
 export const DEFAULT_MAPS = [
   { id: 'random', title: '랜덤 맵', type: '매번 새로운 배치', length: '', complexity: '' },
   { id: 'neon_arcade', title: '네온 아케이드', type: '범퍼·부스터·풍차', length: '미들', complexity: '중간' },
@@ -41,12 +45,19 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
   // 미리보기가 최신 서버 배포 상태를 반영하도록 캐시를 반응형으로 구독한다.
   const mapDataCache = useGameStore(state => state.mapDataCache)
 
-  // 모달이 열릴 때마다 서버에서 최신 맵을 다시 불러와 캐시를 갱신한다(미리보기 stale 방지).
+  // 모달이 열릴 때 서버에서 최신 맵을 다시 불러와 캐시를 갱신한다(미리보기 stale 방지).
+  // 단, 60초 이내에 이미 갱신했다면 스킵 — 여닫을 때마다 반복되던 중복 DB 왕복 제거.
   useEffect(() => {
     if (!isOpen) return
+    if (Date.now() - lastMapsFetchMs < MAPS_STALE_MS) return
     let cancelled = false
     getMapsAction()
-      .then(fresh => { if (!cancelled) useGameStore.getState().setMapDataCache(fresh) })
+      .then(fresh => {
+        if (!cancelled) {
+          lastMapsFetchMs = Date.now()
+          useGameStore.getState().setMapDataCache(fresh)
+        }
+      })
       .catch(() => {})
     return () => { cancelled = true }
   }, [isOpen])

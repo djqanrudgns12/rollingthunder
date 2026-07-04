@@ -4,6 +4,8 @@ const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
   register: true,
+  // SPA식 내비게이션(back/forward 포함) 시에도 캐시를 적극 활용해 재방문 로드를 매끄럽게
+  cacheOnFrontEndNav: true,
 });
 
 /** @type {import('next').NextConfig} */

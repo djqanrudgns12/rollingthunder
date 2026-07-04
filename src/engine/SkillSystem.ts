@@ -62,17 +62,8 @@ const MAGNET_DURATION_FRAMES = 150;    // 2.5초
 //   v3: 워프 거리 300→180으로 "급소멸" 점프 폭 축소
 const TELEPORT_WARP_DISTANCE = 180;    // 1등일 때 순간 워프 거리 (px)
 
-// ── 쿨타임 (초 단위, worker에서 사용) ──────────────────────────────────
-// 스킬별 쿨타임을 export하여 physics.worker에서 참조
-export const SKILL_COOLDOWNS: Record<SkillType, number> = {
-  teleport: 8,
-  magnet: 7,
-  tank: 6,
-  booster: 6,
-  ghost: 5,
-  slime: 4,
-  none: 0,
-};
+// (제거됨) SKILL_COOLDOWNS: 주석과 달리 어디서도 참조하지 않는 죽은 export였음.
+// 실제 발동 쿨타임은 physics.worker의 randomCooldown()(5~15초 균등)이 결정한다.
 
 export class SkillSystem {
   // 현재 활성화된 스킬 엔트리 목록

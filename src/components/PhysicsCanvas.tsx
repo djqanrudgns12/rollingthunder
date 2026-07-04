@@ -7,6 +7,7 @@ import { Viewport } from 'pixi-viewport'
 import { ParticipantRank } from '@/engine/RankingTracker'
 import { soundManager } from '@/engine/AudioEngine'
 import { useGameStore } from '@/store/gameStore'
+import { useShallow } from 'zustand/react/shallow'
 import { useUIStore } from '@/store/uiStore'
 
 import LiveLeaderboard from './LiveLeaderboard'
@@ -43,7 +44,17 @@ export default function PhysicsCanvas() {
   const finishedFeedRef = useRef(finishedFeed);
   useEffect(() => { finishedFeedRef.current = finishedFeed; }, [finishedFeed]);
   
-  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, setSelectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks, baseTimeScale, comebackStrength, isMuted, setMuted, mapDataCache } = useGameStore()
+  // useShallow 선택자: 전체 store 구독을 피해 skillCooldowns(6프레임마다)·skillLogs 갱신이
+  // 이 대형 컴포넌트를 초당 ~10회 재렌더하는 것을 차단. 아래 필드가 바뀔 때만 재렌더.
+  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, setSelectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks, baseTimeScale, comebackStrength, isMuted, setMuted, mapDataCache } = useGameStore(useShallow((s) => ({
+    survivors: s.survivors, setSurvivors: s.setSurvivors,
+    targetWinnerCount: s.targetWinnerCount, gameMode: s.gameMode, customWinningRank: s.customWinningRank,
+    gimmickDensity: s.gimmickDensity, selectedMapPreset: s.selectedMapPreset, setSelectedMapPreset: s.setSelectedMapPreset,
+    isSkillEnabled: s.isSkillEnabled, addSkillLog: s.addSkillLog, setSkillCooldowns: s.setSkillCooldowns,
+    clearSkillLogs: s.clearSkillLogs, randomWinningRanks: s.randomWinningRanks,
+    baseTimeScale: s.baseTimeScale, comebackStrength: s.comebackStrength,
+    isMuted: s.isMuted, setMuted: s.setMuted, mapDataCache: s.mapDataCache,
+  })))
   const { setGameStage, customMapData, customMapMeta, isBroadcasterMode, gameTitle } = useUIStore()
   const workerRef = useRef<Worker | null>(null)
   
@@ -169,6 +180,8 @@ export default function PhysicsCanvas() {
     if (shockwaveRef.current) {
       shockwaveRef.current.time = 0;
       shockwaveRef.current.enabled = true;
+      // 발동 순간에만 스테이지에 부착(상시 부착 시 매 프레임 풀스크린 필터 패스 발생)
+      if (appRef.current) appRef.current.stage.filters = [shockwaveRef.current];
     }
   }, [])
 
@@ -235,8 +248,12 @@ export default function PhysicsCanvas() {
     let movingObstacleIds: string[] = [];
     const movingObstacleMinimaps = new Map<string, PIXI.Graphics>();
     const minimapDotsMap = new Map<string, PIXI.Graphics>();
+    const chipColorCache = new Map<string, number>(); // 칩 색상 hex 파싱 결과 캐시(핫패스)
     let minimapDynamic: PIXI.Container;
     let minimapStatic: PIXI.Container;
+    // 파티클/트레일 전용 비정렬 레이어(viewport 자식 z-sort 폭주 방지 — 생성부 주석 참조)
+    let particleLayer: PIXI.Container;
+    let trailLayer: PIXI.Container;
     let viewIndicator: PIXI.Graphics;
     let currentRankings: any[] = [];
     
@@ -246,6 +263,14 @@ export default function PhysicsCanvas() {
     // 스마트 카메라 디렉터(단일 두뇌). lastCamMs: 프레임 간 dt 계산용.
     let cameraDirector: CameraDirector | null = null;
     let lastCamMs = performance.now();
+
+    // ── 주사율 독립 고정 스텝(누산기) + 백프레셔 ──
+    // 렌더 티커가 STEP을 1:1로 쏘면 120/144Hz 모니터에서 게임이 2~2.4배 빨라지고,
+    // 워커가 밀릴 때 STEP이 무한 적체된다. 실경과시간을 누산해 정확히 60스텝/초만 발행하고,
+    // 미소비(FRAME 미수신) STEP이 2개 이상이면 발행을 보류한다.
+    const STEP_MS = 1000 / 60;
+    let stepAccumulatorMs = 0;
+    let pendingSteps = 0;
 
     // 미니맵 인터랙션 상태(탭/드래그를 이동거리로 구분). 화면상 미니맵 사각형을 저장해
     // 윈도우 레벨 포인터 이벤트로 직접 처리(Pixi 히트테스트 의존 제거).
@@ -310,7 +335,7 @@ export default function PhysicsCanvas() {
           backgroundAlpha: isBroadcasterMode ? 0 : 1,
           backgroundColor: 0x0a0a10, // Dark background
           antialias: true,
-          resolution: window.devicePixelRatio || 1,
+          resolution: Math.min(window.devicePixelRatio || 1, 2), // 고DPR(4K/레티나 3x) 필레이트 폭주 방지 상한
           autoDensity: true, // 캔버스 CSS 크기를 DPR에 맞춰 자동 보정 → 고DPI 화면 텍스처 찢어짐 방지
           powerPreference: 'high-performance',
         });
@@ -400,6 +425,18 @@ export default function PhysicsCanvas() {
         viewport.sortableChildren = true;
 
         app.stage.addChild(viewport);
+
+        // ── 파티클/트레일 전용 레이어 ──
+        // viewport는 sortableChildren=true라 자식이 추가될 때마다 전체 z-sort가 걸린다.
+        // 수명 짧은 파티클(완주 폭죽·얼음 파편·럭키 별 등)을 viewport에 직접 넣으면
+        // 이벤트 폭주 시 매 프레임 O(n log n) 재정렬 → 전용 비정렬 레이어로 라우팅한다.
+        // z-순서는 레이어 자체의 zIndex로 보존(칩=0 위에 파티클, 기물(-10) 위·칩 아래에 트레일).
+        trailLayer = new PIXI.Container();
+        trailLayer.zIndex = -5;
+        viewport.addChild(trailLayer);
+        particleLayer = new PIXI.Container();
+        particleLayer.zIndex = 50;
+        viewport.addChild(particleLayer);
         
         const wallStyleToUse = isCustomMap && customMapMeta?.wallStyle ? customMapMeta.wallStyle : presetMeta?.wallStyle;
 
@@ -512,8 +549,11 @@ export default function PhysicsCanvas() {
         shockwave.brightness = 1.2;
         shockwaveRef.current = shockwave;
         shockwaveRef.current.enabled = false;
-        
-        app.stage.filters = [shockwave];
+
+        // 스테이지 전체 필터 상시 부착 금지: 필터가 붙어있는 것만으로 매 프레임
+        // 전체 화면 render-to-texture 경로를 타므로, 발동 순간에만 부착하고 끝나면 뗀다.
+        // (부착은 triggerShockwave, 해제는 아래 티커의 종료 분기에서)
+        app.stage.filters = null;
         
         app.ticker.add((ticker) => {
           // ═══════════════════════════════════════════════════════════════════
@@ -526,7 +566,20 @@ export default function PhysicsCanvas() {
           // ═══════════════════════════════════════════════════════════════════
           const gs = gameStateRef.current;
           if ((gs === 'playing' || gs === 'winner_declared') && workerRef.current) {
-            workerRef.current.postMessage({ type: 'STEP' });
+            // 주사율 독립: 실경과시간 누산 → 1/60s당 STEP 1회(프레임당 최대 2회 캐치업).
+            // 백프레셔: 워커가 아직 소화 못한 STEP(pendingSteps)이 2개면 발행 보류.
+            stepAccumulatorMs += Math.min(ticker.deltaMS, 100); // 탭 복귀 시 폭주 방지
+            let issued = 0;
+            while (stepAccumulatorMs >= STEP_MS && issued < 2 && pendingSteps < 2) {
+              stepAccumulatorMs -= STEP_MS;
+              pendingSteps++;
+              issued++;
+              workerRef.current.postMessage({ type: 'STEP' });
+            }
+            // 백프레셔로 미발행된 잔여 누산 상한(해소 시 한꺼번에 몰아치는 것 방지)
+            if (stepAccumulatorMs > STEP_MS * 2) stepAccumulatorMs = STEP_MS * 2;
+          } else {
+            stepAccumulatorMs = 0;
           }
 
           if (shockwaveRef.current && shockwaveRef.current.enabled) {
@@ -534,6 +587,7 @@ export default function PhysicsCanvas() {
             if (shockwaveRef.current.time > 2.5) {
               shockwaveRef.current.enabled = false;
               shockwaveRef.current.time = 0;
+              app.stage.filters = null; // 연출 종료 → 풀스크린 필터 패스 해제
             }
           }
 
@@ -771,7 +825,7 @@ export default function PhysicsCanvas() {
         ring.circle(0, 0, 14);
         ring.stroke({ color: burstColor, width: 3, alpha: 0.9 });
         ring.position.copyFrom(container.position);
-        viewport.addChild(ring);
+        particleLayer.addChild(ring);
         gsap.fromTo(ring.scale, { x: 0.4, y: 0.4 }, { x: 3.2, y: 3.2, duration: 0.45, ease: 'power2.out' });
         gsap.to(ring, { alpha: 0, duration: 0.45, ease: 'power2.out', onComplete: () => ring.destroy() });
 
@@ -782,7 +836,7 @@ export default function PhysicsCanvas() {
           p.circle(0, 0, 2 + Math.random() * 2.5);
           p.fill({ color: burstColor, alpha: 0.95 });
           p.position.copyFrom(container.position);
-          viewport.addChild(p);
+          particleLayer.addChild(p);
           gsap.to(p.position, {
             x: container.position.x + Math.cos(ang) * dist,
             y: container.position.y + Math.sin(ang) * dist,
@@ -810,7 +864,7 @@ export default function PhysicsCanvas() {
                 trail.circle(0, 0, 10);
                 trail.fill({ color: 0xFF8C00, alpha: 0.4 });
                 trail.position.copyFrom(container.position);
-                viewport.addChildAt(trail, 0); // 배경 위에
+                trailLayer.addChild(trail); // 기물 위·칩 아래 레이어
                 
                 gsap.to(trail, {
                   alpha: 0,
@@ -820,6 +874,7 @@ export default function PhysicsCanvas() {
               }
             };
             app.ticker.add(trailTicker);
+            tickers.push(trailTicker); // 언마운트 안전망(누수 방지) — remove는 중복 호출 무해
 
             cleanupTasks.push(() => {
               app.ticker.remove(trailTicker);
@@ -861,7 +916,7 @@ export default function PhysicsCanvas() {
                 trail.fill({ color: 0x00FFD0, alpha: 0.5 });
                 // 진행 방향 반대(위쪽)에 불꽃
                 trail.position.set(container.position.x + (Math.random() * 10 - 5), container.position.y - 15 - Math.random() * 10);
-                viewport.addChildAt(trail, 0);
+                trailLayer.addChild(trail);
                 
                 gsap.to(trail, {
                   y: trail.position.y - 20,
@@ -874,6 +929,7 @@ export default function PhysicsCanvas() {
               }
             };
             app.ticker.add(trailTicker);
+            tickers.push(trailTicker); // 언마운트 안전망(누수 방지)
 
             cleanupTasks.push(() => {
               app.ticker.remove(trailTicker);
@@ -956,7 +1012,7 @@ export default function PhysicsCanvas() {
 
             // 인력선 (단일 Graphics 재사용)
             const attractionLines = new PIXI.Graphics();
-            viewport.addChild(attractionLines);
+            particleLayer.addChild(attractionLines);
 
             let frameCount = 0;
             const lineTicker = () => {
@@ -988,6 +1044,7 @@ export default function PhysicsCanvas() {
               }
             };
             app.ticker.add(lineTicker);
+            tickers.push(lineTicker); // 언마운트 안전망(누수 방지)
 
             cleanupTasks.push(() => {
               app.ticker.remove(lineTicker);
@@ -1014,14 +1071,14 @@ export default function PhysicsCanvas() {
                 }
               });
               ghost.position.copyFrom(container.position);
-              viewport.addChild(ghost);
+              trailLayer.addChild(ghost);
               gsap.to(ghost.scale, { x: 2, y: 2, duration: 0.3 });
               gsap.to(ghost, { alpha: 0, duration: 0.3, onComplete: () => ghost.destroy() });
             }
 
             // 번개선 이펙트 (지그재그 8~12 세그먼트)
             const lightning = new PIXI.Graphics();
-            viewport.addChild(lightning);
+            particleLayer.addChild(lightning);
             
             // 순간이동은 이동 전/후 위치가 필요하지만, SKILL_FIRED 발생 시점엔 이미 목적지에 도착해 있음.
             // 위쪽(y - 300)에서 떨어지는 듯한 번개를 그림
@@ -1097,10 +1154,11 @@ export default function PhysicsCanvas() {
       };
 
       const removeSkillVFX = (chipId: string) => {
-        const container = graphicsMap.get(chipId);
-        if (container && !container.destroyed) {
-          const vfx = activeVFXMap.get(chipId);
-          if (vfx) vfx.cleanup();
+        // cleanup은 무조건 실행: 컨테이너가 이미 destroyed여도 티커/repeat:-1 트윈은
+        // 별개로 살아있으므로, 여기서 스킵하면 영구 잔존(누수)한다.
+        const vfx = activeVFXMap.get(chipId);
+        if (vfx) {
+          try { vfx.cleanup(); } catch { /* destroyed 노드 접근 등 정리 중 예외는 무시 */ }
           activeVFXMap.delete(chipId);
         }
       };
@@ -1110,6 +1168,9 @@ export default function PhysicsCanvas() {
         const { type, payload } = e.data;
         
         if (type === 'INIT_DONE') {
+          // 새 레이스: 스텝 누산기/백프레셔 카운터 리셋
+          stepAccumulatorMs = 0;
+          pendingSteps = 0;
           setIsWorkerReady(true);
           activeChipsCount = payload.activeChipsCount;
           movingObstacleIds = payload.movingObstacleIds || [];
@@ -1182,7 +1243,10 @@ export default function PhysicsCanvas() {
             const mm = movingObstacleMinimaps.get(id);
             if (mm) { mm.position.set(x, y); mm.rotation = rot; }
           }
+          // 소비 완료 → 워커 풀로 반환(매 스텝 새 할당으로 인한 GC 압박 제거)
+          workerRef.current?.postMessage({ type: 'RECYCLE_OBSTACLE_BUFFER', payload }, [payload]);
         } else if (type === 'FRAME') {
+          pendingSteps = Math.max(0, pendingSteps - 1); // 백프레셔 해제(STEP 1개 소화 완료)
           const buffer = new Float32Array(payload);
           
           let firstY = -Infinity;
@@ -1357,7 +1421,8 @@ export default function PhysicsCanvas() {
             
             // mBlur 로직 완전히 제거 (에셋 성능 최적화)
 
-            // Minimap Dot Logic
+            // Minimap Dot Logic — 지오메트리는 스타일(선두/일반) 변화 시에만 재구축.
+            // 기존에는 매 프레임 clear+circle+fill+stroke 재구축 + 색상 문자열 파싱이 칩 수만큼 돌았다.
             if (minimapDynamic) {
               let mDot = minimapDotsMap.get(bodyId);
               if (!mDot) {
@@ -1367,23 +1432,29 @@ export default function PhysicsCanvas() {
               }
               mDot.position.set(x, y);
 
-              // Update color and size
-              mDot.clear();
-              if (isChip && survivor) {
-                const colorNum = parseInt(survivor.color.replace('#', '0x')) || 0xffffff;
-                if (currentRankings.length > 0 && currentRankings[0].id === survivor.id) {
-                  mDot.circle(0,0, 30); // 1st place is huge and gold
+              const isLeader = isChip && survivor && currentRankings.length > 0 && currentRankings[0].id === survivor.id;
+              const style = isLeader ? 1 : (isChip && survivor ? 2 : 3);
+              if ((mDot as any).__style !== style) {
+                (mDot as any).__style = style;
+                mDot.clear();
+                if (style === 1) {
+                  mDot.circle(0, 0, 30); // 1st place is huge and gold
                   mDot.fill(0xffd700);
-                  // Add a subtle white outline to 1st place
                   mDot.stroke({ width: 10, color: 0xffffff, alpha: 1 });
-                } else {
-                  mDot.circle(0,0, 18);
+                } else if (style === 2) {
+                  // 칩 색상 파싱은 1회만(캐시) — 매 프레임 문자열 replace/parseInt 제거
+                  let colorNum = chipColorCache.get(bodyId);
+                  if (colorNum === undefined) {
+                    colorNum = (survivor?.color ? parseInt(survivor.color.replace('#', '0x')) : 0) || 0xffffff;
+                    chipColorCache.set(bodyId, colorNum);
+                  }
+                  mDot.circle(0, 0, 18);
                   mDot.fill(colorNum);
                   mDot.stroke({ width: 4, color: 0xffffff, alpha: 0.8 });
+                } else {
+                  mDot.circle(0, 0, 18);
+                  mDot.fill(0x888888);
                 }
-              } else {
-                mDot.circle(0,0, 18);
-                mDot.fill(0x888888);
               }
             }
 
@@ -1431,10 +1502,10 @@ export default function PhysicsCanvas() {
               // 기물 노드 조회는 graphicsMap 단일 경로 사용 (viewport.getChildAt(n)은 sortableChildren으로 인덱스 불안정 → 항상 미스)
               const target = graphicsMap.get(payload.targetId);
               if (target) {
-                import('gsap').then(({ gsap }) => {
+                {
                   gsap.fromTo(target.scale, { x: 1.3, y: 1.3 }, { x: 1, y: 1, duration: 0.3, ease: 'elastic.out(1, 0.3)' });
                   gsap.fromTo(target, { alpha: 2 }, { alpha: 1, duration: 0.2 });
-                });
+                }
               }
             }
           } else if (payload.type === 'funnel') {
@@ -1449,9 +1520,9 @@ export default function PhysicsCanvas() {
         } else if (type === 'FLIPPER_SWING') {
           const target = graphicsMap.get(payload.id);
           if (target) {
-            import('gsap').then(({ gsap }) => {
+            {
               gsap.fromTo(target.scale as any, { x: 1.2, y: 1.2 }, { x: 1, y: 1, duration: 0.3, ease: 'elastic.out(1, 0.3)' });
-            });
+            }
           }
           // 무거운 둔탁한 소리로 매핑
           soundManager.playSfx('ui_nudge', 50, payload.x);
@@ -1471,19 +1542,19 @@ export default function PhysicsCanvas() {
                 crackOverlay.alpha = 1;
               }
             }
-            import('gsap').then(({ gsap }) => {
+            {
               gsap.fromTo(target.scale, { x: 1.12, y: 1.12 }, { x: 1, y: 1, duration: 0.2 });
-            });
+            }
             for(let i=0; i<3; i++) {
               const p = new PIXI.Graphics();
               p.circle(0, 0, 3);
               p.fill({ color: 0xffffff, alpha: 0.8 });
               p.position.set(payload.x, payload.y);
-              viewport.addChild(p);
-              import('gsap').then(({ gsap }) => {
+              particleLayer.addChild(p);
+              {
                 gsap.to(p.position, { x: payload.x + (Math.random()-0.5)*40, y: payload.y + (Math.random()-0.5)*40, duration: 0.3 });
                 gsap.to(p, { alpha: 0, duration: 0.3, onComplete: () => p.destroy() });
-              });
+              }
             }
           }
         } else if (type === 'ICE_DESTROY') {
@@ -1500,9 +1571,9 @@ export default function PhysicsCanvas() {
               crackOverlay.visible = true;
               crackOverlay.alpha = 1;
             }
-            import('gsap').then(({ gsap }) => {
+            {
               gsap.to(target.scale, { x: 0, y: 0, duration: 0.2, ease: 'back.in(1.5)', onComplete: () => { if (!target.destroyed) target.destroy(); } });
-            });
+            }
             // 파괴된 노드로의 후속 조회 방지 + 미니맵 마커 제거(파괴된 얼음이 미니맵에 잔존하지 않게)
             graphicsMap.delete(payload.id);
             const iceMinimap = movingObstacleMinimaps.get(payload.id);
@@ -1516,11 +1587,11 @@ export default function PhysicsCanvas() {
             p.circle(0, 0, Math.random()*4+2);
             p.fill({ color: 0x88ccff, alpha: 0.9 });
             p.position.set(payload.x, payload.y);
-            viewport.addChild(p);
-            import('gsap').then(({ gsap }) => {
+            particleLayer.addChild(p);
+            {
               gsap.to(p.position, { x: payload.x + (Math.random()-0.5)*100, y: payload.y + (Math.random()-0.5)*100, duration: 0.5 + Math.random()*0.3, ease: 'power2.out' });
               gsap.to(p, { alpha: 0, duration: 0.5, delay: 0.2, onComplete: () => p.destroy() });
-            });
+            }
           }
         } else if (type === 'LUCKY_EFFECT') {
           soundManager.playSfx('env_wormhole', 0, payload.x);
@@ -1531,18 +1602,18 @@ export default function PhysicsCanvas() {
             p.star(0, 0, 5, 6, 3);
             p.fill({ color: c, alpha: 1 });
             p.position.set(payload.x, payload.y);
-            viewport.addChild(p);
-            import('gsap').then(({ gsap }) => {
+            particleLayer.addChild(p);
+            {
               gsap.to(p.position, { x: payload.x + (Math.random()-0.5)*150, y: payload.y - Math.random()*150, duration: 0.6, ease: 'power2.out' });
               gsap.to(p.scale, { x: 0, y: 0, duration: 0.6 });
               gsap.to(p, { rotation: Math.random()*Math.PI*4, duration: 0.6, onComplete: () => p.destroy() });
-            });
+            }
           }
           const gate = graphicsMap.get(payload.gateId);
           if (gate) {
-            import('gsap').then(({ gsap }) => {
+            {
               gsap.fromTo(gate.scale, { x: 1.5, y: 1.5 }, { x: 1, y: 1, duration: 0.4, ease: 'bounce.out' });
-            });
+            }
           }
         } else if (type === 'WIND_ON' || type === 'WIND_OFF') {
           // Not strictly required since graphics loop handles it
@@ -1635,14 +1706,14 @@ export default function PhysicsCanvas() {
                 
                 particle.fill({ color: pColor, alpha: 1 });
                 particle.position.set(payload.position.x, payload.position.y);
-                viewport.addChild(particle);
+                particleLayer.addChild(particle);
 
                 const angle = Math.random() * Math.PI * 2;
                 const speed = Math.random() * 150 + 50;
                 const tx = payload.position.x + Math.cos(angle) * speed;
                 const ty = payload.position.y + Math.sin(angle) * speed;
 
-                import('gsap').then(({ gsap }) => {
+                {
                   gsap.to(particle.position, {
                     x: tx, y: ty, duration: 0.6 + Math.random() * 0.4, ease: 'power2.out'
                   });
@@ -1653,7 +1724,7 @@ export default function PhysicsCanvas() {
                     alpha: 0, duration: 0.6 + Math.random() * 0.4, ease: 'power2.in',
                     onComplete: () => particle.destroy()
                   });
-                });
+                }
               }
 
               // 2. 순위 타이포그래피 (텍스트 팝업)
@@ -1681,9 +1752,9 @@ export default function PhysicsCanvas() {
                 textObj.anchor.set(0.5);
                 textObj.position.set(payload.position.x, payload.position.y - 40);
                 textObj.scale.set(0);
-                viewport.addChild(textObj);
+                particleLayer.addChild(textObj);
 
-                import('gsap').then(({ gsap }) => {
+                {
                   gsap.to(textObj.scale, {
                     x: 1, y: 1, duration: 0.4, ease: 'back.out(1.7)'
                   });
@@ -1693,7 +1764,7 @@ export default function PhysicsCanvas() {
                   gsap.to(textObj, {
                     alpha: 0, duration: 0.5, delay: 1.0, onComplete: () => textObj.destroy()
                   });
-                });
+                }
               });
             }
             

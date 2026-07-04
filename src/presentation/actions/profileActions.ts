@@ -13,8 +13,11 @@ export async function getProfileOverviewAction(): Promise<UserProfile | null> {
       return null;
     }
 
-    const profile = await UserRepository.getProfile(user.id);
-    const stats = await UserRepository.getProfileStats(user.id);
+    // 매 내비게이션마다 실행되는 경로 — 독립 쿼리 2건을 병렬화해 왕복 1회분 단축
+    const [profile, stats] = await Promise.all([
+      UserRepository.getProfile(user.id),
+      UserRepository.getProfileStats(user.id),
+    ]);
 
     return {
       ...profile,
