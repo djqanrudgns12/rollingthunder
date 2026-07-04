@@ -263,7 +263,7 @@ export default function Dashboard() {
         </button>
       </div>
 
-      <div className={`p-5 md:p-8 rounded-3xl w-full max-w-2xl flex flex-col gap-4 shadow-2xl transition-all duration-500 max-h-[calc(100vh-2rem)] overflow-hidden ${isBroadcasterMode ? 'bg-black border-2 border-green-500' : 'glass-panel-heavy'}`}>
+      <div className={`p-5 md:p-8 rounded-3xl w-full max-w-2xl flex flex-col gap-4 shadow-2xl transition-all duration-500 max-h-[calc(100dvh-2rem)] overflow-y-auto custom-scrollbar ${isBroadcasterMode ? 'bg-black border-2 border-green-500' : 'glass-panel-heavy'}`}>
         {/* Header (Text Logo) - 항상 고정 */}
         <div className="relative text-center flex flex-col items-center shrink-0 mb-6 animate-in fade-in slide-in-from-top-4 w-full">
           <div className="flex items-center justify-center gap-3 md:gap-4">

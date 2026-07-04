@@ -101,6 +101,7 @@
     -webkit-appearance: none;
     appearance: none;
     background: transparent;
+    touch-action: none; /* 슬라이더 드래그 시 스크롤 방지 */
   }
   input[type="range"].neon-slider::-webkit-slider-thumb {
     -webkit-appearance: none;

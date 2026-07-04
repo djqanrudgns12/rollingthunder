@@ -110,10 +110,10 @@ export default function SettingsModal() {
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md bg-[var(--bg-secondary)] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-md max-h-[90dvh] bg-[var(--bg-secondary)] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/20">
+        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/20 shrink-0">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Zap className="w-5 h-5 text-[var(--accent-primary)]" />
             환경설정
@@ -127,7 +127,7 @@ export default function SettingsModal() {
         </div>
 
         {/* Content */}
-        <div className="p-6 flex flex-col gap-6">
+        <div className="p-4 sm:p-6 flex flex-col gap-4 sm:gap-6 overflow-y-auto flex-1 min-h-0 custom-scrollbar">
           
           {/* Theme */}
           <div className="flex flex-col gap-2">
@@ -166,7 +166,7 @@ export default function SettingsModal() {
               ))}
             </select>
             <div 
-              className="mt-2 p-3 bg-black/30 rounded-lg border border-white/5 text-center truncate text-sm"
+              className="mt-2 p-2 sm:p-3 bg-black/30 rounded-lg border border-white/5 text-center truncate text-sm"
               style={{ fontFamily: `var(--font-${fontFamily})` }}
             >
               가나다라마바사 ABCDE 12345
@@ -185,7 +185,7 @@ export default function SettingsModal() {
                   <button
                     key={speed}
                     onClick={() => setBaseTimeScale(speed)}
-                    className={`flex-1 py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${baseTimeScale === speed ? 'bg-orange-500 text-white shadow-[0_0_10px_#f97316]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                    className={`flex-1 py-1.5 sm:py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${baseTimeScale === speed ? 'bg-orange-500 text-white shadow-[0_0_10px_#f97316]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                   >
                     {speed}x
                   </button>
@@ -201,13 +201,13 @@ export default function SettingsModal() {
               <div className="flex gap-1">
                 <button
                   onClick={() => setScreenShakeEnabled(true)}
-                  className={`flex-1 py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${isScreenShakeEnabled ? 'bg-orange-500 text-white shadow-[0_0_10px_#f97316]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                  className={`flex-1 py-1.5 sm:py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${isScreenShakeEnabled ? 'bg-orange-500 text-white shadow-[0_0_10px_#f97316]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                 >
                   ON
                 </button>
                 <button
                   onClick={() => setScreenShakeEnabled(false)}
-                  className={`flex-1 py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${!isScreenShakeEnabled ? 'bg-black/80 text-white/80 border border-orange-500/50' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                  className={`flex-1 py-1.5 sm:py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${!isScreenShakeEnabled ? 'bg-black/80 text-white/80 border border-orange-500/50' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
                 >
                   OFF
                 </button>
@@ -223,18 +223,18 @@ export default function SettingsModal() {
             <div className="flex gap-1">
               <button
                 onClick={() => setCalmMode(true)}
-                className={`flex-1 py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${calmMode ? 'bg-cyan-500 text-white shadow-[0_0_10px_#06b6d4]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                className={`flex-1 py-1.5 sm:py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${calmMode ? 'bg-cyan-500 text-white shadow-[0_0_10px_#06b6d4]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
               >
                 ON
               </button>
               <button
                 onClick={() => setCalmMode(false)}
-                className={`flex-1 py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${!calmMode ? 'bg-black/80 text-white/80 border border-cyan-500/50' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                className={`flex-1 py-1.5 sm:py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${!calmMode ? 'bg-black/80 text-white/80 border border-cyan-500/50' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
               >
                 OFF
               </button>
             </div>
-            <p className="text-[10px] text-white/40 leading-tight">화면 채도·글로우·카메라 움직임을 더 줄여 눈피로/어지러움을 완화합니다. (장애물 글로우 제거는 다음 레이스부터 적용)</p>
+            <p className="text-[9px] sm:text-[10px] text-white/40 leading-tight">화면 채도·글로우·카메라 움직임을 더 줄여 눈피로/어지러움을 완화합니다. (장애물 글로우 제거는 다음 레이스부터 적용)</p>
           </div>
 
           {/* Audio Volumes */}
@@ -316,7 +316,7 @@ export default function SettingsModal() {
         </div>
 
         {/* Setting Actions */}
-        <div className="p-6 pt-0 flex gap-2">
+        <div className="p-4 sm:p-6 pt-3 flex gap-2 shrink-0 border-t border-white/10 bg-[var(--bg-secondary)]">
           <button
             onClick={handleReset}
             className="flex-1 py-3 px-2 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5"

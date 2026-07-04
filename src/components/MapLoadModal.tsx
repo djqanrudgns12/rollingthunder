@@ -184,10 +184,10 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity">
       {/* max-w-lg 에서 max-w-4xl 로 넓혀서 2단 분할 레이아웃 적용 */}
-      <div className="bg-[#111] border border-white/10 rounded-2xl w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col relative animate-in fade-in zoom-in duration-300">
+      <div className="bg-[#111] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90dvh] overflow-hidden shadow-2xl flex flex-col relative animate-in fade-in zoom-in duration-300">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-white/5">
+        <div className="flex items-center justify-between p-5 border-b border-white/5 shrink-0">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <Map className="w-6 h-6 text-[var(--accent-primary)]" />
             맵 로드
@@ -201,7 +201,7 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-white/5">
+        <div className="flex border-b border-white/5 shrink-0">
           <button
             onClick={() => setActiveTab('default')}
             className={`flex-1 py-4 text-sm font-bold transition-colors ${
@@ -225,9 +225,9 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
         </div>
 
         {/* Content (2단 분할) */}
-        <div className="flex min-h-[450px] max-h-[600px]">
+        <div className="flex flex-1 min-h-[300px] overflow-hidden">
           {/* 좌측 리스트 패널 */}
-          <div className="w-1/2 p-6 border-r border-white/5 overflow-y-auto">
+          <div className="w-1/2 p-6 border-r border-white/5 overflow-y-auto custom-scrollbar">
             {activeTab === 'default' && (
               <div className="flex flex-col gap-3 pr-1">
                 <p className="text-sm text-white/50 mb-2">기본으로 제공되는 맵 프리셋을 선택하세요.</p>

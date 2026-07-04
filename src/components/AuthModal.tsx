@@ -91,13 +91,13 @@ export default function AuthModal() {
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-sm bg-[var(--bg-secondary)] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-sm max-h-[90dvh] bg-[var(--bg-secondary)] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
         
         {/* 네온 장식 효과 */}
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--accent-primary)] to-transparent opacity-50" />
         
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/20">
+        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/20 shrink-0">
           <h2 className="text-xl font-bold flex items-center gap-2">
             {isLogin ? <LogIn className="w-5 h-5 text-[var(--accent-primary)]" /> : <UserPlus className="w-5 h-5 text-[var(--accent-primary)]" />}
             {isLogin ? '로그인' : '회원가입'}
@@ -113,7 +113,7 @@ export default function AuthModal() {
           </button>
         </div>
 
-        <div className="p-6 pb-8">
+        <div className="p-6 pb-8 overflow-y-auto flex-1 min-h-0 custom-scrollbar">
           <p className="text-[var(--text-secondary)] text-sm leading-relaxed mb-6 text-center">
             {isLogin ? 'Rolling Thunder 세션을 불러옵니다.' : '나만의 계정을 생성하고 전적을 기록하세요.'}
           </p>
