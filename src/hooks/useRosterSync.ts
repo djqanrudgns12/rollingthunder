@@ -3,8 +3,11 @@ import { createClient } from '@/lib/supabase/client'
 import { useGameStore } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
 
+// 싱글톤이므로 모듈 스코프에서 한 번만 가져옴 — 매 렌더마다 참조가 바뀌지 않아
+// useEffect 의존성 배열이 불필요하게 재실행되는 것을 방지
+const supabase = createClient()
+
 export function useRosterSync() {
-  const supabase = createClient()
   const { participants, setParticipants } = useGameStore()
   const { isLoggedIn } = useUIStore()
   
@@ -14,6 +17,16 @@ export function useRosterSync() {
 
   useEffect(() => {
     if (!isLoggedIn) return
+
+    // cleanup이 먼저 실행된 경우 모든 비동기 작업을 차단하기 위한 플래그
+    let aborted = false
+
+    // cleanup에서 비동기 콜백 완료 전후 모두 안전하게 채널을 제거하기 위해
+    // 채널 이름을 동기적으로 확정해 둔다
+    const channelName = `user-roster-changes-${crypto.randomUUID()}`
+
+    // 비동기 콜백 안에서 생성된 채널 참조를 저장 (이 effect 인스턴스 전용)
+    let channel: ReturnType<typeof supabase.channel> | null = null
 
     // 1. 초기 로드 시 서버에서 현재 Roster 가져오기
     const loadCurrentRoster = async () => {
@@ -46,13 +59,14 @@ export function useRosterSync() {
     loadCurrentRoster()
 
     // 2. Realtime 구독 설정
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    
+    // 채널 생성 → .on() → .subscribe()를 하나의 체인으로 묶어
+    // "subscribe() 이후 .on() 호출" 문제를 원천 차단
     supabase.auth.getSession().then(({ data: { session } }: any) => {
-      if (!session?.user?.id) return;
+      // cleanup이 이미 실행되었으면 새 채널을 절대 만들지 않음
+      if (aborted || !session?.user?.id) return
       
       channel = supabase
-        .channel('user-roster-changes')
+        .channel(channelName)
         .on(
           'postgres_changes',
           {
@@ -62,6 +76,8 @@ export function useRosterSync() {
             filter: `user_id=eq.${session.user.id}`
           },
           (payload: any) => {
+            // cleanup 후에 도착한 메시지는 무시
+            if (aborted) return
             if (payload.new && 'participants' in payload.new) {
               isSyncingFromServer.current = true
               setParticipants(payload.new.participants)
@@ -75,11 +91,20 @@ export function useRosterSync() {
     })
 
     return () => {
+      // 비동기 콜백이 아직 실행 전이면 구독 자체를 막음
+      aborted = true
+
+      // case 1: 비동기 콜백이 이미 완료되어 channel이 존재하는 경우
       if (channel) {
         supabase.removeChannel(channel)
+        channel = null
       }
+
+      // case 2: 비동기 콜백이 아직 완료되지 않은 경우
+      // → aborted 플래그로 인해 콜백 내에서 채널 생성 자체가 차단됨
+      // → 별도 처리 불필요
     }
-  }, [isLoggedIn, supabase, setParticipants])
+  }, [isLoggedIn, setParticipants])
 
   // 3. 로컬 participants 변경 시 서버로 동기화 (디바운스 적용)
   useEffect(() => {
@@ -110,5 +135,5 @@ export function useRosterSync() {
         clearTimeout(debounceTimer.current)
       }
     }
-  }, [participants, isLoggedIn, supabase])
+  }, [participants, isLoggedIn])
 }

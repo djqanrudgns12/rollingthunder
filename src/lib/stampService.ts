@@ -142,10 +142,12 @@ class StampService {
     if (error) throw error;
 
     // 포맷팅
-    return (data || []).map((mission: any) => {
+    return (data || []).map((mission: any, idx: number) => {
       const userRecord = mission.user_achievements.find((ua: any) => ua.user_id === userId);
       return {
-        id: userRecord ? userRecord.id : 'unstarted',
+        // userRecord가 없는(아직 시작 안 한) 업적도 고유한 key를 갖도록 mission.id + idx를 fallback으로 사용
+        // mission.id가 undefined인 경우에도 idx 덕분에 key 중복이 발생하지 않음
+        id: userRecord ? userRecord.id : `unstarted_${mission.id ?? idx}`,
         user_id: userId,
         mission_id: mission.id,
         progress: userRecord ? userRecord.progress : 0,
