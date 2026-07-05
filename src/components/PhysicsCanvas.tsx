@@ -1918,13 +1918,14 @@ export default function PhysicsCanvas() {
 
       <LiveLeaderboard rankings={rankings} finishedFeed={finishedFeed} />
 
-      <div className="absolute bottom-6 left-6 z-50 flex gap-4">
+      {/* 로비 복귀 버튼 — 하단 밀착 + 컴팩트화하여 게임 화면 가림 최소화 */}
+      <div className="absolute bottom-3 left-4 z-50 flex gap-4">
         <button 
           onClick={() => {
             stampService.flushPlayEvents();
             setGameStage('dashboard');
           }}
-          className={`glass-panel-heavy text-white font-bold px-6 py-4 rounded-2xl transition-all flex items-center justify-center gap-2 group w-48 ${
+          className={`glass-panel-heavy text-white font-bold px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 group w-40 text-sm ${
             (gameState === 'winner_declared' || gameState === 'all_finished')
               ? 'animate-bounce shadow-[0_0_25px_rgba(255,255,255,0.6)] border-2 border-white bg-white/20 hover:bg-white/30'
               : 'hover:bg-white/10 shadow-lg border border-white/10'
@@ -1934,11 +1935,19 @@ export default function PhysicsCanvas() {
         </button>
       </div>
 
-      {(gameState === 'winner_declared' || gameState === 'all_finished') && gameOverResult && (
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center animate-in slide-in-from-top fade-in duration-700 pointer-events-none w-full max-w-md">
-          {/* Stardust Particles (Phase 3) */}
+      {/* 승자 연출 오버레이 — 크기 축소 + 승자 수별 그리드 레이아웃 */}
+      {(gameState === 'winner_declared' || gameState === 'all_finished') && gameOverResult && (() => {
+        // 승자 수에 따른 레이아웃 규칙: 1~3명 1열, 4~6명 2열, 7명+ 3열
+        const winnerCount = gameOverResult.winners.length;
+        const useGrid = winnerCount >= 4;
+        const gridCols = winnerCount >= 7 ? 'grid-cols-3' : 'grid-cols-2';
+        // 7명+ 일 때만 max-w-sm(384px)으로 확장, 그 외 max-w-xs(320px)
+        const maxWidthClass = winnerCount >= 7 ? 'max-w-sm' : 'max-w-xs';
+        return (
+        <div className={`absolute top-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center animate-in slide-in-from-top fade-in duration-700 pointer-events-none w-full ${maxWidthClass}`}>
+          {/* Stardust Particles — 경량화 (15→8) */}
           <div className="absolute inset-0 pointer-events-none overflow-visible z-[-1]">
-            {[...Array(15)].map((_, i) => (
+            {[...Array(8)].map((_, i) => (
               <div 
                 key={i} 
                 className="stardust-particle" 
@@ -1951,31 +1960,34 @@ export default function PhysicsCanvas() {
               />
             ))}
           </div>
-          <h2 className="animate-victory-pulse font-black text-6xl tracking-tighter text-[#FFD700] mb-2 drop-shadow-[0_0_15px_rgba(255,215,0,0.5)] text-center">
-            {gameMode === 'random' ? (gameOverResult.winners.length === 1 ? 'Lucky Winner!' : 'Lucky Winners!') :
-             (gameOverResult.winners.length === 1 ? 'Victory!' : 'Top Survivors!')}
+          <h2 className="animate-victory-pulse font-black text-3xl tracking-tighter text-[#FFD700] mb-1 drop-shadow-[0_0_15px_rgba(255,215,0,0.5)] text-center">
+            {gameMode === 'random' ? (winnerCount === 1 ? 'Lucky Winner!' : 'Lucky Winners!') :
+             (winnerCount === 1 ? 'Victory!' : 'Top Survivors!')}
           </h2>
-          <span className="text-white/90 text-xl font-bold mb-6 tracking-widest drop-shadow-md bg-black/40 px-4 py-1 rounded-full border border-white/20">
+          <span className="text-white/90 text-sm font-bold mb-3 tracking-widest drop-shadow-md bg-black/40 px-3 py-0.5 rounded-full border border-white/20">
             {gameMode === 'speed' ? '스피드 레이스' : 
              gameMode === 'turtle' ? '거북이 레이스' : 
              gameMode === 'custom' ? '커스텀 레이스' : 
              gameMode === 'random' ? '랜덤 레이스' : gameMode}
           </span>
-          <div className="flex flex-col items-center gap-3 w-full bg-black/60 backdrop-blur-md px-6 py-6 rounded-3xl border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.8)] pointer-events-auto">
+          <div className={`w-full bg-black/60 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.8)] pointer-events-auto ${
+            useGrid ? `grid ${gridCols} gap-1.5` : 'flex flex-col gap-1.5'
+          } ${winnerCount >= 7 ? 'max-h-[200px] overflow-y-auto' : ''}`}>
             {gameOverResult.winners.map((w: any, idx: number) => (
-              <div key={idx} className="flex items-center justify-between w-full gap-4 px-2 py-2 border-b border-white/5 last:border-0">
-                <span className={`text-2xl font-black w-20 text-center whitespace-nowrap ${idx === 0 ? 'text-[#FFD700]' : idx === 1 ? 'text-[#C0C0C0]' : idx === 2 ? 'text-[#CD7F32]' : 'text-white/50'}`}>
+              <div key={idx} className="flex items-center w-full gap-2 px-1.5 py-1 border-b border-white/5 last:border-0">
+                <span className={`text-sm font-black w-14 text-center whitespace-nowrap shrink-0 ${idx === 0 ? 'text-[#FFD700]' : idx === 1 ? 'text-[#C0C0C0]' : idx === 2 ? 'text-[#CD7F32]' : 'text-white/50'}`}>
                   {getRankText(gameMode, idx)}
                 </span>
-                <div className="w-8 h-8 rounded-full shadow-[0_0_15px_currentColor] border-[2px] border-white/40 shrink-0" style={{ backgroundColor: w.color, color: w.color }}></div>
-                <span className="text-2xl font-black truncate flex-1 text-left" style={{ color: w.color || '#fff' }}>
+                <div className="w-5 h-5 rounded-full shadow-[0_0_10px_currentColor] border-[1.5px] border-white/40 shrink-0" style={{ backgroundColor: w.color, color: w.color }}></div>
+                <span className="text-base font-black truncate flex-1 text-left" style={{ color: w.color || '#fff' }}>
                   {w.name}
                 </span>
               </div>
             ))}
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* 랜덤 레이스: 게임 시작 직후 당첨 등수를 화면 중앙에 팝업으로 공개 */}
       {showRandomPopup && (
@@ -2034,24 +2046,24 @@ export default function PhysicsCanvas() {
         </div>
       )}
 
-      {/* 메인 하단 독 (Dock) - PRD 반영 */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-black/40 backdrop-blur-xl border border-white/10 px-4 py-3 rounded-[2rem] shadow-[0_4px_30px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] transition-all duration-700 ease-in-out">
+      {/* 메인 하단 독 (Dock) — 하단 밀착 + 컴팩트화하여 게임 화면 가림 최소화 */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-black/40 backdrop-blur-xl border border-white/10 px-3 py-2 rounded-2xl shadow-[0_4px_30px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] transition-all duration-700 ease-in-out">
         
         {/* 그룹 1: 게임 설정 (게임 시작 시 숨김 처리) */}
-        <div className={`flex items-center gap-3 transition-all duration-700 ease-in-out origin-left ${gameState !== 'idle' ? 'max-w-[0px] opacity-0 m-0 p-0 !gap-0 overflow-hidden' : 'max-w-[600px] opacity-100 overflow-visible'}`}>
+        <div className={`flex items-center gap-2 transition-all duration-700 ease-in-out origin-left ${gameState !== 'idle' ? 'max-w-[0px] opacity-0 m-0 p-0 !gap-0 overflow-hidden' : 'max-w-[600px] opacity-100 overflow-visible'}`}>
           
           {/* 맵 교체 버튼 및 드롭업 */}
           <div className="relative" ref={mapMenuRef}>
 
             <button 
               onClick={() => setIsMapMenuOpen(!isMapMenuOpen)}
-              className="relative z-[95] flex items-center gap-2 px-5 py-3 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.1)] transition-all group"
+              className="relative z-[95] flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.1)] transition-all group"
             >
-              <MapIcon className="w-[18px] h-[18px] text-blue-400 group-hover:text-blue-300 transition-colors" />
-              <span className="font-bold text-sm tracking-wide text-gray-200 group-hover:text-white transition-colors">
+              <MapIcon className="w-[16px] h-[16px] text-blue-400 group-hover:text-blue-300 transition-colors" />
+              <span className="font-bold text-xs tracking-wide text-gray-200 group-hover:text-white transition-colors">
                 {selectedMapPreset === 'random' ? '랜덤 맵' : ((mapDataCache && mapDataCache[selectedMapPreset])?.name || getPresetMeta(selectedMapPreset)?.name || '맵 선택')}
               </span>
-              <ChevronUp className={`w-[18px] h-[18px] text-gray-500 group-hover:text-white ml-1 transition-transform ${isMapMenuOpen ? 'rotate-180' : ''}`} />
+              <ChevronUp className={`w-[16px] h-[16px] text-gray-500 group-hover:text-white ml-0.5 transition-transform ${isMapMenuOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {/* 드롭업 (팝오버) 메뉴 */}
@@ -2097,65 +2109,65 @@ export default function PhysicsCanvas() {
           {/* 자리 섞기 버튼 */}
           <button 
             onClick={handleShuffle}
-            className="flex items-center gap-2 px-5 py-3 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.1)] transition-all group"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.1)] transition-all group"
           >
-            <Dices className="w-[18px] h-[18px] text-pink-400 group-hover:text-pink-300 group-hover:rotate-180 transition-all duration-500" />
-            <span className="font-bold text-sm tracking-wide text-gray-200 group-hover:text-white transition-colors">자리 섞기</span>
+            <Dices className="w-[16px] h-[16px] text-pink-400 group-hover:text-pink-300 group-hover:rotate-180 transition-all duration-500" />
+            <span className="font-bold text-xs tracking-wide text-gray-200 group-hover:text-white transition-colors">자리 섞기</span>
           </button>
 
           {/* 게임 시작 버튼 */}
           <button 
             onClick={handleStart}
             disabled={!isWorkerReady}
-            className={`flex items-center gap-2 px-8 py-3 rounded-full ml-1 bg-gradient-to-r from-indigo-500 to-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] transition-all group ${!isWorkerReady ? 'opacity-50 cursor-not-allowed' : 'hover:-translate-y-[2px] hover:scale-105 hover:shadow-[0_0_30px_rgba(168,85,247,0.6),inset_0_1px_0_rgba(255,255,255,0.3)]'}`}
+            className={`flex items-center gap-1.5 px-6 py-2 rounded-full ml-1 bg-gradient-to-r from-indigo-500 to-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] transition-all group ${!isWorkerReady ? 'opacity-50 cursor-not-allowed' : 'hover:-translate-y-[2px] hover:scale-105 hover:shadow-[0_0_30px_rgba(168,85,247,0.6),inset_0_1px_0_rgba(255,255,255,0.3)]'}`}
           >
             {isWorkerReady ? (
               <>
-                <Rocket className="w-[18px] h-[18px] text-white group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" />
-                <span className="font-bold tracking-widest text-sm text-white drop-shadow-md">게임 시작</span>
+                <Rocket className="w-[16px] h-[16px] text-white group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" />
+                <span className="font-bold tracking-widest text-xs text-white drop-shadow-md">게임 시작</span>
               </>
             ) : (
-              <span className="font-bold tracking-widest text-sm text-white drop-shadow-md">엔진 로딩중...</span>
+              <span className="font-bold tracking-widest text-xs text-white drop-shadow-md">엔진 로딩중...</span>
             )}
           </button>
           
           {/* 구분선 */}
-          <div className="w-px h-8 bg-white/10 mx-1 rounded-full"></div>
+          <div className="w-px h-6 bg-white/10 mx-0.5 rounded-full"></div>
         </div>
 
-        {/* 그룹 2: 게임 진행 컨트롤 (항상 노출됨) */}
-        <div className="flex items-center gap-2">
+        {/* 그룹 2: 게임 진행 컨트롤 (항상 노출됨) — 버튼 36px로 컴팩트화 */}
+        <div className="flex items-center gap-1.5">
           {/* BGM 토글 */}
           <button 
             onClick={handleToggleBgm}
-            className="w-12 h-12 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2)] transition-all group"
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2)] transition-all group"
             title="BGM 끄기/켜기"
           >
             {!isMuted ? 
-              <Music4 className="w-[22px] h-[22px] text-emerald-400 group-hover:text-emerald-300 transition-colors" /> :
-              <VolumeX className="w-[22px] h-[22px] text-gray-500 group-hover:text-gray-400 transition-colors" />
+              <Music4 className="w-[18px] h-[18px] text-emerald-400 group-hover:text-emerald-300 transition-colors" /> :
+              <VolumeX className="w-[18px] h-[18px] text-gray-500 group-hover:text-gray-400 transition-colors" />
             }
           </button>
 
           {/* 일시정지 / 재생 */}
           <button 
             onClick={handleTogglePause}
-            className="w-12 h-12 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2)] transition-all group"
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2)] transition-all group"
             title="일시정지/재생"
           >
             {isPaused ? 
-              <Play className="w-[22px] h-[22px] text-amber-400 group-hover:text-amber-300 transition-colors ml-1" /> :
-              <Pause className="w-[22px] h-[22px] text-amber-400 group-hover:text-amber-300 transition-colors" />
+              <Play className="w-[18px] h-[18px] text-amber-400 group-hover:text-amber-300 transition-colors ml-0.5" /> :
+              <Pause className="w-[18px] h-[18px] text-amber-400 group-hover:text-amber-300 transition-colors" />
             }
           </button>
 
           {/* 2배속 */}
           <button 
             onClick={handleToggleFastForward}
-            className={`w-12 h-12 flex items-center justify-center rounded-full border transition-all group ${isFastForward ? 'bg-cyan-500/20 border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.4)]' : 'bg-white/5 border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2)]'}`}
+            className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all group ${isFastForward ? 'bg-cyan-500/20 border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.4)]' : 'bg-white/5 border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2)]'}`}
             title="2배속 설정"
           >
-            <FastForward className={`w-[22px] h-[22px] transition-colors ${isFastForward ? 'text-cyan-300' : 'text-cyan-400 group-hover:text-cyan-300'}`} />
+            <FastForward className={`w-[18px] h-[18px] transition-colors ${isFastForward ? 'text-cyan-300' : 'text-cyan-400 group-hover:text-cyan-300'}`} />
           </button>
         </div>
 

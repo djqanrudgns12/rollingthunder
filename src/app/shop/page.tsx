@@ -52,8 +52,11 @@ export default function ShopPage() {
     return SKIN_DEFINITIONS[key] ? key : null;
   }, []);
 
-  // 미션 이벤트: 상점 방문
+  // 미션 이벤트 및 상점 BGM 재생
   useEffect(() => {
+    import('@/engine/AudioEngine').then(({ soundManager }) => {
+      soundManager.playShopBgm();
+    });
     stampService.trackEvent('visit_shop', 1);
     stampService.flushPlayEvents();
   }, []);
