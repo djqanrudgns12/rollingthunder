@@ -266,12 +266,10 @@ export default function PhysicsCanvas() {
     let activeChipsCount = 0;
     const chipPositions = new Map<string, { x: number, y: number, vy: number }>();
 
-    // ── [성능 최적화] 칩 외삽(Extrapolation) 렌더링 시스템 ──
+    // ── [성능 최적화] 칩 지수 스무딩(Exponential Smoothing) 시스템 ──
     // 왜: 물리 스텝(1/60초)과 렌더 프레임(모니터 주사율)이 비동기이므로,
-    // FRAME 간 중간 렌더 프레임에서 칩을 "현재 위치 + 속도 × 경과시간"으로 외삽하여
-    // 부드러운 이동을 보장. 다음 FRAME 도착 시 실제 위치로 자연스럽게 보정.
+    // 비주얼이 물리 위치를 "방향으로만" 부드럽게 따라감 → 절대 오버슈트/후퇴 없음.
     const currChipPos = new Map<string, { x: number, y: number, vx: number, vy: number }>();
-    let lastFrameArrivalMs = performance.now();
     // viewIndicator 변화 감지용 (매 프레임 재구축 방지)
     let lastViewCx = 0, lastViewCy = 0, lastViewZoom = 0;
     // RANKINGS shallow compare용
@@ -639,21 +637,19 @@ export default function PhysicsCanvas() {
             }
           }
 
-          // ── [성능 최적화] 칩 외삽(Extrapolation) 렌더링 ──
-          // 왜: FRAME 도착은 ~16.7ms마다이지만 렌더 프레임은 모니터 주사율(60~144Hz).
-          // FRAME 간 중간 렌더 프레임에서 칩이 "정지"하면 끊겨 보이므로,
-          // 현재 위치 + 속도 × 경과시간으로 매 프레임 외삽하여 부드러운 이동 보장.
-          // 다음 FRAME 도착 시 실제 위치로 자연스럽게 보정됨.
-          const extrapDtSec = (performance.now() - lastFrameArrivalMs) / 1000;
-          // 외삽 상한: 2프레임(~33ms) 이상 지연 시 외삽 정지(장애물 관통 방지)
-          const clampedDt = Math.min(extrapDtSec, 0.033);
+          // ── [성능 최적화] 칩 지수 스무딩(Exponential Smoothing) ──
+          // 왜: 외삽(pos + v×dt)은 "속도 일정" 가정 → 칩이 감속/충돌하면 실제보다 앞으로 가버림
+          // → 다음 FRAME 도착 시 실제 위치로 스냅 = "뒤로 밀림".
+          // 지수 스무딩은 비주얼이 물리 위치 **방향으로만** 이동하므로 절대 오버슈트 불가.
+          // k=25: ~2프레임(33ms) 내 57% 수렴, ~5프레임(83ms) 내 87% 수렴.
+          // 1 - e^(-k×dt) 공식이 주사율(60/120/144Hz) 독립적으로 동일 수렴 속도 보장.
+          const SMOOTH_K = 25;
+          const smoothFactor = 1 - Math.exp(-SMOOTH_K * ticker.deltaMS / 1000);
           for (const [id, pos] of currChipPos) {
             const container = graphicsMap.get(id);
             if (!container) continue;
-            container.position.set(
-              pos.x + pos.vx * clampedDt,
-              pos.y + pos.vy * clampedDt
-            );
+            container.position.x += (pos.x - container.position.x) * smoothFactor;
+            container.position.y += (pos.y - container.position.y) * smoothFactor;
           }
 
           // ── 스마트 카메라 디렉터: 단일 목표 + 단일 지수 댐핑 ──
@@ -1359,10 +1355,7 @@ export default function PhysicsCanvas() {
           pendingSteps = Math.max(0, pendingSteps - 1); // 백프레셔 해제(STEP 1개 소화 완료)
           const buffer = new Float32Array(payload);
 
-          // [성능 최적화] 외삽 기준 시점 리셋
-          // 다음 ticker부터 이 시점 기준으로 외삽 dt를 계산함.
-          lastFrameArrivalMs = performance.now();
-          
+
           let firstY = -Infinity;
           let secondY = -Infinity;
           let firstX = 400;
@@ -1396,10 +1389,22 @@ export default function PhysicsCanvas() {
               viewport.addChild(container);
               
               if (isChip && survivor) {
+                // [버그 수정] 색상 파싱 강화 — PIXI.Color가 HSL 문자열을 예외 없이 0(검은색)으로
+                // 반환하는 경우를 방어. 의도적 검은색 칩은 없으므로 0이면 fallback.
                 let colNum = 0x00ffcc;
-                try { if (survivor.color) colNum = new PIXI.Color(survivor.color).toNumber(); } catch { colNum = 0x00ffcc; }
+                try {
+                  if (survivor.color) {
+                    const parsed = new PIXI.Color(survivor.color).toNumber();
+                    colNum = parsed > 0 ? parsed : 0x00ffcc;
+                  }
+                } catch { colNum = 0x00ffcc; }
                 
                 let skinKey = survivor.skinId || 'chip_base_1';
+                // [버그 수정] 'chip_base'(번호 없음)가 들어오면 SKIN_DEFINITIONS에 없어
+                // 벡터 텍스처 생성 실패 → fallback(단색 원). 인덱스 기반 순환으로 자동 배정.
+                if (skinKey === 'chip_base' || skinKey === 'skin_chip_base') {
+                  skinKey = `chip_base_${(dataIndex % 5) + 1}`;
+                }
                 // Remove UR_ and SR_ prefix for asset loading
                 if (skinKey === 'UR_blackhole') skinKey = 'blackhole';
                 if (skinKey === 'SR_cat') skinKey = 'cat';
@@ -1521,9 +1526,11 @@ export default function PhysicsCanvas() {
               graphicsMap.set(bodyId, container);
             }
             
-            // [성능 최적화] FRAME 도착 시점의 실제 위치로 설정 (ticker 외삽의 기준점)
-            // ticker가 매 렌더 프레임마다 외삽으로 덧어씌우므로, 여기서는 실제 물리 위치를 기록.
-            container.position.set(x, y);
+            // [성능 최적화] 스무딩이 처리하므로 기존 칩은 직접 위치 설정 스킵.
+            // 새로 생성된 칩(첫 프레임)이나 비칩(장애물)만 즉시 위치 설정.
+            if (!isChip || !currChipPos.has(survivor!.id)) {
+              container.position.set(x, y);
+            }
             // approximate rolling rotation
             if (isChip && survivor) {
               const iconWrapper = container.getChildByLabel('icon');

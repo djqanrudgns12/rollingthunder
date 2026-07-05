@@ -172,8 +172,19 @@ export default function Dashboard() {
       // 스킨 일괄 설정에 따라 배정
       const cleanSkinId = globalSkin.replace(/^skin_/, '');
       const finalSkinId = cleanSkinId === 'chip_base' ? `chip_base_${Math.floor(Math.random() * 5) + 1}` : cleanSkinId
+      // [버그 수정] HSL → HEX 변환하여 저장
+      // 왜: PIXI.Color가 소수점 hue가 포함된 HSL 문자열을 잘못 파싱하여
+      // 0(검은색)을 반환하는 경우가 있음. HEX는 모든 렌더러에서 안전하게 파싱됨.
+      const hue = Math.random() * 360;
+      const color = `hsl(${Math.round(hue)}, 80%, 50%)`;
+      // 브라우저 Canvas를 이용한 정확한 HEX 변환
+      const cvs = document.createElement('canvas');
+      cvs.width = 1; cvs.height = 1;
+      const ctx2d = cvs.getContext('2d')!;
+      ctx2d.fillStyle = color;
+      const hexColor = ctx2d.fillStyle; // 브라우저가 "#rrggbb"로 정규화
       
-      newParticipants.push({ id: newId, name: finalName, color: `hsl(${Math.random() * 360}, 80%, 50%)`, skinId: finalSkinId })
+      newParticipants.push({ id: newId, name: finalName, color: hexColor, skinId: finalSkinId })
     })
     setParticipants(newParticipants)
     // 미션: 참가자 5명 이상 등록 시 추적
