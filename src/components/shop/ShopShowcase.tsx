@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import Image from 'next/image';
 import * as LucideIcons from 'lucide-react';
+import { SKIN_DEFINITIONS } from '@/data/skinDefinitions';
 
 interface ShopShowcaseProps {
   selectedItem: any;
@@ -11,6 +12,7 @@ interface ShopShowcaseProps {
 
 export default function ShopShowcase({ selectedItem }: ShopShowcaseProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   
   // Tilt Effect State
   const x = useMotionValue(0);
@@ -54,6 +56,58 @@ export default function ShopShowcase({ selectedItem }: ShopShowcaseProps) {
     }
     return () => window.removeEventListener('deviceorientation', handleOrientation);
   }, [x, y]);
+
+  /**
+   * 벡터 스킨 여부 판별 + skinKey 추출
+   * item_id 패턴: "skin_chip_base" → "chip_base_1", "skin_cat" → "cat", "horse" → "horse"
+   */
+  const getVectorSkinKey = useCallback((item: any): string | null => {
+    if (!item || item.category !== 'skin') return null;
+    let key = item.item_id.replace(/^skin_/, '');
+    // chip_base는 대표로 chip_base_1을 보여줌
+    if (key === 'chip_base') key = 'chip_base_1';
+    return SKIN_DEFINITIONS[key] ? key : null;
+  }, []);
+
+  /**
+   * 벡터 스킨일 때 Canvas에 실루엣 그리기
+   * 쇼케이스에서는 등급별 색상을 tint로 적용하여 프리미엄 느낌 유지
+   */
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const skinKey = getVectorSkinKey(selectedItem);
+    if (!skinKey) return;
+
+    const def = SKIN_DEFINITIONS[skinKey];
+    if (!def) return;
+
+    const size = 256;
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, size, size);
+    ctx.save();
+    ctx.translate(size / 2, size / 2);
+
+    // 쇼케이스 색상: 등급에 따라 다른 색 적용 (인게임에서는 참가자 색)
+    const rarityColors: Record<string, string> = {
+      'Normal': '#a3a3a3',
+      'Rare': '#3b82f6',
+      'Epic': '#a855f7',
+      'Legendary': '#facc15',
+      'Mythic': '#ef4444',
+    };
+    ctx.fillStyle = rarityColors[selectedItem?.rarity] || '#ffffff';
+
+    const scale = def.scale ?? 1.0;
+    if (scale !== 1.0) ctx.scale(scale, scale);
+
+    def.draw(ctx, size / 2);
+    ctx.restore();
+  }, [selectedItem, getVectorSkinKey]);
 
   // 등급별 오라 및 반짝임 컬러 매핑
   const getRarityStyles = (rarity: string) => {
@@ -125,9 +179,16 @@ export default function ShopShowcase({ selectedItem }: ShopShowcaseProps) {
       >
         <div className={`w-full h-full rounded-3xl border-2 ${rarityStyle.border} ${rarityStyle.glow} bg-black/60 backdrop-blur-md flex items-center justify-center relative transition-colors duration-500 overflow-hidden`}>
           
-          {/* 컨텐츠 렌더링 (Image) - 가장 안쪽 레이어 */}
+          {/* 컨텐츠 렌더링 — 벡터 스킨 / Image / Icon / 플레이스홀더 순서 */}
           <div className={`w-full h-full flex items-center justify-center absolute inset-0 z-0 ${isFullScreenAsset ? 'p-0' : 'p-6'}`}>
-            {selectedItem?.image ? (
+            {/* 1순위: 벡터 스킨 (Canvas 2D) */}
+            {getVectorSkinKey(selectedItem) ? (
+              <canvas
+                ref={canvasRef}
+                className="w-32 h-32 sm:w-40 sm:h-40 drop-shadow-2xl"
+                style={{ imageRendering: 'auto' }}
+              />
+            ) : selectedItem?.image ? (
               <Image 
                 src={selectedItem.image} 
                 alt={selectedItem?.name || "아이템"} 

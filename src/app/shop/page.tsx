@@ -1,16 +1,17 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import ShopTabs from "@/components/shop/ShopTabs";
 import ShopShowcase from "@/components/shop/ShopShowcase";
-import BlackMarket from "@/components/shop/BlackMarket";
 import LuckyRoulette from "@/components/shop/LuckyRoulette";
+import SkinCanvasPreview from "@/components/shop/SkinCanvasPreview";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Package, ShoppingCart, Lock } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 
 import { MOCK_ITEMS, ShopItem } from "@/data/shopData";
+import { SKIN_DEFINITIONS } from "@/data/skinDefinitions";
 
 import { useUIStore } from "@/store/uiStore";
 import { useInventoryStore } from "@/store/inventoryStore";
@@ -33,9 +34,20 @@ export default function ShopPage() {
   
   // 상태 관리
   const [viewMode, setViewMode] = useState<'shop' | 'inventory'>('shop');
-  const [activeTab, setActiveTab] = useState("avatar");
+  const [activeTab, setActiveTab] = useState("skin");
   
   const role = userProfile?.role || (isLoggedIn ? "user" : "guest");
+
+  /**
+   * 벡터 스킨 여부 판별 + skinKey 추출
+   * item_id에서 'skin_' 접두사를 제거하고 SKIN_DEFINITIONS에 등록된 키인지 확인
+   */
+  const getVectorSkinKey = useCallback((item: ShopItem): string | null => {
+    if (item.category !== 'skin') return null;
+    let key = item.item_id.replace(/^skin_/, '');
+    if (key === 'chip_base') key = 'chip_base_1';
+    return SKIN_DEFINITIONS[key] ? key : null;
+  }, []);
 
   // 미션 이벤트: 상점 방문
   useEffect(() => {
@@ -46,8 +58,30 @@ export default function ShopPage() {
   // 현재 선택된 아이템 (탭 변경 시 기본값 재설정)
   const [selectedItem, setSelectedItem] = useState<ShopItem | null>(null);
 
+  /**
+   * 등급 위계 상수 — 숫자가 클수록 높은 등급
+   * 왜 이렇게 하는가: requiredRole과 현재 사용자 role을 숫자로 비교하면
+   * 등급 추가/변경 시 한 곳만 수정하면 됨
+   */
+  const ROLE_HIERARCHY: Record<string, number> = {
+    'guest': 0,
+    'user': 1,
+    'premium': 2,
+    'admin': 3,
+  };
+
+  /** 현재 사용자 등급이 요구 등급 이상인지 판별 */
+  const meetsRoleRequirement = (requiredRole: string): boolean => {
+    return (ROLE_HIERARCHY[role] ?? 0) >= (ROLE_HIERARCHY[requiredRole] ?? 0);
+  };
+
   // 권한 및 소유 로직
   const isItemOwned = (item: ShopItem) => {
+    // requiredRole이 있는 아이템: 등급 기반 자동 소유 판별
+    if (item.requiredRole) {
+      return meetsRoleRequirement(item.requiredRole);
+    }
+    // 기존 로직: isDefault는 무조건 소유, admin은 전부 소유
     if (item.isDefault) return true;
     if (role === 'admin') return true;
     return hasItem(item.item_id);
@@ -67,14 +101,36 @@ export default function ShopPage() {
       items = items.filter(isItemOwned);
     }
     
-    // 정렬: 보유 여부 (상점 모드일 때만) -> 가격 싼 순 -> 이름 순
+    // 정렬: 기본 보유 맨 위 (모든 카테고리 공통) → 소유 아이템 → 미소유
+    // 왜 이 순서인가: 모든 탭에서 기본 보유 항목을 가장 먼저 보고 선택할 수 있게
+    const DEFAULT_ORDER: Record<string, number> = {
+      // 스킨 순서
+      'skin_chip_base': 1,
+      'horse': 2,
+      'spaceship': 3,
+      // 아바타 등급별 순서 (게스트 → 노말 → 프리미엄 → 관리자)
+      'avatar_guest': 1,
+      'avatar_normal': 2,
+      'avatar_premium': 3,
+      'avatar_admin': 4,
+    };
+
     items.sort((a, b) => {
+      // 1순위: 기본 보유 아이템을 항상 맨 위로 (모든 카테고리 공통)
+      if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
+
+      // 기본 보유 간 고정 순서 (스킨: 포커칩 → 경주마 → 우주선, 그 외는 등록 순)
+      if (a.isDefault && b.isDefault) {
+        const orderA = DEFAULT_ORDER[a.item_id] ?? 99;
+        const orderB = DEFAULT_ORDER[b.item_id] ?? 99;
+        if (orderA !== orderB) return orderA - orderB;
+      }
+
+      // 2순위: 상점 모드에서 소유 아이템 우선
       if (viewMode === 'shop') {
-        if (a.isDefault !== b.isDefault) return a.isDefault ? 1 : -1; // 기본 아이템은 항상 맨 아래로
-        
         const aOwned = isItemOwned(a) ? 1 : 0;
         const bOwned = isItemOwned(b) ? 1 : 0;
-        if (aOwned !== bOwned) return bOwned - aOwned; // 소유한게 먼저 (내림차순, 기본 아닌 것들 중)
+        if (aOwned !== bOwned) return bOwned - aOwned;
       }
       
       if (a.price !== b.price) return a.price - b.price; // 가격 싼게 먼저
@@ -146,6 +202,23 @@ export default function ShopPage() {
     }
 
     if (viewMode === 'shop') {
+      // 등급 기반 아이템: 등급 부족 시 '등급 상승 시 획득' (구매 불가)
+      if (item.requiredRole && !meetsRoleRequirement(item.requiredRole)) {
+        return (
+          <button disabled className="px-8 py-2.5 bg-neutral-800 text-neutral-500 font-extrabold text-base rounded-full border border-neutral-700 flex items-center gap-2">
+            <Lock size={18} />
+            <span>등급 상승 시 획득</span>
+          </button>
+        );
+      }
+      // 등급 기반 아이템: 등급 충분 시 '기본 보유'
+      if (item.requiredRole && meetsRoleRequirement(item.requiredRole)) {
+        return (
+          <button disabled className="px-8 py-2.5 bg-neutral-800 text-neutral-400 font-extrabold text-base rounded-full border border-neutral-700">
+            <span>기본 보유</span>
+          </button>
+        );
+      }
       if (item.isDefault) {
         return (
           <button disabled className="px-8 py-2.5 bg-neutral-800 text-neutral-400 font-extrabold text-base rounded-full border border-neutral-700">
@@ -171,7 +244,16 @@ export default function ShopPage() {
     } 
     
     // 보관함 모드
-    if (item.category === 'avatar' || item.category === 'border' || item.category === 'skin') {
+    // 스킨은 대기실에서 직접 선택하는 구조이므로 장착 버튼 불필요
+    if (item.category === 'skin') {
+      return (
+        <div className="px-8 py-2.5 bg-neutral-800/80 text-neutral-400 font-extrabold text-base rounded-full border border-neutral-700">
+          참가자 스킨 보유중
+        </div>
+      );
+    }
+
+    if (item.category === 'avatar' || item.category === 'border') {
       const isEquipped = equipped[item.category as keyof typeof equipped] === item.item_id;
       return (
         <button 
@@ -265,12 +347,9 @@ export default function ShopPage() {
             )}
           </div>
 
-          {/* 상점 모드일 때만 프로모션 표시 */}
+          {/* 상점 모드일 때만 행운의 룰렛 표시 */}
           {viewMode === 'shop' && (
-            <>
-              <BlackMarket />
-              <LuckyRoulette />
-            </>
+            <LuckyRoulette />
           )}
         </div>
 
@@ -318,7 +397,20 @@ export default function ShopPage() {
                   >
                     <div className="flex items-center gap-4">
                       <div className="w-16 h-16 rounded-lg bg-black/50 border border-neutral-700 flex items-center justify-center overflow-hidden relative">
-                        {item.image ? (
+                        {/* 벡터 스킨이면 Canvas로 렌더링, 아니면 기존 img/Icon */}
+                        {getVectorSkinKey(item) ? (
+                          <SkinCanvasPreview 
+                            skinKey={getVectorSkinKey(item)!}
+                            size={48}
+                            color={
+                              item.rarity === 'Mythic' ? '#ef4444' :
+                              item.rarity === 'Legendary' ? '#facc15' :
+                              item.rarity === 'Epic' ? '#a855f7' :
+                              item.rarity === 'Rare' ? '#3b82f6' :
+                              '#a3a3a3'
+                            }
+                          />
+                        ) : item.image ? (
                           <img src={item.image} alt={item.name} className="w-full h-full object-contain p-0.5 [clip-path:inset(2%_round_20%)]" />
                         ) : IconComp ? (
                           <IconComp className="w-8 h-8 text-neutral-300" />

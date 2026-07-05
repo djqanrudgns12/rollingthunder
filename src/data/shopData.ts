@@ -9,6 +9,8 @@ export interface ShopItem {
   iconName?: string;
   requiresPremium?: boolean;
   isDefault?: boolean;
+  /** 이 아이템을 자동 소유하기 위한 최소 등급. 해당 등급 이상이면 자동 보유. */
+  requiredRole?: 'guest' | 'user' | 'premium' | 'admin';
 }
 
 export const MOCK_ITEMS: ShopItem[] = [
@@ -53,8 +55,11 @@ export const MOCK_ITEMS: ShopItem[] = [
   { item_id: "skin_pr_unicorn", category: "skin", name: "유니콘", price: 5000, rarity: "Legendary", description: "환상 속의 유니콘 스킨입니다.", image: "/images/assets/skins/pr_unicorn.png" },
 
   // ===================== AVATARS =====================
-  // Default (0)
-  { item_id: "avatar_guest", category: "avatar", name: "게스트", price: 0, rarity: "Normal", description: "기본 게스트 아바타입니다.", image: "/avatars/guest.png", isDefault: true },
+  // 등급별 기본 아바타 (requiredRole로 등급 기반 자동 소유)
+  { item_id: "avatar_guest", category: "avatar", name: "게스트", price: 0, rarity: "Normal", description: "모든 사용자에게 기본 지급되는 게스트 아바타입니다.", image: "/avatars/avatar_guest.png", isDefault: true, requiredRole: "guest" },
+  { item_id: "avatar_normal", category: "avatar", name: "노말 회원", price: 0, rarity: "Normal", description: "회원 가입 시 지급되는 노말 등급 아바타입니다.", image: "/avatars/avatar_normal.png", isDefault: true, requiredRole: "user" },
+  { item_id: "avatar_premium", category: "avatar", name: "프리미엄 회원", price: 0, rarity: "Rare", description: "프리미엄 등급 달성 시 지급되는 특별 아바타입니다.", image: "/avatars/avatar_premium.png", isDefault: true, requiredRole: "premium" },
+  { item_id: "avatar_admin", category: "avatar", name: "관리자", price: 0, rarity: "Legendary", description: "관리자 전용 아바타입니다.", image: "/avatars/avatar_admin.png", isDefault: true, requiredRole: "admin" },
   // Pets (500)
   { item_id: "avatar_pet_1", category: "avatar", name: "웰시코기 딜러", price: 500, rarity: "Normal", description: "딜러 보타이를 맨 귀여운 웰시코기 강아지입니다.", image: "/avatars/pet_corgi.png" },
   { item_id: "avatar_pet_2", category: "avatar", name: "턱시도 냥이", price: 500, rarity: "Normal", description: "카지노 칩을 굴리며 노는 도도한 고양이입니다.", image: "/avatars/pet_cat.png" },
