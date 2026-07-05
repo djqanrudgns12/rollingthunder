@@ -215,13 +215,13 @@ export default function StampBookModal() {
               <div className="text-center py-20 text-gray-400 font-bold">진행 가능한 미션이 없습니다.</div>
             ) : (
               missions.map(m => (
-                <div key={m.id} className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
-                  m.is_collected ? 'bg-gray-100 border-gray-300 opacity-60' : 
+                <div key={m.id} className={`relative overflow-hidden flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
+                  m.is_collected ? 'bg-gray-200 border-gray-400 opacity-80 grayscale-[30%]' : 
                   m.completed ? 'bg-amber-50 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.3)]' : 
                   'bg-white border-gray-200'
                 }`}>
                   <div className="flex-1">
-                    <h3 className={`text-xl font-black ${m.completed && !m.is_collected ? 'text-amber-700' : 'text-gray-800'}`}>
+                    <h3 className={`text-xl font-black ${m.completed && !m.is_collected ? 'text-amber-700' : m.is_collected ? 'text-gray-500' : 'text-gray-800'}`}>
                       {m.mission.title}
                     </h3>
                     <p className="text-sm text-gray-600 font-medium">{m.mission.description}</p>
@@ -266,6 +266,16 @@ export default function StampBookModal() {
                       {m.is_collected ? '수령 완료' : m.completed ? '보상 받기' : '진행 중'}
                     </button>
                   </div>
+
+                  {m.is_collected && (
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
+                      <div className="border-4 border-red-600/80 rounded-lg px-4 py-2 transform rotate-[-15deg] bg-white/20 backdrop-blur-[1px] shadow-sm flex items-center justify-center">
+                        <span className="text-red-600/80 font-black text-3xl uppercase tracking-widest border-y-4 border-red-600/80 py-1">
+                          CLEARED
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))
             )}

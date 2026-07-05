@@ -21,6 +21,8 @@ export interface UserMission {
   is_collected: boolean;
   assigned_date?: string; // For daily/weekly
   updated_at?: string; // For achievements
+  completed_at?: string;
+  rewarded_at?: string;
   mission: Mission;
 }
 
@@ -95,14 +97,37 @@ class StampService {
       .from('user_missions')
       .select('*, mission:missions(*)')
       .eq('user_id', userId)
-      .eq('mission.type', type)
-      .order('completed', { ascending: true }) // 미완료 우선
-      .order('is_collected', { ascending: true });
+      .eq('mission.type', type);
     
     // mission relation filter might need some care in post-processing depending on pgREST, 
     // but inner join via supabase JS handles this nicely by returning null for non-matching.
     if (error) throw error;
-    return (data || []).filter((d: any) => d.mission !== null) as UserMission[];
+    
+    const missions = (data || []).filter((d: any) => d.mission !== null) as UserMission[];
+    return missions.sort((a, b) => {
+      const a_reward_pending = a.completed && !a.is_collected;
+      const b_reward_pending = b.completed && !b.is_collected;
+      if (a_reward_pending && !b_reward_pending) return -1;
+      if (!a_reward_pending && b_reward_pending) return 1;
+      
+      const a_claimed = a.is_collected;
+      const b_claimed = b.is_collected;
+      if (a_claimed && !b_claimed) return 1;
+      if (!a_claimed && b_claimed) return -1;
+
+      if (a_reward_pending && b_reward_pending) {
+        const a_time = a.completed_at ? new Date(a.completed_at).getTime() : 0;
+        const b_time = b.completed_at ? new Date(b.completed_at).getTime() : 0;
+        return a_time - b_time;
+      }
+
+      if (a_claimed && b_claimed) {
+        const a_time = a.rewarded_at ? new Date(a.rewarded_at).getTime() : 0;
+        const b_time = b.rewarded_at ? new Date(b.rewarded_at).getTime() : 0;
+        return a_time - b_time;
+      }
+      return 0;
+    });
   }
 
   public async getUserAchievements(userId: string) {
@@ -126,6 +151,8 @@ class StampService {
         progress: userRecord ? userRecord.progress : 0,
         completed: userRecord ? userRecord.completed : false,
         is_collected: userRecord ? userRecord.is_collected : false,
+        completed_at: userRecord ? userRecord.completed_at : undefined,
+        rewarded_at: userRecord ? userRecord.rewarded_at : undefined,
         mission: {
           id: mission.id,
           type: mission.type,
@@ -139,11 +166,27 @@ class StampService {
         }
       } as UserMission;
     }).sort((a, b) => {
-      // 진행중인것 최상단, 완료/미수령 그 다음, 완료/수령 최하단
-      if (a.completed && !a.is_collected) return -1;
-      if (b.completed && !b.is_collected) return 1;
-      if (a.is_collected && !b.is_collected) return 1;
-      if (!a.is_collected && b.is_collected) return -1;
+      const a_reward_pending = a.completed && !a.is_collected;
+      const b_reward_pending = b.completed && !b.is_collected;
+      if (a_reward_pending && !b_reward_pending) return -1;
+      if (!a_reward_pending && b_reward_pending) return 1;
+      
+      const a_claimed = a.is_collected;
+      const b_claimed = b.is_collected;
+      if (a_claimed && !b_claimed) return 1;
+      if (!a_claimed && b_claimed) return -1;
+
+      if (a_reward_pending && b_reward_pending) {
+        const a_time = a.completed_at ? new Date(a.completed_at).getTime() : 0;
+        const b_time = b.completed_at ? new Date(b.completed_at).getTime() : 0;
+        return a_time - b_time;
+      }
+
+      if (a_claimed && b_claimed) {
+        const a_time = a.rewarded_at ? new Date(a.rewarded_at).getTime() : 0;
+        const b_time = b.rewarded_at ? new Date(b.rewarded_at).getTime() : 0;
+        return a_time - b_time;
+      }
       return 0;
     });
   }

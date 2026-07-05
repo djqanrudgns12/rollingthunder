@@ -27,19 +27,32 @@ interface Segment {
 }
 
 const SEGMENTS: Segment[] = [
-  { id: "high_card",    name: "하이카드",       icon: "💨", reward: 0,    multiplier: "0x",    rewardLabel: "꽝",       probability: 0.15, color: "#374151", glowColor: "rgba(55,65,81,0.5)", image: "/images/assets/roulette/high_card_v2.png" },
-  { id: "one_pair",     name: "원페어",         icon: "🃏", reward: 150,  multiplier: "0.5x",  rewardLabel: "150C",     probability: 0.20, color: "#9ca3af", glowColor: "rgba(156,163,175,0.5)", image: "/images/assets/roulette/one_pair.png" },
-  { id: "two_pair",     name: "투페어",         icon: "🃏", reward: 300,  multiplier: "1x",    rewardLabel: "300C",     probability: 0.25, color: "#22c55e", glowColor: "rgba(34,197,94,0.5)", image: "/images/assets/roulette/two_pair.png" },
-  { id: "triple",       name: "트리플",         icon: "🔷", reward: 500,  multiplier: "1.7x",  rewardLabel: "500C",     probability: 0.18, color: "#3b82f6", glowColor: "rgba(59,130,246,0.5)", image: "/images/assets/roulette/triple.png" },
-  { id: "straight",     name: "스트레이트",     icon: "⚡", reward: 1000, multiplier: "3.3x",  rewardLabel: "1,000C",   probability: 0.10, color: "#a855f7", glowColor: "rgba(168,85,247,0.5)", image: "/images/assets/roulette/straight.png" },
-  { id: "full_house",   name: "풀하우스",       icon: "🏠", reward: 2000, multiplier: "6.7x",  rewardLabel: "2,000C",   probability: 0.07, color: "#f59e0b", glowColor: "rgba(245,158,11,0.5)", image: "/images/assets/roulette/full_house.png" },
-  { id: "four_card",    name: "포카드",         icon: "🔥", reward: 3000, multiplier: "10x",   rewardLabel: "3,000C",   probability: 0.04, color: "#ef4444", glowColor: "rgba(239,68,68,0.5)", image: "/images/assets/roulette/four_card.png" },
-  { id: "royal_flush",  name: "로얄 플러시",    icon: "👑", reward: 5000, multiplier: "16.7x", rewardLabel: "5,000C",   probability: 0.01, color: "#fbbf24", glowColor: "rgba(251,191,36,0.6)", image: "/images/assets/roulette/royal_flush.png" },
+  { id: "high_card",    name: "하이카드",       icon: "💨", reward: 0,    multiplier: "0x",    rewardLabel: "꽝",       probability: 0.400, color: "#374151", glowColor: "rgba(55,65,81,0.5)", image: "/images/assets/roulette/high_card_v2.png" },
+  { id: "one_pair",     name: "원페어",         icon: "🃏", reward: 150,  multiplier: "0.5x",  rewardLabel: "150C",     probability: 0.250, color: "#9ca3af", glowColor: "rgba(156,163,175,0.5)", image: "/images/assets/roulette/one_pair.png" },
+  { id: "two_pair",     name: "투페어",         icon: "🃏", reward: 300,  multiplier: "1x",    rewardLabel: "300C",     probability: 0.200, color: "#22c55e", glowColor: "rgba(34,197,94,0.5)", image: "/images/assets/roulette/two_pair.png" },
+  { id: "triple",       name: "트리플",         icon: "🔷", reward: 500,  multiplier: "1.7x",  rewardLabel: "500C",     probability: 0.080, color: "#3b82f6", glowColor: "rgba(59,130,246,0.5)", image: "/images/assets/roulette/triple.png" },
+  { id: "straight",     name: "스트레이트",     icon: "⚡", reward: 1000, multiplier: "3.3x",  rewardLabel: "1,000C",   probability: 0.040, color: "#a855f7", glowColor: "rgba(168,85,247,0.5)", image: "/images/assets/roulette/straight.png" },
+  { id: "full_house",   name: "풀하우스",       icon: "🏠", reward: 2000, multiplier: "6.7x",  rewardLabel: "2,000C",   probability: 0.018, color: "#f59e0b", glowColor: "rgba(245,158,11,0.5)", image: "/images/assets/roulette/full_house.png" },
+  { id: "four_card",    name: "포카드",         icon: "🔥", reward: 3000, multiplier: "10x",   rewardLabel: "3,000C",   probability: 0.009, color: "#ef4444", glowColor: "rgba(239,68,68,0.5)", image: "/images/assets/roulette/four_card.png" },
+  { id: "royal_flush",  name: "로얄 플러시",    icon: "👑", reward: 5000, multiplier: "16.7x", rewardLabel: "5,000C",   probability: 0.003, color: "#fbbf24", glowColor: "rgba(251,191,36,0.6)", image: "/images/assets/roulette/royal_flush.png" },
 ];
 
 const SPIN_COST = 300;
-const SPIN_DURATION = 4000; // 4초 회전
 const COOLDOWN = 1500;      // 1.5초 쿨다운
+
+// ============================================================
+// 물리 상수 — 실제 룰렛 물리와 유사하게 튜닝
+// ============================================================
+const PHYSICS = {
+  FRICTION: 0.991,           // 매 프레임 속도 감쇠율. 낮을수록 빠리 멈춤
+  STOP_THRESHOLD: 0.08,      // 이 속도(도/프레임) 이하면 정지 판정
+  SPRING_K: 0.5,             // 핀 복원 스프링 강성 (Hooke의 법칙 k). 클수록 빠리 원위치
+  DAMPING: 0.10,             // 핀 진동 감쇠 계수 (critical damping의 ~30%). 2~3회 진동 후 정지
+  IMPULSE_BASE: -18,         // peg 충돌 시 핀에 가해지는 기본 토크
+  MAX_PIN_ANGLE: -30,        // 핀 최대 기울기 제한 (도)
+  MIN_ROTATIONS: 4,          // 최소 회전 횟수 (시각적 만족감)
+  MAX_ROTATIONS: 7,          // 최대 회전 횟수
+} as const;
 
 // ============================================================
 // 2. 가중 확률 랜덤 함수
@@ -65,7 +78,6 @@ export default function LuckyRoulette() {
   const [showWheel, setShowWheel] = useState(false);
   const [showOdds, setShowOdds] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
-  const [rotation, setRotation] = useState(0);
   const [result, setResult] = useState<Segment | null>(null);
   const [lastResult, setLastResult] = useState<Segment | null>(null);
   const [showResultOverlay, setShowResultOverlay] = useState(false);
@@ -74,13 +86,32 @@ export default function LuckyRoulette() {
   const [wheelRadius, setWheelRadius] = useState(135); 
   const wheelContainerRef = useRef<HTMLDivElement>(null);
 
+  // ============================================================
+  // 물리 엔진 상태 및 DOM Ref
+  // ============================================================
+  const wheelDomRef = useRef<HTMLDivElement>(null);    // 휠 DOM 직접 조작용
+  const pinDomRef = useRef<SVGSVGElement>(null);       // 핀 SVG DOM 직접 조작용
+  const audioCtxRef = useRef<AudioContext | null>(null); // 싱글턴 AudioContext
+  const rafIdRef = useRef<number>(0);                  // rAF ID (정리용)
+  const wheelAngleRef = useRef(0);                     // 현재 휠 누적 각도
+
+  // 물리 루프에서 사용하는 미세 상태들 (React re-render 불필요)
+  const physicsRef = useRef({
+    velocity: 0,          // 휠 각속도 (deg/frame)
+    pinAngle: 0,          // 핀 현재 각도 (deg)
+    pinVelocity: 0,       // 핀 각속도 (deg/frame)
+    lastBoundary: -1,     // 마지막으로 지나간 peg 번호
+    targetAngle: 0,       // 목표 정지 각도
+    outcome: null as Segment | null, // 확정된 결과
+  });
+
   useEffect(() => {
     if (showWheel && wheelContainerRef.current) {
       const updateRadius = () => {
         if (wheelContainerRef.current) {
           const width = wheelContainerRef.current.clientWidth;
-          // 중심축에서의 라벨 배치 거리 (바깥쪽 테두리에 초밀착)
-          setWheelRadius(width * 0.43);
+          // 중심축에서의 라벨 배치 거리 (안정적인 위치인 38%)
+          setWheelRadius(width * 0.38);
         }
       };
       updateRadius();
@@ -89,8 +120,145 @@ export default function LuckyRoulette() {
     }
   }, [showWheel]);
 
+  // 컴포넌트 언마운트 시 rAF 정리
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+    };
+  }, []);
+
   // ============================================================
-  // 3. 스핀 핸들러 — DB 트랜잭션 포함
+  // 사운드 시스템 — 싱글턴 AudioContext + 속도 연동 볼륨
+  // ============================================================
+  const playTickSound = useCallback((velocityRatio: number) => {
+    try {
+      const AC = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AC) return;
+
+      // 싱글턴: 전체 세션에서 AudioContext 한 번만 생성
+      if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+        audioCtxRef.current = new AC();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      // 나무 막대기가 peg에 부딯히는 느낌: 삼각파 → 낮은 주파수로 급감
+      osc.type = "triangle";
+      // 빠를수록 높은 음의 틱 사운드, 느릴수록 둔탁한 틱 사운드
+      const baseFreq = 120 + velocityRatio * 180; // 120Hz ~ 300Hz
+      osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.06);
+
+      // 속도에 비례하는 볼륨 (0.1 ~ 0.6)
+      const vol = 0.1 + velocityRatio * 0.5;
+      gain.gain.setValueAtTime(vol, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.06);
+    } catch {
+      // 오디오 미지원 환경 무시
+    }
+  }, []);
+
+  // ============================================================
+  // 통합 물리 루프 (requestAnimationFrame)
+  // 매 프레임마다: 휠 감속 → peg 충돌 감지 → 핀 스프링 물리 → 사운드 → DOM 반영
+  // ============================================================
+  const startPhysicsLoop = useCallback((onComplete: (outcome: Segment) => void) => {
+    const p = physicsRef.current;
+    // 초기 속도 기억 (볼륨 비율 계산용)
+    const initialVelocity = p.velocity;
+
+    const loop = () => {
+      // 1. 마찰 감속 — 실제 베어링 마찰처럼 지수적 감소
+      p.velocity *= PHYSICS.FRICTION;
+
+      // 2. 휠 각도 누적 (시계 방향 회전 = 양수)
+      wheelAngleRef.current += p.velocity;
+
+      // 3. Peg 충돌 감지 — 45도 경계를 넘었는지 확인
+      //    휠이 시계방향으로 돌면, 12시 위치의 핀은 휠 경계선(peg)을
+      //    반시계 방향으로 만나므로, 휠 각도를 반전하여 계산
+      const effectiveAngle = (360 - (wheelAngleRef.current % 360) + 360) % 360;
+      const currentBoundary = Math.floor(effectiveAngle / 45);
+
+      if (p.lastBoundary !== -1 && currentBoundary !== p.lastBoundary) {
+        // 핀에 충격 토크 부여 — 휠 속도에 비례하는 충격량
+        const velocityRatio = Math.min(1, p.velocity / initialVelocity);
+        const impulse = PHYSICS.IMPULSE_BASE * Math.max(0.15, velocityRatio);
+        p.pinVelocity += impulse;
+
+        // 틱 사운드 재생 (속도 비율로 볼륨 조절)
+        playTickSound(velocityRatio);
+      }
+      p.lastBoundary = currentBoundary;
+
+      // 4. 핀 물리 — 감쇠 조화 진동자 (Damped Harmonic Oscillator)
+      //    - 복원력(Hooke의 법칙): 핀을 0도(중립위치)로 되돌리려는 힘
+      //    - 감쇠력: 진동을 줄여서 자연스럽게 멈춤
+      const springForce = -PHYSICS.SPRING_K * p.pinAngle;
+      const damperForce = -PHYSICS.DAMPING * p.pinVelocity;
+      p.pinVelocity += springForce + damperForce;
+      p.pinAngle += p.pinVelocity;
+
+      // 핀 각도 제한 (과도한 회전 방지)
+      if (p.pinAngle < PHYSICS.MAX_PIN_ANGLE) {
+        p.pinAngle = PHYSICS.MAX_PIN_ANGLE;
+        p.pinVelocity *= -0.3; // 바운스 반사
+      }
+      if (p.pinAngle > 5) {
+        p.pinAngle = 5;
+        p.pinVelocity *= -0.3;
+      }
+
+      // 5. DOM에 직접 반영 (React re-render 없이 60fps 보장)
+      if (wheelDomRef.current) {
+        wheelDomRef.current.style.transform = `rotate(${wheelAngleRef.current}deg)`;
+      }
+      if (pinDomRef.current) {
+        pinDomRef.current.style.transform = `rotate(${p.pinAngle}deg)`;
+      }
+
+      // 6. 정지 판정 — 속도가 충분히 느려지면 루프 종료
+      if (p.velocity < PHYSICS.STOP_THRESHOLD) {
+        p.velocity = 0;
+        // 핀 진동도 완전히 정지시키기 (잔여 진동 자연 감쇠)
+        const settleLoop = () => {
+          const sf = -PHYSICS.SPRING_K * p.pinAngle;
+          const df = -PHYSICS.DAMPING * p.pinVelocity;
+          p.pinVelocity += sf + df;
+          p.pinAngle += p.pinVelocity;
+          if (pinDomRef.current) {
+            pinDomRef.current.style.transform = `rotate(${p.pinAngle}deg)`;
+          }
+          // 핀이 거의 멈췄을 때 결과 확정
+          if (Math.abs(p.pinAngle) < 0.5 && Math.abs(p.pinVelocity) < 0.5) {
+            p.pinAngle = 0;
+            p.pinVelocity = 0;
+            if (pinDomRef.current) pinDomRef.current.style.transform = 'rotate(0deg)';
+            if (p.outcome) onComplete(p.outcome);
+            return;
+          }
+          rafIdRef.current = requestAnimationFrame(settleLoop);
+        };
+        rafIdRef.current = requestAnimationFrame(settleLoop);
+        return; // 메인 루프 종료
+      }
+
+      rafIdRef.current = requestAnimationFrame(loop);
+    };
+
+    rafIdRef.current = requestAnimationFrame(loop);
+  }, [playTickSound]);
+
+  // ============================================================
+  // 3. 스핀 핸들러 — DB 트랜잭션 + 물리 루프 시작
   // ============================================================
   const handleSpin = useCallback(async () => {
     if (isSpinning) return;
@@ -109,9 +277,9 @@ export default function LuckyRoulette() {
 
     try {
       const supabase = createClient();
-      const { error: deductError } = await supabase.rpc("add_chips", {
+      const { error: deductError } = await supabase.rpc("deduct_chips", {
         p_user_id: userId,
-        p_amount: -SPIN_COST,
+        p_amount: SPIN_COST,
         p_reason: "roulette_spin",
       });
 
@@ -123,35 +291,58 @@ export default function LuckyRoulette() {
 
       deductChipsLocally(SPIN_COST);
 
+      // 결과 선결정 (확률 기반)
       const outcome = weightedRandom(SEGMENTS);
       const segmentIndex = SEGMENTS.indexOf(outcome);
 
-      const targetAngle = segmentIndex * 45 + 22.5;
-      const fullRotations = (3 + Math.floor(Math.random() * 3)) * 360; 
-      const randomOffset = (Math.random() - 0.5) * 20; 
-      const newRotation = rotation + fullRotations + (360 - targetAngle) + randomOffset;
-      setRotation(newRotation);
+      // 목표 각도 계산: 해당 칸 중앙이 12시에 멈춰야 함
+      // 휠은 시계방향으로 회전하므로, 12시 핀 위치에 해당 칸이 오려면:
+      // targetStopAngle = 360 - (segmentIndex * 45 + 22.5)
+      const segmentCenter = segmentIndex * 45 + 22.5;
+      const targetStopAngle = (360 - segmentCenter + 360) % 360;
 
-      setTimeout(async () => {
-        setResult(outcome);
+      // 현재 휠 위치에서 목표까지 이동해야 할 전체 각도
+      const currentAngleMod = ((wheelAngleRef.current % 360) + 360) % 360;
+      const angleDiff = ((targetStopAngle - currentAngleMod) + 360) % 360;
+      const fullRotations = (PHYSICS.MIN_ROTATIONS + Math.floor(Math.random() * (PHYSICS.MAX_ROTATIONS - PHYSICS.MIN_ROTATIONS + 1))) * 360;
+      // 약간의 랜덤 오프셋으로 멈춤 위치에 미세한 변화
+      const randomOffset = (Math.random() - 0.5) * 15;
+      const totalDistance = fullRotations + angleDiff + randomOffset;
+
+      // 초기 속도 역산: 물리적으로 해당 거리를 이동하려면 필요한 초기 속도
+      // 등비 감속: 총 이동거리 = v0 * f / (1 - f) → v0 = distance * (1 - f) / f
+      const v0 = totalDistance * (1 - PHYSICS.FRICTION) / PHYSICS.FRICTION;
+
+      // 물리 상태 초기화
+      const p = physicsRef.current;
+      p.velocity = v0;
+      p.pinAngle = 0;
+      p.pinVelocity = 0;
+      p.lastBoundary = -1;
+      p.targetAngle = targetStopAngle;
+      p.outcome = outcome;
+
+      // 물리 루프 시작 — 완료 시 결과 처리 콜백 전달
+      startPhysicsLoop(async (finalOutcome) => {
+        setResult(finalOutcome);
         setShowResultOverlay(true);
-        setLastResult(outcome);
+        setLastResult(finalOutcome);
 
         stampService.trackEvent("gacha_spin", 1);
         stampService.flushPlayEvents();
 
-        if (outcome.reward > 0) {
+        if (finalOutcome.reward > 0) {
           const { error: rewardError } = await supabase.rpc("add_chips", {
             p_user_id: userId,
-            p_amount: outcome.reward,
-            p_reason: `roulette_win_${outcome.id}`,
+            p_amount: finalOutcome.reward,
+            p_reason: `roulette_win_${finalOutcome.id}`,
           });
 
           if (!rewardError) {
-            addChipsLocally(outcome.reward);
+            addChipsLocally(finalOutcome.reward);
           }
-          if (outcome.reward >= 3000) {
-            triggerJackpotEffect(outcome);
+          if (finalOutcome.reward >= 3000) {
+            triggerJackpotEffect(finalOutcome);
           }
         }
 
@@ -159,13 +350,13 @@ export default function LuckyRoulette() {
           setIsSpinning(false);
           setShowResultOverlay(false);
         }, COOLDOWN);
-      }, SPIN_DURATION);
+      });
 
     } catch {
       toast.error("네트워크 오류가 발생했습니다.");
       setIsSpinning(false);
     }
-  }, [isSpinning, isLoggedIn, userId, chips, rotation, addChipsLocally, deductChipsLocally]);
+  }, [isSpinning, isLoggedIn, userId, chips, addChipsLocally, deductChipsLocally, startPhysicsLoop]);
 
   // ============================================================
   // 4. 잭팟 연출 효과
@@ -292,9 +483,15 @@ export default function LuckyRoulette() {
             {/* 대형 룰렛 휠 영역 */}
             <div className="relative w-[85vw] max-w-[400px] h-[85vw] max-h-[400px] mx-auto mb-8 sm:mb-10" ref={wheelContainerRef}>
               
-              {/* 프리미엄 시침 (크기 확대) */}
+              {/* 프리미엄 시침 (물리 기반 튕김 애니메이션 적용) */}
               <div className="absolute top-[-24px] left-1/2 -translate-x-1/2 z-30 drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)]">
-                <svg width="32" height="48" viewBox="0 0 24 36">
+                <svg 
+                  ref={pinDomRef}
+                  width="32" 
+                  height="48" 
+                  viewBox="0 0 24 36"
+                  style={{ transformOrigin: '50% 15%' }}
+                >
                   <defs>
                     <linearGradient id="chromeGrad" x1="0" y1="0" x2="1" y2="1">
                       <stop offset="0%" stopColor="#ffffff"/>
@@ -318,6 +515,7 @@ export default function LuckyRoulette() {
               <div className="absolute inset-[-4px] rounded-full border-2 border-yellow-600/60 z-10 pointer-events-none" />
 
               <div
+                ref={wheelDomRef}
                 className="w-full h-full rounded-full relative overflow-hidden"
                 style={{
                   background: `conic-gradient(
@@ -330,10 +528,7 @@ export default function LuckyRoulette() {
                     ${SEGMENTS[6].color} 270deg 315deg,
                     ${SEGMENTS[7].color} 315deg 360deg
                   )`,
-                  transform: `rotate(${rotation}deg)`,
-                  transition: isSpinning
-                    ? `transform ${SPIN_DURATION}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)`
-                    : "none",
+                  transform: `rotate(${wheelAngleRef.current}deg)`,
                   boxShadow: "inset 0 0 60px rgba(0,0,0,0.5)",
                 }}
               >
@@ -392,22 +587,22 @@ export default function LuckyRoulette() {
                       }}
                     >
                       {behindAura}
-                      {/* 추가된 항목별 프리미엄 이미지 - 크기 확대 */}
+                      {/* 추가된 항목별 프리미엄 이미지 - 크기 살짝 축소하여 겹침 방지 */}
                       <div className={`p-1 mb-0.5 rounded-full ${containerGlow} transition-all`}>
                         <img 
                           src={seg.image} 
                           alt={seg.name} 
-                          className={`w-10 h-10 sm:w-12 sm:h-12 object-contain ${imageGlow} rounded-full`}
+                          className={`w-9 h-9 sm:w-11 sm:h-11 object-contain ${imageGlow} rounded-full`}
                         />
                       </div>
                       <div 
-                        className="text-[10px] sm:text-[11px] font-black text-white leading-tight mt-0.5"
+                        className="text-[10px] sm:text-[11px] font-black text-white leading-tight"
                         style={{ textShadow: customTextShadow }}
                       >
                         {seg.name}
                       </div>
                       <div 
-                        className={`text-xs sm:text-sm font-black ${seg.reward === 0 ? "text-neutral-300" : "text-yellow-400"} drop-shadow-md leading-tight mt-0.5`}
+                        className={`text-xs sm:text-sm font-black ${seg.reward === 0 ? "text-neutral-300" : "text-yellow-400"} drop-shadow-md leading-none mt-0.5`}
                         style={{ textShadow: customTextShadow }}
                       >
                         {seg.rewardLabel}
@@ -581,7 +776,7 @@ export default function LuckyRoulette() {
 
               <div className="mt-8 pt-5 border-t border-neutral-800 text-center bg-black/20 rounded-xl p-4">
                 <span className="text-sm text-neutral-400">
-                  투자: <span className="text-white font-bold text-base">{SPIN_COST}C</span> &nbsp;&nbsp;|&nbsp;&nbsp; 기대값: <span className="text-emerald-400 font-bold text-base">~605C (2.02배)</span>
+                  투자: <span className="text-white font-bold text-base">{SPIN_COST}C</span> &nbsp;&nbsp;|&nbsp;&nbsp; 기대값: <span className="text-emerald-400 font-bold text-base">~269C (RTP 89.7%)</span>
                 </span>
               </div>
 

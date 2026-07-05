@@ -16,6 +16,8 @@ import { SKIN_DEFINITIONS } from "@/data/skinDefinitions";
 import { useUIStore } from "@/store/uiStore";
 import { useInventoryStore } from "@/store/inventoryStore";
 import { stampService } from '@/lib/stampService';
+import { useChipStore } from "@/store/chipStore";
+import { createClient } from "@/lib/supabase/client";
 
 const RARITY_ORDER: Record<string, number> = {
   'Mythic': 5,
@@ -31,6 +33,7 @@ export default function ShopPage() {
   // Zustand store
   const { userProfile, isLoggedIn } = useUIStore();
   const { inventory, equipped, buyItem, equipItem, unequipItem, hasItem } = useInventoryStore();
+  const { chips, deductChipsLocally } = useChipStore();
   
   // 상태 관리
   const [viewMode, setViewMode] = useState<'shop' | 'inventory'>('shop');
@@ -156,6 +159,10 @@ export default function ShopPage() {
 
     if (viewMode === 'shop') {
       // 구매 로직
+      if (!isLoggedIn || !userProfile?.id) {
+        toast.error("로그인이 필요합니다.");
+        return;
+      }
       if (isItemOwned(item)) {
         toast.info("이미 보유한 아이템입니다.");
         return;
@@ -164,12 +171,36 @@ export default function ShopPage() {
         toast.error("프리미엄 등급 이상만 구매 가능합니다.");
         return;
       }
-      // 구매 성공 처리 (목업)
-      toast.success(`${item.name} 구매 완료!`);
-      buyItem(item.item_id);
-      // 미션 이벤트: 아이템 구매
-      stampService.trackEvent('buy_item', 1);
-      stampService.flushPlayEvents();
+
+      if (chips < item.price) {
+        toast.error(`칩이 부족합니다! (보유: ${chips.toLocaleString()}C / 필요: ${item.price.toLocaleString()}C)`);
+        return;
+      }
+
+      try {
+        const supabase = createClient();
+        const { error: deductError } = await supabase.rpc("deduct_chips", {
+          p_user_id: userProfile.id,
+          p_amount: item.price,
+          p_reason: `buy_item_${item.item_id}`,
+        });
+
+        if (deductError) {
+          toast.error("구매 중 오류가 발생했습니다. 다시 시도해주세요.");
+          return;
+        }
+
+        // 구매 성공 처리
+        deductChipsLocally(item.price);
+        buyItem(item.item_id);
+        toast.success(`${item.name} 구매 완료! (-${item.price.toLocaleString()}C)`);
+        
+        // 미션 이벤트: 아이템 구매
+        stampService.trackEvent('buy_item', 1);
+        stampService.flushPlayEvents();
+      } catch (error) {
+        toast.error("네트워크 오류가 발생했습니다.");
+      }
     } else {
       // 장착 로직
       if (item.category === 'avatar' || item.category === 'border' || item.category === 'skin') {
