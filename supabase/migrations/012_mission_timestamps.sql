@@ -103,11 +103,9 @@ BEGIN
         RAISE EXCEPTION 'Invalid table type';
     END IF;
 
-    -- 유저 재화(칩) 증가
+    -- 칩 지급 (chips_balance 컬럼 사용 + 로그 기록까지 처리하는 add_chips 함수 호출)
     IF v_reward_chips > 0 THEN
-        UPDATE public.profiles
-        SET chips = chips + v_reward_chips
-        WHERE id = p_user_id;
+        PERFORM public.add_chips(p_user_id, v_reward_chips, 'Mission/Achievement Reward');
     END IF;
 
     -- 아이템 지급 로직
