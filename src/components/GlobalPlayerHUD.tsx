@@ -11,14 +11,16 @@ import { UserProfile } from '@/types/user';
 import { MOCK_ITEMS } from '@/data/shopData';
 import { useInventoryStore } from '@/store/inventoryStore';
 import Image from 'next/image';
+import { createClient } from '@/lib/supabase/client';
 
-export default function GlobalPlayerHUD({ initialProfile = null }: { initialProfile?: UserProfile | null }) {
+export default function GlobalPlayerHUD() {
   const router = useRouter();
   const pathname = usePathname();
   const chips = useChipStore((state) => state.chips);
   const setActiveModal = useUIStore((state) => state.setActiveModal);
   const activeModal = useUIStore((state) => state.activeModal);
   const isLoggedIn = useUIStore((state) => state.isLoggedIn);
+  const setIsLoggedIn = useUIStore((state) => state.setIsLoggedIn);
   const gameStage = useUIStore((state) => state.gameStage);
   const profile = useUIStore((state) => state.userProfile);
   const setUserProfile = useUIStore((state) => state.setUserProfile);
@@ -34,28 +36,26 @@ export default function GlobalPlayerHUD({ initialProfile = null }: { initialProf
 
   useEffect(() => {
     setIsClient(true);
-  }, []);
 
-  useEffect(() => {
-    if (isLoggedIn) {
-      getProfileOverviewAction().then(data => {
+    // [최적화] 서버 사이드(layout.tsx)에서 블로킹하던 프로필/인증 정보를 클라이언트 마운트 시 즉시 비동기로 가져옵니다.
+    const initAuth = async () => {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        setIsLoggedIn(true);
+        const data = await getProfileOverviewAction();
         if (data) {
           setUserProfile(data);
           useChipStore.getState().setChips(data.chips_balance);
         }
-      });
-    } else {
-      setUserProfile(null);
-    }
-  }, [isLoggedIn, setUserProfile]);
-
-  // initialProfile이 있을 경우 초기 렌더링 시에도 칩을 동기화
-  useEffect(() => {
-    if (initialProfile) {
-      setUserProfile(initialProfile);
-      useChipStore.getState().setChips(initialProfile.chips_balance);
-    }
-  }, [initialProfile, setUserProfile]);
+      } else {
+        setIsLoggedIn(false);
+        setUserProfile(null);
+      }
+    };
+    initAuth();
+  }, [setIsLoggedIn, setUserProfile]);
 
   useEffect(() => {
     if (!isClient) return;

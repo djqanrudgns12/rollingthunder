@@ -38,7 +38,6 @@ const schoolsafel = localFont({ src: '../../public/fonts/SchoolSafeNadeuriL.woff
 
 const customFonts = `${bmdohyeon.variable} ${bmeuljiro.variable} ${bmjua.variable} ${bmyeonsung.variable} ${cafe24dongdong.variable} ${cafe24ssukssuk.variable} ${jnaughtyl.variable} ${jnaughtym.variable} ${kccganpan.variable} ${kccdodam.variable} ${maplestoryb.variable} ${maplestoryl.variable} ${ownglyph2022.variable} ${ridibatang.variable} ${schoolsafeb.variable} ${schoolsafel.variable}`;
 
-import { getProfileOverviewAction } from "@/presentation/actions/profileActions";
 import MissionSyncManager from "@/components/MissionSyncManager";
 
 export const viewport: Viewport = {
@@ -55,13 +54,11 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const profile = await getProfileOverviewAction();
-
   return (
     <html lang="ko" className={`${outfit.variable} ${jetbrainsMono.variable} ${customFonts}`}>
       <head>
@@ -78,8 +75,9 @@ export default async function RootLayout({
         <ThemeProvider>
           <GlobalAudioUnlocker>
             {children}
-            <MissionSyncManager userId={profile?.id} />
-            <GlobalPlayerHUD initialProfile={profile} />
+            {/* [최적화] 초기 렌더링 블로킹 방지를 위해 서버 프로필 연동을 제거하고 클라이언트 컴포넌트에 위임 */}
+            <MissionSyncManager />
+            <GlobalPlayerHUD />
             <JackpotEffect />
             <GlobalModals />
             <Toaster theme="dark" position="bottom-right" />

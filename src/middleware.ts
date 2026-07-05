@@ -62,26 +62,25 @@ export async function middleware(request: NextRequest) {
   )
 
   // 페이지 이동/로드 시마다 세션이 유효한지 확인하고 필요하면 갱신(Refresh)합니다.
-  // 이 호출을 통해 만료된 access_token이 refresh_token을 이용해 새로 발급되며,
-  // 위에서 설정한 setAll 함수가 호출되어 브라우저에 최신 토큰이 쿠키로 저장됩니다.
-  const { data: { user } } = await supabase.auth.getUser()
+  // [최적화] 모든 경로에서 getUser() 네트워크 통신을 피하기 위해, 리다이렉션이 필요한 루트('/') 경로일 때만 확인합니다.
+  if (request.nextUrl.pathname === '/') {
+    const { data: { user } } = await supabase.auth.getUser()
 
-  // 사용자가 인증되어 있고 루트('/') 경로로 접근하면 대시보드로 자동 리다이렉트
-  if (user && request.nextUrl.pathname === '/') {
-    const dashboardUrl = request.nextUrl.clone()
-    dashboardUrl.pathname = '/dashboard'
-    
-    // 리다이렉트 응답을 새로 생성하되, 쿠키 갱신 로직이 담긴 기존 헤더를 병합
-    const redirectResponse = NextResponse.redirect(dashboardUrl)
-    
-    // supabaseResponse에 세팅된 쿠키(갱신된 토큰 등)를 리다이렉트 응답으로 복사
-    supabaseResponse.cookies.getAll().forEach(cookie => {
-      redirectResponse.cookies.set(cookie.name, cookie.value, { ...cookie })
-    })
-    
-    return redirectResponse
+    if (user) {
+      const dashboardUrl = request.nextUrl.clone()
+      dashboardUrl.pathname = '/dashboard'
+      
+      const redirectResponse = NextResponse.redirect(dashboardUrl)
+      
+      supabaseResponse.cookies.getAll().forEach(cookie => {
+        redirectResponse.cookies.set(cookie.name, cookie.value, { ...cookie })
+      })
+      
+      return redirectResponse
+    }
   }
 
+  // 루트 경로가 아니거나 유저가 없으면 원래 응답을 그대로 반환 (블로킹 X)
   return supabaseResponse
 }
 

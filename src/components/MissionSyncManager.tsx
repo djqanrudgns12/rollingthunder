@@ -6,13 +6,10 @@ import { useUIStore } from '@/store/uiStore'
 import { useChipStore } from '@/store/chipStore'
 import { createClient } from '@/lib/supabase/client'
 
-interface Props {
-  userId?: string | null
-}
-
-export default function MissionSyncManager({ userId }: Props) {
+export default function MissionSyncManager() {
   const isSynced = useRef(false)
   const setHasClaimableMissions = useUIStore(state => state.setHasClaimableMissions)
+  const userId = useUIStore(state => state.userProfile?.id)
   const addChipsLocally = useChipStore(state => state.addChipsLocally)
 
   useEffect(() => {
