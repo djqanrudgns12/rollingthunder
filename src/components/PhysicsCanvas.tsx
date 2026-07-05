@@ -1049,12 +1049,15 @@ export default function PhysicsCanvas() {
             // [성능 최적화] ColorOverlayFilter → tint 대체
             // 왜: ColorOverlayFilter도 GPU render-to-texture 패스를 강제.
             // tint로 녹색 톤을 입히고 scale pulse는 기존과 동일하게 유지.
-            const prevTint = iconWrapper ? (iconWrapper.children[0] as any)?.tint : undefined;
+            const originalTints: number[] = [];
             let pulse: any;
             if (iconWrapper) {
               // 아이콘에 녹색 tint 적용
               for (const child of iconWrapper.children) {
-                if (child instanceof PIXI.Sprite) child.tint = 0x39FF14;
+                if (child instanceof PIXI.Sprite) {
+                  originalTints.push(child.tint as number);
+                  child.tint = 0x39FF14;
+                }
               }
               pulse = gsap.to(iconWrapper.scale, { x: 1.15, y: 0.85, duration: 0.6, yoyo: true, repeat: -1 });
             }
@@ -1080,10 +1083,16 @@ export default function PhysicsCanvas() {
             });
 
             cleanupTasks.push(() => {
-              // tint 복원
+              // [버그 수정] tint 복원 (각 Sprite별 원래 색상으로 정확히 복구)
               if (iconWrapper) {
+                let i = 0;
                 for (const child of iconWrapper.children) {
-                  if (child instanceof PIXI.Sprite) child.tint = prevTint ?? 0xFFFFFF;
+                  if (child instanceof PIXI.Sprite) {
+                    if (originalTints[i] !== undefined) {
+                      child.tint = originalTints[i];
+                    }
+                    i++;
+                  }
                 }
               }
               if (pulse) pulse.kill();
@@ -1664,7 +1673,11 @@ export default function PhysicsCanvas() {
               if (stage > 0) {
                 const url = '/images/assets/obstacles/' + iceCrackTexName(stage) + '.png';
                 const tex = PIXI.Assets.get(url) || PIXI.Texture.from(url);
-                if (tex) crackOverlay.texture = tex;
+                if (tex) {
+                  crackOverlay.texture = tex;
+                  if (crackOverlay.originalWidth) crackOverlay.width = crackOverlay.originalWidth;
+                  if (crackOverlay.originalHeight) crackOverlay.height = crackOverlay.originalHeight;
+                }
                 crackOverlay.visible = true;
                 crackOverlay.alpha = 1;
               }
@@ -1694,7 +1707,11 @@ export default function PhysicsCanvas() {
             if (crackOverlay) {
               const url = '/images/assets/obstacles/ice_block_shatter.png';
               const tex = PIXI.Assets.get(url) || PIXI.Texture.from(url);
-              if (tex) crackOverlay.texture = tex;
+              if (tex) {
+                crackOverlay.texture = tex;
+                if (crackOverlay.originalWidth) crackOverlay.width = crackOverlay.originalWidth;
+                if (crackOverlay.originalHeight) crackOverlay.height = crackOverlay.originalHeight;
+              }
               crackOverlay.visible = true;
               crackOverlay.alpha = 1;
             }
@@ -2013,22 +2030,22 @@ export default function PhysicsCanvas() {
       itemDisposers.forEach(d => { try { d() } catch {} });
       if (initPromise) {
         initPromise.then(() => {
-          if (viewport) viewport.destroy();
-          if (pipViewport) pipViewport.destroy();
           if (app) {
             try {
               if (app.canvas && app.canvas.parentNode) {
                 app.canvas.parentNode.removeChild(app.canvas);
               }
-              app.destroy(true);
+              // 강제 WebGL 컨텍스트 반환 로직은 PixiJS 내부 뷰포트 이벤트 핸들러 등과 충돌하므로 제거
+              // 최신 Pixi v8 문법에 맞게 파괴 옵션 적용 (children: true를 통해 viewport도 자동 파괴됨)
+              app.destroy({ removeView: true, children: true });
             } catch (e) {
               console.error("PIXI destroy error:", e);
             }
           }
         });
       }
-    }
-  }, [survivors, targetWinnerCount, gimmickDensity, setSurvivors, setGameStage, customMapData, gameMode, customWinningRank, isSkillEnabled, randomWinningRanks, selectedMapPreset])
+    };
+  }, [survivors, targetWinnerCount, gimmickDensity, setSurvivors, setGameStage, customMapData, gameMode, customWinningRank, isSkillEnabled, randomWinningRanks, selectedMapPreset]);
   const getOrdinalSuffix = (n: number) => {
     const v = n % 100;
     if (v >= 11 && v <= 13) return `${n}TH`;

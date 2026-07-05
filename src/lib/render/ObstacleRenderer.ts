@@ -250,6 +250,9 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
     crack.width = w
     crack.height = h
     crack.label = 'crackOverlay'
+    crack.blendMode = 'add'
+    ;(crack as any).originalWidth = w
+    ;(crack as any).originalHeight = h
     crack.visible = stage > 0
     g.addChild(crack)
 

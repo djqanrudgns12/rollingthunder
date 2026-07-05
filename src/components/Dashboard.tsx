@@ -173,17 +173,20 @@ export default function Dashboard() {
       const cleanSkinId = globalSkin.replace(/^skin_/, '');
       const finalSkinId = cleanSkinId === 'chip_base' ? `chip_base_${Math.floor(Math.random() * 5) + 1}` : cleanSkinId
       // [버그 수정] HSL → HEX 변환하여 저장
-      // 왜: PIXI.Color가 소수점 hue가 포함된 HSL 문자열을 잘못 파싱하여
-      // 0(검은색)을 반환하는 경우가 있음. HEX는 모든 렌더러에서 안전하게 파싱됨.
+      // 왜: PIXI.Color가 소수점 hue가 포함된 HSL 문자열을 잘못 파싱하여 0(검은색) 반환.
+      // ⚠️ 중요: Canvas를 루프 내에서 생성하면 브라우저 GPU 컨텍스트 한도(16개) 초과로
+      // WebGL Context Lost (PixiJS 크래시)가 발생하므로 순수 JS 수식으로 변환.
       const hue = Math.random() * 360;
-      const color = `hsl(${Math.round(hue)}, 80%, 50%)`;
-      // 브라우저 Canvas를 이용한 정확한 HEX 변환
-      const cvs = document.createElement('canvas');
-      cvs.width = 1; cvs.height = 1;
-      const ctx2d = cvs.getContext('2d')!;
-      ctx2d.fillStyle = color;
-      const hexColor = ctx2d.fillStyle; // 브라우저가 "#rrggbb"로 정규화
-      
+      const s = 0.8;
+      const l = 0.5;
+      const a = s * Math.min(l, 1 - l);
+      const f = (n: number) => {
+        const k = (n + hue / 30) % 12;
+        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        return Math.round(255 * color).toString(16).padStart(2, '0');
+      };
+      const hexColor = `#${f(0)}${f(8)}${f(4)}`;
+
       newParticipants.push({ id: newId, name: finalName, color: hexColor, skinId: finalSkinId })
     })
     setParticipants(newParticipants)
