@@ -12,6 +12,7 @@ import { useUIStore } from '@/store/uiStore'
 import { stampService } from '@/lib/stampService'
 import { useChipStore } from '@/store/chipStore'
 import { createClient } from '@/lib/supabase/client'
+import { getSkinTexture, isVectorSkin, shouldSpin } from '@/lib/SkinTextureFactory'
 
 import LiveLeaderboard from './LiveLeaderboard'
 import { generateSkillMessage } from './SkillLogOverlay'
@@ -352,26 +353,7 @@ export default function PhysicsCanvas() {
         // Preload Assets
         const texturesToLoad = [
           ...(bgImageToUse ? [bgImageToUse] : []),
-          '/images/assets/skins/chip_base_1.png',
-          '/images/assets/skins/chip_base_2.png',
-          '/images/assets/skins/chip_base_3.png',
-          '/images/assets/skins/chip_base_4.png',
-          '/images/assets/skins/chip_base_5.png',
-          '/images/assets/skins/chip_base_6.png',
-          '/images/assets/skins/horse.png',
-          '/images/assets/skins/spaceship.png',
-          '/images/assets/skins/shuriken.png',
-          '/images/assets/skins/car.png',
-          '/images/assets/skins/cat.png',
-          '/images/assets/skins/blackhole.png',
-          '/images/assets/skins/dog.png',
-          '/images/assets/skins/soccerball.png',
-          '/images/assets/skins/bird.png',
-          '/images/assets/skins/diamond.png',
-          '/images/assets/skins/clover.png',
-          '/images/assets/skins/cherry.png',
-          '/images/assets/skins/rabbit.png',
-          '/images/assets/skins/turtle.png',
+          // 기본/Normal 스킨 PNG 프리로드 제거 — SkinTextureFactory가 벡터로 런타임 생성
           '/images/assets/obstacles/obstacle_pin.png',
           '/images/assets/obstacles/obstacle_bumper.png',
           '/images/assets/obstacles/obstacle_wall.png',
@@ -1299,16 +1281,11 @@ export default function PhysicsCanvas() {
                 if (skinKey === 'UR_blackhole') skinKey = 'blackhole';
                 if (skinKey === 'SR_cat') skinKey = 'cat';
                 
-                const textureUrl = `/images/assets/skins/${skinKey}.png`;
                 const R = 18; // Physics radius
                 
                 // 에셋별 렌더링 스케일 조정 (시각적 밸런스 패치)
-                // 참가자 강조: 장애물 대비 아이콘을 키움 (R*2→R*2.3, 대형에셋 R*1.3→R*1.6)
                 let renderDiameter = R * 2.3;
-                const isLargeAsset = skinKey.startsWith('chip_base_') ||
-                                     skinKey.startsWith('pr_') ||
-                                     skinKey === 'blackhole' ||
-                                     skinKey === 'shuriken';
+                const isLargeAsset = skinKey.startsWith('pr_');
                 if (isLargeAsset) {
                   renderDiameter = R * 1.6;
                 }
@@ -1318,24 +1295,25 @@ export default function PhysicsCanvas() {
                 container.addChild(iconWrapper);
                 
                 try {
-                  const tex = PIXI.Assets.get(textureUrl);
+                  // 벡터 스킨 우선 시도 → 없으면 기존 PNG 폴백
+                  const vectorTex = isVectorSkin(skinKey) ? getSkinTexture(skinKey) : null;
+                  const pngUrl = `/images/assets/skins/${skinKey}.png`;
+                  const tex = vectorTex || PIXI.Assets.get(pngUrl);
                   if (tex) {
                     if (skinKey.startsWith('pr_')) {
-                      // 둥근 그림자
+                      // ========== 프리미엄 스킨 (Rare+) — 기존 PNG 풀컬러 렌더링 ==========
                       const shadow = new PIXI.Graphics();
                       shadow.circle(0, 0, renderDiameter / 2);
                       shadow.fill({ color: 0x000000, alpha: 0.5 });
                       shadow.y = 3;
                       iconWrapper.addChild(shadow);
 
-                      // 스프라이트 (원본 컬러 유지)
                       const sprite = new PIXI.Sprite(tex);
                       sprite.anchor.set(0.5);
                       sprite.width = renderDiameter;
                       sprite.height = renderDiameter;
-                      sprite.tint = 0xFFFFFF; // 틴트 초기화
+                      sprite.tint = 0xFFFFFF; // 원본 컬러 유지
 
-                      // 원형 마스크
                       const mask = new PIXI.Graphics();
                       mask.circle(0, 0, renderDiameter / 2);
                       mask.fill({ color: 0xffffff, alpha: 1.0 });
@@ -1344,13 +1322,13 @@ export default function PhysicsCanvas() {
                       
                       iconWrapper.addChild(sprite);
 
-                      // 칩 식별을 위한 테두리 색상 처리
                       const border = new PIXI.Graphics();
                       border.circle(0, 0, renderDiameter / 2);
                       border.stroke({ width: 3, color: colNum, alpha: 1.0 });
                       iconWrapper.addChild(border);
                     } else {
-                      // subtle drop shadow
+                      // ========== 기본/Normal 스킨 — 벡터 실루엣 + tint 색상 ==========
+                      // 그림자 (실루엣 형태 그대로)
                       const shadow = new PIXI.Sprite(tex);
                       shadow.anchor.set(0.5);
                       shadow.width = renderDiameter;
@@ -1360,11 +1338,12 @@ export default function PhysicsCanvas() {
                       shadow.y = 3;
                       iconWrapper.addChild(shadow);
 
+                      // 메인 스프라이트 (흰색 실루엣에 참가자 색상 tint 적용)
                       const sprite = new PIXI.Sprite(tex);
-                      sprite.anchor.set(0.5); // 완벽한 무결성을 위한 중앙 앵커 정렬
-                      sprite.width = renderDiameter;   // 시각적 사이즈 조정 적용
+                      sprite.anchor.set(0.5);
+                      sprite.width = renderDiameter;
                       sprite.height = renderDiameter;
-                      sprite.tint = colNum;   // 참가자 고유 색상 무한 지원
+                      sprite.tint = colNum;   // 참가자 고유 색상 적용
                       iconWrapper.addChild(sprite);
                     }
                   } else {
@@ -1424,10 +1403,10 @@ export default function PhysicsCanvas() {
             if (isChip && survivor) {
               const iconWrapper = container.getChildByLabel('icon');
               if (iconWrapper) {
-                const skinKey = survivor.skin_id?.replace('skin_', '') || 'chip_base_1';
-                const isSpinningSkin = skinKey.startsWith('chip_base_') ||
-                                       ['shuriken', 'blackhole', 'soccerball', 'cherry', 'clover', 'pr_dino', 'pr_slime', 'pr_alien', 'pr_robot'].includes(skinKey);
-                if (isSpinningSkin) {
+                const skinKey = survivor.skinId?.replace('skin_', '') || 'chip_base_1';
+                // 회전 정책: skinDefinitions의 spin 속성 기반 (데이터 드리븐)
+                // 방사 대칭 스킨만 회전, 방향성 있는 스킨은 정방향 유지
+                if (shouldSpin(skinKey)) {
                   iconWrapper.rotation += (vx * 0.005);
                 }
               }

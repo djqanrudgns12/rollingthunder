@@ -1052,6 +1052,194 @@ npm run build
 | 5 | **테마** | **Dark 모드 기본** + Light 모드 구현 여지 확보 (CSS 변수 기반 테마 시스템) |
 | 6 | **스킬 배정** | **시작 시 랜덤 배정** (공평성). 대시보드에서 '랜덤/동일' 모드 선택 가능 |
 | 7 | **결과 화면** | **한줄 출력 절대 보장**. `text-overflow: ellipsis` + `nowrap` 적용 |
+| 8 | **기본/Normal 스킨** | **SVG + Graphics 하이브리드 렌더링**. 저해상도 PNG 폐기 → 벡터 기반 전환. tint 색상 시스템 유지 |
+
+---
+
+## 🎯 스킨 에셋 아키텍처 (SVG + Graphics 하이브리드)
+
+> **확정 결정**: 기본 보유(3종) + Normal(12종) 총 15종 스킨을 **저해상도 PNG에서 벡터 기반 렌더링으로 전환**합니다.
+> Rare 이상(pr_ 접두사) 스킨은 기존 고해상도 일러스트 PNG를 유지합니다.
+
+### 기존 문제점
+
+| 문제 | 원인 | 영향 |
+|------|------|------|
+| 인게임 스킨 뭉개짐 | 원본 에셋 64~128px, 2~8KB 극저해상도 | 확대 시 픽셀 깨짐 |
+| 검은 배경 표시 | 투명도(알파 채널) 없는 PNG / JPEG 위장 파일 | tint 적용 시 배경까지 색칠됨 |
+| temp_ 쓰레기 파일 | AI 생성 실패물 (JPEG→PNG 위장, 불투명 배경) | 디스크 낭비 4.6MB |
+| chip_base_2~6 미사용 | shopData에 미등록, 코드 미참조 | 불필요한 에셋 |
+
+### 렌더링 메커니즘 (tint 시스템)
+
+```mermaid
+graph LR
+    subgraph "기본/Normal 스킨"
+        A["흰색 실루엣 형태<br/>(투명 배경)"] --> B["sprite.tint = 참가자색"]
+        B --> C["✅ 색상이 입혀진 아이콘"]
+    end
+    
+    subgraph "Rare+ 스킨 (pr_)"
+        D["풀컬러 일러스트<br/>(투명 배경)"] --> E["sprite.tint = 0xFFFFFF<br/>+ 원형 마스크"]
+        E --> F["✅ 원본 컬러 유지 + 테두리"]
+    end
+```
+
+> **핵심**: 기본/Normal은 `tint`로 **흰색→유저 색상** 변환. 투명 배경이 **필수**이며, 이것이 "테두리를 따면 색이 채워지는" 시각 효과의 정체.
+
+### 하이브리드 렌더링 전략
+
+```mermaid
+graph TD
+    A["스킨 렌더링 요청"] --> B{"skinDefinitions에<br/>SVG path 존재?"}
+    B -- "있음" --> C["SVG path → Canvas 2D로<br/>흰색 실루엣 텍스처 생성"]
+    B -- "없음" --> D["PIXI.Graphics로<br/>프로시저럴 드로잉"]
+    C --> E["PIXI.Texture.from(canvas)"]
+    D --> F["renderToTexture"]
+    E --> G["sprite.tint = colNum"]
+    F --> G
+    G --> H["✅ 선명한 벡터 품질 스킨"]
+```
+
+### 기술 명세
+
+#### 1. 스킨 정의 데이터 (`src/data/skinDefinitions.ts`)
+
+```typescript
+export interface SkinDefinition {
+  id: string;                    // shopData의 item_id에서 'skin_' 제거한 키
+  name: string;                  // 한글 이름
+  viewBox: string;               // SVG viewBox (예: "0 0 256 256")
+  paths: string[];               // SVG <path d="..."> 데이터 배열
+  fillRule?: 'nonzero' | 'evenodd';  // 내부 컷아웃(눈·코 등) 표현용
+  scale?: number;                // 기본 1.0, 필요시 조정
+}
+
+export const SKIN_DEFINITIONS: Record<string, SkinDefinition> = {
+  cat: {
+    id: 'cat',
+    name: '고양이',
+    viewBox: '0 0 256 256',
+    paths: [/* SVG path data */],
+    fillRule: 'evenodd',  // 눈·코·수염을 투명 컷아웃으로 표현
+  },
+  // ... 15종
+};
+```
+
+#### 2. 텍스처 생성기 (`src/lib/SkinTextureFactory.ts`)
+
+```typescript
+export class SkinTextureFactory {
+  private static cache = new Map<string, PIXI.Texture>();
+  
+  // SVG path → 256px Canvas → PIXI.Texture 변환
+  static getTexture(skinId: string, size: number = 256): PIXI.Texture {
+    // 캐시 히트 시 즉시 반환
+    // Canvas 2D에서 Path2D로 흰색 실루엣 그리기
+    // PIXI.Texture.from(canvas) 반환
+  }
+}
+```
+
+#### 3. PhysicsCanvas 수정 범위
+
+```diff
+ // 텍스처 로딩 변경
+- const textureUrl = `/images/assets/skins/${skinKey}.png`;
+- const tex = PIXI.Assets.get(textureUrl);
++ const tex = SkinTextureFactory.getTexture(skinKey);
+
+ // 회전 로직 변경 — 하드코딩 배열 → skinDefinitions 데이터 기반
+- const isSpinningSkin = skinKey.startsWith('chip_base_') ||
+-   ['shuriken', 'blackhole', 'soccerball', 'cherry', 'clover', ...].includes(skinKey);
++ const def = SKIN_DEFINITIONS[skinKey];
++ const isSpinningSkin = def?.spin ?? false;
+```
+
+> 변경 범위가 매우 작아 기존 렌더링 로직(tint, 그림자 등)에 영향 없음.
+
+### 스킨별 회전 정책 (Spin Classification)
+
+> **설계 원칙**: 형태가 **방사 대칭**(어느 각도에서 봐도 자연스러운) 또는 **구르는 것이 물리적으로 자연스러운** 스킨만 회전합니다.
+> **방향성이 있는** 스킨(위/아래, 좌/우가 구분되는)은 **항상 정방향을 유지**하여 시각적 위화감을 방지합니다.
+
+#### 🔄 회전 스킨 (spin: true) — 6종
+
+| # | ID | 이름 | 회전 근거 |
+|---|---|---|---|
+| 1 | `chip_base` | 포커칩 | ⭕ 완전한 원형, 구르는 것이 당연 |
+| 2 | `shuriken` | 표창 | ⭕ 방사형 대칭, 회전이 오히려 자연스러움 (던지는 무기) |
+| 3 | `soccerball` | 축구공 | ⭕ 완전한 원형, 구르는 것이 물리적 본질 |
+| 4 | `blackhole` | 블랙홀 | ⭕ 소용돌이 형태, 회전이 시각적으로 더 사실적 |
+| 5 | `clover` | 네잎클로버 | ⭕ 4방향 방사 대칭, 어느 각도에서든 동일한 형태 |
+| 6 | `diamond` | 다이아몬드 | ⭕ 대칭 보석 형태, 반짝이며 구르는 연출 효과 |
+
+#### 🔒 비회전 스킨 (spin: false) — 9종
+
+| # | ID | 이름 | 비회전 근거 |
+|---|---|---|---|
+| 1 | `horse` | 경주마 | ❌ 달리는 방향성 존재 (좌→우), 뒤집히면 부자연스러움 |
+| 2 | `spaceship` | 우주선 | ❌ 위를 향한 명확한 방향 (노즈콘 상단) |
+| 3 | `car` | 스포츠카 | ❌ 좌우 방향성, 뒤집어진 차는 사고 이미지 |
+| 4 | `bird` | 새 | ❌ 날개 펼친 방향, 뒤집히면 추락하는 새 |
+| 5 | `cat` | 고양이 | ❌ 얼굴 위아래 명확 (귀 위, 입 아래) |
+| 6 | `dog` | 강아지 | ❌ 얼굴 위아래 명확 (귀 위, 입 아래) |
+| 7 | `rabbit` | 토끼 | ❌ 긴 귀가 위를 향한 명확한 방향성 |
+| 8 | `turtle` | 거북이 | ❌ 등껍질 방향, 뒤집히면 위기 상황 이미지 |
+| 9 | `cherry` | 체리 | ❌ 꼭지(줄기)가 위를 향한 방향성 |
+
+#### skinDefinitions 인터페이스 반영
+
+```typescript
+export interface SkinDefinition {
+  id: string;
+  name: string;
+  viewBox: string;
+  paths: string[];
+  fillRule?: 'nonzero' | 'evenodd';
+  scale?: number;
+  spin: boolean;  // ← 회전 정책: true = 속도에 따라 구름, false = 항상 정방향
+}
+
+// 예시
+export const SKIN_DEFINITIONS: Record<string, SkinDefinition> = {
+  chip_base_1: { id: 'chip_base_1', name: '포커칩', spin: true,  /* ... */ },
+  horse:       { id: 'horse',       name: '경주마', spin: false, /* ... */ },
+  shuriken:    { id: 'shuriken',    name: '표창',   spin: true,  /* ... */ },
+  car:         { id: 'car',         name: '스포츠카', spin: false, /* ... */ },
+  bird:        { id: 'bird',        name: '새',     spin: false, /* ... */ },
+  cat:         { id: 'cat',         name: '고양이', spin: false, /* ... */ },
+  dog:         { id: 'dog',         name: '강아지', spin: false, /* ... */ },
+  soccerball:  { id: 'soccerball',  name: '축구공', spin: true,  /* ... */ },
+  spaceship:   { id: 'spaceship',   name: '우주선', spin: false, /* ... */ },
+  blackhole:   { id: 'blackhole',   name: '블랙홀', spin: true,  /* ... */ },
+  diamond:     { id: 'diamond',     name: '다이아몬드', spin: true, /* ... */ },
+  clover:      { id: 'clover',      name: '네잎클로버', spin: true, /* ... */ },
+  cherry:      { id: 'cherry',      name: '체리',   spin: false, /* ... */ },
+  rabbit:      { id: 'rabbit',      name: '토끼',   spin: false, /* ... */ },
+  turtle:      { id: 'turtle',      name: '거북이', spin: false, /* ... */ },
+};
+```
+
+> [!TIP]
+> **Rare+ 스킨(pr_)에도 동일 적용 가능**: 향후 `pr_dragon`(날개 방향) → `spin: false`, `pr_slime`(대칭 형태) → `spin: true` 등으로 확장할 수 있습니다.
+
+### 폐기 대상 파일 (21개, ~4.6MB)
+
+| 구분 | 파일 수 | 조치 |
+|------|---------|------|
+| `temp_*` AI 생성 실패물 | 15개 | 🗑 즉시 삭제 |
+| `media__*` 미사용 | 1개 | 🗑 즉시 삭제 |
+| `chip_base_2~6.png` 미등록 | 5개 | 🗑 즉시 삭제 |
+
+### SVG 소스 전략
+
+| 우선순위 | 소스 | 라이선스 | 비고 |
+|----------|------|----------|------|
+| 1순위 | **Lucide Icons** (프로젝트 기존 사용) | MIT | 스타일 통일, 즉시 사용 가능 |
+| 2순위 | **Phosphor Icons** | MIT | 더 다양한 변형 제공 |
+| 3순위 | **커스텀 SVG path 제작** | 자체 | 독창성 최대, 시간 소요 |
 
 ---
 
