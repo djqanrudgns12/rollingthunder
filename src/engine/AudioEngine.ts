@@ -29,6 +29,7 @@ class AudioEngine {
   private standbyBgm: Howl;
   private playgameBgm: Howl;
   private mapeditorBgm: Howl;
+  private shopBgm: Howl;
   private currentBgm: Howl | null = null;
   
   // SFX Cache
@@ -52,6 +53,7 @@ class AudioEngine {
     this.standbyBgm = new Howl({ src: ['/sounds/bgm/Standby.mp3'], loop: true, volume: this.bgmVol, preload: true });
     this.playgameBgm = new Howl({ src: ['/sounds/bgm/Playgame.mp3'], loop: true, volume: this.bgmVol, preload: true });
     this.mapeditorBgm = new Howl({ src: ['/sounds/bgm/Mapeditor.mp3'], loop: true, volume: this.bgmVol, preload: true });
+    this.shopBgm = new Howl({ src: ['/sounds/bgm/Shop.mp3'], loop: true, volume: this.bgmVol, preload: true });
 
     // SFX 프리로딩
     const uniquePaths = Array.from(new Set(Object.values(sfxPathMap)));
@@ -92,6 +94,10 @@ class AudioEngine {
 
   playMapEditorBgm() {
     this.crossfadeBgm(this.mapeditorBgm);
+  }
+
+  playShopBgm() {
+    this.crossfadeBgm(this.shopBgm);
   }
 
   private crossfadeBgm(nextBgm: Howl) {
