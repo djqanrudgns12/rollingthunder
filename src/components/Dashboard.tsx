@@ -150,7 +150,7 @@ export default function Dashboard() {
     
     setParticipants(participants.map(p => ({
       ...p,
-      skinId: cleanId === 'chip_base' ? `chip_base_${Math.floor(Math.random() * 6) + 1}` : cleanId
+      skinId: cleanId === 'chip_base' ? `chip_base_${Math.floor(Math.random() * 5) + 1}` : cleanId
     })))
   }
 
@@ -171,7 +171,7 @@ export default function Dashboard() {
       
       // 스킨 일괄 설정에 따라 배정
       const cleanSkinId = globalSkin.replace(/^skin_/, '');
-      const finalSkinId = cleanSkinId === 'chip_base' ? `chip_base_${Math.floor(Math.random() * 6) + 1}` : cleanSkinId
+      const finalSkinId = cleanSkinId === 'chip_base' ? `chip_base_${Math.floor(Math.random() * 5) + 1}` : cleanSkinId
       
       newParticipants.push({ id: newId, name: finalName, color: `hsl(${Math.random() * 360}, 80%, 50%)`, skinId: finalSkinId })
     })
