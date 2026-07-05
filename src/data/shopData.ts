@@ -20,9 +20,17 @@ export const MOCK_ITEMS: ShopItem[] = [
 
   // Normal (300 ~ 500)
   { item_id: "skin_shuriken", category: "skin", name: "표창", price: 300, rarity: "Normal", description: "날렵한 표창 스킨입니다.", image: "/images/assets/skins/shuriken.png" },
+  { item_id: "skin_soccerball", category: "skin", name: "축구공", price: 300, rarity: "Normal", description: "둥글게 굴러가는 축구공 스킨입니다.", image: "/images/assets/skins/soccerball.png" },
+  { item_id: "skin_cherry", category: "skin", name: "체리", price: 300, rarity: "Normal", description: "상큼한 두 알의 체리 스킨입니다.", image: "/images/assets/skins/cherry.png" },
   { item_id: "skin_car", category: "skin", name: "스포츠카", price: 400, rarity: "Normal", description: "빠르게 질주하는 스포츠카 스킨입니다.", image: "/images/assets/skins/car.png" },
+  { item_id: "skin_bird", category: "skin", name: "새", price: 400, rarity: "Normal", description: "하늘을 나는 평화로운 새 스킨입니다.", image: "/images/assets/skins/bird.png" },
+  { item_id: "skin_clover", category: "skin", name: "네잎클로버", price: 400, rarity: "Normal", description: "행운을 가져다주는 네잎클로버 스킨입니다.", image: "/images/assets/skins/clover.png" },
   { item_id: "skin_cat", category: "skin", name: "고양이", price: 500, rarity: "Normal", description: "귀여운 고양이 스킨입니다.", image: "/images/assets/skins/cat.png" },
   { item_id: "skin_blackhole", category: "skin", name: "블랙홀", price: 500, rarity: "Normal", description: "모든 것을 빨아들이는 블랙홀 스킨입니다.", image: "/images/assets/skins/blackhole.png" },
+  { item_id: "skin_dog", category: "skin", name: "강아지", price: 500, rarity: "Normal", description: "충성스럽고 귀여운 강아지 스킨입니다.", image: "/images/assets/skins/dog.png" },
+  { item_id: "skin_diamond", category: "skin", name: "다이아몬드", price: 500, rarity: "Normal", description: "영원히 빛나는 다이아몬드 스킨입니다.", image: "/images/assets/skins/diamond.png" },
+  { item_id: "skin_rabbit", category: "skin", name: "토끼", price: 500, rarity: "Normal", description: "깡총깡총 뛰는 토끼 스킨입니다.", image: "/images/assets/skins/rabbit.png" },
+  { item_id: "skin_turtle", category: "skin", name: "거북이", price: 500, rarity: "Normal", description: "느긋하고 단단한 거북이 스킨입니다.", image: "/images/assets/skins/turtle.png" },
   
   // Rare (1000)
   { item_id: "skin_pr_alien", category: "skin", name: "에일리언", price: 1000, rarity: "Rare", description: "외계 생명체 에일리언 스킨입니다.", image: "/images/assets/skins/pr_alien.png" },

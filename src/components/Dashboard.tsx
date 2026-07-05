@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createSession } from '@/actions/db'
 import MapLoadModal, { DEFAULT_MAPS } from './MapLoadModal'
 import ListManagerModal from './ListManagerModal'
-import { Video, Map, Circle, Car, Rocket, Zap, Cat, Target, Volume2, VolumeX, Settings, Ghost, Bot, Flame, Star, Smile, Cloud, Anchor, Wind } from 'lucide-react'
+import { Video, Map, Circle, Car, Rocket, Zap, Cat, Target, Volume2, VolumeX, Settings, Ghost, Bot, Flame, Star, Smile, Cloud, Anchor, Wind, Dog, Bird, Diamond, Clover, Cherry, Rabbit, Turtle, CircleDashed } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEditorStore } from '@/store/editorStore'
 import { useInventoryStore } from '@/store/inventoryStore'
@@ -26,6 +26,14 @@ function SkinPreviewIcon({ skinId }: { skinId: string }) {
     case 'car': return <Car className="w-5 h-5" />
     case 'blackhole': return <Circle className="w-5 h-5 animate-spin" />
     case 'cat': return <Cat className="w-5 h-5" />
+    case 'dog': return <Dog className="w-5 h-5" />
+    case 'soccerball': return <CircleDashed className="w-5 h-5" />
+    case 'bird': return <Bird className="w-5 h-5" />
+    case 'diamond': return <Diamond className="w-5 h-5" />
+    case 'clover': return <Clover className="w-5 h-5" />
+    case 'cherry': return <Cherry className="w-5 h-5" />
+    case 'rabbit': return <Rabbit className="w-5 h-5" />
+    case 'turtle': return <Turtle className="w-5 h-5" />
     case 'pr_dragon': return <Flame className="w-5 h-5 text-red-500" />
     case 'pr_unicorn': return <Star className="w-5 h-5 text-pink-400" />
     case 'pr_dino': return <Smile className="w-5 h-5 text-green-500" />

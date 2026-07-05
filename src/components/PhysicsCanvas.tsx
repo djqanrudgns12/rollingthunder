@@ -364,6 +364,14 @@ export default function PhysicsCanvas() {
           '/images/assets/skins/car.png',
           '/images/assets/skins/cat.png',
           '/images/assets/skins/blackhole.png',
+          '/images/assets/skins/dog.png',
+          '/images/assets/skins/soccerball.png',
+          '/images/assets/skins/bird.png',
+          '/images/assets/skins/diamond.png',
+          '/images/assets/skins/clover.png',
+          '/images/assets/skins/cherry.png',
+          '/images/assets/skins/rabbit.png',
+          '/images/assets/skins/turtle.png',
           '/images/assets/obstacles/obstacle_pin.png',
           '/images/assets/obstacles/obstacle_bumper.png',
           '/images/assets/obstacles/obstacle_wall.png',
@@ -1416,7 +1424,12 @@ export default function PhysicsCanvas() {
             if (isChip && survivor) {
               const iconWrapper = container.getChildByLabel('icon');
               if (iconWrapper) {
-                iconWrapper.rotation += (vx * 0.005);
+                const skinKey = survivor.skin_id?.replace('skin_', '') || 'chip_base_1';
+                const isSpinningSkin = skinKey.startsWith('chip_base_') ||
+                                       ['shuriken', 'blackhole', 'soccerball', 'cherry', 'clover', 'pr_dino', 'pr_slime', 'pr_alien', 'pr_robot'].includes(skinKey);
+                if (isSpinningSkin) {
+                  iconWrapper.rotation += (vx * 0.005);
+                }
               }
             } else {
               container.rotation += (vx * 0.005);
