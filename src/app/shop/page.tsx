@@ -310,8 +310,8 @@ export default function ShopPage() {
         </div>
 
         {/* 좌측: 3D 쇼케이스 및 기타 패널 */}
-        <div className="lg:col-span-5 flex flex-col gap-6">
-          <div className={`relative w-full aspect-square md:aspect-auto md:h-[480px] bg-neutral-900/50 border rounded-2xl overflow-hidden shadow-2xl backdrop-blur-md flex flex-col transition-colors duration-500 ${
+        <div className="lg:col-span-5 flex flex-col gap-6 h-[calc(100vh-140px)] overflow-y-auto pr-2 pb-4 scrollbar-thin scrollbar-thumb-neutral-800 scrollbar-track-transparent">
+          <div className={`relative w-full shrink-0 aspect-square md:aspect-auto md:h-[420px] bg-neutral-900/50 border rounded-2xl overflow-hidden shadow-2xl backdrop-blur-md flex flex-col transition-colors duration-500 ${
             viewMode === 'shop' ? 'border-amber-500/30 shadow-amber-900/20' : 'border-cyan-500/30 shadow-cyan-900/20'
           }`}>
             <div className="absolute top-4 left-4 z-20">
