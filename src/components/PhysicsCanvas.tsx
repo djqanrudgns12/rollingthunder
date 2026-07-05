@@ -1918,14 +1918,14 @@ export default function PhysicsCanvas() {
 
       <LiveLeaderboard rankings={rankings} finishedFeed={finishedFeed} />
 
-      {/* 로비 복귀 버튼 — 하단 밀착 + 컴팩트화하여 게임 화면 가림 최소화 */}
-      <div className="absolute bottom-3 left-4 z-50 flex gap-4">
+      {/* 로비 복귀 버튼 — 미니맵과 가로 정렬(left-6=24px) + 너비 동기화(w-48=192px) */}
+      <div className="absolute bottom-3 left-6 z-50 flex gap-4">
         <button 
           onClick={() => {
             stampService.flushPlayEvents();
             setGameStage('dashboard');
           }}
-          className={`glass-panel-heavy text-white font-bold px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 group w-40 text-sm ${
+          className={`glass-panel-heavy text-white font-bold px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 group w-48 text-sm ${
             (gameState === 'winner_declared' || gameState === 'all_finished')
               ? 'animate-bounce shadow-[0_0_25px_rgba(255,255,255,0.6)] border-2 border-white bg-white/20 hover:bg-white/30'
               : 'hover:bg-white/10 shadow-lg border border-white/10'
@@ -2046,8 +2046,8 @@ export default function PhysicsCanvas() {
         </div>
       )}
 
-      {/* 메인 하단 독 (Dock) — 하단 밀착 + 컴팩트화하여 게임 화면 가림 최소화 */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-black/40 backdrop-blur-xl border border-white/10 px-3 py-2 rounded-2xl shadow-[0_4px_30px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] transition-all duration-700 ease-in-out">
+      {/* 메인 하단 독 (Dock) — 하단 밀착 + 상하 여백 최소화(py-0.5) */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-black/40 backdrop-blur-xl border border-white/10 px-3 py-0.5 rounded-2xl shadow-[0_4px_30px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] transition-all duration-700 ease-in-out">
         
         {/* 그룹 1: 게임 설정 (게임 시작 시 숨김 처리) */}
         <div className={`flex items-center gap-2 transition-all duration-700 ease-in-out origin-left ${gameState !== 'idle' ? 'max-w-[0px] opacity-0 m-0 p-0 !gap-0 overflow-hidden' : 'max-w-[600px] opacity-100 overflow-visible'}`}>
