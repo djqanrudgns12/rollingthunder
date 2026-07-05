@@ -142,9 +142,9 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
     bar.fill({ color: 0xffffff, alpha: 1.0 })
     bar.stroke({ color: baseColor, width: 4, alpha: 0.8 })
     if (full) {
-      import('pixi-filters').then(({ GlowFilter }) => {
-        if (!bar.destroyed) bar.filters = [new GlowFilter({ distance: 8, outerStrength: 1.0, innerStrength: 0, color: glowColor, quality: 0.5 })]
-      }).catch(() => {})
+      // [성능 최적화] GlowFilter 동적 import 제거 → 밝은 외곽선으로 glow 효과 시뮬레이션
+      // 왜: 기물마다 GPU 필터 패스가 추가되어 저사양에서 프레임 드롭 유발
+      bar.stroke({ color: glowColor, width: 8, alpha: 0.35 })
     }
     g.addChild(bar)
 
@@ -315,9 +315,8 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
     gate.fill({ color: 0xffd700, alpha: 0.8 })
     gate.stroke({ color: 0xffaa00, width: 3 })
     if (full) {
-      import('pixi-filters').then(({ GlowFilter }) => {
-        if (!gate.destroyed) gate.filters = [new GlowFilter({ distance: 6, outerStrength: 1.0, innerStrength: 0, color: 0xffaa00, quality: 0.5 })]
-      }).catch(() => {})
+      // [성능 최적화] GlowFilter 동적 import 제거 → 밝은 외곽선으로 glow 효과 시뮬레이션
+      gate.stroke({ color: 0xffaa00, width: 6, alpha: 0.4 })
     }
     g.addChild(gate)
     mg.rect(-w / 2, -h / 2, w, h)

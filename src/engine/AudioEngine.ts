@@ -25,7 +25,9 @@ const BASE_SFX_VOL = 0.3;
 class AudioEngine {
   private static instance: AudioEngine;
   
-  // BGMs
+  // BGMs — [성능 최적화] lazy load: 초기 로드 시 모든 BGM을 동시 다운로드하지 않고,
+  // 실제 재생 요청 시에만 로드 시작 (preload: false).
+  // 왜: 4개 MP3를 동시에 로드하면 초기 응답 시간이 길어짐.
   private standbyBgm: Howl;
   private playgameBgm: Howl;
   private mapeditorBgm: Howl;
@@ -50,10 +52,12 @@ class AudioEngine {
   private constructor() {
     Howler.volume(this.masterVol);
 
-    this.standbyBgm = new Howl({ src: ['/sounds/bgm/Standby.mp3'], loop: true, volume: this.bgmVol, preload: true });
-    this.playgameBgm = new Howl({ src: ['/sounds/bgm/Playgame.mp3'], loop: true, volume: this.bgmVol, preload: true });
-    this.mapeditorBgm = new Howl({ src: ['/sounds/bgm/Mapeditor.mp3'], loop: true, volume: this.bgmVol, preload: true });
-    this.shopBgm = new Howl({ src: ['/sounds/bgm/Shop.mp3'], loop: true, volume: this.bgmVol, preload: true });
+    // [성능 최적화] BGM lazy load: preload false로 초기 로드 시간 단축
+    // 실제 재생 요청 시 crossfadeBgm에서 load() 호출
+    this.standbyBgm = new Howl({ src: ['/sounds/bgm/Standby.mp3'], loop: true, volume: this.bgmVol, preload: false });
+    this.playgameBgm = new Howl({ src: ['/sounds/bgm/Playgame.mp3'], loop: true, volume: this.bgmVol, preload: false });
+    this.mapeditorBgm = new Howl({ src: ['/sounds/bgm/Mapeditor.mp3'], loop: true, volume: this.bgmVol, preload: false });
+    this.shopBgm = new Howl({ src: ['/sounds/bgm/Shop.mp3'], loop: true, volume: this.bgmVol, preload: false });
 
     // SFX 프리로딩
     const uniquePaths = Array.from(new Set(Object.values(sfxPathMap)));
@@ -117,6 +121,19 @@ class AudioEngine {
     if ((nextBgm as any)._bgmFadeTimeout) {
       clearTimeout((nextBgm as any)._bgmFadeTimeout);
       (nextBgm as any)._bgmFadeTimeout = undefined;
+    }
+    
+    // [성능 최적화] lazy load: 아직 로드되지 않았으면 로드 시작 후 재생
+    const state = (nextBgm as any)._state;
+    if (state === 'unloaded') {
+      nextBgm.once('load', () => {
+        if (this.currentBgm !== nextBgm) return; // 로드 중 다른 BGM으로 전환된 경우
+        nextBgm.volume(0);
+        nextBgm.play();
+        nextBgm.fade(0, this.bgmVol, fadeDuration);
+      });
+      nextBgm.load();
+      return;
     }
     
     // Web Audio API를 사용하므로 매우 부드럽고 안정적인 페이드인 지원

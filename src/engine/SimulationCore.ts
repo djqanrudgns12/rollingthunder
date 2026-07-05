@@ -117,6 +117,18 @@ export class SimulationCore {
   // 워커가 매 프레임 이 순서대로 [x, y, rotationRad] 를 브로드캐스트해 렌더 시각을 물리와 일치시킨다.
   movingBodies: { id: string; body: RAPIER.RigidBody }[] = [];
 
+  // ── [성능 최적화] 기믹 강체 캐시 ──
+  // 왜: 매 프레임 forEachRigidBody로 전체 물리 세계를 순회하던 것을 init 시 1회 캐싱으로 교체.
+  // iceblock 파괴(processPendingRemovals)는 이 캐시 대상 타입이 아니므로 무효화 불필요.
+  private cachedBlackholes: RAPIER.RigidBody[] = [];
+  private cachedWhiteholes: RAPIER.RigidBody[] = [];
+  private cachedWindcannons: RAPIER.RigidBody[] = [];
+  private cachedFlippers: RAPIER.RigidBody[] = [];
+  private cachedKinematics: RAPIER.RigidBody[] = []; // windmill/spinner/piston
+  private portalsByColor: Map<string, RAPIER.RigidBody[]> = new Map();
+  // chipId → RigidBody O(1) 룩업 (SkillSystem, RankingTracker에 전달)
+  chipBodyMap: Map<string, RAPIER.RigidBody> = new Map();
+
   gameOver = false;
 
   // 모든 칩이 결승선을 통과했는지(마지막 주자까지 완주). 워커 루프 종료 판정에 사용.
@@ -294,6 +306,7 @@ export class SimulationCore {
 
     // 칩 스폰 (스마트 그리드 배치)
     this.activeChips = [];
+    this.chipBodyMap.clear();
     // PRD v4: layoutConfig 전달
     const slots = this.generateSlots(config.survivors.length, config.width, config.layoutConfig, config.worldHeight);
     config.survivors.forEach((s: any, idx: number) => {
@@ -301,7 +314,11 @@ export class SimulationCore {
       const chip = ChipFactory.createChip(this.world!, slot.x, slot.y, 18, s.id);
       chip.setLinvel({ x: 0, y: 0 }, true);
       this.activeChips.push(chip);
+      this.chipBodyMap.set(s.id, chip);
     });
+
+    // [성능 최적화] 기믹 강체를 타입별로 1회 캐싱 — 매 프레임 forEachRigidBody 제거
+    this.cacheGimmickBodies();
   }
 
   private generateSlots(count: number, width: number, layoutConfig?: any, worldHeight: number = 3300): {x: number, y: number}[] {
@@ -400,7 +417,8 @@ export class SimulationCore {
     this.processPendingRemovals();
 
     // 스킬 프레임루프: 매 프레임 활성 스킬의 지속 효과 적용 + 만료 해제
-    const { expiredChipIds } = SkillSystem.step(this.world, this.frame, this.activeChips, this.finishedChips);
+    // [성능 최적화] chipBodyMap 전달 — SkillSystem 내부의 O(N) find를 O(1) 룩업으로 교체
+    const { expiredChipIds } = SkillSystem.step(this.world, this.frame, this.activeChips, this.finishedChips, this.chipBodyMap);
     if (expiredChipIds.length > 0) {
       for (const expired of expiredChipIds) {
         this.events.push({ type: 'SKILL_EXPIRED', payload: { chipId: expired.chipId, skill: expired.skill } });
@@ -426,7 +444,8 @@ export class SimulationCore {
     this.frame++;
 
     if (this.frame % 10 === 0) {
-      const ranks = RankingTracker.updateRankings(this.world);
+      // [성능 최적화] activeChips 직접 전달 — forEachRigidBody 제거
+      const ranks = RankingTracker.updateRankingsFromChips(this.activeChips);
       this.latestRanks = ranks; // 워커의 순위 가중 스킬 추첨(B3)용 스냅샷
       this.events.push({ type: 'RANKINGS_UPDATE', payload: ranks });
     }
@@ -435,6 +454,37 @@ export class SimulationCore {
   // 역전 다이내믹스 강도 실시간 변경(환경설정 슬라이더 → SET_COMEBACK_STRENGTH)
   setComebackStrength(value: number) {
     this.comebackStrength01 = Math.max(0, Math.min(1, value / 100));
+  }
+
+  // [성능 최적화] init 완료 후 1회 호출 — 기믹 강체를 타입별 캐시로 수집.
+  // 왜: applyGravityWells/applyWindCannons/applyFlippers/applyPistons에서 매 프레임
+  // forEachRigidBody(전체 물리 세계 순회)를 하던 것을 제거하기 위함.
+  private cacheGimmickBodies() {
+    this.cachedBlackholes = [];
+    this.cachedWhiteholes = [];
+    this.cachedWindcannons = [];
+    this.cachedFlippers = [];
+    this.cachedKinematics = [];
+    this.portalsByColor.clear();
+    this.world!.forEachRigidBody((b) => {
+      const d = b.userData as any;
+      if (!d) return;
+      switch (d.type) {
+        case 'blackhole': this.cachedBlackholes.push(b); break;
+        case 'whitehole': this.cachedWhiteholes.push(b); break;
+        case 'windcannon': this.cachedWindcannons.push(b); break;
+        case 'flipper': this.cachedFlippers.push(b); break;
+        case 'windmill': case 'spinner': case 'piston':
+          this.cachedKinematics.push(b); break;
+        case 'portal': {
+          const color = d.color;
+          let arr = this.portalsByColor.get(color);
+          if (!arr) { arr = []; this.portalsByColor.set(color, arr); }
+          arr.push(b);
+          break;
+        }
+      }
+    });
   }
 
   free() {
@@ -447,6 +497,13 @@ export class SimulationCore {
     this.eventQueue = null;
     this.activeChips = [];
     this.movingBodies = [];
+    this.chipBodyMap.clear();
+    this.cachedBlackholes = [];
+    this.cachedWhiteholes = [];
+    this.cachedWindcannons = [];
+    this.cachedFlippers = [];
+    this.cachedKinematics = [];
+    this.portalsByColor.clear();
   }
 
   // ── 내부 로직 ─────────────────────────────────────────────────────────
@@ -636,13 +693,9 @@ export class SimulationCore {
           const portalKey = `portal_${chipData.id}`;
           const lastWarp = this.lastWarpFrame.get(portalKey) ?? -99999;
           if (this.frame - lastWarp > PORTAL_COOLDOWN_FRAMES) {
-            const targetPortals: any[] = [];
-            world.forEachRigidBody((b) => {
-              const d = b.userData as any;
-              if (d?.type === 'portal' && d.color === sensorData.color && b.handle !== sensorBody!.handle) {
-                targetPortals.push(b);
-              }
-            });
+            // [성능 최적화] 색상별 캐시 Map으로 O(1) 조회 — forEachRigidBody 제거
+            const sameColorPortals = this.portalsByColor.get(sensorData.color) || [];
+            const targetPortals = sameColorPortals.filter(b => b.handle !== sensorBody!.handle);
             if (targetPortals.length > 0) {
               const idx = Math.floor(this.rng() * targetPortals.length);
               const targetPortal = targetPortals[idx];
@@ -783,12 +836,9 @@ export class SimulationCore {
   }
 
   private applyWindCannons() {
-    const world = this.world!;
-    const cannons: RAPIER.RigidBody[] = [];
-    world.forEachRigidBody((b) => {
-      const d = b.userData as any;
-      if (d?.type === 'windcannon') cannons.push(b);
-    });
+    // [성능 최적화] 캐시된 windcannon 목록 직접 사용 — forEachRigidBody 제거
+    const cannons = this.cachedWindcannons;
+    if (cannons.length === 0) return;
     
     for (const cannon of cannons) {
       const cd = cannon.userData as any;
@@ -826,10 +876,10 @@ export class SimulationCore {
   }
 
   private applyFlippers() {
-    const world = this.world!;
-    world.forEachRigidBody((b) => {
+    // [성능 최적화] 캐시된 flipper 목록 직접 순회 — forEachRigidBody 제거
+    for (const b of this.cachedFlippers) {
       const d = b.userData as any;
-      if (d?.type !== 'flipper') return;
+      if (!d) continue;
       
       const restRad = (d.restAngle || 20) * (Math.PI / 180);
       const swingRad = (d.swingAngle || -40) * (Math.PI / 180);
@@ -855,7 +905,7 @@ export class SimulationCore {
       } else {
         b.setAngvel(0, true);
       }
-    });
+    }
   }
 
   private processHoleRespawns() {
@@ -878,14 +928,10 @@ export class SimulationCore {
   }
 
   private applyGravityWells() {
-    const world = this.world!;
-    const blackholes: RAPIER.RigidBody[] = [];
-    const whiteholes: RAPIER.RigidBody[] = [];
-    world.forEachRigidBody((b) => {
-      const d = b.userData as any;
-      if (d?.type === 'blackhole') blackholes.push(b);
-      if (d?.type === 'whitehole') whiteholes.push(b);
-    });
+    // [성능 최적화] 캐시된 blackhole/whitehole 목록 직접 사용 — forEachRigidBody 제거
+    const blackholes = this.cachedBlackholes;
+    const whiteholes = this.cachedWhiteholes;
+    if (blackholes.length === 0 && whiteholes.length === 0) return;
 
     // 블랙홀: 중심으로 끌어당기는 radial 성분 + 접선(swirl) 성분 → "빨려드는 소용돌이".
     // 매 프레임 Δv(px/s)를 질량정규화로 부여. force 는 중심부 Δv/frame 에 직결된다.
@@ -942,13 +988,14 @@ export class SimulationCore {
     // 위상 시계를 sim 시간에 비례해 진행(프레임 등가: dt*60). 스텝 후 도달할 "다음" 위상.
     const clockNext = this.pistonClock + dtSim * 60;
 
-    world.forEachRigidBody((b) => {
+    // [성능 최적화] 캐시된 kinematic 강체(windmill/spinner/piston) 직접 순회 — forEachRigidBody 제거
+    for (const b of this.cachedKinematics) {
       const d = b.userData as any;
 
       // 풍차/스피너: kinematicVelocityBased는 매 프레임 속도를 재설정해야 유지됨
       if ((d?.type === 'windmill' || d?.type === 'spinner') && d.speed) {
         b.setAngvel(d.speed, true);
-        return;
+        continue;
       }
 
       if (d?.type === 'piston' && d.waypointB) {
@@ -968,7 +1015,7 @@ export class SimulationCore {
 
         b.setLinvel({ x: vx, y: vy }, true);
       }
-    });
+    }
 
     this.pistonClock = clockNext;
   }
@@ -1095,12 +1142,9 @@ export class SimulationCore {
     if (this.frame === Math.round(10800 * COOLDOWN_SCALE)) {
       const grav = world.gravity;
       world.gravity = { x: grav.x, y: grav.y * 2 };
-      world.forEachRigidBody((b) => {
-        const d = b.userData as any;
-        if (d?.type === 'blackhole' || d?.type === 'whitehole') {
-          d.force = 0;
-        }
-      });
+      // [성능 최적화] 캐시 사용 — forEachRigidBody 제거
+      for (const b of this.cachedBlackholes) { (b.userData as any).force = 0; }
+      for (const b of this.cachedWhiteholes) { (b.userData as any).force = 0; }
     }
   }
 }

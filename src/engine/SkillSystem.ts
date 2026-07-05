@@ -119,17 +119,19 @@ export class SkillSystem {
     currentFrame: number,
     activeChips: RAPIER.RigidBody[],
     finishedChips?: Set<string>,
+    chipBodyMap?: Map<string, RAPIER.RigidBody>,
   ) {
     if (skill === 'none') return;
 
     // 동일 칩에 같은 스킬이 이미 활성 중이면 무시 (중복 발동 방지)
     if (this.activeEntries.some(e => e.chipId === chipId && e.skill === skill)) return;
 
-    // 타겟 칩 찾기
-    const targetBody = activeChips.find(chip => {
-      const data = chip.userData as any;
-      return data && data.type === 'chip' && data.id === chipId;
-    });
+    // [성능 최적화] chipBodyMap O(1) 룩업 — activeChips.find() O(N) 제거
+    const targetBody = chipBodyMap?.get(chipId)
+      ?? activeChips.find(chip => {
+           const data = chip.userData as any;
+           return data && data.type === 'chip' && data.id === chipId;
+         });
     if (!targetBody) return;
 
     // 순간이동은 즉시 효과이므로 별도 처리 (엔트리 등록 불필요)
@@ -171,6 +173,7 @@ export class SkillSystem {
     currentFrame: number,
     activeChips: RAPIER.RigidBody[],
     finishedChips?: Set<string>,
+    chipBodyMap?: Map<string, RAPIER.RigidBody>,
   ): { expiredChipIds: { chipId: string; skill: SkillType }[] } {
     const expired: { chipId: string; skill: SkillType }[] = [];
     if (this.activeEntries.length === 0) return { expiredChipIds: expired };
@@ -190,10 +193,12 @@ export class SkillSystem {
         continue;
       }
 
-      const body = activeChips.find(chip => {
-        const data = chip.userData as any;
-        return data && data.type === 'chip' && data.id === entry.chipId;
-      });
+      // [성능 최적화] chipBodyMap O(1) 룩업 — activeChips.find() O(N) 제거
+      const body = chipBodyMap?.get(entry.chipId)
+        ?? activeChips.find(chip => {
+             const data = chip.userData as any;
+             return data && data.type === 'chip' && data.id === entry.chipId;
+           });
 
       if (!body) {
         continue;
@@ -227,10 +232,12 @@ export class SkillSystem {
 
     // 만료된 칩들에 대해 물리 속성 복구
     for (const exp of expired) {
-      const body = activeChips.find(chip => {
-        const data = chip.userData as any;
-        return data && data.type === 'chip' && data.id === exp.chipId;
-      });
+      // [성능 최적화] chipBodyMap O(1) 룩업
+      const body = chipBodyMap?.get(exp.chipId)
+        ?? activeChips.find(chip => {
+             const data = chip.userData as any;
+             return data && data.type === 'chip' && data.id === exp.chipId;
+           });
       if (body) {
         this.recalcPhysics(body, exp.chipId);
       }

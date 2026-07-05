@@ -167,3 +167,69 @@
   animation: victoryPulse 2s ease-in-out infinite;
   display: inline-block;
 }
+
+/* ── [성능 최적화] 인게임 CSS 애니메이션 — framer-motion 대체 ──
+   왜: framer-motion은 JS 기반 스프링 계산 + React re-render를 매 프레임 발생시킴.
+   CSS @keyframes는 GPU 컴포지터 스레드에서 동작하여 메인 스레드 부하 0. */
+
+/* 스킬 로그 항목 입장: opacity + translateX + scale */
+@keyframes skillLogSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* 순위보드 항목 입장: opacity + translateX */
+@keyframes leaderboardSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(16px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* 우승자 확정 팝: scale bounce 효과 */
+@keyframes leaderboardWinPop {
+  0% {
+    opacity: 0;
+    transform: translateX(16px) scale(0.95);
+  }
+  60% {
+    opacity: 1;
+    transform: translateX(0) scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* 컷오프 라인 확장: scaleX 0→1 */
+@keyframes cutoffExpand {
+  from {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+/* 우승자 라이트 스윕: left -100% → 200% */
+@keyframes lightSweep {
+  from {
+    left: -100%;
+  }
+  to {
+    left: 200%;
+  }
+}

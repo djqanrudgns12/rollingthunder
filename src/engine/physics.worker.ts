@@ -200,7 +200,8 @@ function processSkillCooldowns() {
       self.postMessage({ type: 'SKILL_FIRED', payload: { chipId: cd.chipId, skill: randomSkill } });
 
       // 물리 엔진에 스킬 효과 적용 (v2: currentFrame + activeChips 전달)
-      SkillSystem.triggerSkill(core.world!, cd.chipId, randomSkill, core.frame, core.activeChips, core.finishedChips);
+      // [성능 최적화] chipBodyMap 전달 — O(1) 룩업
+      SkillSystem.triggerSkill(core.world!, cd.chipId, randomSkill, core.frame, core.activeChips, core.finishedChips, core.chipBodyMap);
 
       // 쿨타임 즉시 초기화 + 새로운 랜덤 쿨타임 부여
       cd.currentCooldown = 0;
@@ -335,7 +336,8 @@ self.onmessage = async (e) => {
     }
   } else if (type === 'NUDGE') {
     if (core && core.world) {
-      NudgeSystem.applyNudge(core.world, payload.force || 150);
+      // [성능 최적화] activeChips 직접 전달 — forEachRigidBody 제거
+      NudgeSystem.applyNudgeToChips(core.activeChips, payload.force || 150);
     }
   } else if (type === 'SET_TIME_SCALE') {
     // 결승 슬로모션 등 외부 제어용 (스킬과 무관)

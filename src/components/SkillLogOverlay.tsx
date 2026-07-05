@@ -2,7 +2,6 @@
 
 import { useRef, useEffect } from 'react'
 import { useGameStore, SkillLogEntry } from '@/store/gameStore'
-import { motion, AnimatePresence } from 'framer-motion'
 
 // ── 스킬별 표시 설정 ──
 // 각 스킬 종류에 대한 이름과 고유 색상. 로그에서 스킬 이름에 이 색상을 적용한다.
@@ -38,6 +37,9 @@ export function generateSkillMessage(playerName: string, skillKey: string): stri
   return template.replace('{name}', playerName)
 }
 
+// [성능 최적화] framer-motion 제거 → CSS 애니메이션 마이그레이션
+// 왜: framer-motion은 매 프레임 JS 기반 스프링 계산 + React re-render를 발생시킴.
+// CSS @keyframes는 GPU 컴포지터 스레드에서 동작하여 메인 스레드 부하 0.
 export default function SkillLogOverlay() {
   const skillLogs = useGameStore(state => state.skillLogs)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -63,20 +65,19 @@ export default function SkillLogOverlay() {
       >
         {/* mt-auto를 사용하여 아이템이 적을 때는 하단에 정렬되고, 많아지면 정상적으로 위/아래 스크롤 가능하게 함 */}
         <div className="mt-auto flex flex-col">
-          <AnimatePresence initial={false}>
-            {skillLogs.map((log: SkillLogEntry) => {
-              const skillInfo = SKILL_DISPLAY[log.skill]
+          {skillLogs.map((log: SkillLogEntry) => {
+            const skillInfo = SKILL_DISPLAY[log.skill]
             const skillColor = skillInfo?.color || '#ffffff'
 
             return (
-              <motion.div
+              // [성능 최적화] CSS 애니메이션으로 교체
+              // animation: slideIn 0.3s ease-out으로 framer-motion의 spring과 유사한 효과
+              <div
                 key={log.id}
-                initial={{ opacity: 0, x: -20, scale: 0.95 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                 className="py-1 text-sm leading-snug whitespace-normal break-keep drop-shadow-md flex items-start gap-2"
-                // 멀리서도 잘 보이도록 글씨를 키우고 줄바꿈(whitespace-normal)을 허용함
+                style={{
+                  animation: 'skillLogSlideIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+                }}
               >
                 {/* 플레이어 아이콘 (순위보드와 동일한 색상 도트) */}
                 <div 
@@ -111,10 +112,9 @@ export default function SkillLogOverlay() {
                     })()}
                   </span>
                 </div>
-              </motion.div>
+              </div>
             )
           })}
-        </AnimatePresence>
         </div>
       </div>
     </div>

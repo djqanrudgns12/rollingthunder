@@ -4,7 +4,9 @@ import { memo, useMemo } from 'react'
 import { useGameStore } from '@/store/gameStore'
 import { ParticipantRank } from '@/engine/RankingTracker'
 import { cn } from '@/lib/utils'
-import { motion, AnimatePresence } from 'framer-motion'
+// [성능 최적화] framer-motion 제거 → CSS 애니메이션 마이그레이션
+// 왜: framer-motion의 layout 애니메이션은 매 프레임 JS 기반 FLIP 계산 + React re-render를 발생시킴.
+// CSS transition으로 순위 재정렬 시 부드러운 위치 전환을 구현하되 메인 스레드 부하 0.
 import { Crown, Medal, Award } from 'lucide-react'
 import SkillLogOverlay from './SkillLogOverlay'
 
@@ -78,150 +80,141 @@ function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLeaderboardProps) 
   }
 
   const isWinner = (rank: number) => {
-    if (gameMode === 'speed') return rank <= targetWinnerCount;
-    if (gameMode === 'custom') return rank === customWinningRank;
-    if (gameMode === 'turtle') return rank > totalParticipantsCount - targetWinnerCount;
-    if (gameMode === 'random') return randomWinningRanks.includes(rank);
-    return false;
+    switch (gameMode) {
+      case 'speed': return rank <= targetWinnerCount;
+      case 'custom': return rank === customWinningRank;
+      case 'random': return randomWinningRanks.includes(rank);
+      case 'turtle': {
+        const eliminated = totalParticipantsCount - targetWinnerCount;
+        return rank > eliminated;
+      }
+      default: return false;
+    }
   }
 
-  // 참가자 수에 따른 기본 패딩 조절
-  const compactMode = totalParticipantsCount > 15;
-
-  // 이름 길이에 따른 폰트 크기 계산 (동적 폰트 스케일링)
+  const compactMode = combinedRankings.length > 8
   const getDynamicFontSize = (name: string) => {
-    const baseSize = compactMode ? 13 : 14;
-    const lengthPenalty = Math.max(0, name.length - 4) * 0.7; // 4글자 초과시 크기 감소
-    return Math.max(9, baseSize - lengthPenalty); // 최소 9px 보장
+    const base = compactMode ? 12 : 14
+    if (name.length > 10) return Math.max(base - 2, 10)
+    return base
   }
 
   return (
-    // 전체 우측 패널: 순위보드(상단 ~67%) + 스킬 로그(하단 ~33%)를 세로로 나눈다.
     <div className="absolute top-4 right-4 z-50 flex flex-col pointer-events-auto w-56 max-w-[30vw]"
       style={{ height: 'calc(100vh - 2rem)' }}
     >
       {/* ═══════════════ 순위보드 영역 (상단 67%) ═══════════════ */}
       <div className="flex-[2] min-h-0 bg-black/30 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden flex flex-col">
         <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-1.5 flex flex-col gap-[3px]">
-          <AnimatePresence mode="popLayout">
-            {combinedRankings.map((p, index) => {
-              const isFinished = p.isFinished;
-              const isTargetRank = isWinner(p.rank);
-              const isWinFinished = isFinished && isTargetRank;
-              const color = p.survivor.color || '#fff';
-              const cooldownProgress = skillCooldowns[p.id] ?? 0;
-              const prevRank = index > 0 ? combinedRankings[index - 1].rank : 0;
-              
-              // 컷오프 라인 (Danger Line) 로직: 커스텀은 단일 타겟이므로 제외
-              const showCutoff = gameMode === 'speed'
-                && prevRank === targetWinnerCount 
-                && p.rank === prevRank + 1;
+          {combinedRankings.map((p, index) => {
+            const isFinished = p.isFinished;
+            const isTargetRank = isWinner(p.rank);
+            const isWinFinished = isFinished && isTargetRank;
+            const color = p.survivor.color || '#fff';
+            const cooldownProgress = skillCooldowns[p.id] ?? 0;
+            const prevRank = index > 0 ? combinedRankings[index - 1].rank : 0;
+            
+            // 컷오프 라인 (Danger Line) 로직: 커스텀은 단일 타겟이므로 제외
+            const showCutoff = gameMode === 'speed'
+              && prevRank === targetWinnerCount 
+              && p.rank === prevRank + 1;
 
-              return (
-                <div key={p.id} className="relative">
-                  {showCutoff && (
-                    <motion.div 
-                      initial={{ opacity: 0, scaleX: 0 }}
-                      animate={{ opacity: 1, scaleX: 1 }}
-                      className="absolute -top-[1.5px] left-0 right-0 h-[2px] bg-red-500 shadow-[0_0_8px_#ef4444] z-20 origin-left" 
+            return (
+              <div key={p.id} className="relative">
+                {showCutoff && (
+                  // [성능 최적화] CSS 애니메이션으로 교체 — framer-motion의 scaleX 대체
+                  <div 
+                    className="absolute -top-[1.5px] left-0 right-0 h-[2px] bg-red-500 shadow-[0_0_8px_#ef4444] z-20 origin-left"
+                    style={{ animation: 'cutoffExpand 0.3s ease-out forwards' }}
+                  />
+                )}
+                {/* [성능 최적화] CSS 전환으로 교체 — framer-motion의 layout/spring 대체 */}
+                <div
+                  className={cn(
+                    "relative flex items-center gap-2 px-2 rounded-xl overflow-hidden shadow-md border transition-all duration-300",
+                    compactMode ? "py-0.5" : "py-1",
+                    isTargetRank ? "border-[#00ffcc] shadow-[0_0_15px_rgba(0,255,204,0.5)] z-10" :
+                    isFinished ? "border-white/20 shadow-[0_2px_12px_rgba(0,0,0,0.5)] z-10" : 
+                    "border-white/5 backdrop-blur-xl",
+                    isWinFinished ? "bg-black/80" :
+                    isFinished ? "bg-[#2a2a2a]/90" : "bg-black/30"
+                  )}
+                  style={{
+                    animation: isWinFinished 
+                      ? 'leaderboardWinPop 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards'
+                      : 'leaderboardSlideIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+                  }}
+                >
+                  {/* Light Sweep Effect for Winners ONLY WHEN FINISHED */}
+                  {isWinFinished && (
+                    <div 
+                      className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-20deg] z-20 pointer-events-none"
+                      style={{ animation: 'lightSweep 1.2s ease-in-out 0.1s forwards' }}
                     />
                   )}
-                  <motion.div
-                    layout
-                    initial={{ opacity: 0, x: 16, scale: 0.95 }}
-                    animate={
-                      isWinFinished ? { 
-                        opacity: 1, x: 0, scale: [1, 1.05, 1],
-                        transition: { scale: { duration: 0.4, ease: "easeOut" } } 
-                      } : { 
-                        opacity: 1, x: 0, scale: 1 
-                      }
-                    }
-                    exit={{ opacity: 0, scale: 0.85 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-                    className={cn(
-                      "relative flex items-center gap-2 px-2 rounded-xl overflow-hidden shadow-md border transition-all duration-300",
-                      compactMode ? "py-0.5" : "py-1",
-                      isTargetRank ? "border-[#00ffcc] shadow-[0_0_15px_rgba(0,255,204,0.5)] z-10" :
-                      isFinished ? "border-white/20 shadow-[0_2px_12px_rgba(0,0,0,0.5)] z-10" : 
-                      "border-white/5 backdrop-blur-xl",
-                      isWinFinished ? "bg-black/80" :
-                      isFinished ? "bg-[#2a2a2a]/90" : "bg-black/30"
-                    )}
-                  >
-                    {/* Light Sweep Effect for Winners ONLY WHEN FINISHED */}
-                    {isWinFinished && (
-                      <motion.div
-                        initial={{ left: '-100%' }}
-                        animate={{ left: '200%' }}
-                        transition={{ duration: 1.2, ease: "easeInOut", delay: 0.1 }}
-                        className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-20deg] z-20 pointer-events-none"
-                      />
-                    )}
-                    
-                    {/* 완주자 배경 그라데이션 글로우 */}
-                    {isFinished && (
-                      <div className={cn(
-                        "absolute inset-0 opacity-20 bg-gradient-to-r",
-                        isTargetRank ? "from-[#00ffcc] to-[#00b3ff]" : "from-white/20 to-transparent"
-                      )} />
-                    )}
-
-                  {/* ── 쿨타임 게이지 (하단 프로그레스 바) ── */}
-                  {!isFinished && cooldownProgress > 0 && (
-                    <div 
-                      className="absolute bottom-0 left-0 h-1 rounded-bl-xl transition-[width] duration-100 ease-linear z-20"
-                      style={{
-                        width: `${cooldownProgress * 100}%`,
-                        background: color,
-                        boxShadow: cooldownProgress > 0.9 
-                          ? `0 0 10px ${color}, 0 0 20px ${color}`
-                          : `0 0 4px ${color}`,
-                      }}
-                    />
-                  )}
-
-                  {/* ── 등수 표시 영역 ── */}
-                  {/* min-w-[2rem]: 2자리 수(10, 20 등)도 잘리지 않는 최소 폭 보장
-                      shrink-0: Flex 축소 방지 → 이름이 아무리 길어도 등수 영역은 고정 */}
-                  <div className="relative z-10 shrink-0 flex items-center justify-center min-w-[2rem]">
-                    {getRankDisplay(p.rank, isFinished)}
-                  </div>
-
-                  {/* ── 이름 + 색상 도트 ── */}
-                  <div className="relative z-10 flex-1 flex items-center justify-between min-w-0">
-                    <span 
-                      className={cn(
-                        "font-bold drop-shadow-sm flex-1 whitespace-nowrap overflow-hidden",
-                        isTargetRank ? "text-white" : isFinished ? "text-white/90" : "text-white/80"
-                      )}
-                      style={{ fontSize: `${getDynamicFontSize(p.survivor.name)}px` }}
-                    >
-                      {p.survivor.name}
-                    </span>
-                    
-                    {/* 플레이어 고유 색상 도트 */}
-                    <div 
-                      className={cn(
-                        "w-2.5 h-2.5 rounded-full shadow-[0_0_8px_currentColor] shrink-0 ml-2",
-                        isFinished && "w-3 h-3 border border-white/50"
-                      )}
-                      style={{ backgroundColor: color, color: color }} 
-                    />
-                  </div>
-
-                  {/* 우측 라인 강조 */}
-                  {(isTargetRank || isFinished) && (
+                  
+                  {/* 완주자 배경 그라데이션 글로우 */}
+                  {isFinished && (
                     <div className={cn(
-                      "absolute right-0 top-0 bottom-0 w-1 shadow-[0_0_10px_currentColor]",
-                      isTargetRank ? "bg-[#00ffcc]" : "bg-white/30"
+                      "absolute inset-0 opacity-20 bg-gradient-to-r",
+                      isTargetRank ? "from-[#00ffcc] to-[#00b3ff]" : "from-white/20 to-transparent"
                     )} />
                   )}
-                </motion.div>
+
+                {/* ── 쿨타임 게이지 (하단 프로그레스 바) ── */}
+                {!isFinished && cooldownProgress > 0 && (
+                  <div 
+                    className="absolute bottom-0 left-0 h-1 rounded-bl-xl transition-[width] duration-100 ease-linear z-20"
+                    style={{
+                      width: `${cooldownProgress * 100}%`,
+                      background: color,
+                      boxShadow: cooldownProgress > 0.9 
+                        ? `0 0 10px ${color}, 0 0 20px ${color}`
+                        : `0 0 4px ${color}`,
+                    }}
+                  />
+                )}
+
+                {/* ── 등수 표시 영역 ── */}
+                {/* min-w-[2rem]: 2자리 수(10, 20 등)도 잘리지 않는 최소 폭 보장
+                    shrink-0: Flex 축소 방지 → 이름이 아무리 길어도 등수 영역은 고정 */}
+                <div className="relative z-10 shrink-0 flex items-center justify-center min-w-[2rem]">
+                  {getRankDisplay(p.rank, isFinished)}
                 </div>
-              )
-            })}
-          </AnimatePresence>
+
+                {/* ── 이름 + 색상 도트 ── */}
+                <div className="relative z-10 flex-1 flex items-center justify-between min-w-0">
+                  <span 
+                    className={cn(
+                      "font-bold drop-shadow-sm flex-1 whitespace-nowrap overflow-hidden",
+                      isTargetRank ? "text-white" : isFinished ? "text-white/90" : "text-white/80"
+                    )}
+                    style={{ fontSize: `${getDynamicFontSize(p.survivor.name)}px` }}
+                  >
+                    {p.survivor.name}
+                  </span>
+                  
+                  {/* 플레이어 고유 색상 도트 */}
+                  <div 
+                    className={cn(
+                      "w-2.5 h-2.5 rounded-full shadow-[0_0_8px_currentColor] shrink-0 ml-2",
+                      isFinished && "w-3 h-3 border border-white/50"
+                    )}
+                    style={{ backgroundColor: color, color: color }} 
+                  />
+                </div>
+
+                {/* 우측 라인 강조 */}
+                {(isTargetRank || isFinished) && (
+                  <div className={cn(
+                    "absolute right-0 top-0 bottom-0 w-1 shadow-[0_0_10px_currentColor]",
+                    isTargetRank ? "bg-[#00ffcc]" : "bg-white/30"
+                  )} />
+                )}
+              </div>
+              </div>
+            )
+          })}
         </div>
       </div>
 
