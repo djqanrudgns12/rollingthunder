@@ -266,6 +266,17 @@ export default function PhysicsCanvas() {
     let activeChipsCount = 0;
     const chipPositions = new Map<string, { x: number, y: number, vy: number }>();
 
+    // ── [성능 최적화] 칩 외삽(Extrapolation) 렌더링 시스템 ──
+    // 왜: 물리 스텝(1/60초)과 렌더 프레임(모니터 주사율)이 비동기이므로,
+    // FRAME 간 중간 렌더 프레임에서 칩을 "현재 위치 + 속도 × 경과시간"으로 외삽하여
+    // 부드러운 이동을 보장. 다음 FRAME 도착 시 실제 위치로 자연스럽게 보정.
+    const currChipPos = new Map<string, { x: number, y: number, vx: number, vy: number }>();
+    let lastFrameArrivalMs = performance.now();
+    // viewIndicator 변화 감지용 (매 프레임 재구축 방지)
+    let lastViewCx = 0, lastViewCy = 0, lastViewZoom = 0;
+    // RANKINGS shallow compare용
+    let prevRankingIds: string[] = [];
+
     // 스마트 카메라 디렉터(단일 두뇌). lastCamMs: 프레임 간 dt 계산용.
     let cameraDirector: CameraDirector | null = null;
     let lastCamMs = performance.now();
@@ -628,34 +639,59 @@ export default function PhysicsCanvas() {
             }
           }
 
+          // ── [성능 최적화] 칩 외삽(Extrapolation) 렌더링 ──
+          // 왜: FRAME 도착은 ~16.7ms마다이지만 렌더 프레임은 모니터 주사율(60~144Hz).
+          // FRAME 간 중간 렌더 프레임에서 칩이 "정지"하면 끊겨 보이므로,
+          // 현재 위치 + 속도 × 경과시간으로 매 프레임 외삽하여 부드러운 이동 보장.
+          // 다음 FRAME 도착 시 실제 위치로 자연스럽게 보정됨.
+          const extrapDtSec = (performance.now() - lastFrameArrivalMs) / 1000;
+          // 외삽 상한: 2프레임(~33ms) 이상 지연 시 외삽 정지(장애물 관통 방지)
+          const clampedDt = Math.min(extrapDtSec, 0.033);
+          for (const [id, pos] of currChipPos) {
+            const container = graphicsMap.get(id);
+            if (!container) continue;
+            container.position.set(
+              pos.x + pos.vx * clampedDt,
+              pos.y + pos.vy * clampedDt
+            );
+          }
+
           // ── 스마트 카메라 디렉터: 단일 목표 + 단일 지수 댐핑 ──
           if (cameraDirector) {
             cameraDirector.setGameState(gameStateRef.current);
             const nowMs = performance.now();
             const dtSec = (nowMs - lastCamMs) / 1000;
             lastCamMs = nowMs;
+            // [성능 최적화] 카메라에는 chipPositions(물리 위치) 직접 전달 — 이중 예측 제거
+            // 왜: CameraDirector 내부의 LOOKAHEAD_S + smoothDamp가 이미 충분한 예측+보간을 함.
+            // 외부에서 또 예측하면 과보정 → "위로 밀렸다 끌려오는" 느낌 발생.
             cameraDirector.update(dtSec, chipPositions, currentRankings[0]?.id ?? null);
           }
 
-          // Update Viewport Indicator — 월드 경계로 clamp 하여 트랙 폭 안의 깔끔한 밴드로 표시
-          // (visibleW = innerWidth/zoom 가 트랙 폭 800을 넘쳐 "가로 꽉 찬 박스"가 되던 문제 해결)
+          // ── [성능 최적화] viewIndicator: 뷰포트 변화 시에만 재구축 ──
+          // 왜: 매 프레임 clear+rect+fill+stroke는 GPU 버텍스 버퍼 재할당 유발.
+          // 뷰포트 center/zoom이 변하지 않으면 재구축 스킵.
           if (viewIndicator) {
-            viewIndicator.clear();
             const currentZoom = viewport.scale.x;
-            const visibleW = window.innerWidth / currentZoom;
-            const visibleH = window.innerHeight / currentZoom;
             const cx = viewport.center.x;
             const cy = viewport.center.y;
-            const x0 = Math.max(-200, cx - visibleW / 2);
-            const x1 = Math.min(WORLD_WIDTH + 200, cx + visibleW / 2);
-            // PRD v4: 미니맵 표시 박스(viewIndicator)가 데드존에서 멈추지 않고 
-            // 뷰포트 전체 스크롤 범위(-500 ~ WORLD_HEIGHT + 200)를 정확히 담아내도록 수정
-            const y0 = Math.max(-500, cy - visibleH / 2);
-            const y1 = Math.min(WORLD_HEIGHT + 200, cy + visibleH / 2);
-            const sw = Math.max(2, 8 / currentZoom);
-            viewIndicator.rect(x0, y0, x1 - x0, y1 - y0);
-            viewIndicator.fill({ color: 0x00ffcc, alpha: 0.12 });
-            viewIndicator.stroke({ width: sw, color: 0x00ffcc, alpha: 0.9 });
+            // 변화 임계: 1px 또는 줌 0.01 이상
+            if (Math.abs(cx - lastViewCx) > 1 || Math.abs(cy - lastViewCy) > 1 || Math.abs(currentZoom - lastViewZoom) > 0.01) {
+              lastViewCx = cx; lastViewCy = cy; lastViewZoom = currentZoom;
+              viewIndicator.clear();
+              const visibleW = window.innerWidth / currentZoom;
+              const visibleH = window.innerHeight / currentZoom;
+              const x0 = Math.max(-200, cx - visibleW / 2);
+              const x1 = Math.min(WORLD_WIDTH + 200, cx + visibleW / 2);
+              // PRD v4: 미니맵 표시 박스(viewIndicator)가 데드존에서 멈추지 않고 
+              // 뷰포트 전체 스크롤 범위(-500 ~ WORLD_HEIGHT + 200)를 정확히 담아내도록 수정
+              const y0 = Math.max(-500, cy - visibleH / 2);
+              const y1 = Math.min(WORLD_HEIGHT + 200, cy + visibleH / 2);
+              const sw = Math.max(2, 8 / currentZoom);
+              viewIndicator.rect(x0, y0, x1 - x0, y1 - y0);
+              viewIndicator.fill({ color: 0x00ffcc, alpha: 0.12 });
+              viewIndicator.stroke({ width: sw, color: 0x00ffcc, alpha: 0.9 });
+            }
           }
         });
 
@@ -1322,6 +1358,10 @@ export default function PhysicsCanvas() {
         } else if (type === 'FRAME') {
           pendingSteps = Math.max(0, pendingSteps - 1); // 백프레셔 해제(STEP 1개 소화 완료)
           const buffer = new Float32Array(payload);
+
+          // [성능 최적화] 외삽 기준 시점 리셋
+          // 다음 ticker부터 이 시점 기준으로 외삽 dt를 계산함.
+          lastFrameArrivalMs = performance.now();
           
           let firstY = -Infinity;
           let secondY = -Infinity;
@@ -1345,6 +1385,8 @@ export default function PhysicsCanvas() {
             
             if (isChip && survivor) {
               chipPositions.set(survivor.id, { x, y, vy }); // vy: 카메라 예측 추적용 실제 수직속도
+              // [성능 최적화] 보간용 현재 위치 저장 (vx 포함 — 카메라 예측에 사용)
+              currChipPos.set(survivor.id, { x, y, vx, vy });
             }
 
             let container = graphicsMap.get(bodyId);
@@ -1479,6 +1521,8 @@ export default function PhysicsCanvas() {
               graphicsMap.set(bodyId, container);
             }
             
+            // [성능 최적화] FRAME 도착 시점의 실제 위치로 설정 (ticker 외삽의 기준점)
+            // ticker가 매 렌더 프레임마다 외삽으로 덧어씌우므로, 여기서는 실제 물리 위치를 기록.
             container.position.set(x, y);
             // approximate rolling rotation
             if (isChip && survivor) {
@@ -1748,7 +1792,16 @@ export default function PhysicsCanvas() {
           setSkillCooldowns(payload);
         } else if (type === 'RANKINGS_UPDATE') {
           currentRankings = payload;
-          setRankings(payload);
+          // [성능 최적화] 순위가 실제로 바뀐 경우에만 React 상태 갱신
+          // 왜: 접전 시 매 물리 스텝마다 RANKINGS_UPDATE가 오지만,
+          // 순서가 동일하면 setRankings는 불필요한 React 재렌더만 유발.
+          const newIds = payload.map((r: any) => r.id);
+          const changed = newIds.length !== prevRankingIds.length ||
+            newIds.some((id: string, i: number) => id !== prevRankingIds[i]);
+          if (changed) {
+            prevRankingIds = newIds;
+            setRankings(payload);
+          }
         } else if (type === 'CHIP_FINISHED') {
           // 개별 피니셔 포커싱 & 카메라 셰이크 ("핵심 순간만" 슬로우/락온; 그 외엔 가벼운 펀치)
           const finishRank: number = payload.rank;

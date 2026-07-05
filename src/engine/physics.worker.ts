@@ -55,9 +55,11 @@ function randomCooldown(): number {
 // 메인 스레드에서 게이지 렌더링과 물리 렌더링을 독립적으로 처리할 수 있다.
 let cooldownBroadcastCounter = 0;
 function broadcastCooldowns() {
-  // 매 프레임이 아닌 6프레임(~0.1초)마다 전송하여 성능 최적화
+  // [성능 최적화] 매 프레임이 아닌 12프레임(~0.2초)마다 전송하여 React 재렌더 50% 절감
+  // 왜: setSkillCooldowns → zustand 상태 갱신 → LiveLeaderboard 재렌더 비용이 큼.
+  // 게이지 시각 변화에 0.2초 간격은 충분히 부드러움.
   cooldownBroadcastCounter++;
-  if (cooldownBroadcastCounter < 6) return;
+  if (cooldownBroadcastCounter < 12) return;
   cooldownBroadcastCounter = 0;
 
   const cooldownMap: Record<string, number> = {};
