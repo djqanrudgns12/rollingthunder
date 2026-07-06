@@ -93,16 +93,29 @@ const ICE_HIT_MIN_IMPACT = 10;
 // 물리 구동으로 시각을 매 프레임 동기화해야 하는 "움직이는" 기물 타입.
 // (렌더가 로컬 타이머로 독립 애니메이션하면 물리 콜라이더와 어긋나므로 실제 트랜스폼을 전송한다.)
 const MOVING_OBSTACLE_TYPES = new Set(['spinner', 'piston', 'windmill', 'flipper']);
-// 중력장 force 1당 중심부 Δv/frame(px/s). v2: 칩이 빨라 well 통과 시간이 짧아진 만큼 상향(0.4→0.52).
-// force 5 ≈ 중력과 맞먹는 휨(통과 가능), force 9~10 ≈ 강한 포획. 폭주/영구포획 방지용 상한 적용.
-const WELL_DV_PER_FORCE = 0.52;
+// 중력장 force 1당 중심부 Δv/frame(px/s).
+// v3: 0.52는 v2 속도 상향(중력 147px/s², 종단 ~817px/s) 이후 프리셋 force 3~4 기준
+// 통과 편향이 ~2%에 불과해 "효과 없음"으로 체감됐다(헤드리스 측정). 3배 상향해
+// force 4 ≈ 중심부 384px/s²(중력의 ~2.6배)로 궤적이 눈에 띄게 휘도록 조정.
+const WELL_DV_PER_FORCE = 1.6;
 const WELL_FORCE_CAP = 14;
 // 블랙홀 접선(소용돌이) 성분 비율 — 너무 크면 영구 궤도에 갇히므로 절제.
 const BLACKHOLE_SWIRL = 0.16;
 const WELL_DEADZONE = 14; // 중심 특이점 방지 반경
 // 중력장의 "위로 끌어당기는" 성분 감쇠. 1.0이면 칩을 중력에 맞서 띄워 정체시키므로,
 // 위 방향 성분만 크게 줄여 "옆으로/아래로 휘되 띄우지는 않는" 드라마틱한 곡선을 만든다.
+// 이 감쇠 덕에 흡인을 강화해도 칩이 영구 포획되지 않고 아래로 빠져나간다(+anti-stuck 보조).
 const WELL_UPWARD_DAMP = 0.3;
+// 블랙홀 내부 감속(초당 비율×falloff): 필드 안에서 칩을 서서히 늦춰 "빨려드는" 질감을 주고
+// 체류 시간을 늘려 흡인이 체감되게 한다. 감속만으론 정지하지 않으며(중력·swirl 유지) 탈출 가능.
+// 종단속도(~800px/s) 통과 시 체류가 0.3초 남짓이라, 감속이 곧 흡인 체감의 핵심이다.
+const BLACKHOLE_DRAG_PER_S = 2.2;
+// 화이트홀: 필드 내 칩을 중심으로 흡입하다가, 중심 도달 시 다른 화이트홀(없으면 자신)에서
+// 무작위 방향(하방 편향)으로 뱉어낸다. 배출 직후 쿨다운 동안은 모든 화이트홀 흡입 면제(핑퐁 방지).
+const WH_CAPTURE_DIST = 26;                                   // 중심 포획 판정 반경
+const WH_EJECT_COOLDOWN_FRAMES = Math.round(90 * COOLDOWN_SCALE); // 재흡입 면제(약 1.5초)
+const WH_EJECT_SPEED_BASE = 260;                              // 배출 속도(px/s) 기본
+const WH_EJECT_SPEED_PER_FORCE = 40;                          // force 1당 배출 속도 가산
 
 let rapierReady = false;
 
@@ -868,8 +881,9 @@ export class SimulationCore {
         const cPos = chip.translation();
         
         if (Math.abs(cPos.x - cannonPos.x) < halfW && Math.abs(cPos.y - cannonPos.y) < halfH) {
-          const force = cd.windForce || 300;
-          this.applyDeltaV(chip, dirX * force * (1/60), dirY * force * (1/60));
+          // windForce는 MapBuilder에서 px/s² 단위로 정규화됨(에디터 레벨 값 ×20 환산 포함)
+          const force = cd.windForce ?? 300;
+          if (force > 0) this.applyDeltaV(chip, dirX * force * (1/60), dirY * force * (1/60));
         }
       }
     }
@@ -933,13 +947,18 @@ export class SimulationCore {
     const whiteholes = this.cachedWhiteholes;
     if (blackholes.length === 0 && whiteholes.length === 0) return;
 
+    const dt = this.world!.integrationParameters.dt;
+
     // 블랙홀: 중심으로 끌어당기는 radial 성분 + 접선(swirl) 성분 → "빨려드는 소용돌이".
     // 매 프레임 Δv(px/s)를 질량정규화로 부여. force 는 중심부 Δv/frame 에 직결된다.
+    // 추가로 필드 내부에서 속도를 서서히 감쇠(BLACKHOLE_DRAG_PER_S)해 "서서히 빨려드는"
+    // 질감을 만든다. 위 방향 흡인 감쇠(WELL_UPWARD_DAMP)로 영구 포획은 방지된다.
     blackholes.forEach((bh) => {
       const bhData = bh.userData as any;
       const bhPos = bh.translation();
       const radius = bhData.radius || 150;
-      const S = Math.min(bhData.force || 5, WELL_FORCE_CAP) * WELL_DV_PER_FORCE;
+      const S = Math.min(bhData.force ?? 5, WELL_FORCE_CAP) * WELL_DV_PER_FORCE;
+      if (S <= 0) return; // anti-stuck 타임아웃(force=0) 시 완전 비활성
       this.activeChips.forEach((chip) => {
         const data = chip.userData as any;
         if (data?.finished) return;
@@ -948,32 +967,72 @@ export class SimulationCore {
         const dy = bhPos.y - cPos.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < radius && dist > WELL_DEADZONE) {
-          const falloff = 1 - dist / radius;
+          // sqrt falloff: 선형 falloff는 종단속도 통과 시(체류 ~0.3초) 외곽~중간 거리대의
+          // 힘이 너무 작아 무효과로 체감됐다. sqrt 곡선으로 중간 거리 흡인을 끌어올린다.
+          const falloff = Math.sqrt(1 - dist / radius);
           const ux = dx / dist, uy = dy / dist;
-          const radialDv = S * falloff;
-          const swirlDv = S * BLACKHOLE_SWIRL * falloff;
+          const v = chip.linvel();
+          // 속도 적응 보정: 종단속도(~800px/s) 통과는 체류가 짧아 같은 Δv/frame으로는
+          // 휨이 절반 이하로 체감된다. 빠를수록 흡인을 키우고(최대 2배), 감속으로 칩이
+          // 느려지면 자동으로 기본 강도로 복귀하므로 저속 영구포획 위험은 늘지 않는다.
+          const speedBoost = Math.min(2, Math.max(1, Math.hypot(v.x, v.y) / 450));
+          const radialDv = S * falloff * speedBoost;
+          const swirlDv = S * BLACKHOLE_SWIRL * falloff * speedBoost;
+          // 내부 감속(중심에 가까울수록 강함) — 체류 시간을 늘려 흡인을 체감시킨다.
+          // 반드시 흡인 임펄스보다 먼저 적용(setLinvel이 직후 임펄스를 덮어쓰지 않도록).
+          const drag = Math.min(BLACKHOLE_DRAG_PER_S * falloff * dt, 0.5);
+          chip.setLinvel({ x: v.x * (1 - drag), y: v.y * (1 - drag) }, true);
           // 접선 방향 = radial 을 90° 회전한 (-uy, ux)
           this.applyWellDeltaV(chip, ux * radialDv - uy * swirlDv, uy * radialDv + ux * swirlDv);
         }
       });
     });
 
-    // 화이트홀: 바깥으로 밀어내는 깔끔한 직선 반발(swirl 없음).
+    // 화이트홀: 필드 내 칩을 중심으로 흡입하고, 중심(WH_CAPTURE_DIST)에 도달하면
+    // 다른 화이트홀(없으면 자기 자신)에서 무작위 하방 편향 방향으로 뱉어낸다.
     whiteholes.forEach((wh) => {
       const whData = wh.userData as any;
       const whPos = wh.translation();
       const radius = whData.radius || 100;
-      const S = Math.min(whData.force || 5, WELL_FORCE_CAP) * WELL_DV_PER_FORCE;
+      const forceVal = Math.min(whData.force ?? 5, WELL_FORCE_CAP);
+      const S = forceVal * WELL_DV_PER_FORCE;
+      if (S <= 0) return; // anti-stuck 타임아웃(force=0) 시 완전 비활성
       this.activeChips.forEach((chip) => {
         const data = chip.userData as any;
         if (data?.finished) return;
+        // 방금 배출된 칩은 쿨다운 동안 모든 화이트홀 흡입 면제(배출→재흡입 핑퐁 방지)
+        const ejectKey = `whitehole_${data.id}`;
+        const lastEject = this.lastWarpFrame.get(ejectKey) ?? -99999;
+        if (this.frame - lastEject < WH_EJECT_COOLDOWN_FRAMES) return;
         const cPos = chip.translation();
-        const dx = cPos.x - whPos.x;
-        const dy = cPos.y - whPos.y;
+        const dx = whPos.x - cPos.x;
+        const dy = whPos.y - cPos.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < radius && dist > WELL_DEADZONE) {
-          const pushDv = (1 - dist / radius) * S;
-          this.applyWellDeltaV(chip, (dx / dist) * pushDv, (dy / dist) * pushDv);
+        if (dist >= radius) return;
+
+        if (dist <= WH_CAPTURE_DIST) {
+          // ── 포획 → 배출: 다른 화이트홀이 있으면 그중 하나로 워프해서 뱉어낸다 ──
+          this.lastWarpFrame.set(ejectKey, this.frame);
+          const exits = whiteholes.filter((o) => o.handle !== wh.handle);
+          const exit = exits.length > 0 ? exits[Math.floor(this.rng() * exits.length)] : wh;
+          const ePos = exit.translation();
+          // 배출 방향: 수직 아래(+y) 기준 ±99° 무작위 — 옆/아래로 뱉어 레이스 흐름 유지
+          const ang = Math.PI / 2 + (this.rng() - 0.5) * Math.PI * 1.1;
+          const dirX = Math.cos(ang), dirY = Math.sin(ang);
+          const speed = WH_EJECT_SPEED_BASE + forceVal * WH_EJECT_SPEED_PER_FORCE;
+          chip.setTranslation({ x: ePos.x + dirX * 30, y: ePos.y + dirY * 30 }, true);
+          chip.setLinvel({ x: dirX * speed, y: dirY * speed }, true);
+          this.events.push({ type: 'SOUND_EFFECT', payload: { type: 'warp' } });
+          this.events.push({
+            type: 'WHITEHOLE_EJECT',
+            payload: { chipId: data.id, fromId: whData.id, toId: (exit.userData as any)?.id, x: ePos.x, y: ePos.y },
+          });
+        } else if (dist > WELL_DEADZONE) {
+          // ── 흡입: 블랙홀과 동일한 radial 흡인(swirl 없음, sqrt falloff + 속도 적응 보정) ──
+          const v = chip.linvel();
+          const speedBoost = Math.min(2, Math.max(1, Math.hypot(v.x, v.y) / 450));
+          const pullDv = S * Math.sqrt(1 - dist / radius) * speedBoost;
+          this.applyWellDeltaV(chip, (dx / dist) * pullDv, (dy / dist) * pullDv);
         }
       });
     });

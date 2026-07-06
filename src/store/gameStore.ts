@@ -118,7 +118,7 @@ export const useGameStore = create<GameState>()(
       mapDataCache: null,
       setMapDataCache: (mapDataCache) => set({ mapDataCache }),
       
-      globalSkin: '',
+      globalSkin: 'skin_chip_base',
       setGlobalSkin: (globalSkin) => set({ globalSkin }),
       
       gameMode: 'speed',
@@ -187,6 +187,12 @@ export const useGameStore = create<GameState>()(
         bgmVolume: state.bgmVolume,
         sfxVolume: state.sfxVolume,
       }),
+      merge: (persistedState: any, currentState: GameState) => {
+        if (persistedState && persistedState.globalSkin === '') {
+          persistedState.globalSkin = 'skin_chip_base'
+        }
+        return { ...currentState, ...persistedState }
+      },
     }
   )
 )

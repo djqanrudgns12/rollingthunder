@@ -186,12 +186,17 @@ export class MapBuilder {
       .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
       
     world.createCollider(colliderDesc, body);
+    // 세기 소스 통일: 에디터/인스펙터는 windForce(레벨 단위, 기본 15)에 저장하고
+    // 구버전 데이터는 force(px/s² 원시값)를 쓴다. 기존엔 force만 읽어 사용자 설정이 무시됐다.
+    // 레벨 값(≤50)은 px/s² 가속으로 환산(×20: 레벨 15 ≈ 300px/s² ≈ 중력의 2배 측면 가속).
+    const rawWind = item.windForce ?? item.force ?? 300;
+    const windForce = rawWind <= 50 ? rawWind * 20 : rawWind;
     body.userData = {
       type: 'windcannon',
       id: item.id,
       w, h,
       windAngle: item.windAngle || 90,
-      windForce: item.force || 300,
+      windForce,
       onFrames: item.onFrames || 180,
       offFrames: item.offFrames || 120,
     } as UserData;
