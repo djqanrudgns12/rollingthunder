@@ -12,6 +12,8 @@ import { useEditorStore } from '@/store/editorStore'
 import { useInventoryStore } from '@/store/inventoryStore'
 import { MOCK_ITEMS } from '@/data/shopData'
 import { stampService } from '@/lib/stampService'
+import SkinCanvasPreview from './shop/SkinCanvasPreview'
+import { SKIN_DEFINITIONS } from '@/data/skinDefinitions'
 
 // Skin Preview Helper Component
 function SkinPreviewIcon({ skinId }: { skinId: string }) {
@@ -50,6 +52,32 @@ function SkinPreviewIcon({ skinId }: { skinId: string }) {
     case 'pr_magiccarpet': return <Wind className="w-5 h-5 text-purple-400" />
     default: return <Circle className="w-5 h-5" />
   }
+}
+
+// 선택된 스킨의 실제 이미지를 비동기로 렌더링 (벡터 → PNG → 아이콘 3단 폴백)
+function SkinSelectorPreview({ skinId, size = 20 }: { skinId: string; size?: number }) {
+  // 테마 accent 색상을 마운트 시 1회 해석 (라이트/다크 대응, SSR 안전)
+  const [accent, setAccent] = useState('#00ffdd')
+  useEffect(() => {
+    const c = getComputedStyle(document.documentElement).getPropertyValue('--accent-primary').trim()
+    if (c) setAccent(c)
+  }, [])
+
+  // 1) 벡터 스킨: 'skin_' 제거 + 'chip_base' → 'chip_base_1' 정규화 (상점 getVectorSkinKey와 동일)
+  let key = skinId.replace(/^skin_/, '')
+  if (key === 'chip_base') key = 'chip_base_1'
+  if (SKIN_DEFINITIONS[key]) {
+    return <SkinCanvasPreview skinKey={key} size={size} color={accent} />
+  }
+
+  // 2) 프리미엄 스킨 등 벡터가 없는 경우: shopData의 PNG 이미지 사용
+  const item = MOCK_ITEMS.find(i => i.item_id === skinId)
+  if (item?.image) {
+    return <img src={item.image} alt={item.name} style={{ width: size, height: size, objectFit: 'contain' }} />
+  }
+
+  // 3) 최종 폴백: 기존 Lucide 아이콘
+  return <SkinPreviewIcon skinId={skinId} />
 }
 
 // Simple Anonymizer Helper
@@ -470,8 +498,8 @@ export default function Dashboard() {
             <div className="flex flex-col gap-2 shrink-0 flex-[1.5] min-w-[160px] pl-4 border-l border-white/10">
               <label className="text-xs text-[var(--accent-primary)] font-bold tracking-widest uppercase whitespace-nowrap">참가자 스킨 (SKINS)</label>
               <div className="flex items-center gap-2 h-[38px]">
-                <div className="w-8 h-8 rounded-full bg-[var(--accent-primary)]/20 border border-[var(--accent-primary)] flex items-center justify-center shadow-[0_0_10px_var(--accent-primary)] text-[var(--accent-primary)] shrink-0">
-                  <SkinPreviewIcon skinId={globalSkin} />
+                <div className="w-8 h-8 rounded-full bg-[var(--accent-primary)]/20 border border-[var(--accent-primary)] flex items-center justify-center shadow-[0_0_10px_var(--accent-primary)] text-[var(--accent-primary)] shrink-0 overflow-hidden">
+                  <SkinSelectorPreview skinId={globalSkin} size={20} />
                 </div>
                 <select 
                   className="bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:border-[var(--accent-primary)] text-[11px] font-bold tracking-wide transition-colors flex-1 min-w-0 h-[32px]"
