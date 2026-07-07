@@ -198,7 +198,8 @@ export default function Dashboard() {
       const finalName = isAnonymized ? getRandomAnimal() : name
       
       // 스킨 일괄 설정에 따라 배정
-      const cleanSkinId = globalSkin.replace(/^skin_/, '');
+      const effectiveGlobalSkin = globalSkin || 'skin_chip_base';
+      const cleanSkinId = effectiveGlobalSkin.replace(/^skin_/, '');
       const finalSkinId = cleanSkinId === 'chip_base' ? `chip_base_${Math.floor(Math.random() * 5) + 1}` : cleanSkinId
       // [버그 수정] HSL → HEX 변환하여 저장
       // 왜: PIXI.Color가 소수점 hue가 포함된 HSL 문자열을 잘못 파싱하여 0(검은색) 반환.
@@ -279,7 +280,26 @@ export default function Dashboard() {
 
       // Optimistic UI - Start game instantly, save session in background
       clearSkillLogs()
-      setSurvivors(participants)
+      
+      // [버그 수정] 게임 시작 직전, skinId가 비어있는 참가자에게 현재 globalSkin 기반으로 재배정
+      const effectiveSkin = globalSkin || 'skin_chip_base';
+      const cleanSkin = effectiveSkin.replace(/^skin_/, '');
+      const sanitizedParticipants = participants.map((p, idx) => {
+        if (!p.skinId) {
+          return {
+            ...p,
+            skinId: cleanSkin === 'chip_base' 
+              ? `chip_base_${(idx % 5) + 1}` 
+              : cleanSkin
+          };
+        }
+        return p;
+      });
+      
+      if (JSON.stringify(sanitizedParticipants) !== JSON.stringify(participants)) {
+        setParticipants(sanitizedParticipants)
+      }
+      setSurvivors(sanitizedParticipants)
       setTargetWinnerCount(localWinnerCount)
       setGameStage('playing')
 
