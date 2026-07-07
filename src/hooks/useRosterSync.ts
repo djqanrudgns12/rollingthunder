@@ -8,7 +8,7 @@ import { useUIStore } from '@/store/uiStore'
 const supabase = createClient()
 
 export function useRosterSync() {
-  const { participants, setParticipants } = useGameStore()
+  const { participants, setParticipants, globalSkin, setGlobalSkin } = useGameStore()
   const { isLoggedIn } = useUIStore()
   
   const isFirstLoad = useRef(true)
@@ -34,9 +34,11 @@ export function useRosterSync() {
         const { data: sessionData } = await supabase.auth.getSession()
         if (!sessionData.session?.user?.id) return
 
+        // select('*') 사용: global_skin 마이그레이션(013) 적용 전 DB에서도
+        // 컬럼 지정 select 오류 없이 로스터 로드가 동작하도록 함
         const { data, error } = await supabase
           .from('user_current_roster')
-          .select('participants')
+          .select('*')
           .eq('user_id', sessionData.session.user.id)
           .single()
 
@@ -44,7 +46,11 @@ export function useRosterSync() {
           isSyncingFromServer.current = true
           // 로컬 훼손을 최소화하면서 서버 데이터를 우선적으로 보여주기 위해 setParticipants 수행
           setParticipants(data.participants)
-          
+          // 서버에 저장된 스킨 일괄 설정이 있으면 드롭다운(globalSkin)도 함께 복원
+          if (data.global_skin) {
+            setGlobalSkin(data.global_skin)
+          }
+
           // 상태 변경 감지에 의한 무한루프 방지
           setTimeout(() => {
             isSyncingFromServer.current = false
@@ -81,6 +87,9 @@ export function useRosterSync() {
             if (payload.new && 'participants' in payload.new) {
               isSyncingFromServer.current = true
               setParticipants(payload.new.participants)
+              if (payload.new.global_skin) {
+                setGlobalSkin(payload.new.global_skin)
+              }
               setTimeout(() => {
                 isSyncingFromServer.current = false
               }, 100)
@@ -104,9 +113,9 @@ export function useRosterSync() {
       // → aborted 플래그로 인해 콜백 내에서 채널 생성 자체가 차단됨
       // → 별도 처리 불필요
     }
-  }, [isLoggedIn, setParticipants])
+  }, [isLoggedIn, setParticipants, setGlobalSkin])
 
-  // 3. 로컬 participants 변경 시 서버로 동기화 (디바운스 적용)
+  // 3. 로컬 participants/globalSkin 변경 시 서버로 동기화 (디바운스 적용)
   useEffect(() => {
     if (!isLoggedIn || isFirstLoad.current || isSyncingFromServer.current) return
 
@@ -123,6 +132,7 @@ export function useRosterSync() {
         await supabase.from('user_current_roster').upsert({
           user_id: sessionData.session.user.id,
           participants: participants,
+          global_skin: globalSkin || 'skin_chip_base',
           updated_at: new Date().toISOString()
         })
       } catch (e) {
@@ -135,5 +145,5 @@ export function useRosterSync() {
         clearTimeout(debounceTimer.current)
       }
     }
-  }, [participants, isLoggedIn])
+  }, [participants, globalSkin, isLoggedIn])
 }

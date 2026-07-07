@@ -281,19 +281,19 @@ export default function Dashboard() {
       // Optimistic UI - Start game instantly, save session in background
       clearSkillLogs()
       
-      // [버그 수정] 게임 시작 직전, skinId가 비어있는 참가자에게 현재 globalSkin 기반으로 재배정
+      // [버그 수정] 게임 시작 직전, 모든 참가자의 skinId를 현재 globalSkin 기준으로 재배정.
+      // 서버 로스터(user_current_roster)에는 이전 환경에서 박제된 skinId가 담겨 올 수 있어,
+      // 빈 값만 채우면 드롭다운 표시 스킨과 실제 렌더 스킨이 어긋난다.
       const effectiveSkin = globalSkin || 'skin_chip_base';
       const cleanSkin = effectiveSkin.replace(/^skin_/, '');
       const sanitizedParticipants = participants.map((p, idx) => {
-        if (!p.skinId) {
-          return {
-            ...p,
-            skinId: cleanSkin === 'chip_base' 
-              ? `chip_base_${(idx % 5) + 1}` 
-              : cleanSkin
-          };
+        if (cleanSkin === 'chip_base') {
+          // 포커칩(랜덤): 이미 chip_base 변형이면 유지, 아니면 변형 배정
+          if (p.skinId && /^chip_base_\d+$/.test(p.skinId)) return p;
+          return { ...p, skinId: `chip_base_${(idx % 5) + 1}` };
         }
-        return p;
+        if (p.skinId === cleanSkin) return p;
+        return { ...p, skinId: cleanSkin };
       });
       
       if (JSON.stringify(sanitizedParticipants) !== JSON.stringify(participants)) {

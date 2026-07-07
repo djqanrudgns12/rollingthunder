@@ -137,7 +137,7 @@ export class CameraDirector {
   private timeScaleCurrent = 1.0;
   private timeScaleTarget = 1.0;
   private timeScaleSent = 1.0;
-  private isFastForward = false;
+  private fastForwardMultiplier = 1.0;
 
   // ── 튜닝 상수 ──
   private readonly PAN_K = 15.0;         // 위치 댐핑 강도 (초정밀 추적)
@@ -225,8 +225,8 @@ export class CameraDirector {
     this.smCentroidX = this.worldW / 2;
   }
 
-  setFastForward(active: boolean) {
-    this.isFastForward = active;
+  setFastForwardMultiplier(mult: number) {
+    this.fastForwardMultiplier = mult;
   }
 
   resize(screenW: number, screenH: number) {
@@ -834,12 +834,12 @@ export class CameraDirector {
 
   // 시간배율을 타겟으로 부드럽게 이즈. 변화가 충분(또는 타겟 도달)할 때만 워커로 전송(메시지 스팸 방지).
   private tickTimeScale(dt: number) {
-    if (this.isFastForward) {
-      if (this.timeScaleSent !== 2.0) {
-        this.timeScaleCurrent = 2.0;
-        this.timeScaleTarget = 2.0;
-        this.timeScaleSent = 2.0;
-        this.setTimeScale(2.0);
+    if (this.fastForwardMultiplier > 1.0) {
+      if (this.timeScaleSent !== this.fastForwardMultiplier) {
+        this.timeScaleCurrent = this.fastForwardMultiplier;
+        this.timeScaleTarget = this.fastForwardMultiplier;
+        this.timeScaleSent = this.fastForwardMultiplier;
+        this.setTimeScale(this.fastForwardMultiplier);
       }
       return;
     }

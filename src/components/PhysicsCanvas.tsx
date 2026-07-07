@@ -66,7 +66,7 @@ export default function PhysicsCanvas() {
   
   const appRef = useRef<PIXI.Application | null>(null);
   const cameraDirectorRef = useRef<any>(null);
-  const [isFastForward, setIsFastForward] = useState(false);
+  const [fastForwardMultiplier, setFastForwardMultiplier] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
   const [isMapMenuOpen, setIsMapMenuOpen] = useState(false);
   const mapMenuRef = useRef<HTMLDivElement>(null);
@@ -104,10 +104,13 @@ export default function PhysicsCanvas() {
 
   const handleToggleFastForward = () => {
     soundManager.playSfx('ui_click');
-    setIsFastForward(prev => {
-      const next = !prev;
-      cameraDirectorRef.current?.setFastForward(next);
-      if (workerRef.current) workerRef.current.postMessage({ type: 'SET_TIME_SCALE', payload: { scale: next ? 2.0 : 1.0 } });
+    setFastForwardMultiplier(prev => {
+      let next = 1;
+      if (prev === 1) next = 2;
+      else if (prev === 2) next = 4;
+      else next = 1;
+      cameraDirectorRef.current?.setFastForwardMultiplier(next);
+      if (workerRef.current) workerRef.current.postMessage({ type: 'SET_TIME_SCALE', payload: { scale: next } });
       return next;
     });
   };
@@ -116,21 +119,21 @@ export default function PhysicsCanvas() {
     const handleContextMenu = (e: MouseEvent) => e.preventDefault();
     const handlePointerDown = (e: PointerEvent) => {
       if (e.button === 2) { // Right click
-        setIsFastForward(true);
-        cameraDirectorRef.current?.setFastForward(true);
+        setFastForwardMultiplier(2);
+        cameraDirectorRef.current?.setFastForwardMultiplier(2);
         if (workerRef.current) workerRef.current.postMessage({ type: 'SET_TIME_SCALE', payload: { scale: 2.0 } });
       }
     };
     const handlePointerUp = (e: PointerEvent) => {
       if (e.button === 2) {
-        setIsFastForward(false);
-        cameraDirectorRef.current?.setFastForward(false);
+        setFastForwardMultiplier(1);
+        cameraDirectorRef.current?.setFastForwardMultiplier(1);
         if (workerRef.current) workerRef.current.postMessage({ type: 'SET_TIME_SCALE', payload: { scale: 1.0 } });
       }
     };
     const handlePointerCancel = () => {
-      setIsFastForward(false);
-      cameraDirectorRef.current?.setFastForward(false);
+      setFastForwardMultiplier(1);
+      cameraDirectorRef.current?.setFastForwardMultiplier(1);
       if (workerRef.current) workerRef.current.postMessage({ type: 'SET_TIME_SCALE', payload: { scale: 1.0 } });
     };
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -2172,15 +2175,15 @@ export default function PhysicsCanvas() {
         </div>
       )}
 
-      {/* 2배속 안내 오버레이 */}
-      {isFastForward && (
+      {/* 배속 안내 오버레이 */}
+      {fastForwardMultiplier > 1 && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 pointer-events-none flex flex-col items-center animate-in slide-in-from-top-4 fade-in duration-200">
-          <div className="flex items-center gap-2 bg-[#ff0055]/20 backdrop-blur-md px-6 py-2 rounded-full border-2 border-[#ff0055] shadow-[0_0_20px_rgba(255,0,85,0.8)]">
-            <span className="text-[#ff0055] font-black text-2xl tracking-widest drop-shadow-[0_0_8px_rgba(255,0,85,1)]">
-              2배속
+          <div className={`flex items-center gap-2 backdrop-blur-md px-6 py-2 rounded-full border-2 ${fastForwardMultiplier === 4 ? 'bg-[#ff0055]/20 border-[#ff0055] shadow-[0_0_20px_rgba(255,0,85,0.8)]' : 'bg-cyan-500/20 border-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.8)]'}`}>
+            <span className={`font-black text-2xl tracking-widest ${fastForwardMultiplier === 4 ? 'text-[#ff0055] drop-shadow-[0_0_8px_rgba(255,0,85,1)]' : 'text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,1)]'}`}>
+              {fastForwardMultiplier}배속
             </span>
-            <span className="text-[#ff0055] font-black text-2xl tracking-tighter drop-shadow-[0_0_8px_rgba(255,0,85,1)] animate-pulse">
-              {">>>"}
+            <span className={`font-black text-2xl tracking-tighter animate-pulse ${fastForwardMultiplier === 4 ? 'text-[#ff0055] drop-shadow-[0_0_8px_rgba(255,0,85,1)]' : 'text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,1)]'}`}>
+              {fastForwardMultiplier === 4 ? ">>>>" : ">>"}
             </span>
           </div>
         </div>
@@ -2319,13 +2322,18 @@ export default function PhysicsCanvas() {
             }
           </button>
 
-          {/* 2배속 */}
+          {/* 배속 설정 */}
           <button 
             onClick={handleToggleFastForward}
-            className={`w-9 h-9 flex items-center justify-center rounded-full border transition-all group ${isFastForward ? 'bg-cyan-500/20 border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.4)]' : 'bg-white/5 border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2)]'}`}
-            title="2배속 설정"
+            className={`relative w-9 h-9 flex items-center justify-center rounded-full border transition-all group ${fastForwardMultiplier === 4 ? 'bg-fuchsia-500/20 border-fuchsia-500/50 shadow-[0_0_20px_rgba(217,70,239,0.6)]' : fastForwardMultiplier === 2 ? 'bg-cyan-500/20 border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.4)]' : 'bg-white/5 border-white/10 hover:bg-white/10 hover:-translate-y-[2px] hover:shadow-[0_10px_20px_rgba(0,0,0,0.2)]'}`}
+            title={`${fastForwardMultiplier}배속 설정`}
           >
-            <FastForward className={`w-[18px] h-[18px] transition-colors ${isFastForward ? 'text-cyan-300' : 'text-cyan-400 group-hover:text-cyan-300'}`} />
+            <FastForward className={`w-[18px] h-[18px] transition-colors ${fastForwardMultiplier === 4 ? 'text-fuchsia-300' : fastForwardMultiplier === 2 ? 'text-cyan-300' : 'text-cyan-400 group-hover:text-cyan-300'}`} />
+            {fastForwardMultiplier > 1 && (
+              <span className={`absolute -bottom-1 -right-1 text-[9px] font-bold px-1 rounded bg-black/60 ${fastForwardMultiplier === 4 ? 'text-fuchsia-300' : 'text-cyan-300'}`}>
+                {fastForwardMultiplier}x
+              </span>
+            )}
           </button>
         </div>
 
