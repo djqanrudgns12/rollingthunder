@@ -79,6 +79,10 @@ interface GameState {
   // 순위 역동성(역전 다이내믹스) 강도 0~100. 0=끄기, 50=중간(기본), 100=최대
   comebackStrength: number
   setComebackStrength: (strength: number) => void
+  // 플레이 시간 0~100. 50=기존과 동일(기본). 낮을수록 우승 확정 후 마무리가 빨라지고
+  // 끼임 구조가 빨라지며, 높을수록 자동 개입 없이 느긋하게 진행. 우승 확정 전 물리는 불변.
+  playTime: number
+  setPlayTime: (value: number) => void
   isScreenShakeEnabled: boolean
   setScreenShakeEnabled: (enabled: boolean) => void
   calmMode: boolean
@@ -153,6 +157,8 @@ export const useGameStore = create<GameState>()(
       setBaseTimeScale: (baseTimeScale) => set({ baseTimeScale }),
       comebackStrength: 50,
       setComebackStrength: (comebackStrength) => set({ comebackStrength }),
+      playTime: 50,
+      setPlayTime: (playTime) => set({ playTime }),
       isScreenShakeEnabled: true,
       setScreenShakeEnabled: (isScreenShakeEnabled) => set({ isScreenShakeEnabled }),
       calmMode: false,
@@ -172,6 +178,7 @@ export const useGameStore = create<GameState>()(
         isMuted: state.isMuted,
         baseTimeScale: state.baseTimeScale,
         comebackStrength: state.comebackStrength,
+        playTime: state.playTime,
         isScreenShakeEnabled: state.isScreenShakeEnabled,
         calmMode: state.calmMode,
         theme: state.theme,

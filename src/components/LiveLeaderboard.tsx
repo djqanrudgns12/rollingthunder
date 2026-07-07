@@ -66,15 +66,35 @@ function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLeaderboardProps) 
     return "th";
   }
 
+  const totalCount = combinedRankings.length;
+  const sizes = useMemo(() => {
+    const count = totalCount;
+    if (count <= 5) return { name: 26, rank: 30, py: 'py-2', gap: 'gap-[3px]' };
+    if (count <= 10) return { name: 22, rank: 26, py: 'py-1.5', gap: 'gap-[2px]' };
+    if (count >= 28) return { name: 15, rank: 18, py: 'py-0', gap: 'gap-0' };
+    
+    // Smooth linear interpolation between 10 and 28 participants
+    const ratio = (count - 10) / (28 - 10);
+    const name = Math.round(22 - (7 * ratio)); // Scales 22 down to 15
+    const rank = Math.round(26 - (8 * ratio)); // Scales 26 down to 18
+    
+    const py = count <= 15 ? 'py-1' : count <= 20 ? 'py-0.5' : 'py-0';
+    const gap = count <= 20 ? 'gap-[1px]' : 'gap-0';
+    
+    return { name, rank, py, gap };
+  }, [totalCount]);
+
   const getRankDisplay = (rank: number, isFinished: boolean) => {
     const isTargetRank = isWinner(rank)
     return (
       <span className={cn(
-        "text-lg font-black font-mono tabular-nums leading-none tracking-tighter whitespace-nowrap",
+        "font-black font-mono tabular-nums leading-none tracking-tighter whitespace-nowrap",
         isTargetRank ? "text-[#00ffcc] drop-shadow-[0_0_8px_rgba(0,255,204,0.8)]" : 
         isFinished ? "text-white/80" : "text-white/60"
-      )}>
-        {rank}<span className="text-[10px] ml-[1px] opacity-80">{getOrdinalSuffix(rank)}</span>
+      )}
+      style={{ fontSize: `${sizes.rank}px` }}
+      >
+        {rank}<span className="ml-[1px] opacity-80" style={{ fontSize: `${Math.max(10, sizes.rank * 0.45)}px` }}>{getOrdinalSuffix(rank)}</span>
       </span>
     )
   }
@@ -92,20 +112,18 @@ function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLeaderboardProps) 
     }
   }
 
-  const compactMode = combinedRankings.length > 8
   const getDynamicFontSize = (name: string) => {
-    const base = compactMode ? 12 : 14
-    if (name.length > 10) return Math.max(base - 2, 10)
-    return base
+    if (name.length > 8) return Math.max(sizes.name - 3, 13)
+    return sizes.name
   }
 
   return (
     <div className="absolute top-4 right-4 z-50 flex flex-col pointer-events-auto w-56 max-w-[30vw]"
       style={{ height: 'calc(100vh - 2rem)' }}
     >
-      {/* ═══════════════ 순위보드 영역 (상단 67%) ═══════════════ */}
-      <div className="flex-[2] min-h-0 bg-black/30 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-1.5 flex flex-col gap-[3px]">
+      {/* ═══════════════ 순위보드 영역 (상단 80%) ═══════════════ */}
+      <div className="flex-[4] min-h-0 bg-black/30 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden flex flex-col">
+        <div className={cn("flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-1 flex flex-col", sizes.gap)}>
           {combinedRankings.map((p, index) => {
             const isFinished = p.isFinished;
             const isTargetRank = isWinner(p.rank);
@@ -128,11 +146,10 @@ function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLeaderboardProps) 
                     style={{ animation: 'cutoffExpand 0.3s ease-out forwards' }}
                   />
                 )}
-                {/* [성능 최적화] CSS 전환으로 교체 — framer-motion의 layout/spring 대체 */}
                 <div
                   className={cn(
                     "relative flex items-center gap-2 px-2 rounded-xl overflow-hidden shadow-md border transition-all duration-300",
-                    compactMode ? "py-0.5" : "py-1",
+                    sizes.py,
                     isTargetRank ? "border-[#00ffcc] shadow-[0_0_15px_rgba(0,255,204,0.5)] z-10" :
                     isFinished ? "border-white/20 shadow-[0_2px_12px_rgba(0,0,0,0.5)] z-10" : 
                     "border-white/5 backdrop-blur-xl",
@@ -221,9 +238,9 @@ function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLeaderboardProps) 
       {/* 순위보드와 스킬로그 사이 간격 */}
       <div className="h-2 shrink-0" />
 
-      {/* ═══════════════ 스킬 로그 영역 (하단 33%) ═══════════════ */}
+      {/* ═══════════════ 스킬 로그 영역 (하단 20%) ═══════════════ */}
       {/* 스타크래프트 대화창처럼 어두운 반투명 박스에 고정. 로그가 아래서부터 쌓인다. */}
-      <div className="flex-[1] min-h-0 bg-black/60 backdrop-blur-lg rounded-2xl border border-white/10 overflow-hidden">
+      <div className="flex-1 min-h-0 bg-black/60 backdrop-blur-lg rounded-2xl border border-white/10 overflow-hidden">
         <SkillLogOverlay />
       </div>
     </div>

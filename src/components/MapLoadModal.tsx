@@ -29,7 +29,7 @@ export const DEFAULT_MAPS = [
   { id: 'plinko_cascade', title: '플링코 폭포', type: '핀 120+개 순수 운', length: '롱', complexity: '복잡' },
   { id: 'roulette_of_fate', title: '운명의 룰렛', type: '거대 깔때기 병목', length: '숏', complexity: '중간' },
   { id: 'tornado_canyon', title: '토네이도 협곡', type: '블랙홀+풍차 회오리', length: '롱', complexity: '중간' },
-  { id: 'bounce_mirror', title: '바운스 미러', type: '좌우 대칭·초고탄성', length: '미들', complexity: '단순' },
+  { id: 'bounce_mirror', title: '혼돈의 거울', type: '좌우 대칭·초고탄성', length: '미들', complexity: '단순' },
   { id: 'meteor_field', title: '운석 지대', type: '범퍼만 25+개 벽없음', length: '롱', complexity: '중간' },
 ]
 

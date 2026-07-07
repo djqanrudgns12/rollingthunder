@@ -4,10 +4,11 @@
  * 각 맵 프리셋을 SimulationCore 로 무헤드 다회 실행하여, 맵 설계 품질을
  * 정량 지표로 측정한다. 맵 재설계(Workstream D)의 측정→튜닝→재측정 루프에 사용.
  *
- * 실행:  npx tsx scripts/simulate.ts [races] [chips] [mapKey]
- *   races  맵당 반복 횟수 (기본 40)
- *   chips  레이스당 칩 수   (기본 12)
- *   mapKey 특정 맵만 측정   (생략 시 전체)
+ * 실행:  npx tsx scripts/simulate.ts [races] [chips] [mapKey] [playTime]
+ *   races    맵당 반복 횟수 (기본 40)
+ *   chips    레이스당 칩 수   (기본 12)
+ *   mapKey   특정 맵만 측정   (생략 시 전체, 'all'로 명시 가능)
+ *   playTime "플레이 시간" 설정 0~100 (기본 50=중립) — PRD-endgame-pacing 검증용
  *
  * 측정 지표:
  *   - 완주시간 median/p10/p90 (목표 창 45~70초)
@@ -16,14 +17,16 @@
  *   - 정체: GRAVITY_STORM 발동 수 / 타임아웃(미완주) 레이스 수
  *   - 박진감: 선두 교체(lead change) 평균 횟수
  *   - 기믹 적중률: 메인 기믹별 "상호작용 반경 진입 칩 비율" (죽은 기믹 탐지)
+ *   - 꼬리 구간(tail): 우승 확정(GAME_OVER)→전원 완주까지 체감 초 median/p90
+ *   - 구조 리스폰(CHIP_RESCUED) 레이스당 평균 횟수
  */
 import { SimulationCore } from '../src/engine/SimulationCore';
 import { MapPresets, getPresetMeta } from '../src/engine/MapPresets';
 import type { WallStyle } from '../src/engine/MapBuilder';
 
 const WIDTH = 800;
-const MAX_SECONDS = 240;            // 안전 상한(미완주 판정)
-const MAX_FRAMES = MAX_SECONDS * 60;
+// 안전 상한(미완주 판정). playTime>50이면 L3 타임아웃이 최대 ~6분까지 밀리므로 상향.
+let MAX_FRAMES = 240 * 60;
 
 // ── 시드 가능한 RNG (mulberry32) ──
 function mulberry32(seed: number) {
@@ -94,9 +97,13 @@ interface MapResult {
   stuckSamples: { x: number; y: number }[];
   speedSum: number;           // 평균 칩 속도 누적(px/s)
   speedSamples: number;
+  tailSeconds: number[];      // 레이스별 우승 확정→전원 완주 체감 초 (전원 완주 레이스만)
+  winnerSeconds: number[];    // 레이스별 우승 확정 시각(초) — playTime 무관 동일해야 함(R2 검증)
+  rescues: number;            // CHIP_RESCUED 누적 횟수
+  rescueSamples: { x: number; y: number }[]; // 구조 발동 위치(끼임 핫스팟 진단용)
 }
 
-function runMap(key: string, races: number, chips: number): MapResult {
+function runMap(key: string, races: number, chips: number, playTime: number): MapResult {
   const meta = getPresetMeta(key)!;
   const [innerL, innerR] = innerBounds(meta.wallStyle);
   const edgeNear = 45;
@@ -106,6 +113,7 @@ function runMap(key: string, races: number, chips: number): MapResult {
     finishTimes: [], timedOutRaces: 0, gravityStorms: 0, leadChanges: [],
     spawnX: [], rankNorm: [], gimmickHits: new Map(), edgeHuggers: 0, totalChips: 0,
     stuckSamples: [], speedSum: 0, speedSamples: 0,
+    tailSeconds: [], winnerSeconds: [], rescues: 0, rescueSamples: [],
   };
 
   // 메인 기믹 목록(인스턴스별) 준비
@@ -119,10 +127,13 @@ function runMap(key: string, races: number, chips: number): MapResult {
     const survivors = Array.from({ length: chips }, (_, i) => ({ id: `c${i}`, name: `P${i}`, color: '#fff' }));
 
     const core = new SimulationCore();
+    // targetCount=1: 첫 완주자가 우승(GAME_OVER) → "우승 확정 후 꼬리 구간"을 측정 가능.
+    // playTime=50에서는 gameOver 플래그가 물리에 아무 영향을 주지 않으므로(부스트/견인 0)
+    // 기존 targetCount=chips 실행과 지표가 동일하다.
     core.init({
       width: WIDTH, height: meta.worldHeight, worldHeight: meta.worldHeight,
       wallStyle: meta.wallStyle, mapItems: meta.items, gimmickDensity: 50,
-      survivors, targetCount: chips, mode: 'speed', customRank: 1, rng,
+      survivors, targetCount: 1, mode: 'speed', customRank: 1, rng, playTime,
     });
 
     // 스폰 x 기록
@@ -136,6 +147,7 @@ function runMap(key: string, races: number, chips: number): MapResult {
     let aliveFramesPerChip = 0;
     let leadId: string | null = null;
     let leadChanges = 0;
+    let gameOverFrame = -1; // 우승 확정 프레임(꼬리 구간 측정 기준점)
 
     while (core.frame < MAX_FRAMES && Object.keys(finishFrame).length < chips) {
       core.step(1.0);
@@ -145,6 +157,14 @@ function runMap(key: string, races: number, chips: number): MapResult {
         if (ev.type === 'CHIP_FINISHED') {
           const id = ev.payload.survivor.id;
           if (finishFrame[id] === undefined) finishFrame[id] = core.frame;
+        } else if (ev.type === 'GAME_OVER') {
+          if (gameOverFrame < 0) {
+            gameOverFrame = core.frame;
+            res.winnerSeconds.push(core.frame / 60);
+          }
+        } else if (ev.type === 'CHIP_RESCUED') {
+          res.rescues++;
+          res.rescueSamples.push({ x: Math.round(ev.payload.from.x), y: Math.round(ev.payload.from.y) });
         } else if (ev.type === 'GRAVITY_STORM') {
           res.gravityStorms++;
         } else if (ev.type === 'RANKINGS_UPDATE') {
@@ -170,6 +190,13 @@ function runMap(key: string, races: number, chips: number): MapResult {
           if (dx * dx + dy * dy < g.r * g.r) gimmickSeen[g.id].add(id);
         }
       }
+    }
+
+    // 꼬리 구간: 우승 확정 → 전원 완주까지의 체감 시간(프레임/60 = 실시간 초).
+    // FINISH RUSH(dt 부스트) 중에는 프레임당 sim 시간이 커지므로, 프레임 수 기준이
+    // 곧 "관전자가 기다린 실제 시간"이 된다 — 측정 목적과 정합.
+    if (gameOverFrame >= 0 && Object.keys(finishFrame).length >= chips) {
+      res.tailSeconds.push((core.frame - gameOverFrame) / 60);
     }
 
     if (Object.keys(finishFrame).length < chips) {
@@ -238,6 +265,15 @@ function report(res: MapResult) {
   console.log(`  엣지허깅   ${fmt(edgePct)}% 칩  ${flag(edgePct < 12)} (<12%)`);
   console.log(`  정체       gravityStorm ${res.gravityStorms}회 / 미완주레이스 ${res.timedOutRaces}  ${flag(res.gravityStorms === 0 && res.timedOutRaces === 0)}`);
   console.log(`  박진감     선두교체 평균 ${fmt(avgLead)}회  ${flag(avgLead >= 3)} (>=3)`);
+  const ts = [...res.tailSeconds].sort((a, b) => a - b);
+  const tailMed = quantile(ts, 0.5), tailP90 = quantile(ts, 0.9);
+  const ws = [...res.winnerSeconds].sort((a, b) => a - b);
+  const rescuesPerRace = res.rescues / res.leadChanges.length;
+  console.log(`  꼬리구간   우승확정 median ${fmt(quantile(ws, 0.5))}s → 전원완주까지 +median ${fmt(tailMed)}s [p90 ${fmt(tailP90)}]   구조 ${fmt(rescuesPerRace, 2)}회/판 ${flag(rescuesPerRace < 0.5)} (<0.5)`);
+  if (res.rescueSamples.length) {
+    const s = res.rescueSamples.slice(0, 10).map((p) => `(${p.x},${p.y})`).join(' ');
+    console.log(`  [진단] 구조 발동 위치(샘플): ${s}`);
+  }
   console.log(`  기믹적중   평균 ${fmt(avgGimmick * 100)}%  죽은기믹(${'<15%'}) ${dead.length}개 ${flag(dead.length === 0)}`);
   if (dead.length) {
     const byType: Record<string, number> = {};
@@ -253,16 +289,20 @@ function report(res: MapResult) {
 async function main() {
   const races = Number(process.argv[2]) || 40;
   const chips = Number(process.argv[3]) || 12;
-  const only = process.argv[4];
+  const only = process.argv[4] && process.argv[4] !== 'all' ? process.argv[4] : undefined;
+  const playTime = process.argv[5] !== undefined ? Number(process.argv[5]) : 50;
+
+  // playTime>50은 L3 절대 타임아웃이 최대 ~6분까지 밀리므로 안전 상한을 함께 상향
+  if (playTime > 50) MAX_FRAMES = 400 * 60;
 
   await SimulationCore.ensureRapier();
 
   const keys = only ? [only] : Object.keys(MapPresets);
-  console.log(`헤드리스 시뮬레이션:  races=${races}  chips=${chips}  maps=${keys.length}`);
+  console.log(`헤드리스 시뮬레이션:  races=${races}  chips=${chips}  maps=${keys.length}  playTime=${playTime}`);
 
   for (const key of keys) {
     if (!MapPresets[key]) { console.log(`(스킵: 알 수 없는 맵 ${key})`); continue; }
-    const res = runMap(key, races, chips);
+    const res = runMap(key, races, chips, playTime);
     report(res);
   }
 }

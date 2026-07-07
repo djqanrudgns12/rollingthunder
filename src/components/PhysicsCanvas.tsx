@@ -15,6 +15,7 @@ import { createClient } from '@/lib/supabase/client'
 import { getSkinTexture, isVectorSkin, shouldSpin } from '@/lib/SkinTextureFactory'
 
 import LiveLeaderboard from './LiveLeaderboard'
+import PostGameLeaderboard from './PostGameLeaderboard'
 import { generateSkillMessage } from './SkillLogOverlay'
 import { Map as MapIcon, Dices, Rocket, Music4, Pause, FastForward, ChevronUp, Play, VolumeX } from 'lucide-react'
 import gsap from 'gsap'
@@ -52,13 +53,13 @@ export default function PhysicsCanvas() {
   
   // useShallow 선택자: 전체 store 구독을 피해 skillCooldowns(6프레임마다)·skillLogs 갱신이
   // 이 대형 컴포넌트를 초당 ~10회 재렌더하는 것을 차단. 아래 필드가 바뀔 때만 재렌더.
-  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, setSelectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks, baseTimeScale, comebackStrength, isMuted, setMuted, mapDataCache } = useGameStore(useShallow((s) => ({
+  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, setSelectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks, baseTimeScale, comebackStrength, playTime, isMuted, setMuted, mapDataCache } = useGameStore(useShallow((s) => ({
     survivors: s.survivors, setSurvivors: s.setSurvivors,
     targetWinnerCount: s.targetWinnerCount, gameMode: s.gameMode, customWinningRank: s.customWinningRank,
     gimmickDensity: s.gimmickDensity, selectedMapPreset: s.selectedMapPreset, setSelectedMapPreset: s.setSelectedMapPreset,
     isSkillEnabled: s.isSkillEnabled, addSkillLog: s.addSkillLog, setSkillCooldowns: s.setSkillCooldowns,
     clearSkillLogs: s.clearSkillLogs, randomWinningRanks: s.randomWinningRanks,
-    baseTimeScale: s.baseTimeScale, comebackStrength: s.comebackStrength,
+    baseTimeScale: s.baseTimeScale, comebackStrength: s.comebackStrength, playTime: s.playTime,
     isMuted: s.isMuted, setMuted: s.setMuted, mapDataCache: s.mapDataCache,
   })))
   const { setGameStage, customMapData, customMapMeta, isBroadcasterMode, gameTitle } = useUIStore()
@@ -68,6 +69,9 @@ export default function PhysicsCanvas() {
   const cameraDirectorRef = useRef<any>(null);
   const [fastForwardMultiplier, setFastForwardMultiplier] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
+  // 엔드게임 페이싱(PRD-endgame-pacing): 마무리 자동 가속 배지 / 결과 빨리보기 진행 상태
+  const [isFinishRush, setIsFinishRush] = useState(false);
+  const [isResolvingRest, setIsResolvingRest] = useState(false);
   const [isMapMenuOpen, setIsMapMenuOpen] = useState(false);
   const mapMenuRef = useRef<HTMLDivElement>(null);
 
@@ -183,6 +187,13 @@ export default function PhysicsCanvas() {
     }
   }, [comebackStrength, isWorkerReady]);
 
+  // "플레이 시간"(엔드게임 페이싱) — 환경설정 슬라이더 변경을 레이스 도중에도 실시간 반영
+  useEffect(() => {
+    if (workerRef.current && isWorkerReady) {
+      workerRef.current.postMessage({ type: 'SET_PLAY_TIME', payload: { value: playTime } });
+    }
+  }, [playTime, isWorkerReady]);
+
   // WebGL Filters ref
   const shockwaveRef = useRef<any>(null)
   const triggerShockwave = useCallback(() => {
@@ -217,6 +228,16 @@ export default function PhysicsCanvas() {
       workerRef.current.postMessage({ type: 'SHUFFLE', payload: { width: WORLD_WIDTH } });
     }
   }, [gameState])
+
+  // "결과 빨리보기": 우승 확정 후 남은 주자의 완주를 워커 터보 루프로 고속 처리(타임랩스).
+  // 실제 물리 결과 그대로이므로 순위표는 실시간 진행과 동일하다.
+  const handleResolveRest = useCallback(() => {
+    if (workerRef.current && gameState === 'winner_declared' && !isResolvingRest) {
+      soundManager.playSfx('ui_click');
+      setIsResolvingRest(true);
+      workerRef.current.postMessage({ type: 'RESOLVE_REST' });
+    }
+  }, [gameState, isResolvingRest])
 
   useEffect(() => {
     let isMounted = true;
@@ -1289,6 +1310,8 @@ export default function PhysicsCanvas() {
           // 새 레이스: 스텝 누산기/백프레셔 카운터 리셋
           stepAccumulatorMs = 0;
           pendingSteps = 0;
+          setIsFinishRush(false);
+          setIsResolvingRest(false);
           setIsWorkerReady(true);
           activeChipsCount = payload.activeChipsCount;
           movingObstacleIds = payload.movingObstacleIds || [];
@@ -1740,6 +1763,33 @@ export default function PhysicsCanvas() {
               gsap.to(p, { alpha: 0, duration: 0.5, delay: 0.2, onComplete: () => p.destroy() });
             }
           }
+        } else if (type === 'CHIP_RESCUED') {
+          // 구조 리스폰(PRD-endgame-pacing §4.B): 밀폐 공간에 끼인 마블이 인근 열린 공간으로 이동됨.
+          // 로그 한 줄 + 이동 전/후 지점 링 플래시(차분 모드에서는 확대 없이 페이드만).
+          const rescued = survivors.find(s => s.id === payload.chipId);
+          addSkillLog({
+            id: `${payload.chipId}_rescue_${Date.now()}`,
+            chipId: payload.chipId,
+            playerName: rescued?.name || payload.chipId,
+            playerColor: rescued?.color || '#ffffff',
+            skill: 'rescue',
+            message: `🛟 ${rescued?.name || payload.chipId}님이 구조되었습니다!`,
+            timestamp: Date.now(),
+          });
+          const calm = useGameStore.getState().calmMode;
+          for (const pos of [payload.from, payload.to]) {
+            const ring = new PIXI.Graphics();
+            ring.circle(0, 0, 26);
+            ring.stroke({ width: 3, color: 0x38bdf8, alpha: 0.9 });
+            ring.position.set(pos.x, pos.y);
+            particleLayer.addChild(ring);
+            const grow = calm ? 1.2 : 2.2;
+            gsap.to(ring.scale, { x: grow, y: grow, duration: 0.5, ease: 'power2.out' });
+            gsap.to(ring, { alpha: 0, duration: 0.5, onComplete: () => ring.destroy() });
+          }
+        } else if (type === 'FINISH_RUSH') {
+          // 마무리 자동 가속(FINISH RUSH) 시작 — 우상단 배지 표시용
+          setIsFinishRush(true);
         } else if (type === 'LUCKY_EFFECT') {
           soundManager.playSfx('env_wormhole', 0, payload.x);
           const colorMap: any = { boost: 0xff0000, bounce: 0x00ff00, stun: 0x888888, repel: 0x0000ff };
@@ -1947,6 +1997,8 @@ export default function PhysicsCanvas() {
           // ⚠️ DO NOT MODIFY: 사용자 요청에 의해 영구 고정된 로직입니다.
           // ═══════════════════════════════════════════════════════════════════
           setGameState('all_finished');
+          setIsFinishRush(false);
+          setIsResolvingRest(false);
 
           // 미션 이벤트: 게임 끝까지 관전 완료
           stampService.trackEvent('watch_finish', 1);
@@ -1987,7 +2039,8 @@ export default function PhysicsCanvas() {
             randomRanks: randomWinningRanks,
             isSkillEnabled,
             selectedMapPreset,
-            comebackStrength
+            comebackStrength,
+            playTime
           }
         });
       }
@@ -2096,8 +2149,8 @@ export default function PhysicsCanvas() {
         </button>
       </div>
 
-      {/* 승자 연출 오버레이 — 크기 축소 + 승자 수별 그리드 레이아웃 */}
-      {(gameState === 'winner_declared' || gameState === 'all_finished') && gameOverResult && (() => {
+      {/* 승자 연출 오버레이 — 게임 중 우승자 판정 시 표시 */}
+      {gameState === 'winner_declared' && gameOverResult && (() => {
         // 승자 수에 따른 레이아웃 규칙: 1~3명 1열, 4~6명 2열, 7명+ 3열
         const winnerCount = gameOverResult.winners.length;
         const useGrid = winnerCount >= 4;
@@ -2146,9 +2199,40 @@ export default function PhysicsCanvas() {
               </div>
             ))}
           </div>
+          {/* 결과 빨리보기 — 남은 주자의 완주를 실제 물리 그대로 고속 처리(타임랩스) */}
+          {finishedFeed.length < survivors.length && (
+            <button
+              onClick={handleResolveRest}
+              disabled={isResolvingRest}
+              className={`mt-3 pointer-events-auto px-5 py-2 rounded-full font-bold text-xs tracking-widest transition-all border ${
+                isResolvingRest
+                  ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300/60 cursor-default'
+                  : 'bg-black/60 border-cyan-400/50 text-cyan-300 hover:bg-cyan-500/20 hover:shadow-[0_0_15px_rgba(6,182,212,0.4)]'
+              }`}
+            >
+              {isResolvingRest ? '⏩ 빠른 진행 중…' : '⏩ 결과 빨리보기'}
+            </button>
+          )}
         </div>
         );
       })()}
+
+      {/* 잔여 주자 안내 — 우승 확정 후 아직 완주하지 않은 마블 수 (물리 무개입, 순수 UI) */}
+      {gameState === 'winner_declared' && survivors.length - finishedFeed.length > 0 && (
+        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-40 pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <div className="bg-black/50 backdrop-blur-md px-5 py-1.5 rounded-full border border-white/15 flex items-center gap-2">
+            <span className="text-white/70 text-xs font-bold tracking-widest">남은 주자</span>
+            <span className="text-[#00ffcc] text-base font-black tabular-nums">
+              {survivors.length - finishedFeed.length}명
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* 게임 전체 종료 시: 스마트 포스트 게임 순위표 */}
+      {gameState === 'all_finished' && (
+        <PostGameLeaderboard finishedFeed={finishedFeed} />
+      )}
 
       {/* 랜덤 레이스: 게임 시작 직후 당첨 등수를 화면 중앙에 팝업으로 공개 */}
       {showRandomPopup && (
@@ -2175,14 +2259,23 @@ export default function PhysicsCanvas() {
         </div>
       )}
 
+      {/* 마무리 자동 가속(FINISH RUSH) 배지 — 우승 확정 후 잔여 경기가 자동으로 빨라지는 중 */}
+      {isFinishRush && gameState === 'winner_declared' && (
+        <div className="absolute top-6 right-6 z-40 pointer-events-none animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-2 bg-black/50 backdrop-blur-md px-4 py-1.5 rounded-full border border-cyan-400/40 shadow-[0_0_15px_rgba(6,182,212,0.35)]">
+            <span className="text-cyan-300 text-xs font-bold tracking-widest">⏩ 자동 빨리감기</span>
+          </div>
+        </div>
+      )}
+
       {/* 배속 안내 오버레이 */}
       {fastForwardMultiplier > 1 && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 pointer-events-none flex flex-col items-center animate-in slide-in-from-top-4 fade-in duration-200">
-          <div className={`flex items-center gap-2 backdrop-blur-md px-6 py-2 rounded-full border-2 ${fastForwardMultiplier === 4 ? 'bg-[#ff0055]/20 border-[#ff0055] shadow-[0_0_20px_rgba(255,0,85,0.8)]' : 'bg-cyan-500/20 border-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.8)]'}`}>
-            <span className={`font-black text-2xl tracking-widest ${fastForwardMultiplier === 4 ? 'text-[#ff0055] drop-shadow-[0_0_8px_rgba(255,0,85,1)]' : 'text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,1)]'}`}>
+        <div className="absolute bottom-8 right-[280px] z-40 pointer-events-none flex flex-col items-end animate-in slide-in-from-bottom-4 fade-in duration-200">
+          <div className={`flex items-center gap-2 backdrop-blur-md px-6 py-2.5 rounded-full border-2 ${fastForwardMultiplier === 4 ? 'bg-[#ff0055]/20 border-[#ff0055] shadow-[0_0_20px_rgba(255,0,85,0.8)]' : 'bg-cyan-500/20 border-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.8)]'}`}>
+            <span className={`font-black italic text-2xl tracking-widest ${fastForwardMultiplier === 4 ? 'text-[#ff0055] drop-shadow-[0_0_8px_rgba(255,0,85,1)]' : 'text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,1)]'}`}>
               {fastForwardMultiplier}배속
             </span>
-            <span className={`font-black text-2xl tracking-tighter animate-pulse ${fastForwardMultiplier === 4 ? 'text-[#ff0055] drop-shadow-[0_0_8px_rgba(255,0,85,1)]' : 'text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,1)]'}`}>
+            <span className={`font-black italic text-2xl tracking-tighter animate-pulse ${fastForwardMultiplier === 4 ? 'text-[#ff0055] drop-shadow-[0_0_8px_rgba(255,0,85,1)]' : 'text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,1)]'}`}>
               {fastForwardMultiplier === 4 ? ">>>>" : ">>"}
             </span>
           </div>

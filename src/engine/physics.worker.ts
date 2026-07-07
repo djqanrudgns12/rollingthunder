@@ -15,6 +15,7 @@ import type { WallStyle } from './MapBuilder';
 let core: SimulationCore | null = null;
 let isRunning = false;
 let postFinishFrames = 0;
+let isResolving = false; // "결과 빨리보기"(RESOLVE_REST) 터보 루프 진행 중 플래그
 
 let positionsBuffer: Float32Array;
 let bufferPool: ArrayBuffer[] = [];
@@ -223,7 +224,8 @@ self.onmessage = async (e) => {
       survivors, targetCount, mode, customRank, randomRanks, isSkillEnabled: isSkill,
       baseTimeScale: initBaseTimeScale,
       selectedMapPreset,
-      comebackStrength
+      comebackStrength,
+      playTime
     } = payload;
 
     // customMapData가 있으면 share code를 통해 강제 로드된 맵, 없더라도 presetMeta.isOfficial === false 이면 로컬에 임시 저장된 커스텀 맵으로 판별.
@@ -246,6 +248,7 @@ self.onmessage = async (e) => {
       baseTimeScale = initBaseTimeScale;
     }
     effectTimeScale = 1.0;
+    isResolving = false;
 
     if (!core) core = new SimulationCore();
     core.init({
@@ -258,6 +261,7 @@ self.onmessage = async (e) => {
       mapKey: selectedMapPreset && selectedMapPreset !== 'random' ? selectedMapPreset : 'random',
       survivors, targetCount, mode, customRank, randomRanks,
       comebackStrength, // 역전 다이내믹스 강도(0~100, 미지정 시 코어 기본 50)
+      playTime, // "플레이 시간"(0~100, 미지정 시 코어 기본 50=중립)
     });
 
     positionsBuffer = new Float32Array(core.activeChips.length * 5);
@@ -296,7 +300,8 @@ self.onmessage = async (e) => {
     }
 
   } else if (type === 'STEP') {
-    if (!core || !isRunning) return;
+    // RESOLVE_REST 터보 루프 중에는 메인 스레드 STEP을 무시(이중 스텝 방지)
+    if (!core || !isRunning || isResolving) return;
     core.step(baseTimeScale * effectTimeScale);
     flushEvents();
     broadcastFrame();
@@ -350,8 +355,45 @@ self.onmessage = async (e) => {
   } else if (type === 'SET_COMEBACK_STRENGTH') {
     // 환경설정 "순위 역동성" 슬라이더(0~100) 실시간 반영
     core?.setComebackStrength(payload.value);
+  } else if (type === 'SET_PLAY_TIME') {
+    // 환경설정 "플레이 시간" 슬라이더(0~100) 실시간 반영
+    core?.setPlayTime(payload.value);
+  } else if (type === 'RESOLVE_REST') {
+    // "결과 빨리보기"(PRD-endgame-pacing §4.C-1): 우승 확정 후 남은 주자의 완주를
+    // 실제 물리 그대로 고속 처리. STEP 메시지를 기다리지 않고 자체 루프로 스텝하되,
+    // FRAME 브로드캐스트를 5프레임에 1회로 줄여 타임랩스처럼 보이게 한다.
+    // Y좌표 순 추정이 아닌 실시간 진행과 동일한 시뮬레이션 결과이므로 순위표가 정확하다.
+    if (!core || !isRunning || isResolving || !core.gameOver || core.allFinished) return;
+    isResolving = true;
+    const TURBO_MAX_FRAMES = 14400; // 안전 상한(헤드리스 하네스와 동일, 240초 상당)
+    let turboFrames = 0;
+    const runChunk = () => {
+      if (!core || !isRunning) { isResolving = false; return; }
+      for (let i = 0; i < 600; i++) {
+        if (core.allFinished || turboFrames >= TURBO_MAX_FRAMES) break;
+        core.step(baseTimeScale * effectTimeScale);
+        turboFrames++;
+        flushEvents();
+        if (turboFrames % 5 === 0) { broadcastFrame(); broadcastObstacles(); }
+        processSkillCooldowns();
+      }
+      broadcastFrame();
+      broadcastObstacles();
+      if (core.allFinished || turboFrames >= TURBO_MAX_FRAMES) {
+        isResolving = false;
+        // STEP 루프의 ALL_FINISHED와 중복 전송되지 않도록 카운터를 선점한다.
+        if (postFinishFrames === 0) {
+          postFinishFrames = 1;
+          self.postMessage({ type: 'ALL_FINISHED' });
+        }
+      } else {
+        setTimeout(runChunk, 0); // 청크 사이 양보 — 메시지 큐(STOP 등) 처리 허용
+      }
+    };
+    runChunk();
   } else if (type === 'STOP') {
     isRunning = false;
+    isResolving = false;
     chipCooldowns = [];
     if (core) {
       core.free();

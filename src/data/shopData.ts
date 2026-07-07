@@ -159,7 +159,7 @@ export const MOCK_ITEMS: ShopItem[] = [
   { item_id: "bg_plinko_cascade", category: "background", name: "플링코 폭포", price: 2000, rarity: "Rare", description: "구슬이 떨어지는 플링코 폭포입니다.", image: "/images/assets/map_bg_plinko_cascade.png", requiresPremium: true },
   { item_id: "bg_roulette_of_fate", category: "background", name: "운명의 룰렛", price: 2000, rarity: "Rare", description: "행운을 가늠하는 룰렛 배경입니다.", image: "/images/assets/map_bg_roulette_of_fate.png", requiresPremium: true },
   { item_id: "bg_tornado_canyon", category: "background", name: "토네이도 협곡", price: 2000, rarity: "Rare", description: "바람이 거세게 부는 계곡입니다.", image: "/images/assets/map_bg_tornado_canyon.png", requiresPremium: true },
-  { item_id: "bg_bounce_mirror", category: "background", name: "바운스 미러", price: 2000, rarity: "Rare", description: "거울의 방을 닮은 배경입니다.", image: "/images/assets/map_bg_bounce_mirror.png", requiresPremium: true },
+  { item_id: "bg_bounce_mirror", category: "background", name: "혼돈의 거울", price: 2000, rarity: "Rare", description: "거울의 방을 닮은 배경입니다.", image: "/images/assets/map_bg_bounce_mirror.png", requiresPremium: true },
   { item_id: "bg_meteor_field", category: "background", name: "미티어 필드", price: 2000, rarity: "Rare", description: "운석이 떨어지는 우주 전장입니다.", image: "/images/assets/map_bg_meteor_field.png", requiresPremium: true },
   { item_id: "bg_enchanted_forest", category: "background", name: "요정의 숲", price: 2000, rarity: "Rare", description: "요정들이 춤추는 신비한 숲입니다.", image: "/images/assets/bg_enchanted_forest_1782785674317.jpg", requiresPremium: true },
   { item_id: "bg_desert_oasis", category: "background", name: "사막 오아시스", price: 2000, rarity: "Rare", description: "건조한 사막 한가운데의 오아시스입니다.", image: "/images/assets/bg_desert_oasis_1782785682635.jpg", requiresPremium: true },

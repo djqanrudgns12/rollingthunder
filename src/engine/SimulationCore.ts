@@ -6,6 +6,8 @@ import { RankingTracker } from './RankingTracker';
 import { SkillSystem } from './SkillSystem';
 import { applyDensity } from './GimmickInjector';
 import { ThemeWeights, DEFAULT_THEME_WEIGHTS } from './MapPresets';
+import { getWallTransform } from './wallGeometry';
+import { computeKeepOutZones, type KeepOutZone } from './SafePlacement';
 
 // ──────────────────────────────────────────────────────────────────────────
 // SimulationCore: 물리 시뮬레이션의 "순수 코어".
@@ -42,6 +44,7 @@ export interface SimInitConfig {
   randomRanks?: number[];   // 랜덤 모드에서 컴퓨터가 뽑은 당첨 등수 배열
   rng?: () => number;      // 결정론적 재현을 위한 난수 주입(스폰 위치). 기본 Math.random
   comebackStrength?: number; // 역전 다이내믹스 강도(0~100, 기본 50). 0이면 완전 비활성
+  playTime?: number;       // "플레이 시간" 설정(0~100, 기본 50=중립). PRD-endgame-pacing 참조
 }
 
 const GLOBAL_SPEED_MODIFIER = 0.9; // 전체 게임 배속 하향 조정치
@@ -80,6 +83,39 @@ const LEAD_GAP_PX = 400;
 const LEADER_DRAG_PER_S = 0.06; // 초당 하향 속도 감쇠율(강도 1 기준 ~6%/s)
 // B4 후반 증폭: 진행도 0.5부터 B1을 1.0→1.5배 선형 증폭(후반부 역전 지원).
 const LATE_RAMP_MAX = 1.5;
+
+// ── 엔드게임 페이싱 (PRD-endgame-pacing §4.A) — "플레이 시간" 설정(0~100, 기본 50) ──
+// 50 = 완전 중립(기존 동작과 동일). 50 미만(compress)은 우승 확정 후 마무리 구간을 압축하고
+// 끼임 대응(anti-stuck)을 앞당기며, 50 초과(extend)는 자동 개입을 늦춰 느긋하게 관전하게 한다.
+// 우승 확정 전 레이스 물리는 어떤 값에서도 불변 — 전 모드(스피드/거북이/커스텀/랜덤)에서
+// 승자는 gameOver 시점에 이미 확정되므로, 이후 개입은 승패에 영향을 줄 수 없다(안전 경계).
+// playTime=0에서 dt 부스트 상한 = 1 + 3.0 = 4배. 수동 빨리감기 4배와 동일한 dt 영역이라
+// 물리 안정성 신규 리스크 없음(4/60 클램프가 최종 안전장치). 시뮬 기준 꼬리 median ≤8s 달성용.
+const ENDGAME_MAX_BOOST_SPAN = 3.0;
+const ENDGAME_RAMP_FRAMES = 180;    // 우승 확정 후 부스트/견인이 최대치에 닿는 램프(~3초)
+const FINISH_PULL_MAX = 150;        // playTime=0 기준 잔여 주자 하향 견인 가속(px/s²)
+
+// ── 구조 리스폰 (PRD-endgame-pacing §4.B) — 상시 안전장치 ──
+// L2 탈출 임펄스가 연속 실패한 "밀폐 포켓" 끼임 칩을 인근 열린 공간으로 이동시킨다.
+// 임펄스 2회 실패 전제 + 재구조 간격 덕에 정상 레이스에서는 발동하지 않는다.
+const RESCUE_AFTER_L2_FAILURES = 2;                           // 임펄스 N회 실패 후 리스폰으로 격상
+const RESCUE_MIN_INTERVAL = Math.round(600 * COOLDOWN_SCALE); // 같은 칩 재구조 최소 간격(~10초)
+const RESCUE_MAX_ATTEMPTS = 12;                               // 링 샘플링 시도 횟수
+const RESCUE_RING_BASE = 60;                                  // 첫 시도 반경(px)
+const RESCUE_RING_STEP = 30;                                  // 시도당 반경 증가(px)
+const RESCUE_CLEARANCE = 38;                                  // 기물/벽과의 최소 이격(칩 반경 18 + 여유)
+const RESCUE_FORWARD_CAP = 30;                                // 진행도(chipMaxY) 초과 전진 허용치(px)
+// 구조 대상은 "거의 정지한" 칩만: 룰렛 그릇 순환·포탈 루프처럼 움직이면서 Y 진전이
+// 없는 것은 의도된 기믹 동작이므로 제외한다(시뮬 검증: 게이트 없이는 룰렛 맵에서
+// 판당 20회+ 오발동). 이중 게이트 — ① 판정 순간 속도 ② 정체 기간 누적 이동량 평균.
+// 쐐기 끼임은 임펄스 에피소드를 포함해도 평균 이동 속도가 낮고, 그릇 대기 칩은 휘저어져
+// 누적 이동량이 크다.
+const RESCUE_MAX_SPEED = 60;      // 판정 순간 속도 상한(px/s)
+const RESCUE_MAX_AVG_SPEED = 40;  // 정체 기간 평균 이동 속도 상한(px/s)
+// 2단계(하드) 격상: 그릇 순환·포탈 루프처럼 "움직이지만 진전 없는" 상태도 이 배수의
+// 시간(기본 ~55초, 플레이 시간 비례)을 넘기면 속도 게이트를 무시하고 구조한다.
+// 통상적인 그릇 체류(수십 초 내 방출)는 건드리지 않으면서 무한 루프·미완주만 차단.
+const RESCUE_HARD_MULT = 10;
 
 // 부스터 1레벨당 부여 Δv(px/s). v2: 빨라진 칩 대비 체감 유지 위해 상향(160→210).
 const BOOSTER_DV_PER_LEVEL = 210;
@@ -161,6 +197,11 @@ export class SimulationCore {
 
   // 역전 다이내믹스 강도(0~1). 환경설정 슬라이더(0~100)에서 스케일. 실시간 변경 가능.
   comebackStrength01 = 0.5;
+  // "플레이 시간"(0~1). 환경설정 슬라이더(0~100)에서 스케일. 실시간 변경 가능. 0.5=중립.
+  playTime01 = 0.5;
+  private gameOverFrame = -1;         // GAME_OVER 발생 프레임(마무리 가속/견인 램프 기준점)
+  private finishRushAnnounced = false; // FINISH_RUSH 이벤트 1회 발행 플래그
+  private l3Fired = false;            // L3 절대 타임아웃 1회 발동 플래그(=== 비교 취약성 제거)
   // 최근 순위 스냅샷(10프레임 주기 갱신). 워커의 순위 가중 스킬 추첨(B3)이 참조.
   latestRanks: { id: string; y: number; rank: number }[] = [];
 
@@ -177,6 +218,19 @@ export class SimulationCore {
   private chipMaxY = new Map<string, number>();
   private chipLastProgressFrame = new Map<string, number>();
   private lowSpeedFrames = 0;
+
+  // 구조 리스폰 상태 (PRD-endgame-pacing §4.B)
+  // "진짜 정체" 추적: 칩이 마지막으로 80px 전진(하강)한 시점의 y/프레임.
+  // chipMaxY는 매 프레임 갱신되는 최대 도달점이라 단일 프레임 델타로는 진행을 판별할 수
+  // 없으므로(정상 하강도 프레임당 ~13px), 밀폐 끼임 판정에는 이 별도 기준점을 쓴다.
+  private rescueBaseY = new Map<string, number>();
+  private rescueBaseFrame = new Map<string, number>();
+  private chipLastRescueFrame = new Map<string, number>(); // 칩별 마지막 구조 리스폰 프레임
+  private rescueTravel = new Map<string, number>();        // 기준점 이후 누적 이동량(px)
+  private chipPrevPos = new Map<string, { x: number; y: number }>(); // 이동량 계산용 직전 위치
+  private rescueZones: KeepOutZone[] = [];   // 구조 후보 검증용 키프아웃 원(전 기물+외벽)
+  private rescueHazards: KeepOutZone[] = []; // 폴백 검증용(hole/중력장만)
+  private wallStyle: WallStyle = 'straight';
 
   // 피스톤 위상 시계(프레임 등가). sim 시간(dt)에 비례 누적 → 전역 배속/슬로모션과 속도 일관.
   private pistonClock = 0;
@@ -212,11 +266,21 @@ export class SimulationCore {
     this.pendingRemovals.length = 0;
     this.chipMaxY.clear();
     this.chipLastProgressFrame.clear();
+    this.rescueBaseY.clear();
+    this.rescueBaseFrame.clear();
+    this.chipLastRescueFrame.clear();
+    this.rescueTravel.clear();
+    this.chipPrevPos.clear();
+    this.gameOverFrame = -1;
+    this.finishRushAnnounced = false;
+    this.l3Fired = false;
     this.events = [];
 
     this.worldHeight = config.worldHeight;
     this.worldWidth = config.width || 800;
     this.comebackStrength01 = Math.max(0, Math.min(1, (config.comebackStrength ?? 50) / 100));
+    this.playTime01 = Math.max(0, Math.min(1, (config.playTime ?? 50) / 100));
+    this.wallStyle = config.wallStyle;
     this.latestRanks = [];
     this.targetCount = config.targetCount;
     this.gameMode = config.mode;
@@ -317,6 +381,25 @@ export class SimulationCore {
       }
     });
 
+    // 구조 리스폰용 키프아웃 존 캐시(SafePlacement의 원 근사 재사용) — PRD-endgame-pacing §4.B.
+    // iceblock은 벽 취급(파괴 후에도 존이 남는 보수적 오탐 — 무해), hole/portal은 반경 확대
+    // (함정·즉시 워프 위 리스폰 금지), polygon은 정점 바운딩 반경으로 근사.
+    // 외벽 세그먼트도 mapData에 포함되므로 벽면 밀착 배치는 자연히 걸러진다.
+    const zoneItems = this.mapData.map((it: any) => {
+      if (it.type === 'iceblock') return { ...it, type: 'wall' };
+      if (it.type === 'hole') return { ...it, radius: (it.radius || 30) + 20 };
+      if (it.type === 'portal') return { ...it, radius: 40 };
+      if (it.type === 'polygon' && Array.isArray(it.vertices)) {
+        const r = it.vertices.reduce((m: number, v: any) => Math.max(m, Math.hypot(v.x, v.y)), 20);
+        return { ...it, type: 'wall', w: r * 2, h: r * 2 };
+      }
+      return it;
+    });
+    this.rescueZones = computeKeepOutZones(zoneItems as any);
+    this.rescueHazards = computeKeepOutZones(
+      zoneItems.filter((it: any) => it.type === 'hole' || it.type === 'blackhole' || it.type === 'whitehole') as any
+    );
+
     // 칩 스폰 (스마트 그리드 배치)
     this.activeChips = [];
     this.chipBodyMap.clear();
@@ -413,7 +496,9 @@ export class SimulationCore {
     if (!this.world || !this.eventQueue) return;
     this.events = [];
 
-    const rawDt = (1 / 60) * GLOBAL_SPEED_MODIFIER * dtMultiplier;
+    // 마무리 자동 가속(FINISH RUSH): 우승 확정 후에만 1을 초과하므로 승패에 무영향.
+    // 기존 4/60 클램프가 최종 안전장치(수동 빨리감기·배속과 곱해져도 기허용 상한 유지).
+    const rawDt = (1 / 60) * GLOBAL_SPEED_MODIFIER * dtMultiplier * this.endgameBoost();
     this.world.integrationParameters.dt = Math.min(rawDt, 4 / 60);
 
     // 물리 스텝(world.step) 이전에 피스톤 등 강체의 이동 목표(선속도 등)를 갱신해야 엔진이 이번 프레임의 충돌(Sweep)을 정상 계산합니다.
@@ -442,6 +527,9 @@ export class SimulationCore {
     const simDt = this.world.integrationParameters.dt;
     this.applyComebackDynamics(simDt);
 
+    // 마무리 견인(PRD-endgame-pacing §4.A③): 우승 확정 후 잔여 주자에 하향 가속.
+    this.applyFinishPull(simDt);
+
     // 모든 임펄스(중력장/스킬) 적용 이후 net 속도를 전역 상한으로 클램프 →
     // 다음 스텝의 적분·렌더 브로드캐스트 모두 캡 적용된 속도를 본다.
     this.clampVelocities(simDt);
@@ -467,6 +555,48 @@ export class SimulationCore {
   // 역전 다이내믹스 강도 실시간 변경(환경설정 슬라이더 → SET_COMEBACK_STRENGTH)
   setComebackStrength(value: number) {
     this.comebackStrength01 = Math.max(0, Math.min(1, value / 100));
+  }
+
+  // "플레이 시간" 실시간 변경(환경설정 슬라이더 → SET_PLAY_TIME). 50=중립.
+  setPlayTime(value: number) {
+    this.playTime01 = Math.max(0, Math.min(1, value / 100));
+  }
+
+  // ── 엔드게임 페이싱 (PRD-endgame-pacing §4.A) ──
+  // 압축 강도(0~1): playTime 50 미만에서만 커짐 / 연장 강도(0~1): 50 초과에서만 커짐.
+  private get compress(): number { return Math.max(0, 0.5 - this.playTime01) * 2; }
+  private get extendAmount(): number { return Math.max(0, this.playTime01 - 0.5) * 2; }
+  // anti-stuck(L1/L2/L3)·구조 리스폰 공용 윈도 스케일: 0.5(빠른 개입) ← 1.0 → 1.8(느긋)
+  private get stuckWindowScale(): number { return 1 - 0.5 * this.compress + 0.8 * this.extendAmount; }
+
+  // 우승 확정 후 dt 배율(1~3배). 확정 후 ENDGAME_RAMP_FRAMES에 걸쳐 선형 램프.
+  private endgameBoost(): number {
+    if (!this.gameOver || this.gameOverFrame < 0 || this.allFinished) return 1;
+    const maxBoost = 1 + ENDGAME_MAX_BOOST_SPAN * this.compress;
+    if (maxBoost <= 1) return 1;
+    const ramp = Math.min(1, Math.max(0, this.frame - this.gameOverFrame) / ENDGAME_RAMP_FRAMES);
+    const boost = 1 + (maxBoost - 1) * ramp;
+    if (!this.finishRushAnnounced && boost > 1.05) {
+      this.finishRushAnnounced = true;
+      this.events.push({ type: 'FINISH_RUSH', payload: { maxBoost } });
+    }
+    return boost;
+  }
+
+  // 마무리 견인: 우승 확정 후 미완주·비동결 칩에 하향 가속(compress에 비례, 최대 150px/s²).
+  // clampVelocities 직전에 적용되어 MAX_CHIP_SPEED 캡의 보호를 받는다.
+  private applyFinishPull(dt: number) {
+    if (!this.gameOver || this.gameOverFrame < 0 || this.allFinished) return;
+    const accel = FINISH_PULL_MAX * this.compress;
+    if (accel <= 0) return;
+    const ramp = Math.min(1, Math.max(0, this.frame - this.gameOverFrame) / ENDGAME_RAMP_FRAMES);
+    const dv = accel * ramp * dt;
+    for (const chip of this.activeChips) {
+      const d = chip.userData as any;
+      if (!d || this.finishedChips.has(d.id)) continue;
+      if (chip.gravityScale() === 0) continue; // 스턴/홀 트랩 동결 상태 제외
+      this.applyDeltaV(chip, 0, dv);
+    }
   }
 
   // [성능 최적화] init 완료 후 1회 호출 — 기믹 강체를 타입별 캐시로 수집.
@@ -931,6 +1061,13 @@ export class SimulationCore {
           r.body.setTranslation({ x: r.x, y: r.y }, true);
           r.body.setLinvel({ x: 0, y: 0 }, true);
           SkillSystem.recalcPhysics(r.body, r.chipId);
+          // 홀 리스폰은 위로 크게 되돌리므로, 구조 리스폰의 정체 시계도 새 위치 기준으로 재시작
+          // (재하강 구간을 "정체"로 오판해 구조가 발동하는 것을 방지)
+          this.rescueBaseY.set(r.chipId, r.y);
+          this.rescueBaseFrame.set(r.chipId, this.frame);
+          this.rescueTravel.set(r.chipId, 0);
+          const hp = this.chipPrevPos.get(r.chipId);
+          if (hp) { hp.x = r.x; hp.y = r.y; }
         } catch (e) {
           // body 해제됨 → 무시
         }
@@ -1141,6 +1278,7 @@ export class SimulationCore {
 
         if (isGameOver && !this.gameOver) {
           this.gameOver = true;
+          this.gameOverFrame = this.frame; // 마무리 가속/견인(FINISH RUSH) 램프 기준점
           this.events.push({ type: 'GAME_OVER', payload: { winners, mode: this.gameMode } });
         }
       }
@@ -1150,23 +1288,26 @@ export class SimulationCore {
 
   private applyAntiStuck(totalSpeed: number) {
     const world = this.world!;
+    // "플레이 시간" 설정에 따른 개입 시점 스케일: 0.5(빠른 구조) ← 1.0(중립) → 1.8(느긋)
+    const winScale = this.stuckWindowScale;
     // totalSpeed는 미완주 칩만 합산(scanChipsAndFinish)하므로 분모도 미완주 수로 맞춘다.
     // (기존: 전체 칩 수로 나눠 완주자가 늘수록 평균이 과소평가 → 종반 폭풍 과발동 버그)
     const racingCount = Math.max(1, this.activeChips.length - this.finishedChips.size);
     const avgSpeed = totalSpeed / racingCount;
 
-    // Level 1: Gravity Storm — 평균 속도 < 10 이 5초(300프레임) 지속 시 전체 넉백
+    // Level 1: Gravity Storm — 평균 속도 < 10 이 기본 5초(300프레임, 플레이 시간 비례) 지속 시 전체 넉백
     if (avgSpeed < 10) {
       this.lowSpeedFrames++;
-      if (this.lowSpeedFrames > 300) {
+      if (this.lowSpeedFrames > Math.round(300 * winScale)) {
         this.events.push({ type: 'GRAVITY_STORM' });
         // 질량정규화 넉백(Δv px/s): 가로로 흩고 약하게 위로 띄운 뒤 다시 낙하시킴.
         // 수평 성분 축소(±350→±150): 정체 해소 목적은 유지하되 측면 산포(해파리 표류) 완화.
         // 완주해 결승선 아래 정지한 칩은 제외(흔들 이유가 없음).
+        // 난수는 this.rng 사용 — 헤드리스 하네스의 시드 재현(결정론)을 완전하게 유지.
         this.activeChips.forEach((chip) => {
           const d = chip.userData as any;
           if (d && this.finishedChips.has(d.id)) return;
-          this.applyDeltaV(chip, (Math.random() - 0.5) * 300, -Math.random() * 350);
+          this.applyDeltaV(chip, (this.rng() - 0.5) * 300, -this.rng() * 350);
         });
         this.lowSpeedFrames = 0;
       }
@@ -1174,7 +1315,8 @@ export class SimulationCore {
       this.lowSpeedFrames = 0;
     }
 
-    // Level 2: Y축 진척 체크 — 개별 칩 15초(900프레임) 동안 80px 미만 전진 시 강제 하향
+    // Level 2: Y축 진척 체크 — 진전 없는 칩에 탈출 임펄스. 임펄스가 연속 실패하면
+    // "밀폐 포켓" 끼임으로 판단해 구조 리스폰(§4.B)으로 격상한다.
     this.activeChips.forEach((chip) => {
       const data = chip.userData as any;
       if (!data || data.type !== 'chip' || this.finishedChips.has(data.id)) return;
@@ -1186,24 +1328,139 @@ export class SimulationCore {
           this.chipLastProgressFrame.set(data.id, this.frame);
         }
       }
+      // 구조 리스폰용 "진짜 정체" 기준점 갱신: 기준 y보다 80px 더 내려갔으면 전진으로 인정.
+      // L2 임펄스 판정과 독립 — 임펄스는 기존 동작 그대로 유지하고, 리스폰만 이 기준을 본다.
+      // (chipMaxY 단일 프레임 델타 기준은 정상 하강 칩도 "정체"로 오판해 리스폰이 남발된다.)
+      const baseY = this.rescueBaseY.get(data.id);
+      if (baseY === undefined || t.y > baseY + 80) {
+        this.rescueBaseY.set(data.id, t.y);
+        this.rescueBaseFrame.set(data.id, this.frame);
+        this.rescueTravel.set(data.id, 0);
+      }
+      // 정체 기간 누적 이동량(쐐기 끼임 vs 그릇 순환 판별용)
+      const prev = this.chipPrevPos.get(data.id);
+      if (prev) {
+        this.rescueTravel.set(data.id, (this.rescueTravel.get(data.id) || 0) + Math.hypot(t.x - prev.x, t.y - prev.y));
+        prev.x = t.x; prev.y = t.y;
+      } else {
+        this.chipPrevPos.set(data.id, { x: t.x, y: t.y });
+      }
       const lastProgress = this.chipLastProgressFrame.get(data.id) || 0;
       // 5초(300프레임) 진전 없으면 탈출 임펄스 — 수직 주도 재설계(PRD-gameplay-dynamics §4.A3).
       // 기존 수평 최대 ±450(중앙 x=400 하드코딩)이 "갑자기 옆으로 발사"의 주범이었으므로
       // 수평은 중앙 지향 ±150으로 캡하고 하향 500 주도로 끼임을 해소한다.
-      if (this.frame - lastProgress > Math.round(300 * COOLDOWN_SCALE)) {
-        const towardCenter = Math.max(-150, Math.min(150, (this.worldWidth / 2 - t.x) * 0.5));
-        this.applyDeltaV(chip, towardCenter + (Math.random() - 0.5) * 80, 500);
+      // ⚠️ L2 윈도는 플레이 시간 슬라이더로 스케일하지 않는다: 이 임펄스는 정상 주행 칩에도
+      // 주기적으로 걸리는 기존 특성이 있어, 주기를 바꾸면 우승 확정 전 레이스 페이스 자체가
+      // 변해 승패가 달라진다(시뮬 검증으로 확인). 스케일은 구조 격상·L1·L3에만 적용한다.
+      const l2Window = Math.round(300 * COOLDOWN_SCALE);
+      if (this.frame - lastProgress > l2Window) {
+        // 임펄스 (RESCUE_AFTER_L2_FAILURES)회 상당의 시간(기본 ~3윈도, 플레이 시간 비례)
+        // 동안 80px도 전진하지 못했다면 밀폐 포켓 끼임으로 판단하고 구조 리스폰(§4.B)으로 격상.
+        const stuckSince = this.rescueBaseFrame.get(data.id) ?? this.frame;
+        const stuckFrames = Math.max(1, this.frame - stuckSince);
+        const lastRescue = this.chipLastRescueFrame.get(data.id) ?? -99999;
+        const v = chip.linvel();
+        const avgTravelSpeed = ((this.rescueTravel.get(data.id) || 0) / stuckFrames) * 60;
+        // 1단계(쐐기): 거의 정지 상태로 진전 없음 → 빠르게 구조(기본 ~17초).
+        // 2단계(하드): 움직이지만(그릇 순환/포탈 루프) 오래 진전 없음 → 게이트 무시 구조(기본 ~55초).
+        const wedgeStuck =
+          stuckFrames > Math.round(l2Window * (RESCUE_AFTER_L2_FAILURES + 1) * winScale) &&
+          Math.hypot(v.x, v.y) < RESCUE_MAX_SPEED && // 순환/루프 중인 칩 제외 — 쐐기 끼임만
+          avgTravelSpeed < RESCUE_MAX_AVG_SPEED;     // 그릇 안에서 휘저어지는 칩 제외
+        const hardStuck = stuckFrames > Math.round(l2Window * RESCUE_HARD_MULT * winScale);
+        const canRescue =
+          (wedgeStuck || hardStuck) &&
+          chip.gravityScale() !== 0 && // 홀 트랩/스턴 동결 상태 제외
+          this.frame - lastRescue >= RESCUE_MIN_INTERVAL;
+        if (canRescue && this.rescueChip(chip, data.id, t)) {
+          this.chipLastRescueFrame.set(data.id, this.frame);
+        } else {
+          const towardCenter = Math.max(-150, Math.min(150, (this.worldWidth / 2 - t.x) * 0.5));
+          this.applyDeltaV(chip, towardCenter + (this.rng() - 0.5) * 80, 500);
+        }
         this.chipLastProgressFrame.set(data.id, this.frame);
       }
     });
 
-    // Level 3: Absolute Timeout — 3분(10800프레임) 경과 시 중력 2배 + 중력장 비활성화
-    if (this.frame === Math.round(10800 * COOLDOWN_SCALE)) {
+    // Level 3: Absolute Timeout — 기본 3분(10800프레임, 플레이 시간 비례) 경과 시 중력 2배 + 중력장 비활성화.
+    // 트리거 프레임이 슬라이더로 실시간에 변할 수 있으므로 === 비교 대신 >= + 1회 플래그로 판정.
+    if (!this.l3Fired && this.frame >= Math.round(10800 * COOLDOWN_SCALE * winScale)) {
+      this.l3Fired = true;
       const grav = world.gravity;
       world.gravity = { x: grav.x, y: grav.y * 2 };
       // [성능 최적화] 캐시 사용 — forEachRigidBody 제거
       for (const b of this.cachedBlackholes) { (b.userData as any).force = 0; }
       for (const b of this.cachedWhiteholes) { (b.userData as any).force = 0; }
+      this.events.push({ type: 'FINAL_SURGE' }); // UI 연출 표면화용(PRD-endgame-pacing §4.C-4)
     }
+  }
+
+  // ── 구조 리스폰 (PRD-endgame-pacing §4.B) ──
+  // 핵심 규칙: ① 열린 공간 검증(키프아웃 원 + 외벽 지오메트리) ② 진행도(chipMaxY)를
+  // 초과해 전진하지 않음(공정성) ③ 실패 시 기존 임펄스로 대체(무한 안전).
+  private rescueChip(chip: RAPIER.RigidBody, chipId: string, from: { x: number; y: number }): boolean {
+    const maxY = this.chipMaxY.get(chipId) ?? from.y;
+    const endMargin = this.layoutConfig?.endMarginPercent ?? 0.02;
+    const finishLineY = this.worldHeight * (1 - endMargin);
+    const yMin = (this.layoutConfig?.startLineY ?? 70) + 50;
+    // 벌어놓은 진행도 + 소폭(30px) 이내로만 전진 허용, 결승선 직전 100px 배치 금지
+    const yMax = Math.min(maxY + RESCUE_FORWARD_CAP, from.y + 40, finishLineY - 100);
+    const target = this.findRescueSpot(from.x, from.y, yMin, Math.max(yMin, yMax));
+    if (!target) return false;
+    chip.setTranslation(target, true);
+    chip.setLinvel({ x: 0, y: 0 }, true);
+    SkillSystem.recalcPhysics(chip, chipId);
+    // 리스폰 지점 기준으로 정체 시계·이동량 추적을 재시작(즉시 재발동/이동량 오산입 방지)
+    this.rescueBaseY.set(chipId, target.y);
+    this.rescueBaseFrame.set(chipId, this.frame);
+    this.rescueTravel.set(chipId, 0);
+    const rp = this.chipPrevPos.get(chipId);
+    if (rp) { rp.x = target.x; rp.y = target.y; }
+    this.events.push({ type: 'SOUND_EFFECT', payload: { type: 'warp' } });
+    this.events.push({ type: 'CHIP_RESCUED', payload: { chipId, from: { x: from.x, y: from.y }, to: target } });
+    return true;
+  }
+
+  // 링 샘플링(반경 점증) → 외벽 지오메트리로 x 클램프 → 키프아웃 원 검증. 난수는 this.rng(결정론).
+  private findRescueSpot(cx: number, cy: number, yMin: number, yMax: number): { x: number; y: number } | null {
+    // 중앙 편향: 끼임은 대부분 벽-기물 사이 포켓에서 발생하므로(진단 샘플 근거),
+    // 배치 기준점을 중앙 쪽으로 30% 당겨 같은 포켓으로의 재낙하를 줄인다.
+    const bx = cx + (this.worldWidth / 2 - cx) * 0.3;
+    for (let i = 0; i < RESCUE_MAX_ATTEMPTS; i++) {
+      const r = RESCUE_RING_BASE + i * RESCUE_RING_STEP;
+      const ang = this.rng() * Math.PI * 2;
+      const y = Math.min(yMax, Math.max(yMin, cy + Math.sin(ang) * r * 0.5));
+      const spot = this.clampToPlayArea(bx + Math.cos(ang) * r, y);
+      if (spot && this.isSpotClear(this.rescueZones, spot.x, spot.y)) return spot;
+    }
+    // 폴백: 해당 y의 플레이 영역 중앙선(80px 위) — 위험 기물(hole/중력장)만 회피 확인.
+    // 그마저 막히면 null → 호출부가 기존 탈출 임펄스로 대체하고 다음 윈도에 재시도한다.
+    const fy = Math.min(yMax, Math.max(yMin, cy - 80));
+    const spot = this.clampToPlayArea(this.worldWidth / 2, fy);
+    if (spot) {
+      const wt = getWallTransform(fy, this.worldHeight, this.wallStyle);
+      spot.x = (wt.leftOffset + (this.worldWidth - wt.rightOffset)) / 2; // 실제 내폭 중앙
+      if (this.isSpotClear(this.rescueHazards, spot.x, spot.y)) return spot;
+    }
+    return null;
+  }
+
+  // 임의 y에서 외벽 안쪽(클리어런스 포함)으로 x를 클램프. 내폭이 없으면 null.
+  private clampToPlayArea(x: number, y: number): { x: number; y: number } | null {
+    const wt = getWallTransform(y, this.worldHeight, this.wallStyle);
+    const innerL = wt.leftOffset + RESCUE_CLEARANCE;
+    const innerR = this.worldWidth - wt.rightOffset - RESCUE_CLEARANCE;
+    if (innerR <= innerL) return null;
+    return { x: Math.min(innerR, Math.max(innerL, x)), y };
+  }
+
+  private isSpotClear(zones: KeepOutZone[], x: number, y: number): boolean {
+    for (const z of zones) {
+      if (Math.abs(z.y - y) > 400) continue; // 원거리 존 프리필터
+      const dx = x - z.x, dy = y - z.y;
+      const req = z.r + RESCUE_CLEARANCE;
+      if (dx * dx + dy * dy < req * req) return false;
+    }
+    return true;
   }
 }

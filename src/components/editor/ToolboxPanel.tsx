@@ -63,7 +63,7 @@ export const AVAILABLE_BACKGROUNDS = [
   { id: 'plinko_cascade', name: '플링코 폭포', path: '/images/assets/map_bg_plinko_cascade.png' },
   { id: 'roulette_of_fate', name: '운명의 룰렛', path: '/images/assets/map_bg_roulette_of_fate.png' },
   { id: 'tornado_canyon', name: '토네이도 협곡', path: '/images/assets/map_bg_tornado_canyon.png' },
-  { id: 'bounce_mirror', name: '바운스 미러', path: '/images/assets/map_bg_bounce_mirror.png' },
+  { id: 'bounce_mirror', name: '혼돈의 거울', path: '/images/assets/map_bg_bounce_mirror.png' },
   { id: 'meteor_field', name: '미티어 필드', path: '/images/assets/map_bg_meteor_field.png' },
   { id: 'cyber_dystopia', name: '사이버 디스토피아', path: '/images/assets/bg_cyber_dystopia.png' },
   { id: 'neon_synthwave', name: '네온 신스웨이브', path: '/images/assets/bg_neon_synthwave_ultra.png' },

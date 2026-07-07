@@ -30,6 +30,7 @@ export default function SettingsModal() {
     gimmickDensity, setGimmickDensity,
     baseTimeScale, setBaseTimeScale,
     comebackStrength, setComebackStrength,
+    playTime, setPlayTime,
     isScreenShakeEnabled, setScreenShakeEnabled,
     calmMode, setCalmMode,
     theme, setTheme,
@@ -44,6 +45,7 @@ export default function SettingsModal() {
     gimmickDensity: number;
     baseTimeScale: number;
     comebackStrength: number;
+    playTime: number;
     isScreenShakeEnabled: boolean;
     calmMode: boolean;
     theme: 'dark' | 'light';
@@ -59,6 +61,7 @@ export default function SettingsModal() {
         gimmickDensity,
         baseTimeScale,
         comebackStrength,
+        playTime,
         isScreenShakeEnabled,
         calmMode,
         theme,
@@ -80,6 +83,7 @@ export default function SettingsModal() {
       setGimmickDensity(snapshotRef.current.gimmickDensity)
       setBaseTimeScale(snapshotRef.current.baseTimeScale)
       setComebackStrength(snapshotRef.current.comebackStrength)
+      setPlayTime(snapshotRef.current.playTime)
       setScreenShakeEnabled(snapshotRef.current.isScreenShakeEnabled)
       setCalmMode(snapshotRef.current.calmMode)
       setTheme(snapshotRef.current.theme)
@@ -106,6 +110,7 @@ export default function SettingsModal() {
     setSfxVolume(100)
     setGimmickDensity(50)
     setComebackStrength(50)
+    setPlayTime(50)
   }
 
   return (
@@ -310,6 +315,29 @@ export default function SettingsModal() {
             </div>
             <p className="text-[10px] text-white/40 leading-relaxed -mt-1">
               하위권 추격·선두 접전을 유도하는 강도입니다. 0이면 순수 물리로만 진행되고, 높을수록 역전이 자주 일어납니다. 레이스 도중에도 즉시 반영됩니다.
+            </p>
+          </div>
+
+          {/* Play Time (플레이 시간) — 엔드게임 페이싱 (PRD-endgame-pacing) */}
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-between items-center">
+              <label className="text-xs text-[var(--accent-secondary)] font-bold tracking-widest uppercase whitespace-nowrap">플레이 시간 (PLAY TIME)</label>
+              <span className="text-[10px] text-[var(--accent-secondary)] font-mono bg-black/50 px-2 py-0.5 rounded-lg border border-white/10 ml-2 whitespace-nowrap">
+                {playTime < 50 ? `빠른 마무리 · ${playTime}` : playTime > 50 ? `느긋하게 · ${playTime}` : '기본 · 50'}
+              </span>
+            </div>
+            <div className="flex items-center h-[38px] pt-1">
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={playTime}
+                onChange={(e) => setPlayTime(Number(e.target.value))}
+                className="w-full neon-slider"
+              />
+            </div>
+            <p className="text-[10px] text-white/40 leading-relaxed -mt-1">
+              낮을수록 우승 확정 후 남은 경기가 자동으로 빨라지고 끼인 마블 구조가 빨라집니다. 우승자가 정해지기 전의 레이스에는 영향을 주지 않으며, 50이 기존 진행과 동일합니다. 레이스 도중에도 즉시 반영됩니다.
             </p>
           </div>
 
