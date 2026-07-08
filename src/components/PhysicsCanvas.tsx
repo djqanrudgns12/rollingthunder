@@ -481,6 +481,19 @@ export default function PhysicsCanvas() {
           '/images/assets/skins/pr_hotairballoon.png',
           '/images/assets/skins/pr_pirateship.png',
           '/images/assets/skins/pr_magiccarpet.png',
+          // New 12 premium skins
+          '/images/assets/skins/pr_magicpotion.png',
+          '/images/assets/skins/pr_paperplane.png',
+          '/images/assets/skins/pr_rubberduck.png',
+          '/images/assets/skins/pr_mechabeetle.png',
+          '/images/assets/skins/pr_hoverboard.png',
+          '/images/assets/skins/pr_crystalgolem.png',
+          '/images/assets/skins/pr_leviathan.png',
+          '/images/assets/skins/pr_cosmicseraph.png',
+          '/images/assets/skins/pr_celestialeye.png',
+          '/images/assets/skins/pr_galacticcore.png',
+          '/images/assets/skins/pr_cyberdemon.png',
+          '/images/assets/skins/pr_chronoweaver.png',
         ];
         let loadedAssets: any = {};
         try {
@@ -1502,7 +1515,8 @@ export default function PhysicsCanvas() {
                       sprite.tint = 0xFFFFFF; // 원본 컬러 유지
 
                       const mask = new PIXI.Graphics();
-                      mask.circle(0, 0, renderDiameter / 2);
+                      // 테두리 깨짐(Bleeding) 방지: 마스크 크기를 1px 줄여서 border가 완벽히 덮도록 함
+                      mask.circle(0, 0, (renderDiameter / 2) - 1);
                       mask.fill({ color: 0xffffff, alpha: 1.0 });
                       iconWrapper.addChild(mask);
                       sprite.mask = mask;
@@ -1511,7 +1525,7 @@ export default function PhysicsCanvas() {
 
                       const border = new PIXI.Graphics();
                       border.circle(0, 0, renderDiameter / 2);
-                      border.stroke({ width: 3, color: colNum, alpha: 1.0 });
+                      border.stroke({ width: 3, color: colNum, alpha: 1.0, alignment: 0 }); // alignment 0 = center/inner
                       iconWrapper.addChild(border);
                     } else {
                       // ========== 기본/Normal 스킨 — 벡터 실루엣 + tint 색상 ==========
