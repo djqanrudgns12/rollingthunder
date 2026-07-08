@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { EditorItem } from './editorStore'
+import type { Participant } from './gameStore'
 
 interface UIState {
   isSidebarOpen: boolean
@@ -21,6 +22,16 @@ interface UIState {
   setCustomMapMeta: (meta: any | null) => void
   customMapTitle: string | null
   setCustomMapTitle: (title: string | null) => void
+
+  // 인-에디터 테스트 플레이 세션 (비영속 — partialize 화이트리스트 제외).
+  // 실제 게임 브리지(customMapData)를 재사용하지 않아 localStorage 오염을 방지한다.
+  testPlaySession: {
+    items: EditorItem[]
+    meta: { worldHeight?: number; wallStyle?: string; bgImage?: string | null; layoutConfig?: any }
+    survivors: Participant[]
+  } | null
+  startTestPlay: (session: NonNullable<UIState['testPlaySession']>) => void
+  endTestPlay: () => void
 
   isBroadcasterMode: boolean
   setBroadcasterMode: (isBroadcaster: boolean) => void
@@ -63,6 +74,9 @@ export const useUIStore = create<UIState>()(
       setCustomMapData: (data) => set({ customMapData: data }),
       setCustomMapMeta: (meta) => set({ customMapMeta: meta }),
       setCustomMapTitle: (title) => set({ customMapTitle: title }),
+      testPlaySession: null,
+      startTestPlay: (session) => set({ testPlaySession: session, gameStage: 'playing' }),
+      endTestPlay: () => set({ testPlaySession: null }),
       setBroadcasterMode: (isBroadcaster) => set({ isBroadcasterMode: isBroadcaster }),
       setAnonymized: (isAnonymized) => set({ isAnonymized: isAnonymized }),
       setGameTitle: (title) => set({ gameTitle: title }),

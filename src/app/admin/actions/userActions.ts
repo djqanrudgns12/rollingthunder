@@ -1,22 +1,42 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createAdminClient, requireAdmin } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
-// 공통된 관리자 권한 확인 헬퍼
-async function requireAdmin(supabase: any) {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) throw new Error('Not authenticated')
+export async function getUsers(page: number = 1, limit: number = 50) {
+  try {
+    const supabase = await createClient()
+    await requireAdmin(supabase)
 
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', session.user.id)
-    .single()
+    const offset = (page - 1) * limit
 
-  if (error || profile?.role !== 'admin') {
-    throw new Error('Unauthorized: Admin access required')
+    const { data: profiles, error, count } = await supabase
+      .from('profiles')
+      .select('id, username, role, chips_balance, created_at', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (error) throw error
+
+    // Fetch auth.users to get last_sign_in_at
+    const adminClient = createAdminClient()
+    const { data: authData, error: authError } = await adminClient.auth.admin.listUsers()
+    
+    let authUsersMap = new Map()
+    if (!authError && authData?.users) {
+      authData.users.forEach(u => authUsersMap.set(u.id, u.last_sign_in_at))
+    }
+
+    const usersWithLastSignIn = profiles?.map(p => ({
+      ...p,
+      last_sign_in_at: authUsersMap.get(p.id) || null
+    }))
+
+    return { success: true, data: usersWithLastSignIn, count }
+  } catch (error: any) {
+    console.error('[getUsers Error]:', error)
+    return { success: false, error: error.message || '유저 목록을 불러오는데 실패했습니다.' }
   }
 }
 

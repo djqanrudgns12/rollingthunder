@@ -1,21 +1,28 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { requireAdmin } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
-// 공통된 관리자 권한 확인 헬퍼
-async function requireAdmin(supabase: any) {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) throw new Error('Not authenticated')
+export async function getMaps(page: number = 1, limit: number = 50) {
+  try {
+    const supabase = await createClient()
+    await requireAdmin(supabase)
 
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', session.user.id)
-    .single()
+    const offset = (page - 1) * limit
 
-  if (error || profile?.role !== 'admin') {
-    throw new Error('Unauthorized: Admin access required')
+    const { data: maps, error, count } = await supabase
+      .from('maps')
+      .select('*, profiles!inner(username)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (error) throw error
+
+    return { success: true, data: maps, count }
+  } catch (error: any) {
+    console.error('[getMaps Error]:', error)
+    return { success: false, error: error.message || '맵 목록을 불러오는데 실패했습니다.' }
   }
 }
 

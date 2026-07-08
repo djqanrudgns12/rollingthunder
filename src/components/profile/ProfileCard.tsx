@@ -6,7 +6,7 @@ import { UserProfile } from '@/types/user';
 import PasswordChangeModal from './PasswordChangeModal';
 import Image from 'next/image';
 import { MOCK_ITEMS } from '@/data/shopData';
-import { LogOut, UserX, LogIn, UserPlus } from 'lucide-react';
+import { LogOut, UserX, LogIn, UserPlus, Terminal } from 'lucide-react';
 import { logout, deleteAccount } from '@/app/actions';
 import { useUIStore } from '@/store/uiStore';
 import { useInventoryStore } from '@/store/inventoryStore';
@@ -346,6 +346,18 @@ export default function ProfileCard({ profile }: Props) {
               <UserX className="w-5 h-5" />
               {isDeleting ? '처리 중...' : '회원탈퇴'}
             </button>
+            {profile.role === 'admin' && (
+              <button
+                onClick={() => {
+                  setActiveModal('none');
+                  window.location.href = '/admin';
+                }}
+                className="px-6 py-4 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 hover:text-cyan-300 rounded-full font-medium transition-all duration-300 backdrop-blur-md border border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.2)] hover:shadow-[0_0_25px_rgba(6,182,212,0.4)] whitespace-nowrap flex items-center gap-2"
+              >
+                <Terminal className="w-5 h-5" />
+                어드민 대시보드
+              </button>
+            )}
           </>
         )}
         <button 

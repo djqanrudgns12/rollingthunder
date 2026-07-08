@@ -25,3 +25,22 @@ export function createAdminClient() {
     },
   })
 }
+
+/**
+ * 관리자 권한인지 확인하는 공통 헬퍼 함수입니다.
+ * 세션 정보와 프로필 롤을 모두 검사하여 관리자가 아니면 에러를 던집니다.
+ */
+export async function requireAdmin(supabase: any) {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('Not authenticated')
+
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', session.user.id)
+    .single()
+
+  if (error || profile?.role !== 'admin') {
+    throw new Error('Unauthorized: Admin access required')
+  }
+}

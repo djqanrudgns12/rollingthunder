@@ -6,12 +6,11 @@ import { toast } from 'sonner'
 import { useEditorStore, EditorItemType } from '@/store/editorStore'
 import ToolPalette from './ToolPalette'
 import EditorCanvas from './EditorCanvas'
-import PhysicsPreviewCanvas from './PhysicsPreviewCanvas'
 import InspectorPanel from './InspectorPanel'
 import EditorToolbar from './EditorToolbar'
 import HistoryViewer from './HistoryViewer'
 import HistoryTimelinePanel from './HistoryTimelinePanel'
-import { Play, X, Share2 } from 'lucide-react'
+import { Share2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { stampService } from '@/lib/stampService'
 
@@ -19,7 +18,6 @@ export default function EditorContainer() {
   const { items, addItem, tabs, activeTabId, showHistoryPanel, setShowHistoryPanel } = useEditorStore()
   const [activeId, setActiveId] = useState<string | null>(null)
   const [activeType, setActiveType] = useState<EditorItemType | null>(null)
-  const [testMode, setTestMode] = useState(false)
 
   const activeTab = tabs.find(t => t.id === activeTabId)
   const isHistoryTab = activeTab?.type === 'history'
@@ -100,10 +98,10 @@ export default function EditorContainer() {
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <EditorToolbar />
       
-      {/* 툴바 (Export 및 Test Play 버튼) */}
+      {/* 툴바 (Export 버튼) — 테스트 플레이는 EditorToolbar/ValidationPanel 의 실제 레이스 브리지로 이관됨 */}
       {!isHistoryTab && (
         <div className="absolute top-20 right-6 z-[200] flex gap-3">
-          <button 
+          <button
             onClick={async () => {
               if(items.length === 0) {
                 toast.error('맵에 배치된 요소가 없습니다.'); return;
@@ -133,13 +131,6 @@ export default function EditorContainer() {
           >
             <Share2 className="w-5 h-5" />
             EXPORT
-          </button>
-          <button 
-            onClick={() => setTestMode(true)}
-            className="flex items-center gap-2 bg-[var(--accent-primary)] text-black px-5 py-2.5 rounded-full font-bold hover:scale-105 transition-transform shadow-[0_0_20px_var(--accent-primary)]"
-          >
-            <Play className="w-5 h-5 fill-current" />
-            TEST PLAY
           </button>
         </div>
       )}
@@ -179,31 +170,6 @@ export default function EditorContainer() {
           </div>
         ) : null}
       </DragOverlay>
-
-      {/* 테스트 플레이(물리 연산) 라이브 모달 */}
-      {testMode && (
-        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-4 md:p-8 animate-in fade-in duration-300">
-          <div className="w-full max-w-[800px] flex justify-between items-center mb-4">
-            <div>
-              <h2 className="text-2xl text-[var(--accent-primary)] font-outfit font-black italic tracking-wider flex items-center gap-3">
-                <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_red]"></span>
-                LIVE SIMULATION
-              </h2>
-              <p className="text-[var(--text-secondary)] text-sm mt-1">실시간 물리 엔진이 가동 중입니다. 칩이 갇히거나 밖으로 튕겨나가지 않는지 점검하세요.</p>
-            </div>
-            <button 
-              onClick={() => setTestMode(false)} 
-              className="p-3 bg-white/10 hover:bg-red-500 text-white rounded-full transition-colors group"
-            >
-              <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
-            </button>
-          </div>
-          
-          <div className="flex-1 w-full max-w-[800px] overflow-hidden drop-shadow-[0_0_30px_rgba(0,255,204,0.15)]">
-            <PhysicsPreviewCanvas />
-          </div>
-        </div>
-      )}
     </DndContext>
   )
 }

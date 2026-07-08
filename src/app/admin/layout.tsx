@@ -1,11 +1,12 @@
-import { Orbitron, Rajdhani } from 'next/font/google'
+import { Orbitron, Noto_Sans_KR } from 'next/font/google'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { Users, Map as MapIcon, Activity, LogOut, Terminal } from 'lucide-react'
+import { LogOut, Terminal } from 'lucide-react'
+import SidebarNav from './SidebarNav'
 
 const orbitron = Orbitron({ subsets: ['latin'], variable: '--font-orbitron' })
-const rajdhani = Rajdhani({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-rajdhani' })
+const notoSans = Noto_Sans_KR({ subsets: ['latin'], weight: ['400', '500', '700', '900'], variable: '--font-noto' })
 
 export const metadata = {
   title: 'Rolling Thunder - Nexus Admin',
@@ -32,7 +33,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   // 2. 관리자 렌더링
   return (
-    <div className={`min-h-screen flex overflow-hidden bg-[#050505] text-slate-200 ${orbitron.variable} ${rajdhani.variable} font-sans`}
+    <div className={`h-screen w-full flex overflow-hidden bg-[#050505] text-slate-200 ${orbitron.variable} ${notoSans.variable} font-sans`}
       style={{
         backgroundImage: `linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px)`,
         backgroundSize: '30px 30px'
@@ -44,7 +45,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           --neon-purple: #b026ff;
         }
         .font-orbitron { font-family: var(--font-orbitron), sans-serif; }
-        .font-rajdhani { font-family: var(--font-rajdhani), sans-serif; }
+        .font-noto { font-family: var(--font-noto), sans-serif; }
         .text-glow { text-shadow: 0 0 10px var(--neon-cyan), 0 0 20px var(--neon-cyan); }
         .glass-panel { 
             background: rgba(10, 14, 23, 0.7); 
@@ -89,22 +90,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <span className="text-xs text-cyan-400 tracking-[0.3em] uppercase mt-1 text-glow">Nexus Command</span>
           </div>
           
-          <nav className="p-6 space-y-4">
-            <div className="text-[10px] text-slate-500 tracking-[0.2em] font-bold uppercase mb-2">System Modules</div>
-            <Link href="/admin" className="group flex items-center px-4 py-3 bg-cyan-900/30 text-cyan-300 rounded border border-cyan-500/50 relative overflow-hidden">
-              <div className="absolute left-0 top-0 h-full w-1 bg-cyan-400 shadow-[0_0_10px_#0ff]"></div>
-              <Users className="w-5 h-5 mr-4 opacity-80" />
-              <span className="font-semibold tracking-wider text-sm">USER DIRECTORY</span>
-            </Link>
-            <Link href="/admin/maps" className="group flex items-center px-4 py-3 text-slate-400 hover:text-cyan-200 hover:bg-cyan-900/10 rounded transition-all">
-              <MapIcon className="w-5 h-5 mr-4 opacity-60 group-hover:opacity-100 group-hover:text-cyan-400 transition-all" />
-              <span className="font-semibold tracking-wider text-sm">TOPOLOGY / MAPS</span>
-            </Link>
-            <Link href="/admin/economy" className="group flex items-center px-4 py-3 text-slate-400 hover:text-purple-300 hover:bg-purple-900/10 rounded transition-all">
-              <Activity className="w-5 h-5 mr-4 opacity-60 group-hover:opacity-100 group-hover:text-purple-400 transition-all" />
-              <span className="font-semibold tracking-wider text-sm">ECONOMY MATRIX</span>
-            </Link>
-          </nav>
+          <SidebarNav />
         </div>
         
         <div className="p-6">
@@ -115,7 +101,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href="/">
             <button className="w-full py-3 cyber-button text-xs font-bold flex items-center justify-center rounded-sm">
               <LogOut className="w-4 h-4 mr-2" />
-              RETURN TO LOBBY
+              로비로 돌아가기
             </button>
           </Link>
         </div>
@@ -131,13 +117,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           
           <div className="flex items-center pl-6 border-l border-cyan-900/50">
             <div className="text-right mr-3">
-              <p className="text-[10px] text-cyan-500 tracking-widest uppercase">Operator</p>
+              <p className="text-xs text-cyan-500 tracking-wide font-bold">운영자</p>
               <p className="text-sm font-bold text-white">{session.user.email}</p>
             </div>
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-10 font-rajdhani text-lg">
+        <div className="flex-1 overflow-auto p-10 font-noto text-lg">
           {children}
         </div>
       </main>

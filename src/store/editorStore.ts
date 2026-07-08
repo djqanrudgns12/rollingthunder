@@ -87,6 +87,7 @@ interface EditorState {
   layoutConfig: any;
   wallStyle: EditorWallStyle;       // 외벽 스타일 (배경 너비/외벽 가이드에 사용)
   previewAnimating: boolean;        // 에디터 캔버스 기물 애니메이션 ON/OFF
+  previewChipCount: number;         // 스폰 프리뷰/검증/테스트 플레이 공유 칩 수
 
   addItem: (item: EditorItem) => void;
   updateItem: (id: string, updates: Partial<EditorItem>) => void;
@@ -114,6 +115,7 @@ interface EditorState {
   setWorldHeight: (height: number) => void;
   setWallStyle: (style: EditorWallStyle) => void;
   setPreviewAnimating: (on: boolean) => void;
+  setPreviewChipCount: (count: number) => void;
   loadMapPreset: (mapId: string) => void;
   
   clipboard: EditorItem | null;
@@ -385,6 +387,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   layoutConfig: defaultMapState.layoutConfig,
   wallStyle: defaultMapState.wallStyle,
   previewAnimating: true,
+  previewChipCount: 10,
   clipboard: null,
   gridSnap: false,
   selectedItemIds: [],
@@ -395,6 +398,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setWorldHeight: (height) => { set({ worldHeight: height }); get().markUnsaved(); },
   setWallStyle: (style) => { set({ wallStyle: style }); get().markUnsaved(); },
   setPreviewAnimating: (on) => set({ previewAnimating: on }),
+  setPreviewChipCount: (count) => set({ previewChipCount: Math.max(2, Math.min(20, Math.floor(count) || 2)) }),
 
   loadMapPreset: (mapId) => {
     const state = get();

@@ -5,7 +5,7 @@ import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { useChipStore } from '@/store/chipStore';
 import { useUIStore } from '@/store/uiStore';
 import { useRouter, usePathname } from 'next/navigation';
-import { ShoppingCart, User } from 'lucide-react';
+import { ShoppingCart, User, Terminal } from 'lucide-react';
 import { getProfileOverviewAction } from '@/presentation/actions/profileActions';
 import { UserProfile } from '@/types/user';
 import { MOCK_ITEMS } from '@/data/shopData';
@@ -213,6 +213,18 @@ export default function GlobalPlayerHUD() {
           <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full border-2 border-black animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.9)]"></span>
         )}
       </button>
+
+      {/* 4. 어드민 대시보드 버튼 */}
+      {profile?.role === 'admin' && (
+        <button 
+          onClick={() => { playClickSound(); router.push('/admin'); }}
+          className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 hover:border-cyan-400/80 hover:bg-cyan-900/40 transition-all duration-300 flex items-center justify-center group relative shadow-[0_8px_20px_rgba(0,0,0,0.4)] hover:shadow-[0_0_20px_rgba(34,211,238,0.4)]"
+          title="Nexus Command (Admin)"
+        >
+          <Terminal className="w-6 h-6 text-cyan-400 group-hover:text-cyan-300 group-hover:scale-110 transition-transform duration-300 drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]" />
+          <div className="absolute inset-0 rounded-full bg-cyan-500/0 group-hover:bg-cyan-500/10 transition-colors duration-300"></div>
+        </button>
+      )}
 
     </div>
   );

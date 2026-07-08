@@ -12,7 +12,7 @@ import { useUIStore } from '@/store/uiStore'
 import { stampService } from '@/lib/stampService'
 import { useChipStore } from '@/store/chipStore'
 import { createClient } from '@/lib/supabase/client'
-import { getSkinTexture, isVectorSkin, shouldSpin } from '@/lib/SkinTextureFactory'
+import { getSkinTexture, isVectorSkin, shouldSpin, clearSkinCache } from '@/lib/SkinTextureFactory'
 
 import LiveLeaderboard from './LiveLeaderboard'
 import PostGameLeaderboard from './PostGameLeaderboard'
@@ -53,7 +53,7 @@ export default function PhysicsCanvas() {
   
   // useShallow 선택자: 전체 store 구독을 피해 skillCooldowns(6프레임마다)·skillLogs 갱신이
   // 이 대형 컴포넌트를 초당 ~10회 재렌더하는 것을 차단. 아래 필드가 바뀔 때만 재렌더.
-  const { survivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, setSelectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks, baseTimeScale, comebackStrength, playTime, isMuted, setMuted, mapDataCache } = useGameStore(useShallow((s) => ({
+  const { survivors: rosterSurvivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, setSelectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks, baseTimeScale, comebackStrength, playTime, isMuted, setMuted, mapDataCache } = useGameStore(useShallow((s) => ({
     survivors: s.survivors, setSurvivors: s.setSurvivors,
     targetWinnerCount: s.targetWinnerCount, gameMode: s.gameMode, customWinningRank: s.customWinningRank,
     gimmickDensity: s.gimmickDensity, selectedMapPreset: s.selectedMapPreset, setSelectedMapPreset: s.setSelectedMapPreset,
@@ -62,7 +62,15 @@ export default function PhysicsCanvas() {
     baseTimeScale: s.baseTimeScale, comebackStrength: s.comebackStrength, playTime: s.playTime,
     isMuted: s.isMuted, setMuted: s.setMuted, mapDataCache: s.mapDataCache,
   })))
-  const { setGameStage, customMapData, customMapMeta, isBroadcasterMode, gameTitle } = useUIStore()
+  const { setGameStage, customMapData: uiCustomMapData, customMapMeta: uiCustomMapMeta, isBroadcasterMode, gameTitle } = useUIStore()
+  // ── 인-에디터 테스트 플레이 브리지 ──
+  // testPlaySession 이 있으면 에디터 맵/더미 참가자를 실제 게임 경로로 태운다.
+  // 아래 파생값으로 기존의 모든 survivors/customMapData/customMapMeta 참조를 일괄 치환한다.
+  const testPlaySession = useUIStore(s => s.testPlaySession)
+  const endTestPlay = useUIStore(s => s.endTestPlay)
+  const survivors = testPlaySession?.survivors ?? rosterSurvivors
+  const customMapData = testPlaySession?.items ?? uiCustomMapData
+  const customMapMeta = testPlaySession?.meta ?? uiCustomMapMeta
   const workerRef = useRef<Worker | null>(null)
   
   const appRef = useRef<PIXI.Application | null>(null);
@@ -403,9 +411,15 @@ export default function PhysicsCanvas() {
     const WORLD_HEIGHT = isCustomMap && customMapMeta?.worldHeight 
       ? customMapMeta.worldHeight 
       : (presetMeta ? presetMeta.worldHeight : 2400);
+    let destroyed = false;
     let initPromise: Promise<void> | null = null;
+    let appIsFullyInit = false;
     
     const initPixi = async () => {
+      // React Strict Mode 방어: 50ms 대기 후 언마운트되지 않았을 때만 초기화 시작
+      await new Promise(resolve => setTimeout(resolve, 50));
+      if (destroyed) return;
+
       try {
         app = new PIXI.Application();
         appRef.current = app;
@@ -420,6 +434,11 @@ export default function PhysicsCanvas() {
           autoDensity: true, // 캔버스 CSS 크기를 DPR에 맞춰 자동 보정 → 고DPI 화면 텍스처 찢어짐 방지
           powerPreference: 'high-performance',
         });
+
+        if (destroyed) {
+          try { app.destroy({ removeView: true, children: true }); } catch (e) {}
+          return;
+        }
 
         if (containerRef.current) {
           containerRef.current.appendChild(app.canvas);
@@ -468,6 +487,11 @@ export default function PhysicsCanvas() {
           loadedAssets = await PIXI.Assets.load(texturesToLoad);
         } catch (err) {
           console.error("Asset load error:", err);
+        }
+
+        if (destroyed) {
+          try { app.destroy({ removeView: true, children: true }); } catch (e) {}
+          return;
         }
 
         // 모든 텍스처에 linear 스케일 모드 강제 → 확대/축소 시 샘플링 아티팩트(찢어짐) 완화
@@ -2000,25 +2024,28 @@ export default function PhysicsCanvas() {
           setIsFinishRush(false);
           setIsResolvingRest(false);
 
-          // 미션 이벤트: 게임 끝까지 관전 완료
-          stampService.trackEvent('watch_finish', 1);
-          stampService.flushPlayEvents();
+          // 테스트 플레이는 미션·보상 기록에서 제외한다(결과 비영속).
+          if (!testPlaySession) {
+            // 미션 이벤트: 게임 끝까지 관전 완료
+            stampService.trackEvent('watch_finish', 1);
+            stampService.flushPlayEvents();
 
-          // 게임 완주 관전 30칩 자동 지급
-          (async () => {
-            try {
-              const supabase = createClient();
-              const { data: { user } } = await supabase.auth.getUser();
-              if (user) {
-                await supabase.rpc('add_chips', {
-                  p_user_id: user.id,
-                  p_amount: 30,
-                  p_reason: 'Game Play Reward'
-                });
-                useChipStore.getState().addChipsLocally(30);
-              }
-            } catch (e) { console.error('Game reward error:', e); }
-          })();
+            // 게임 완주 관전 30칩 자동 지급
+            (async () => {
+              try {
+                const supabase = createClient();
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                  await supabase.rpc('add_chips', {
+                    p_user_id: user.id,
+                    p_amount: 30,
+                    p_reason: 'Game Play Reward'
+                  });
+                  useChipStore.getState().addChipsLocally(30);
+                }
+              } catch (e) { console.error('Game reward error:', e); }
+            })();
+          }
         }
       };
 
@@ -2084,24 +2111,28 @@ export default function PhysicsCanvas() {
       intervals.forEach(i => clearInterval(i));
       tickers.forEach(t => app.ticker.remove(t));
       itemDisposers.forEach(d => { try { d() } catch {} });
-      if (initPromise) {
-        initPromise.then(() => {
-          if (app) {
-            try {
-              if (app.canvas && app.canvas.parentNode) {
-                app.canvas.parentNode.removeChild(app.canvas);
-              }
-              // 강제 WebGL 컨텍스트 반환 로직은 PixiJS 내부 뷰포트 이벤트 핸들러 등과 충돌하므로 제거
-              // 최신 Pixi v8 문법에 맞게 파괴 옵션 적용 (children: true를 통해 viewport도 자동 파괴됨)
-              app.destroy({ removeView: true, children: true });
-            } catch (e) {
-              console.error("PIXI destroy error:", e);
-            }
+      
+      destroyed = true;
+      clearSkinCache();
+      
+      if (appIsFullyInit && app) {
+        try {
+          if (app.canvas && app.canvas.parentNode) {
+            app.canvas.parentNode.removeChild(app.canvas);
           }
-        });
+          // 강제 컨텍스트 반환: 브라우저 WebGL 컨텍스트 한계(보통 16개) 도달 방지
+          const gl = (app.renderer as any)?.gl || (app.renderer as any)?.context?.gl;
+          if (gl) {
+            const ext = gl.getExtension('WEBGL_lose_context');
+            if (ext) ext.loseContext();
+          }
+          app.destroy(true, { children: true });
+        } catch (e) {
+          console.error("PIXI destroy error:", e);
+        }
       }
     };
-  }, [survivors, targetWinnerCount, gimmickDensity, setSurvivors, setGameStage, customMapData, gameMode, customWinningRank, isSkillEnabled, randomWinningRanks, selectedMapPreset]);
+  }, [survivors, targetWinnerCount, gimmickDensity, setSurvivors, setGameStage, customMapData, gameMode, customWinningRank, isSkillEnabled, randomWinningRanks, selectedMapPreset, testPlaySession]);
   const getOrdinalSuffix = (n: number) => {
     const v = n % 100;
     if (v >= 11 && v <= 13) return `${n}TH`;
@@ -2132,12 +2163,20 @@ export default function PhysicsCanvas() {
 
       <LiveLeaderboard rankings={rankings} finishedFeed={finishedFeed} />
 
-      {/* 로비 복귀 버튼 — 미니맵과 가로 정렬(left-6=24px) + 너비 동기화(w-48=192px) */}
+      {/* 테스트 플레이 배지 — 결과 비기록 안내 */}
+      {testPlaySession && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 px-4 py-1.5 rounded-full bg-[#141419]/90 border border-[#00ffcc]/40 text-[#00ffcc] text-xs font-bold shadow-lg backdrop-blur-sm">
+          🧪 테스트 플레이 — 결과는 기록되지 않습니다
+        </div>
+      )}
+
+      {/* 로비/에디터 복귀 버튼 — 미니맵과 가로 정렬(left-6=24px) + 너비 동기화(w-48=192px) */}
       <div className="absolute bottom-3 left-6 z-50 flex gap-4">
-        <button 
+        <button
           onClick={() => {
             stampService.flushPlayEvents();
-            setGameStage('dashboard');
+            if (testPlaySession) { endTestPlay(); setGameStage('editor'); }
+            else setGameStage('dashboard');
           }}
           className={`glass-panel-heavy text-white font-bold px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 group w-48 text-sm ${
             (gameState === 'winner_declared' || gameState === 'all_finished')
@@ -2145,7 +2184,7 @@ export default function PhysicsCanvas() {
               : 'hover:bg-white/10 shadow-lg border border-white/10'
           }`}
         >
-          <span className="group-hover:-translate-x-1 transition-transform">🚪</span> 로비로 복귀
+          <span className="group-hover:-translate-x-1 transition-transform">🚪</span> {testPlaySession ? '에디터로 복귀' : '로비로 복귀'}
         </button>
       </div>
 

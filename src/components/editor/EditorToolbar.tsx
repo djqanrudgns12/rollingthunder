@@ -10,6 +10,7 @@ import { saveMapAction, deployMapAction, getMapsAction } from '@/presentation/ac
 import { stampService } from '@/lib/stampService'
 import { getUserRoleAction } from '@/presentation/actions/authActions'
 import { logMapEditAction } from '@/presentation/actions/historyActions'
+import { launchTestPlay } from '@/lib/editor/testPlay'
 import UnsavedChangesModal from './UnsavedChangesModal'
 import { toast } from 'sonner'
 
@@ -389,6 +390,17 @@ export default function EditorToolbar() {
             title={previewAnimating ? '기물 애니메이션 정지(정밀 편집)' : '기물 애니메이션 재생'}
           >
             {previewAnimating ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+          </button>
+
+          <div className="w-px h-6 bg-[#444] mx-1"></div>
+
+          <button
+            onClick={() => launchTestPlay()}
+            className="flex items-center gap-1 bg-[#00ffcc]/15 hover:bg-[#00ffcc]/25 text-[#00ffcc] border border-[#00ffcc]/40 text-sm font-medium px-3 py-1.5 rounded transition-colors shadow-sm"
+            title="현재 맵을 실제 레이스 환경으로 테스트 플레이 (결과 비기록)"
+          >
+            <Play className="w-4 h-4" />
+            <span>테스트 플레이</span>
           </button>
 
           {userRole === 'admin' && (

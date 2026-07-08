@@ -1,29 +1,18 @@
 /**
- * 인-에디터 맵 검증 (scripts/simulate.ts 의 지표 로직을 브라우저용으로 이식).
+ * 맵 검증 순수 러너 (scripts/simulate.ts 의 지표 로직 이식).
  * 현재 에디터 items 로 SimulationCore 를 N회 헤드리스 실행하여 품질 지표 + 칩 이동 히트맵을 산출한다.
- * 메인 스레드에서 레이스마다 yield 하여 UI 프리즈를 완화한다(수동 "검증 실행" 액션).
+ * 환경 불문(워커/메인/Node) — onProgress/shouldAbort 콜백으로 진행률·취소를 위임받는다.
+ * 계산식·시드 공식은 마이그레이션 전 mapValidator.ts 와 동일해야 한다(결정론 재현).
  */
-import type { EditorItem } from '@/store/editorStore'
+import { VALIDATION_THRESHOLDS, type ValidationConfig, type ValidationResult, type CheckRow } from './validationTypes'
 
 const WIDTH = 800
 const MAX_FRAMES = 240 * 60
 const SAMPLE_EVERY = 4 // 히트맵/속도 샘플링 프레임 간격
 
-export interface HeatmapData { cols: number; rows: number; cell: number; grid: number[]; max: number }
-export interface CheckRow { label: string; ok: boolean; value: string; target: string }
-export interface ValidationResult {
-  races: number; chips: number
-  medianFinish: number; p10: number; p90: number; avgSpeed: number
-  fairness: number; edgePct: number
-  gravityStorms: number; timedOutRaces: number; avgLeadChanges: number
-  avgGimmickRate: number; deadGimmicks: { type: string; count: number }[]
-  stuckSamples: { x: number; y: number }[]
-  heatmap: HeatmapData
-  checks: CheckRow[]
-}
-export interface ValidationConfig {
-  items: EditorItem[]; worldHeight: number; wallStyle: string
-  layoutConfig?: any; races?: number; chips?: number
+export interface RunnerCallbacks {
+  onProgress?: (race: number, races: number) => void
+  shouldAbort?: () => boolean
 }
 
 function mulberry32(seed: number) {
@@ -64,7 +53,7 @@ function interactionRadius(item: any): number {
   }
 }
 
-export async function runValidation(cfg: ValidationConfig, onProgress?: (p: number) => void): Promise<ValidationResult> {
+export async function runValidationLoop(cfg: ValidationConfig, cb: RunnerCallbacks = {}): Promise<ValidationResult> {
   const races = cfg.races ?? 8
   const chips = cfg.chips ?? 10
   const wh = cfg.worldHeight || 3300
@@ -72,7 +61,7 @@ export async function runValidation(cfg: ValidationConfig, onProgress?: (p: numb
   const [innerL, innerR] = innerBounds(style)
   const edgeNear = 45
 
-  const { SimulationCore } = await import('@/engine/SimulationCore')
+  const { SimulationCore } = await import('../../engine/SimulationCore')
   await SimulationCore.ensureRapier()
 
   const cell = 40
@@ -95,6 +84,7 @@ export async function runValidation(cfg: ValidationConfig, onProgress?: (p: numb
   for (const g of mainGimmicks) gimmickHits.set(g.id, { type: g.type, hit: 0, total: 0 })
 
   for (let r = 0; r < races; r++) {
+    if (cb.shouldAbort?.()) break
     const rng = mulberry32(1000 + r * 7919 + (cfg.items.length + 1) * 31)
     const survivors = Array.from({ length: chips }, (_, i) => ({ id: `c${i}`, name: `P${i}`, color: '#fff' }))
     const core = new SimulationCore()
@@ -102,6 +92,7 @@ export async function runValidation(cfg: ValidationConfig, onProgress?: (p: numb
       width: WIDTH, height: wh, worldHeight: wh, wallStyle: style as any,
       mapItems: cfg.items, gimmickDensity: 50, survivors, targetCount: chips,
       mode: 'speed', customRank: 1, rng, isCustomMap: true, layoutConfig: cfg.layoutConfig,
+      comebackStrength: cfg.comebackStrength, playTime: cfg.playTime,
     } as any)
 
     const spawn: Record<string, number> = {}
@@ -156,7 +147,7 @@ export async function runValidation(cfg: ValidationConfig, onProgress?: (p: numb
     for (const g of mainGimmicks) { const rec = gimmickHits.get(g.id)!; rec.hit += gimmickSeen[g.id].size; rec.total += chips }
 
     core.free()
-    onProgress?.((r + 1) / races)
+    cb.onProgress?.(r + 1, races)
     await new Promise(res => setTimeout(res, 0))
   }
 
@@ -167,20 +158,21 @@ export async function runValidation(cfg: ValidationConfig, onProgress?: (p: numb
   const avgLead = leadChangesArr.length ? leadChangesArr.reduce((a, b) => a + b, 0) / leadChangesArr.length : 0
   const rates: { type: string; rate: number }[] = []
   gimmickHits.forEach(rec => rates.push({ type: rec.type, rate: rec.total ? rec.hit / rec.total : 0 }))
-  const dead = rates.filter(g => g.rate < 0.15)
+  const dead = rates.filter(g => g.rate < VALIDATION_THRESHOLDS.deadGimmickRate)
   const deadByType: Record<string, number> = {}
   dead.forEach(d => { deadByType[d.type] = (deadByType[d.type] || 0) + 1 })
   const avgGimmick = rates.length ? rates.reduce((a, b) => a + b.rate, 0) / rates.length : NaN
   const avgSpeed = speedSamples ? speedSum / speedSamples : NaN
   const max = grid.reduce((a, b) => Math.max(a, b), 0)
 
+  const T = VALIDATION_THRESHOLDS
   const fmt = (n: number, d = 1) => Number.isFinite(n) ? n.toFixed(d) : '-'
   const checks: CheckRow[] = [
-    { label: '완주시간(중앙)', ok: med >= 45 && med <= 70, value: `${fmt(med)}s`, target: '45~70s' },
-    { label: '공정성', ok: fairness < 0.25, value: fmt(fairness, 2), target: '<0.25' },
-    { label: '엣지허깅', ok: edgePct < 12, value: `${fmt(edgePct)}%`, target: '<12%' },
+    { label: '완주시간(중앙)', ok: med >= T.finishTime.min && med <= T.finishTime.max, value: `${fmt(med)}s`, target: `${T.finishTime.min}~${T.finishTime.max}s` },
+    { label: '공정성', ok: fairness < T.fairness.max, value: fmt(fairness, 2), target: `<${T.fairness.max}` },
+    { label: '엣지허깅', ok: edgePct < T.edgeHugging.maxPct, value: `${fmt(edgePct)}%`, target: `<${T.edgeHugging.maxPct}%` },
     { label: '정체(스톰/미완주)', ok: gravityStorms === 0 && timedOutRaces === 0, value: `${gravityStorms}/${timedOutRaces}`, target: '0/0' },
-    { label: '박진감(선두교체)', ok: avgLead >= 3, value: fmt(avgLead), target: '≥3' },
+    { label: '박진감(선두교체)', ok: avgLead >= T.leadChanges.min, value: fmt(avgLead), target: `≥${T.leadChanges.min}` },
     { label: '기믹적중', ok: dead.length === 0, value: `${fmt(avgGimmick * 100)}% (죽은 ${dead.length})`, target: '죽은 0' },
   ]
 

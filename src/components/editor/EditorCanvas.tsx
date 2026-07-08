@@ -8,6 +8,7 @@ import { createAppRenderContext } from '@/lib/render/RenderContext'
 import { createObstacleGraphic, ObstacleGraphic } from '@/lib/render/ObstacleRenderer'
 import { itemRotationRad } from '@/lib/render/rotation'
 import { computeWallSegments } from '@/engine/wallGeometry'
+import { generateSpawnSlots } from '@/engine/spawnSlots'
 import {
   createBackground,
   createStartEndLines,
@@ -59,6 +60,7 @@ export default function EditorCanvas() {
   const appRef = useRef<PIXI.Application | null>(null)
   const viewportRef = useRef<Viewport | null>(null)
   const chromeRef = useRef<PIXI.Container | null>(null)
+  const spawnLayerRef = useRef<PIXI.Container | null>(null)
   const itemsLayerRef = useRef<PIXI.Container | null>(null)
   const overlayRef = useRef<PIXI.Container | null>(null)
   const nodeMapRef = useRef<Map<string, NodeEntry>>(new Map())
@@ -84,9 +86,13 @@ export default function EditorCanvas() {
     window.addEventListener('keydown', handleKeyDown)
 
     const init = async () => {
+      // React Strict Mode 방어
+      await new Promise(resolve => setTimeout(resolve, 50));
+      if (destroyed) return;
+
       const app = new PIXI.Application()
       await app.init({ canvas: canvasRef.current!, resizeTo: window, backgroundColor: 0x0a0a10, antialias: true, resolution: window.devicePixelRatio || 1, autoDensity: true })
-      if (destroyed) { app.destroy(true, { children: true }); return }
+      if (destroyed) { app.destroy(false, { children: true }); return }
       appRef.current = app
 
       // 전역 드래그/리사이즈용 stage 인터랙션 활성화
@@ -113,14 +119,17 @@ export default function EditorCanvas() {
       viewport.moveCenter(WORLD_WIDTH / 2, getStartLineY({ worldHeight, layoutConfig: st.layoutConfig }) + 300)
       useEditorStore.getState().setEditorViewport(viewport)
 
-      // 레이어: chrome(배경/벽/라인) → items(기물) → overlay(선택/핸들)
+      // 레이어: chrome(배경/벽/라인) → spawn(스폰 프리뷰) → items(기물) → overlay(선택/핸들)
       const chrome = new PIXI.Container(); chrome.zIndex = -50; viewport.addChild(chrome); chromeRef.current = chrome
+      const spawnLayer = new PIXI.Container(); spawnLayer.zIndex = -10; spawnLayer.eventMode = 'none'; viewport.addChild(spawnLayer); spawnLayerRef.current = spawnLayer
       const itemsLayer = new PIXI.Container(); itemsLayer.zIndex = 0; itemsLayer.sortableChildren = true; viewport.addChild(itemsLayer); itemsLayerRef.current = itemsLayer
       const overlay = new PIXI.Container(); overlay.zIndex = 100; viewport.addChild(overlay); overlayRef.current = overlay
 
       // 에셋 프리로드 (기물 + 배경)
       const toLoad = [...OBSTACLE_TEXTURES, ...(st.bgImage ? [st.bgImage] : [])]
       await Promise.all(toLoad.map(u => PIXI.Assets.load(u).catch(() => null)))
+      // 언마운트되었으면 그대로 반환 — appRef.current 는 이미 설정되어 cleanup 이 파괴를 담당한다.
+      // (React 소유 <canvas> 이므로 removeView 로 DOM 에서 제거하면 재마운트 시 검은 화면이 된다.)
       if (destroyed) return
 
       // 빈 캔버스: 우클릭 드래그 = 패닝, 좌클릭 드래그 = 바깥쪽 패닝 또는 안쪽 영역 선택(러버밴드)
@@ -192,12 +201,16 @@ export default function EditorCanvas() {
       await buildChrome()
       syncItems()
       buildOverlay()
+      buildSpawnMarkers()
 
       // 스토어 구독: 변경 슬라이스별 부분 갱신
       const unsub = useEditorStore.subscribe((state, prev) => {
         if (!readyRef.current) return
         if (state.worldHeight !== prev.worldHeight || state.wallStyle !== prev.wallStyle || state.bgImage !== prev.bgImage || state.layoutConfig !== prev.layoutConfig) {
-          updateClamp(); buildChrome()
+          updateClamp(); buildChrome(); buildSpawnMarkers()
+        }
+        if (state.previewChipCount !== prev.previewChipCount) {
+          buildSpawnMarkers()
         }
         if (state.previewAnimating !== prev.previewAnimating) {
           recreateAll(); buildOverlay()
@@ -221,6 +234,8 @@ export default function EditorCanvas() {
       nodeMapRef.current.clear()
       if (viewportRef.current) { try { viewportRef.current.destroy() } catch {} viewportRef.current = null }
       useEditorStore.getState().setEditorViewport(null)
+      // removeView=false: React 가 소유한 <canvas> 는 DOM 에 남겨두고 PIXI 리소스만 파괴한다.
+      // (removeView=true 나 강제 loseContext 는 StrictMode 재마운트에서 캔버스를 죽여 검은 화면을 유발.)
       if (appRef.current) { try { appRef.current.destroy(false, { children: true }) } catch {} appRef.current = null }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -253,6 +268,37 @@ export default function EditorCanvas() {
     const vp = viewportRef.current; if (!vp) return
     const wh = useEditorStore.getState().worldHeight || 3300
     vp.clamp({ left: -300, right: WORLD_WIDTH + 300, top: -600, bottom: wh + 400, underflow: 'center' })
+  }
+
+  // ---- 칩 스폰 프리뷰 마커 (물리와 동일 소스 generateSpawnSlots) ----
+  const buildSpawnMarkers = () => {
+    const layer = spawnLayerRef.current; if (!layer) return
+    layer.removeChildren().forEach(c => c.destroy({ children: true }))
+    const st = useEditorStore.getState()
+    const count = st.previewChipCount || 10
+    const wh = st.worldHeight || 3300
+    // 셔플은 좌표 집합에 영향을 주지 않으므로 안정적인 no-op rng 로 배치만 산출한다.
+    const slots = generateSpawnSlots(count, WORLD_WIDTH, st.layoutConfig, wh, () => 0)
+    const R = 18 // ChipFactory 칩 반경과 동일
+    const g = new PIXI.Graphics()
+    for (const s of slots) {
+      g.circle(s.x, s.y, R).fill({ color: 0x00ffcc, alpha: 0.16 }).stroke({ width: 1.5, color: 0x00ffcc, alpha: 0.6 })
+    }
+    layer.addChild(g)
+
+    // 상단 라벨: "스폰 N칩"
+    const topY = slots.reduce((m, s) => Math.min(m, s.y), Infinity)
+    const midX = slots.length ? slots.reduce((a, s) => a + s.x, 0) / slots.length : WORLD_WIDTH / 2
+    if (Number.isFinite(topY)) {
+      const label = new PIXI.Text({
+        text: `스폰 ${count}칩`,
+        style: { fill: 0x00ffcc, fontSize: 20, fontWeight: 'bold', fontFamily: 'sans-serif' },
+      })
+      label.anchor.set(0.5, 1)
+      label.position.set(midX, topY - R - 12)
+      label.alpha = 0.75
+      layer.addChild(label)
+    }
   }
 
   // ---- 기물 노드 동기화(재조정) ----

@@ -22,10 +22,12 @@ export default function MapEditorManager() {
   const hasLoadedInitial = React.useRef(false);
 
   useEffect(() => {
-    if (!mapId && !hasLoadedInitial.current) {
+    // 테스트 플레이 복귀 등으로 재마운트될 때 미저장 작업물을 프리셋으로 덮어쓰지 않도록
+    // items 가 비어 있을 때만 초기 프리셋을 로드한다.
+    if (!mapId && !hasLoadedInitial.current && useEditorStore.getState().items.length === 0) {
       loadMapPreset('neon_arcade')
-      hasLoadedInitial.current = true;
     }
+    hasLoadedInitial.current = true;
   }, [mapId, loadMapPreset])
 
   return (
