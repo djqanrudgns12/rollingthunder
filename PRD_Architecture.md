@@ -519,6 +519,40 @@ export const PHYSICS = {
     RADIUS: 30,
     SPEED_MULTIPLIER: 1.0,  // 속도 유지
   },
+}
+```
+
+### 타임스텝 및 배속 처리 아키텍처 (Hybrid Sub-stepping)
+
+> 🆕 **안정성 강화**: 게임 특성상 다양한 스킬 효과와 다중 물리 객체가 존재합니다. 수동 배속 제어(예: 4배속) 시, 단순하게 물리 `dt`(델타 타임)를 곱셈으로 증가시키면 기물이 얇은 벽을 뚫는 **터널링(Tunneling)** 현상이나 **스피너(Spinner)/풍차 등의 키네마틱 강체가 버벅이며 충돌을 씹는 현상**이 발생합니다. 이를 트렌디하고 견고하게 처리하기 위해 **Hybrid Sub-stepping (하이브리드 서브 스텝)** 패턴을 도입합니다.
+
+#### 핵심 메커니즘
+- **저배속 (Slow Motion, 1.0배 이하)**: `dt` 자체를 줄여 1프레임당 1회 스텝 처리. 시각적 보간의 이점을 그대로 가져가 부드러운 슬로모션 구현.
+- **고배속 (Fast Forward, 1.0배 초과)**: `dt`의 상한선을 안전한 수치(예: 1배속)로 고정하고, **한 프레임 안에서 물리 엔진을 다중 업데이트(Sub-step)** 합니다.
+  - 예: 4배속 시, `dt`를 4배로 키워 1번 계산하는 것이 아니라, `dt=1배속`으로 4번 반복 계산.
+
+#### 아키텍처 장점
+1. **완벽한 충돌 안정성**: 4배속 상황에서도 프레임당 이동 거리가 1배속과 동일하므로, 스피너(Spinner)가 공을 치는 물리 판정이나 벽면 충돌 판정이 정확하게 이루어집니다.
+2. **프레임 동기화**: 스킬 지속 시간이나 쿨다운을 담당하는 내부 `frame` 변수가 다중 업데이트 횟수만큼 동기화되어 증가하므로, "물리적 거리는 4배인데 스킬 시간은 1배"가 되는 **설계 괴리(Desync)를 원천 차단**합니다. 기존 핵심 로직(스킬 시스템, 리스폰 시스템)을 전혀 수정할 필요가 없습니다.
+
+```typescript
+// 아키텍처 컨셉 예시
+step(dtMultiplier: number = 1.0) {
+    let steps = 1;
+    let stepMultiplier = dtMultiplier;
+
+    // 고배속 안전 분할 분기
+    if (dtMultiplier > 1.0) {
+        steps = Math.ceil(dtMultiplier);
+        stepMultiplier = dtMultiplier / steps; 
+    }
+
+    for (let i = 0; i < steps; i++) {
+        // 기존 1배속 로직과 완전 동일하게 처리 (안정성 보장)
+        this.internalFixedStep(stepMultiplier);
+    }
+}
+```
 
   // 블랙홀 속성
   BLACKHOLE: {

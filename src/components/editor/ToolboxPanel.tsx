@@ -211,7 +211,7 @@ export default function ToolboxPanel() {
           const Icon = it.icon
           return (
             <div
-              key={it.type}
+              key={`${it.type}_${it.variant ?? 'default'}`}
               draggable
               onDragStart={(e) => {
                 const dragData = JSON.stringify({ type: it.type, variant: it.variant });

@@ -491,10 +491,30 @@ export class SimulationCore {
     });
   }
 
-  // 한 프레임 진행. dtMultiplier 로 슬로모션(스킬 연출) 지원.
+  // 한 프레임 진행. dtMultiplier 로 슬로모션(스킬 연출) 및 고배속(Hybrid Sub-stepping) 지원.
   step(dtMultiplier: number = 1.0) {
     if (!this.world || !this.eventQueue) return;
     this.events = [];
+
+    let steps = 1;
+    let stepMultiplier = dtMultiplier;
+
+    // 고배속 안전 분할 (예: 4.0배속 -> steps: 4, stepMultiplier: 1.0)
+    // 1배속 이하(슬로모션 등)는 기존과 같이 1 step으로 부드럽게 보간
+    if (dtMultiplier > 1.0) {
+      steps = Math.ceil(dtMultiplier);
+      stepMultiplier = dtMultiplier / steps;
+    }
+
+    for (let i = 0; i < steps; i++) {
+      this.internalStep(stepMultiplier);
+    }
+  }
+
+  // 내부 물리 스텝 (1배속 스케일 기준으로 동작 보장)
+  private internalStep(dtMultiplier: number) {
+    if (!this.world || !this.eventQueue) return; // 안전장치
+
 
     // 마무리 자동 가속(FINISH RUSH): 우승 확정 후에만 1을 초과하므로 승패에 무영향.
     // 기존 4/60 클램프가 최종 안전장치(수동 빨리감기·배속과 곱해져도 기허용 상한 유지).
