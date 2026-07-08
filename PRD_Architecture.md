@@ -1349,6 +1349,48 @@ export const SKIN_DEFINITIONS: Record<string, SkinDefinition> = {
 
 > **결론**: Rapier.js는 Box2D 대비 현대적이고, Matter.js 대비 압도적 성능을 제공합니다. 특히 마블런에서 핵심인 **CCD(빠른 구슬 터널링 방지)**와 **결정론적 시뮬레이션(리플레이 기능 대비)**이 기본 지원되어 최적의 선택입니다.
 
+## 👑 넥서스 어드민 (Nexus Command Dashboard)
+
+> **사이버틱 감성을 품은 최고급(Premium) 관리자 제어 시스템**
+>
+> 📌 **디자인 테마**: 네온 스캔라인, 글래스모피즘, Orbitron 폰트 기반의 어두운 해커/사이버펑크 UI 감성 차용 (UI/UX의 극단적 고급화).
+> 📌 **핵심 목표**: 관리자(`admin`) 전용 통합 대시보드를 제공하여 유저(Entity), 재화(Economy), 맵(Topology)의 데이터 흐름을 안전하고 직관적으로 제어합니다.
+
+### 1. 보안 및 RLS 마이그레이션 아키텍처
+어드민 페이지의 무결성을 보장하기 위해 다음과 같은 보안 아키텍처 및 실제 SQL 마이그레이션(`014_admin_policies.sql`)을 도입합니다.
+
+- **Route Protection**: Next.js `middleware.ts`를 거쳐 `admin` 권한이 없을 경우 즉각 접근을 차단합니다.
+- **SQL RLS Bypass & Hard Delete**:
+  ```sql
+  -- RLS 재귀 호출을 막기 위한 SECURITY DEFINER 기반 어드민 체크 함수
+  CREATE OR REPLACE FUNCTION public.is_admin() RETURNS BOOLEAN AS $$
+    SELECT EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin');
+  $$ LANGUAGE sql SECURITY DEFINER;
+  
+  -- Profiles 및 Chip Logs 테이블에 대한 관리자 전체 열람/수정 정책 적용
+  CREATE POLICY "Admins bypass profiles" ON public.profiles FOR ALL USING (public.is_admin());
+  ```
+- **Service Role Client**: 유저 계정을 삭제할 경우 단순 비활성화가 아닌, DB(`auth.users`)에서 완전히 파기(Hard Delete)합니다. 백엔드(Server Actions)에서 `SUPABASE_SERVICE_ROLE_KEY`를 사용합니다.
+
+### 2. 논리적 동기/비동기 구조 설계 (Optimistic UI Pattern)
+어드민 대시보드 데이터 처리의 반응속도를 0ms로 만들기 위해 완벽한 **동기/비동기 혼합 패턴**을 코어 레벨에 설계했습니다.
+
+- **[서버 측 - 100% 비동기 (Async Server Actions)]**: 
+  DB 통신 로직은 비동기로 처리되며, 예외 처리를 위해 전체를 `try/catch`로 감싸 `{ success, error }` 포맷의 객체만을 리턴하여 앱 크래시(500)를 원천 차단합니다.
+- **[클라이언트 측 - 낙관적 동기 (Optimistic Sync)]**: 
+  관리자가 액션(예: 삭제) 버튼 클릭 시, 서버 응답을 대기하지 않고 React 상태를 즉각 동기적으로 조작(행 삭제)하여 사용자 경험을 극대화합니다. 서버의 백그라운드 응답이 실패할 경우, 토스트 알림(Toast)과 함께 UI 상태를 자동으로 복원(Rollback)합니다.
+
+### 3. UI/UX 모듈 명세 (Premium Nexus Layout)
+사이드바와 메인 패널로 나뉜 고급형 인터페이스로, 각 모듈이 다음과 같은 책임을 가집니다.
+
+- **[유저 디렉토리 (User Directory)]**: 전체 가입자의 이름, 권한, 가입일, 칩 보유량을 모니터링합니다. 즉각적인 권한 승격(Dropdown) 및 칩 밸런스 조정 인풋 박스를 제공하며, 악성 유저는 'Hard Delete' 아이콘으로 즉각 파기합니다.
+- **[맵 토폴로지 (Topology / Maps)]**: 유저가 제작한 커스텀 맵들의 구조를 검토합니다. 고품질 맵은 '공식 맵(is_official: true)'으로 지정하여 로비 상단에 띄우고, 어뷰징/부적절 맵은 영구 삭제합니다.
+- **[경제 매트릭스 (Economy Matrix)]**: 전체 유저의 칩 흐름(`chip_logs`)을 실시간 표(Pagination)로 추적합니다. 짧은 시간에 다량의 칩을 획득한 의심 기록을 소팅하여 시스템 버그 및 해킹 징후를 적발합니다.
+
+### 4. 부수적 보강 로직 (Supplementary Systems)
+- **Error Boundary 도입**: 관리자 대시보드 내부 에러 발생 시, 터미널 형태의 스타일리시한 복구 UI(`error.tsx`)를 제공.
+- **Audit Logs (감사 로그)**: 관리자가 특정 유저의 계정을 지우거나 칩을 수정한 내역을 별도 시스템 로그에 영구 보존하여 관리자 권한 남용을 방지 (향후 옵션 확장성 보유).
+
 ## Open Questions
 
 > [!IMPORTANT]
