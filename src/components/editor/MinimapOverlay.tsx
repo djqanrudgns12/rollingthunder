@@ -22,8 +22,10 @@ function itemColor(type: string, item: EditorItem): string {
     case 'piston': return '#ffcc00'
     case 'iceblock': return '#88ccff'
     case 'wall': return '#8888aa'
-    case 'windcannon': return '#55aaff'
+    case 'windcannon': return '#00ffff'
     case 'luckygate': return '#ffd700'
+    case 'speedgate': return '#00ff88'
+    case 'slowgate': return '#ff0044'
     case 'flipper': return '#ff4444'
     case 'blackhole': return '#222233'
     case 'whitehole': return '#ffccee'
@@ -32,7 +34,7 @@ function itemColor(type: string, item: EditorItem): string {
   }
 }
 
-const RECT_TYPES = new Set(['wall', 'piston', 'iceblock', 'luckygate', 'windcannon', 'booster'])
+const RECT_TYPES = new Set(['wall', 'piston', 'iceblock', 'luckygate', 'speedgate', 'slowgate', 'windcannon', 'booster'])
 const CIRCLE_TYPES = new Set(['pin', 'bumper', 'portal', 'hole', 'blackhole', 'whitehole'])
 
 export default function MinimapOverlay() {

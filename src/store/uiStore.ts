@@ -8,8 +8,8 @@ interface UIState {
   setSidebarOpen: (isOpen: boolean) => void
   toggleSidebar: () => void
   
-  activeModal: 'none' | 'mapLoad' | 'listManager' | 'settings' | 'auth' | 'stampBook' | 'profile'
-  setActiveModal: (modal: 'none' | 'mapLoad' | 'listManager' | 'settings' | 'auth' | 'stampBook' | 'profile') => void
+  activeModal: 'none' | 'mapLoad' | 'listManager' | 'settings' | 'auth' | 'stampBook' | 'profile' | 'premiumUpgrade'
+  setActiveModal: (modal: 'none' | 'mapLoad' | 'listManager' | 'settings' | 'auth' | 'stampBook' | 'profile' | 'premiumUpgrade') => void
   authMode: 'login' | 'signup'
   setAuthMode: (mode: 'login' | 'signup') => void
 

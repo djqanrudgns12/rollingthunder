@@ -1,5 +1,6 @@
 export interface UserProfile {
   id: string;
+  email?: string | null;
   username: string | null;
   name: string | null;
   role: 'user' | 'premium' | 'admin' | 'guest';

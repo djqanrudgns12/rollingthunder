@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
-interface EquippedItems {
+export interface EquippedItems {
   skin: string | null;
   avatar: string | null;
   border: string | null;
@@ -19,6 +19,8 @@ interface InventoryState {
   equipItem: (category: keyof EquippedItems, itemId: string) => void;
   unequipItem: (category: keyof EquippedItems) => void;
   hasItem: (itemId: string) => boolean;
+  reset: () => void;
+  hydrateFromServer: (inventory: string[], equipped: EquippedItems) => void;
 }
 
 export const useInventoryStore = create<InventoryState>()(
@@ -53,6 +55,23 @@ export const useInventoryStore = create<InventoryState>()(
       })),
 
       hasItem: (itemId) => get().inventory.includes(itemId),
+      
+      reset: () => set({
+        inventory: [],
+        equipped: {
+          skin: null,
+          avatar: null,
+          border: null,
+          piece: null,
+          background: null,
+          frame: null,
+        }
+      }),
+
+      hydrateFromServer: (inventory, equipped) => set({
+        inventory,
+        equipped,
+      }),
     }),
     {
       name: 'rt-inventory-storage',

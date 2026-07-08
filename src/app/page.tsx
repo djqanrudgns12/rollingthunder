@@ -86,7 +86,7 @@ export default function LoginPage() {
             {isLogin ? '로그인' : '회원가입'}
           </h1>
           <p className="text-[var(--text-secondary)] text-sm leading-relaxed">
-            {isLogin ? 'Rolling Thunder 세션을 불러옵니다.' : '나만의 계정을 생성하고 전적을 기록하세요.'}
+            {isLogin ? 'Rolling Thunder 세션을 불러옵니다.' : '계정을 생성하고 여러 기능을 누려보세요.'}
           </p>
         </div>
 

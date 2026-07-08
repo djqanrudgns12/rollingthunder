@@ -318,12 +318,37 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
     gate.fill({ color: 0xffd700, alpha: 0.8 })
     gate.stroke({ color: 0xffaa00, width: 3 })
     if (full) {
-      // [성능 최적화] GlowFilter 동적 import 제거 → 밝은 외곽선으로 glow 효과 시뮬레이션
       gate.stroke({ color: 0xffaa00, width: 6, alpha: 0.4 })
     }
     g.addChild(gate)
     mg.rect(-w / 2, -h / 2, w, h)
     mg.fill({ color: 0xffd700, alpha: 0.8 })
+  } else if (item.type === 'speedgate') {
+    const w = item.w || 140
+    const h = 15
+    const gate = new PIXI.Graphics()
+    gate.roundRect(-w / 2, -h / 2, w, h, h / 2)
+    gate.fill({ color: 0x00ff88, alpha: 0.8 })
+    gate.stroke({ color: 0x00ffff, width: 3 })
+    if (full) {
+      gate.stroke({ color: 0x00ffff, width: 6, alpha: 0.4 })
+    }
+    g.addChild(gate)
+    mg.rect(-w / 2, -h / 2, w, h)
+    mg.fill({ color: 0x00ff88, alpha: 0.8 })
+  } else if (item.type === 'slowgate') {
+    const w = item.w || 140
+    const h = 15
+    const gate = new PIXI.Graphics()
+    gate.roundRect(-w / 2, -h / 2, w, h, h / 2)
+    gate.fill({ color: 0xff0044, alpha: 0.8 })
+    gate.stroke({ color: 0xff8800, width: 3 })
+    if (full) {
+      gate.stroke({ color: 0xff8800, width: 6, alpha: 0.4 })
+    }
+    g.addChild(gate)
+    mg.rect(-w / 2, -h / 2, w, h)
+    mg.fill({ color: 0xff0044, alpha: 0.8 })
   } else if (item.type === 'flipper') {
     const length = item.length || 90
     const thickness = item.h || 12

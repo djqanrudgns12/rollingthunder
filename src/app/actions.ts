@@ -33,6 +33,21 @@ export async function signup(formData: FormData) {
   const name = formData.get('name') as string
   const keepLoggedIn = formData.get('keepLoggedIn') === 'true'
 
+  // 게스트 상태 연동 (칩, 인벤토리, 장착 아이템)
+  const guestChips = formData.get('guestChips') as string | null
+  const guestInventoryStr = formData.get('guestInventory') as string | null
+  const guestEquippedStr = formData.get('guestEquipped') as string | null
+
+  let guestInventory = []
+  let guestEquipped = {}
+
+  try {
+    if (guestInventoryStr) guestInventory = JSON.parse(guestInventoryStr)
+    if (guestEquippedStr) guestEquipped = JSON.parse(guestEquippedStr)
+  } catch (e) {
+    console.error('Failed to parse guest data', e)
+  }
+
   const supabase = await createClient(keepLoggedIn)
 
   const { error } = await supabase.auth.signUp({
@@ -40,8 +55,11 @@ export async function signup(formData: FormData) {
     password,
     options: {
       data: {
-        username: username, // 메타데이터에 실제 username 저장
-        name: name, // 이름 저장
+        username: username, 
+        name: name,
+        guest_chips: guestChips || '0',
+        guest_inventory: guestInventory,
+        guest_equipped: guestEquipped,
       }
     }
   })
@@ -61,7 +79,6 @@ export async function logout() {
   const supabase = await createClient()
   await supabase.auth.signOut()
   revalidatePath('/', 'layout')
-  redirect('/')
 }
 
 export async function deleteAccount() {

@@ -336,11 +336,15 @@ export class SimulationCore {
             ? MapBuilder.createFlipper(this.world!, item)
             : MapBuilder.createKinematic(this.world!, item);
           if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
-        } else if (item.type === 'portal' || item.type === 'booster' || item.type === 'blackhole' || item.type === 'whitehole' || item.type === 'hole' || item.type === 'windcannon' || item.type === 'luckygate') {
+        } else if (item.type === 'portal' || item.type === 'booster' || item.type === 'blackhole' || item.type === 'whitehole' || item.type === 'hole' || item.type === 'windcannon' || item.type === 'luckygate' || item.type === 'speedgate' || item.type === 'slowgate') {
           const body = item.type === 'windcannon' 
             ? MapBuilder.createWindCannon(this.world!, item)
             : item.type === 'luckygate'
             ? MapBuilder.createLuckyGate(this.world!, item)
+            : item.type === 'speedgate'
+            ? MapBuilder.createSpeedGate(this.world!, item)
+            : item.type === 'slowgate'
+            ? MapBuilder.createSlowGate(this.world!, item)
             : MapBuilder.createSensor(this.world!, item);
           if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
         }
@@ -744,8 +748,8 @@ export class SimulationCore {
       let chipBody: RAPIER.RigidBody | null = null;
       let sensorBody: RAPIER.RigidBody | null = null;
 
-      if (d1?.type === 'chip' && ['portal', 'booster', 'hole', 'luckygate', 'flipper', 'windcannon'].includes(d2?.type)) { chipBody = b1; sensorBody = b2; }
-      if (d2?.type === 'chip' && ['portal', 'booster', 'hole', 'luckygate', 'flipper', 'windcannon'].includes(d1?.type)) { chipBody = b2; sensorBody = b1; }
+      if (d1?.type === 'chip' && ['portal', 'booster', 'hole', 'luckygate', 'speedgate', 'slowgate', 'flipper', 'windcannon'].includes(d2?.type)) { chipBody = b1; sensorBody = b2; }
+      if (d2?.type === 'chip' && ['portal', 'booster', 'hole', 'luckygate', 'speedgate', 'slowgate', 'flipper', 'windcannon'].includes(d1?.type)) { chipBody = b2; sensorBody = b1; }
 
       // 얼음 블록 충돌 로직
       if (d1?.type === 'iceblock' || d2?.type === 'iceblock') {
@@ -861,6 +865,22 @@ export class SimulationCore {
             else effect = 'repel';
             this.applyLuckyEffect(chipBody, chipData, effect, sensorData);
           }
+        } else if (sensorData.type === 'speedgate') {
+          const gateId = sensorData.id;
+          const cooldownKey = `speed_${chipData.id}_${gateId}`;
+          const lastTrigger = this.lastWarpFrame.get(cooldownKey) || -99999;
+          if (this.frame - lastTrigger > Math.round(120 * COOLDOWN_SCALE)) {
+            this.lastWarpFrame.set(cooldownKey, this.frame);
+            this.applyLuckyEffect(chipBody, chipData, 'speed_up', sensorData);
+          }
+        } else if (sensorData.type === 'slowgate') {
+          const gateId = sensorData.id;
+          const cooldownKey = `slow_${chipData.id}_${gateId}`;
+          const lastTrigger = this.lastWarpFrame.get(cooldownKey) || -99999;
+          if (this.frame - lastTrigger > Math.round(120 * COOLDOWN_SCALE)) {
+            this.lastWarpFrame.set(cooldownKey, this.frame);
+            this.applyLuckyEffect(chipBody, chipData, 'speed_down', sensorData);
+          }
         }
       }
     });
@@ -910,6 +930,40 @@ export class SimulationCore {
             this.applyDeltaV(other, (dx / dist) * 200, (dy / dist) * 200);
           }
         }
+        break;
+      }
+      case 'speed_up': {
+        const origDamping = chip.linearDamping();
+        const origGravity = chip.gravityScale();
+        chip.setLinearDamping(0.0);
+        chip.setGravityScale(1.8, true);
+        this.luckyEffects.push({
+          body: chip, chipId: chipData.id,
+          atFrame: this.frame + Math.round(600 * COOLDOWN_SCALE), // 10 seconds
+          restore: () => {
+            try {
+              chip.setLinearDamping(origDamping);
+              chip.setGravityScale(origGravity, true);
+            } catch {}
+          }
+        });
+        break;
+      }
+      case 'speed_down': {
+        const origDamping = chip.linearDamping();
+        const origGravity = chip.gravityScale();
+        chip.setLinearDamping(3.0);
+        chip.setGravityScale(0.4, true);
+        this.luckyEffects.push({
+          body: chip, chipId: chipData.id,
+          atFrame: this.frame + Math.round(600 * COOLDOWN_SCALE), // 10 seconds
+          restore: () => {
+            try {
+              chip.setLinearDamping(origDamping);
+              chip.setGravityScale(origGravity, true);
+            } catch {}
+          }
+        });
         break;
       }
     }

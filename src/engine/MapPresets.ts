@@ -14,12 +14,14 @@ export interface ThemeWeights {
   iceblock?: number;
   windcannon?: number;
   luckygate?: number;
+  speedgate?: number;
+  slowgate?: number;
   flipper?: number;
 }
 
 export const DEFAULT_THEME_WEIGHTS: ThemeWeights = {
   pin: 0.1, bumper: 0.3, booster: 0.1, portal: 0.05, blackhole: 0.05, whitehole: 0.05, hole: 0.05, windmill: 0.3,
-  iceblock: 0, windcannon: 0, luckygate: 0, flipper: 0
+  iceblock: 0, windcannon: 0, luckygate: 0, speedgate: 0, slowgate: 0, flipper: 0
 };
 
 export interface MapPresetMeta {

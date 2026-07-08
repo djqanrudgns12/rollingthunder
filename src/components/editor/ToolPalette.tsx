@@ -19,6 +19,8 @@ const tools: { id: string; type: EditorItemType; label: string; color: string }[
   { id: 'tool-iceblock', type: 'iceblock', label: '얼음 블록', color: 'bg-blue-300/50 border-blue-400' },
   { id: 'tool-windcannon', type: 'windcannon', label: '송풍기', color: 'bg-slate-700 border-blue-300' },
   { id: 'tool-luckygate', type: 'luckygate', label: '럭키 게이트', color: 'bg-yellow-400/80 border-yellow-200' },
+  { id: 'tool-speedgate', type: 'speedgate', label: '스피드 게이트', color: 'bg-green-400/80 border-green-200' },
+  { id: 'tool-slowgate', type: 'slowgate', label: '슬로우 게이트', color: 'bg-red-400/80 border-red-200' },
   { id: 'tool-flipper', type: 'flipper', label: '오토 플리퍼', color: 'bg-red-500 border-red-300' },
 ]
 

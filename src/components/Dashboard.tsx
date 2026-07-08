@@ -6,8 +6,10 @@ import { useState, useEffect, useRef } from 'react'
 import { createSession } from '@/actions/db'
 import MapLoadModal, { DEFAULT_MAPS } from './MapLoadModal'
 import ListManagerModal from './ListManagerModal'
-import { Video, Map, Circle, Car, Rocket, Zap, Cat, Target, Volume2, VolumeX, Settings, Ghost, Bot, Flame, Star, Smile, Cloud, Anchor, Wind, Dog, Bird, Diamond, Clover, Cherry, Rabbit, Turtle, CircleDashed } from 'lucide-react'
+import { Video, Map, Circle, Car, Rocket, Zap, Cat, Target, Volume2, VolumeX, Settings, Ghost, Bot, Flame, Star, Smile, Cloud, Anchor, Wind, Dog, Bird, Diamond, Clover, Cherry, Rabbit, Turtle, CircleDashed, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
+import { motion } from 'framer-motion'
+import PremiumUpgradeModal from './profile/PremiumUpgradeModal'
 import { useEditorStore } from '@/store/editorStore'
 import { useInventoryStore } from '@/store/inventoryStore'
 import { MOCK_ITEMS } from '@/data/shopData'
@@ -88,7 +90,7 @@ function getRandomAnimal() {
 
 export default function Dashboard() {
   const { participants, addParticipant, removeParticipant, clearParticipants, setGimmickDensity, gimmickDensity, setSurvivors, targetWinnerCount, setTargetWinnerCount, setSessionId, gameMode, setGameMode, customWinningRank, setCustomWinningRank, globalSkin, setGlobalSkin, setParticipants, isSkillEnabled, setSkillEnabled, selectedMapPreset, setRandomWinningRanks, clearSkillLogs, isMuted, setMuted } = useGameStore()
-  const { setGameStage, customMapData, customMapTitle, isBroadcasterMode, setBroadcasterMode, isAnonymized, setAnonymized, setGameTitle, isAdmin } = useUIStore()
+  const { setGameStage, customMapData, customMapTitle, isBroadcasterMode, setBroadcasterMode, isAnonymized, setAnonymized, setGameTitle, isAdmin, userProfile, activeModal, setActiveModal } = useUIStore()
   const setEditorMode = useEditorStore(state => state.setEditorMode)
   const { hasItem } = useInventoryStore()
   
@@ -322,7 +324,40 @@ export default function Dashboard() {
     <div className={`flex flex-col items-center justify-center w-full min-h-screen p-4 z-10 transition-colors duration-500 ${isBroadcasterMode ? 'bg-[#00ff00]' : 'bg-transparent'}`}>
       
       {/* 화면 우측 상단 전역 유틸리티 버튼 (BGM, 설정) */}
-      <div className="absolute top-4 right-4 md:top-8 md:right-8 flex gap-3 z-50">
+      <div className="absolute top-4 right-4 md:top-8 md:right-8 flex gap-3 z-50 items-center">
+        {/* Role-Based Promotional Features */}
+        {(!userProfile || userProfile.role === 'guest') && (
+          <motion.button
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            whileHover={{ scale: 1.05 }}
+            onClick={() => setActiveModal('auth')}
+            className="mr-2 px-3 py-2 md:px-4 rounded-full bg-black/60 backdrop-blur-md border border-pink-500/50 flex items-center gap-2 shadow-[0_0_15px_rgba(236,72,153,0.3)] hover:shadow-[0_0_25px_rgba(236,72,153,0.6)] hover:border-cyan-400 transition-all group"
+          >
+            <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" />
+            <span className="text-[10px] md:text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-cyan-400 whitespace-nowrap hidden sm:block">
+              가입하고 혜택받기!
+            </span>
+          </motion.button>
+        )}
+        
+        {userProfile?.role === 'user' && (
+          <motion.button
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            whileHover={{ scale: 1.05 }}
+            onClick={() => setActiveModal('premiumUpgrade')}
+            className="mr-2 px-3 py-2 md:px-4 rounded-full bg-black/60 backdrop-blur-md border border-amber-500/50 flex items-center gap-2 shadow-[0_0_15px_rgba(251,191,36,0.3)] hover:shadow-[0_0_25px_rgba(251,191,36,0.6)] hover:border-purple-400 transition-all group"
+          >
+            <Rocket className="w-4 h-4 text-amber-400 group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" />
+            <span className="text-[10px] md:text-xs font-bold text-amber-300 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)] whitespace-nowrap hidden sm:block">
+              Premium 등급 UP
+            </span>
+          </motion.button>
+        )}
+
         <button
           onClick={() => {
             const next = !isMuted;
@@ -603,6 +638,13 @@ export default function Dashboard() {
             GAME START
           </button>
         </div>
+        <div className="w-full text-left mt-1 shrink-0 -mb-2 md:-mb-4">
+          <div className="flex items-center text-[10px] text-white/30 font-medium tracking-wide ml-1">
+            © Copyright
+            <img src="/images/assets/chaltteok.png" alt="찰떡쌤" className="w-4 h-4 mx-1 object-contain" />
+            찰떡쌤. 단순한 뽑기도 즐거움을 누려 보세요!
+          </div>
+        </div>
       </div>
       <MapLoadModal isOpen={isMapModalOpen} onClose={() => setIsMapModalOpen(false)} />
       <ListManagerModal 
@@ -610,6 +652,10 @@ export default function Dashboard() {
         onClose={() => setIsListModalOpen(false)} 
         currentParticipants={participants}
         onLoadList={(names) => setNameInput(names)}
+      />
+      <PremiumUpgradeModal 
+        isOpen={activeModal === 'premiumUpgrade'} 
+        onClose={() => setActiveModal('none')} 
       />
     </div>
   )

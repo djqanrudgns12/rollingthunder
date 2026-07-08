@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { login, signup } from '@/app/actions'
 import { useUIStore } from '@/store/uiStore'
+import { useChipStore } from '@/store/chipStore'
+import { useInventoryStore } from '@/store/inventoryStore'
 import { X, LogIn, UserPlus } from 'lucide-react'
 
 export default function AuthModal() {
@@ -25,7 +27,7 @@ export default function AuthModal() {
     const formData = new FormData(e.currentTarget)
     const username = formData.get('username') as string
     
-    // 회원가입일 경우 추가 검증
+    // 회원가입일 경우 추가 검증 및 게스트 데이터 동기화
     if (!isLogin) {
       const password = formData.get('password') as string
       const passwordConfirm = formData.get('passwordConfirm') as string
@@ -42,6 +44,14 @@ export default function AuthModal() {
         setLoading(false)
         return
       }
+
+      // 게스트 데이터 (현재 zustand 스토어) 추출 후 주입
+      const chips = useChipStore.getState().chips
+      const { inventory, equipped } = useInventoryStore.getState()
+      
+      formData.append('guestChips', String(chips))
+      formData.append('guestInventory', JSON.stringify(inventory))
+      formData.append('guestEquipped', JSON.stringify(equipped))
     }
 
     // 엄격한 아이디 유효성 검사 (정규식)
@@ -115,7 +125,7 @@ export default function AuthModal() {
 
         <div className="p-6 pb-8 overflow-y-auto flex-1 min-h-0 custom-scrollbar">
           <p className="text-[var(--text-secondary)] text-sm leading-relaxed mb-6 text-center">
-            {isLogin ? 'Rolling Thunder 세션을 불러옵니다.' : '나만의 계정을 생성하고 전적을 기록하세요.'}
+            {isLogin ? 'Rolling Thunder 세션을 불러옵니다.' : '계정을 생성하고 여러 기능을 누려보세요.'}
           </p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">

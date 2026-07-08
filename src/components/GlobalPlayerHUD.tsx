@@ -12,6 +12,7 @@ import { MOCK_ITEMS } from '@/data/shopData';
 import { useInventoryStore } from '@/store/inventoryStore';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
+import { fetchInventoryAction } from '@/app/actions/inventory';
 
 export default function GlobalPlayerHUD() {
   const router = useRouter();
@@ -48,6 +49,12 @@ export default function GlobalPlayerHUD() {
         if (data) {
           setUserProfile(data);
           useChipStore.getState().setChips(data.chips_balance);
+        }
+        
+        // 인벤토리 동기화 (서버 -> 클라이언트 덮어쓰기)
+        const invData = await fetchInventoryAction();
+        if (invData?.success && invData.inventory && invData.equipped) {
+          useInventoryStore.getState().hydrateFromServer(invData.inventory, invData.equipped);
         }
       } else {
         setIsLoggedIn(false);

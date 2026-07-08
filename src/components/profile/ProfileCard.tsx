@@ -19,27 +19,27 @@ interface Props {
 export default function ProfileCard({ profile }: Props) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
-  
+
   // Auth states
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { setAuthMode, setActiveModal } = useUIStore();
   const { equipped } = useInventoryStore();
-  
+
   // 미션 이벤트: 프로필 방문
   useEffect(() => {
     stampService.trackEvent('visit_profile', 1);
     stampService.flushPlayEvents();
   }, []);
-  
+
   // Tilt Effect State
   const x = useMotionValue(0);
   const y = useMotionValue(0);
-  
+
   const springConfig = { damping: 20, stiffness: 300 };
   const rotateX = useSpring(useTransform(y, [-0.5, 0.5], [15, -15]), springConfig);
   const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [-15, 15]), springConfig);
-  
+
   // Hologram positioning
   const backgroundPosition = useTransform(
     [x, y],
@@ -73,7 +73,7 @@ export default function ProfileCard({ profile }: Props) {
         y.set(yPct);
       }
     };
-    
+
     if (typeof window !== 'undefined' && window.matchMedia("(pointer: coarse)").matches) {
       window.addEventListener('deviceorientation', handleOrientation);
     }
@@ -83,19 +83,25 @@ export default function ProfileCard({ profile }: Props) {
   // Auth Handlers
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    
+
     // Clear client states directly using the hook's setter for modal
     setActiveModal('none');
     useUIStore.getState().setIsLoggedIn(false);
     useUIStore.getState().setUserProfile(null);
-    
+
     // Reset chips using useChipStore
     import('@/store/chipStore').then(({ useChipStore }) => {
       useChipStore.getState().setChips(0);
     });
 
+    // Reset inventory using useInventoryStore
+    import('@/store/inventoryStore').then(({ useInventoryStore }) => {
+      useInventoryStore.getState().reset();
+    });
+
     try {
       await logout();
+      window.location.replace('/');
     } finally {
       setIsLoggingOut(false);
     }
@@ -109,9 +115,13 @@ export default function ProfileCard({ profile }: Props) {
       setActiveModal('none');
       useUIStore.getState().setIsLoggedIn(false);
       useUIStore.getState().setUserProfile(null);
-      
+
       import('@/store/chipStore').then(({ useChipStore }) => {
         useChipStore.getState().setChips(0);
+      });
+
+      import('@/store/inventoryStore').then(({ useInventoryStore }) => {
+        useInventoryStore.getState().reset();
       });
 
       try {
@@ -141,14 +151,14 @@ export default function ProfileCard({ profile }: Props) {
       themeClasses = 'bg-gradient-to-br from-yellow-900/80 via-amber-700/50 to-black border-amber-400/80 text-amber-100 shadow-[0_0_60px_rgba(251,191,36,0.35)]';
       neonGlow = 'drop-shadow-[0_0_12px_rgba(251,191,36,0.7)] text-amber-300';
       avatarImage = '/avatars/avatar_premium.png';
-      roleTitle = 'VVIP MEMBERSHIP';
+      roleTitle = 'Premium Card';
       avatarBorder = 'border-amber-400 shadow-[0_0_25px_rgba(251,191,36,0.6)]';
       break;
     case 'user':
       themeClasses = 'bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 border-slate-400 text-slate-900 shadow-2xl';
       neonGlow = 'drop-shadow-[0_0_3px_rgba(255,255,255,0.9)] text-slate-900';
       avatarImage = '/avatars/avatar_normal.png';
-      roleTitle = 'CASINO VIP MEMBER';
+      roleTitle = 'Profile Card';
       avatarBorder = 'border-slate-500 shadow-lg';
       break;
     case 'guest':
@@ -174,18 +184,21 @@ export default function ProfileCard({ profile }: Props) {
   // 실데이터 적용 (날짜 포맷 변경)
   const dateObj = new Date(profile.created_at);
   const joinDate = isNaN(dateObj.getTime()) ? '알 수 없음' : `${dateObj.getFullYear()}년 ${dateObj.getMonth() + 1}월 ${dateObj.getDate()}일`;
-  
+
   const formatChips = (num: number) => {
     if (isNaN(num)) return '0';
     return new Intl.NumberFormat().format(num);
   };
-  
+
   const achievementsCompleted = profile.achievements_completed ?? 0;
   const totalAchievements = profile.total_achievements ?? 50;
 
+  // ID 표시 로직 (이메일이 있으면 @ 앞부분만, 없으면 UUID 앞 8자리)
+  const displayId = profile.email ? profile.email.split('@')[0] : (profile.id ? profile.id.substring(0, 8).toUpperCase() : 'N/A');
+
   return (
     <div className="flex flex-col items-center justify-center w-full bg-black bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-neutral-900 to-black p-4 overflow-hidden relative rounded-3xl border border-white/10 shadow-2xl">
-      
+
       {/* 앰비언트 라이트 배경 효과 */}
       <div className="absolute inset-0 pointer-events-none flex justify-center items-center opacity-40">
         <div className={`w-[800px] h-[800px] rounded-full blur-[150px] ${profile.role === 'admin' ? 'bg-red-900' : profile.role === 'premium' ? 'bg-amber-700' : profile.role === 'user' ? 'bg-slate-700' : 'bg-gray-700'}`} />
@@ -222,17 +235,17 @@ export default function ProfileCard({ profile }: Props) {
 
         {/* 컨텐츠 영역 (2단 분리 레이아웃) */}
         <div className="relative z-10 flex flex-col sm:flex-row gap-8 sm:gap-10 items-center sm:items-stretch h-full">
-          
+
           {/* 아바타 영역 (좌측) */}
-          <div 
-            style={{ transform: "translateZ(60px)" }} 
+          <div
+            style={{ transform: "translateZ(60px)" }}
             className="flex-shrink-0 flex items-center justify-center"
           >
             {/* 아바타 크기를 대폭 확대하고 모서리가 둥근 사각형(Squircle) 형태로 변경 */}
             <div className={`relative w-40 h-40 sm:w-56 sm:h-56 rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden border-[4px] bg-black/60 ${avatarBorder} group`}>
               {/* 내부 글로우 효과 */}
               <div className="absolute inset-0 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] z-10 pointer-events-none" />
-              <Image 
+              <Image
                 src={avatarImage}
                 alt="Player Avatar"
                 fill
@@ -245,7 +258,7 @@ export default function ProfileCard({ profile }: Props) {
 
           {/* 인포메이션 영역 (우측) */}
           <div className="flex-1 flex flex-col justify-between min-w-0 py-2 w-full">
-            
+
             {/* 상단: 타이틀 및 가입일 */}
             <div style={{ transform: "translateZ(50px)" }} className="flex flex-col items-center sm:items-start text-center sm:text-left">
               <h1 className={`text-2xl sm:text-3xl lg:text-4xl font-black uppercase tracking-[0.2em] whitespace-nowrap overflow-visible ${neonGlow} ${profile.role === 'user' ? 'mix-blend-color-burn' : ''}`}>
@@ -256,17 +269,23 @@ export default function ProfileCard({ profile }: Props) {
               </p>
             </div>
 
-            {/* 중단: 플레이어 이름 */}
+            {/* 중단: 플레이어 이름 및 아이디 */}
             <div style={{ transform: "translateZ(70px)" }} className="mt-8 flex flex-col items-center sm:items-start text-center sm:text-left">
               <p className="text-xs opacity-70 uppercase tracking-widest mb-1">플레이어 이름</p>
-              <p className={`text-3xl sm:text-4xl lg:text-5xl font-bold tracking-wider truncate w-full ${neonGlow}`}>
+              <p className={`text-2xl sm:text-3xl lg:text-4xl font-bold tracking-wider truncate w-full ${neonGlow}`}>
                 {profile.username || profile.name || 'ANONYMOUS'}
               </p>
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className="text-[10px] opacity-60 uppercase tracking-widest font-bold border border-white/20 px-1.5 py-0.5 rounded-md">ID</span>
+                <p className="text-xs sm:text-sm font-mono opacity-70 truncate max-w-[200px] sm:max-w-[300px]">
+                  {displayId}
+                </p>
+              </div>
             </div>
 
             {/* 하단: 통계 데이터 그리드 */}
             <div style={{ transform: "translateZ(40px)" }} className="mt-10 grid grid-cols-2 gap-4 border-t border-white/20 pt-6">
-              
+
               {/* 보유 칩 */}
               <div className="flex flex-col">
                 <p className="text-[10px] sm:text-xs opacity-70 uppercase tracking-widest whitespace-nowrap">보유 칩 (Chips)</p>
@@ -324,7 +343,7 @@ export default function ProfileCard({ profile }: Props) {
           </>
         ) : (
           <>
-            <button 
+            <button
               onClick={() => setIsModalOpen(true)}
               className="px-6 py-4 bg-white/5 hover:bg-white/10 text-white rounded-full font-medium transition-all duration-300 backdrop-blur-md border border-white/10 shadow-lg hover:shadow-white/10 whitespace-nowrap"
             >
@@ -360,7 +379,7 @@ export default function ProfileCard({ profile }: Props) {
             )}
           </>
         )}
-        <button 
+        <button
           onClick={() => setActiveModal('none')}
           className="px-8 py-4 bg-indigo-600/90 hover:bg-indigo-500 text-white rounded-full font-bold transition-all duration-300 backdrop-blur-md border border-indigo-400/40 shadow-[0_0_20px_rgba(79,70,229,0.5)] hover:shadow-[0_0_35px_rgba(79,70,229,0.7)] whitespace-nowrap hover:-translate-y-1"
         >
@@ -369,13 +388,14 @@ export default function ProfileCard({ profile }: Props) {
       </div>
 
       {profile.role !== 'guest' && (
-        <PasswordChangeModal 
-          isOpen={isModalOpen} 
-          onClose={() => setIsModalOpen(false)} 
+        <PasswordChangeModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
         />
       )}
-      
-      <style dangerouslySetInnerHTML={{__html: `
+
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes shimmer {
           100% { transform: translateX(100%); }
         }

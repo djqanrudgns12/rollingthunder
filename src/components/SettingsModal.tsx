@@ -2,8 +2,9 @@
 
 import { useGameStore } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
-import { X, Moon, Sun, Type, Gauge, Zap, RotateCcw, Check, Activity } from 'lucide-react'
+import { X, Moon, Sun, Type, Gauge, Zap, RotateCcw, Check, Activity, LogOut } from 'lucide-react'
 import { useEffect, useRef } from 'react'
+import { logout } from '@/app/actions'
 
 const FONTS = [
   { id: 'pretendard', name: 'Pretendard (기본)' },
@@ -97,6 +98,23 @@ export default function SettingsModal() {
   const handleApply = () => {
     // 현재 상태를 유지하고 닫기만 함 (zustand가 이미 실시간 반영 중)
     setActiveModal('none')
+  }
+
+  const handleLogout = async () => {
+    setActiveModal('none')
+    useUIStore.getState().setIsLoggedIn(false)
+    useUIStore.getState().setUserProfile(null)
+    
+    import('@/store/chipStore').then(({ useChipStore }) => {
+      useChipStore.getState().setChips(0)
+    })
+    
+    import('@/store/inventoryStore').then(({ useInventoryStore }) => {
+      useInventoryStore.getState().reset()
+    })
+    
+    await logout()
+    window.location.replace('/')
   }
 
   const handleReset = () => {
@@ -346,25 +364,32 @@ export default function SettingsModal() {
         {/* Setting Actions */}
         <div className="p-4 sm:p-6 pt-3 flex gap-2 shrink-0 border-t border-white/10 bg-[var(--bg-secondary)]">
           <button
+            onClick={handleLogout}
+            title="로그아웃"
+            className="w-11 h-11 flex-none bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-xl transition-all flex items-center justify-center border border-red-500/20"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
+          <button
             onClick={handleReset}
-            className="flex-1 py-3 px-2 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5"
+            className="flex-1 h-11 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
           >
             <RotateCcw className="w-4 h-4" />
-            초기화하기
+            초기화
           </button>
           <button
             onClick={handleCancel}
-            className="flex-1 py-3 px-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5"
+            className="flex-1 h-11 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
           >
             <X className="w-4 h-4" />
-            취소하기
+            취소
           </button>
           <button
             onClick={handleApply}
-            className="flex-[1.5] py-3 px-2 bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/20 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5"
+            className="flex-[1.2] h-11 bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/20 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
           >
             <Check className="w-4 h-4" />
-            적용하기
+            반영
           </button>
         </div>
       </div>

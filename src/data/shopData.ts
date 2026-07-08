@@ -140,6 +140,8 @@ export const MOCK_ITEMS: ShopItem[] = [
   { item_id: "piece_windcannon", category: "piece", name: "송풍기", price: 2500, rarity: "Epic", description: "특정 방향으로 바람을 일으켜 밀어냅니다.", image: "/images/assets/obstacles/obstacle_blower.png", requiresPremium: true },
   { item_id: "piece_portal", category: "piece", name: "포탈", price: 2500, rarity: "Epic", description: "진입한 공을 즉시 이동시킵니다.", image: "/images/assets/obstacles/obstacle_portal.png", requiresPremium: true },
   { item_id: "piece_luckygate", category: "piece", name: "럭키게이트", price: 5000, rarity: "Legendary", description: "점수나 효과를 부여하는 특수 게이트입니다.", image: "", iconName: "Trophy", requiresPremium: true },
+  { item_id: "piece_speedgate", category: "piece", name: "스피드게이트", price: 5000, rarity: "Legendary", description: "통과 시 이동 속도를 크게 증가시킵니다.", image: "", iconName: "FastForward", requiresPremium: true },
+  { item_id: "piece_slowgate", category: "piece", name: "슬로우게이트", price: 5000, rarity: "Legendary", description: "통과 시 이동 속도를 크게 감소시킵니다.", image: "", iconName: "Rewind", requiresPremium: true },
 
   // ===================== FRAMES (Walls) =====================
   // 기본 보유

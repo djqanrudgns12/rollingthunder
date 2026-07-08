@@ -7,8 +7,9 @@ import LuckyRoulette from "@/components/shop/LuckyRoulette";
 import SkinCanvasPreview from "@/components/shop/SkinCanvasPreview";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Package, ShoppingCart, Lock } from "lucide-react";
+import { ArrowLeft, Package, ShoppingCart, Lock, Store } from "lucide-react";
 import * as LucideIcons from "lucide-react";
+import MapStorePanel from "@/components/shop/MapStorePanel";
 
 import { MOCK_ITEMS, ShopItem } from "@/data/shopData";
 import { SKIN_DEFINITIONS } from "@/data/skinDefinitions";
@@ -17,7 +18,7 @@ import { useUIStore } from "@/store/uiStore";
 import { useInventoryStore } from "@/store/inventoryStore";
 import { stampService } from '@/lib/stampService';
 import { useChipStore } from "@/store/chipStore";
-import { createClient } from "@/lib/supabase/client";
+import { purchaseShopItem } from "@/app/actions/shop";
 
 const RARITY_ORDER: Record<string, number> = {
   'Mythic': 5,
@@ -25,6 +26,22 @@ const RARITY_ORDER: Record<string, number> = {
   'Epic': 3,
   'Rare': 2,
   'Normal': 1
+};
+
+/**
+ * 아이템 희귀도(Rarity)별 구매에 필요한 최소 유저 등급 매핑
+ *
+ * 왜 이렇게 분리했는가:
+ * - 서버 액션(actions/shop.ts)에도 같은 로직이 있지만,
+ *   클라이언트에서는 '구매 버튼을 보여줄지 말지'를 빠르게 판단하기 위해 필요
+ * - 서버 액션은 실제 결제 시 한 번 더 검증하는 이중 안전장치 역할
+ */
+const RARITY_MIN_ROLE_LEVEL: Record<string, number> = {
+  'Normal': 0,     // 게스트(guest)도 구매 가능
+  'Rare': 1,       // user(노말 회원) 이상
+  'Epic': 2,       // premium 이상
+  'Legendary': 2,  // premium 이상
+  'Mythic': 2,     // premium 이상
 };
 
 export default function ShopPage() {
@@ -35,9 +52,15 @@ export default function ShopPage() {
   const { inventory, equipped, buyItem, equipItem, unequipItem, hasItem } = useInventoryStore();
   const { chips, deductChipsLocally } = useChipStore();
   
-  // 상태 관리
-  const [viewMode, setViewMode] = useState<'shop' | 'inventory'>('shop');
+  // 상태 관리 ('mapstore' = 커스텀 맵 스토어, 에메랄드 테마)
+  const [viewMode, setViewMode] = useState<'shop' | 'inventory' | 'mapstore'>('shop');
   const [activeTab, setActiveTab] = useState("skin");
+
+  // 딥링크: /shop?view=mapstore (useSearchParams 의 Suspense 요구를 피해 직접 파싱)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('view') === 'mapstore') setViewMode('mapstore');
+  }, []);
   
   const role = userProfile?.role || (isLoggedIn ? "user" : "guest");
 
@@ -74,6 +97,21 @@ export default function ShopPage() {
     'user': 1,
     'premium': 2,
     'admin': 3,
+  };
+
+  /**
+   * 현재 유저 등급으로 해당 아이템을 구매할 수 있는지 판별
+   * - skin, avatar 카테고리에만 적용 (piece/background/frame은 기존 hasAccessToTab으로 제어)
+   * - 서버에서도 동일 로직을 한 번 더 검증하므로 UI 가이드 용도
+   */
+  const canPurchaseItem = (item: ShopItem): boolean => {
+    // admin은 모든 아이템 구매 가능
+    if (role === 'admin') return true;
+    // skin, avatar 카테고리에만 등급 제한 적용
+    if (item.category !== 'skin' && item.category !== 'avatar') return true;
+    const userLevel = ROLE_HIERARCHY[role] ?? 0;
+    const requiredLevel = RARITY_MIN_ROLE_LEVEL[item.rarity] ?? 2;
+    return userLevel >= requiredLevel;
   };
 
   /** 현재 사용자 등급이 요구 등급 이상인지 판별 */
@@ -161,7 +199,7 @@ export default function ShopPage() {
     if (!item) return;
 
     if (viewMode === 'shop') {
-      // 구매 로직
+      // ── 구매 로직 (Server Action 기반) ──
       if (!isLoggedIn || !userProfile?.id) {
         toast.error("로그인이 필요합니다.");
         return;
@@ -170,30 +208,31 @@ export default function ShopPage() {
         toast.info("이미 보유한 아이템입니다.");
         return;
       }
+
+      // 클라이언트 단 사전 검증 (빠른 피드백용, 서버에서 한 번 더 검증됨)
+      if (!canPurchaseItem(item)) {
+        toast.error("프리미엄 전용 상품입니다. 등급을 업그레이드해주세요.");
+        return;
+      }
       if (item.requiresPremium && !['admin', 'premium'].includes(role)) {
         toast.error("프리미엄 등급 이상만 구매 가능합니다.");
         return;
       }
-
       if (chips < item.price) {
         toast.error(`칩이 부족합니다! (보유: ${chips.toLocaleString()}C / 필요: ${item.price.toLocaleString()}C)`);
         return;
       }
 
       try {
-        const supabase = createClient();
-        const { error: deductError } = await supabase.rpc("deduct_chips", {
-          p_user_id: userProfile.id,
-          p_amount: item.price,
-          p_reason: `buy_item_${item.item_id}`,
-        });
+        // 서버 액션 호출: 서버에서 유저 role, rarity 권한, 칩 잔액을 모두 검증 후 차감
+        const result = await purchaseShopItem(item.item_id);
 
-        if (deductError) {
-          toast.error("구매 중 오류가 발생했습니다. 다시 시도해주세요.");
+        if (!result.success) {
+          toast.error(result.error || "구매 중 오류가 발생했습니다.");
           return;
         }
 
-        // 구매 성공 처리
+        // 구매 성공: 클라이언트 상태 동기화
         deductChipsLocally(item.price);
         buyItem(item.item_id);
         toast.success(`${item.name} 구매 완료! (-${item.price.toLocaleString()}C)`);
@@ -205,18 +244,26 @@ export default function ShopPage() {
         toast.error("네트워크 오류가 발생했습니다.");
       }
     } else {
-      // 장착 로직
-      if (item.category === 'avatar' || item.category === 'border' || item.category === 'skin') {
+      // ── 장착 로직 (기존 클라이언트 상태 즉시 반영 + 서버 비동기 동기화) ──
+      if (item.category === 'avatar' || item.category === 'border' || item.category === 'skin' || item.category === 'piece' || item.category === 'background' || item.category === 'frame') {
         const currentEquipped = equipped[item.category];
-        if (currentEquipped === item.item_id) {
-          // 장착 해제
+        const isUnequip = currentEquipped === item.item_id;
+        
+        if (isUnequip) {
           unequipItem(item.category);
           toast.success(`${item.name} 장착을 해제했습니다.`);
         } else {
-          // 장착
           equipItem(item.category, item.item_id);
           toast.success(`${item.name} 장착 완료!`);
         }
+
+        // 서버 DB 프로필에 장착 상태 저장 (백그라운드 비동기 처리)
+        // 로그인 상태인 경우에만 DB 동기화가 동작하므로 에러 발생 시 무시하거나 경고만 띄움
+        import('@/app/actions/inventory').then(({ equipItemAction }) => {
+          equipItemAction(item.category as keyof typeof equipped, isUnequip ? null : item.item_id).catch(err => {
+            console.error('Failed to sync equipped status to server', err);
+          });
+        });
       }
     }
   };
@@ -226,6 +273,7 @@ export default function ShopPage() {
     const isOwned = isItemOwned(item);
     const canAccess = hasAccessToTab(item.category);
 
+    // 탭 자체가 잠긴 경우 (piece/background/frame → premium 전용)
     if (!canAccess) {
       return (
         <button disabled className="px-8 py-2.5 bg-neutral-800 text-neutral-500 font-extrabold text-base rounded-full border border-neutral-700 flex items-center gap-2">
@@ -267,6 +315,18 @@ export default function ShopPage() {
           </button>
         );
       }
+
+      // ★ 핵심: 등급(role)별 희귀도(rarity) 구매 제한 검사
+      // 열람은 가능하지만, 구매 권한이 없으면 "프리미엄 전용 상품"으로 표시
+      if (!canPurchaseItem(item)) {
+        return (
+          <button disabled className="px-8 py-2.5 bg-neutral-800 text-neutral-500 font-extrabold text-base rounded-full border border-neutral-700 flex items-center gap-2">
+            <Lock size={18} />
+            <span>프리미엄 전용 상품</span>
+          </button>
+        );
+      }
+
       return (
         <button 
           onClick={() => handleAction(item)}
@@ -312,9 +372,9 @@ export default function ShopPage() {
 
   const isTabLocked = !hasAccessToTab(activeTab);
   
-  // 테마별 클래스 적용
-  const themeAccent = viewMode === 'shop' ? 'amber' : 'cyan';
-  const themeBg = viewMode === 'shop' ? 'bg-neutral-950' : 'bg-[#050B14]';
+  // 테마별 클래스 적용 (상점=앰버, 보관함=시안, 맵스토어=딥그린)
+  const themeAccent = viewMode === 'shop' ? 'amber' : viewMode === 'inventory' ? 'cyan' : 'emerald';
+  const themeBg = viewMode === 'shop' ? 'bg-neutral-950' : viewMode === 'inventory' ? 'bg-[#050B14]' : 'bg-[#04110A]';
 
   return (
     <div className={`min-h-screen text-white overflow-hidden transition-colors duration-700 ${themeBg}`}>
@@ -322,19 +382,32 @@ export default function ShopPage() {
         
         {/* 상단 버튼 그룹 */}
         <div className="absolute top-8 right-6 z-50 flex gap-4">
-          <button 
-            onClick={() => setViewMode(viewMode === 'shop' ? 'inventory' : 'shop')}
+          {/* 커스텀 맵 스토어 진입 버튼 — '내 보관함' 왼쪽, 에메랄드(그린) 박스 */}
+          <button
+            onClick={() => setViewMode(viewMode === 'mapstore' ? 'shop' : 'mapstore')}
             className={`flex items-center gap-2 px-5 py-2.5 backdrop-blur-md border rounded-full font-bold text-sm transition-all shadow-lg group ${
-              viewMode === 'shop' 
-                ? 'bg-cyan-900/40 border-cyan-500/30 text-cyan-300 hover:bg-cyan-800/60 hover:border-cyan-400' 
+              viewMode === 'mapstore'
+                ? 'bg-amber-900/40 border-amber-500/30 text-amber-300 hover:bg-amber-800/60 hover:border-amber-400'
+                : 'bg-emerald-900/40 border-emerald-500/30 text-emerald-300 hover:bg-emerald-800/60 hover:border-emerald-400 shadow-emerald-900/30'
+            }`}
+          >
+            {viewMode === 'mapstore' ? <ShoppingCart size={16} /> : <Store size={16} />}
+            {viewMode === 'mapstore' ? '상점으로 가기' : '커스텀 맵 스토어'}
+          </button>
+
+          <button
+            onClick={() => setViewMode(viewMode === 'inventory' ? 'shop' : 'inventory')}
+            className={`flex items-center gap-2 px-5 py-2.5 backdrop-blur-md border rounded-full font-bold text-sm transition-all shadow-lg group ${
+              viewMode !== 'inventory'
+                ? 'bg-cyan-900/40 border-cyan-500/30 text-cyan-300 hover:bg-cyan-800/60 hover:border-cyan-400'
                 : 'bg-amber-900/40 border-amber-500/30 text-amber-300 hover:bg-amber-800/60 hover:border-amber-400'
             }`}
           >
-            {viewMode === 'shop' ? <Package size={16} /> : <ShoppingCart size={16} />}
-            {viewMode === 'shop' ? '내 보관함' : '상점으로 가기'}
+            {viewMode !== 'inventory' ? <Package size={16} /> : <ShoppingCart size={16} />}
+            {viewMode !== 'inventory' ? '내 보관함' : '상점으로 가기'}
           </button>
 
-          <button 
+          <button
             onClick={() => router.push('/dashboard')}
             className="flex items-center gap-2 px-5 py-2.5 bg-neutral-900/80 backdrop-blur-md border border-white/10 hover:border-neutral-500 hover:bg-neutral-800 rounded-full text-neutral-300 transition-all shadow-lg group"
           >
@@ -343,6 +416,11 @@ export default function ShopPage() {
           </button>
         </div>
 
+        {viewMode === 'mapstore' ? (
+          /* 커스텀 맵 스토어 모드: 쇼케이스+리스트 그리드를 통째로 대체 */
+          <MapStorePanel />
+        ) : (
+        <>
         {/* 좌측: 3D 쇼케이스 및 기타 패널 */}
         <div className="lg:col-span-5 flex flex-col gap-6 h-[calc(100vh-140px)] overflow-y-auto pr-2 pb-4 scrollbar-thin scrollbar-thumb-neutral-800 scrollbar-track-transparent">
           <div className={`relative w-full shrink-0 aspect-square md:aspect-auto md:h-[420px] bg-neutral-900/50 border rounded-2xl overflow-hidden shadow-2xl backdrop-blur-md flex flex-col transition-colors duration-500 ${
@@ -490,6 +568,8 @@ export default function ShopPage() {
             )}
           </div>
         </div>
+        </>
+        )}
 
       </main>
     </div>

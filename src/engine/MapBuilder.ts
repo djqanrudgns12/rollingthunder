@@ -222,6 +222,44 @@ export class MapBuilder {
     return body;
   }
 
+  static createSpeedGate(world: RAPIER.World, item: any) {
+    const desc = RAPIER.RigidBodyDesc.fixed().setTranslation(item.x, item.y);
+    const body = world.createRigidBody(desc);
+    
+    const w = item.w || 140;
+    const h = 15;
+    const colliderDesc = RAPIER.ColliderDesc.cuboid(w / 2, h / 2)
+      .setSensor(true)
+      .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+    
+    world.createCollider(colliderDesc, body);
+    body.userData = {
+      type: 'speedgate',
+      id: item.id,
+      w, h,
+    } as UserData;
+    return body;
+  }
+
+  static createSlowGate(world: RAPIER.World, item: any) {
+    const desc = RAPIER.RigidBodyDesc.fixed().setTranslation(item.x, item.y);
+    const body = world.createRigidBody(desc);
+    
+    const w = item.w || 140;
+    const h = 15;
+    const colliderDesc = RAPIER.ColliderDesc.cuboid(w / 2, h / 2)
+      .setSensor(true)
+      .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+    
+    world.createCollider(colliderDesc, body);
+    body.userData = {
+      type: 'slowgate',
+      id: item.id,
+      w, h,
+    } as UserData;
+    return body;
+  }
+
   static createFlipper(world: RAPIER.World, item: any) {
     const desc = RAPIER.RigidBodyDesc.kinematicVelocityBased()
       .setTranslation(item.x, item.y)

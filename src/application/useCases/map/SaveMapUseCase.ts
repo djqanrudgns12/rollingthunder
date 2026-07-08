@@ -15,8 +15,9 @@ export class SaveMapUseCase {
     }
 
     const role = await UserRepository.getUserRole(user.id);
-    
-    // 현재는 admin만 저장 가능하도록 제한 (추후 premium 등급도 에디터 권한 부여 가능)
+
+    // 공식맵(maps 테이블) 저장은 admin 전용.
+    // premium 의 커스텀 맵 저장은 별도 경로(SaveUserMapUseCase → user_maps)를 사용한다.
     if (role !== 'admin') {
       throw new PermissionDeniedError('맵 저장 기능은 관리자(Admin) 전용입니다.');
     }

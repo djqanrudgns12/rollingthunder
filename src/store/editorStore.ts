@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { useGameStore } from './gameStore'
 
 // 하이엔드 기믹 타입 추가
-export type EditorItemType = 'pin' | 'bumper' | 'wall' | 'hole' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole' | 'spinner' | 'iceblock' | 'windcannon' | 'luckygate' | 'flipper' | 'startline' | 'endline' | 'polygon';
+export type EditorItemType = 'pin' | 'bumper' | 'wall' | 'hole' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole' | 'spinner' | 'iceblock' | 'windcannon' | 'luckygate' | 'speedgate' | 'slowgate' | 'flipper' | 'startline' | 'endline' | 'polygon';
 
 // 외벽 스타일 (MapPresets.WallStyle 과 동일 — 순환 import 회피 위해 로컬 정의)
 export type EditorWallStyle = 'straight' | 'zigzag' | 'narrow' | 'wide' | 'funnel' | 'hourglass' | 'diamond' | 'wave' | 'sawtooth' | 'asymmetric';
@@ -117,6 +117,11 @@ interface EditorState {
   setPreviewAnimating: (on: boolean) => void;
   setPreviewChipCount: (count: number) => void;
   loadMapPreset: (mapId: string) => void;
+  loadMapFromData: (
+    mapId: string | null,
+    data: { items?: EditorItem[]; worldHeight?: number; wallStyle?: string; bgImage?: string | null; layoutConfig?: any },
+    title: string
+  ) => void;
   
   clipboard: EditorItem | null;
   setClipboard: (item: EditorItem | null) => void;
@@ -430,6 +435,31 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         import('@/engine/MapPresets').then(({ MapPresets }) => {
           applyPreset(MapPresets[mapId]);
         });
+      }
+    }, 0);
+  },
+
+  // mapDataCache 를 거치지 않고 맵 데이터를 직접 주입 (개인 맵 user_maps / 기본맵 사본 로드용).
+  // mapId=null 이면 "사본" — 저장 시 새 맵으로 생성되도록 미저장 상태로 연다.
+  loadMapFromData: (mapId, data, title) => {
+    const state = get();
+    state.addTab(mapId, 'map', title);
+
+    setTimeout(() => {
+      useEditorStore.setState({
+        mapId,
+        bgImage: data.bgImage || null,
+        worldHeight: data.worldHeight || 3300,
+        layoutConfig: data.layoutConfig || defaultMapState.layoutConfig,
+        wallStyle: (data.wallStyle as EditorWallStyle) || 'straight',
+        items: data.items ? [...data.items] : [],
+        history: data.items ? [[...data.items]] : [[]],
+        historyIndex: 0
+      });
+      if (mapId) {
+        get().markSaved(get().activeTabId || undefined, mapId, title);
+      } else {
+        get().markUnsaved();
       }
     }, 0);
   },

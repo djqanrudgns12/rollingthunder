@@ -8,12 +8,13 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/test-canvas-cache.js"
+    "test": "node scripts/test-canvas-cache.js && node --env-file=.env.local scripts/test-inventory-sync.js"
   },
   "dependencies": {
     "@dimforge/rapier2d-compat": "^0.19.3",
     "@dnd-kit/core": "^6.3.1",
     "@ducanh2912/next-pwa": "^10.2.6",
+    "@headlessui/react": "^2.2.10",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",
     "canvas-confetti": "^1.9.4",

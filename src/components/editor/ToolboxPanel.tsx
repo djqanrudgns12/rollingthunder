@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { useEditorStore, EditorItemType, EditorItem } from '@/store/editorStore'
-import { Plus, Trash2, MapPin, CircleDashed, Zap, Fan, ArrowDownToLine, Loader, Wind, Trophy, MoveDiagonal, Circle, Waypoints, Aperture, Sun, Square, Box, Flag, FlagTriangleRight, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Trash2, MapPin, CircleDashed, Zap, Fan, ArrowDownToLine, Loader, Wind, Trophy, MoveDiagonal, Circle, Waypoints, Aperture, Sun, Square, Box, Flag, FlagTriangleRight, ChevronLeft, ChevronRight, FastForward, Rewind } from 'lucide-react'
 
 type TabType = 'obstacles' | 'frames' | 'backgrounds'
 
@@ -26,6 +26,8 @@ const CATEGORIES: Record<TabType, ItemDef[]> = {
     { type: 'spinner', label: '스피너 (Spinner)', desc: '제자리에서 빠르게 회전하며 공을 불규칙하게 튕겨냅니다.', icon: Loader, color: 'text-indigo-400' },
     { type: 'windcannon', label: '송풍기 (WindCannon)', desc: '특정 방향으로 바람을 일으켜 공의 궤적을 밀어냅니다.', imagePath: '/images/assets/obstacles/obstacle_blower.png', color: 'text-teal-300' },
     { type: 'luckygate', label: '럭키게이트 (LuckyGate)', desc: '통과 시 점수나 이로운 효과를 부여하는 특수 게이트입니다.', icon: Trophy, color: 'text-yellow-500' },
+    { type: 'speedgate', label: '스피드게이트 (SpeedGate)', desc: '통과 시 이동 속도를 크게 증가시킵니다.', icon: FastForward, color: 'text-green-400' },
+    { type: 'slowgate', label: '슬로우게이트 (SlowGate)', desc: '통과 시 이동 속도를 크게 감소시킵니다.', icon: Rewind, color: 'text-red-400' },
     { type: 'flipper', label: '플리퍼 (Flipper)', desc: '핀볼처럼 공을 강하게 쳐서 위로 올려보냅니다.', icon: MoveDiagonal, color: 'text-pink-400' },
     { type: 'hole', label: '구멍 (Hole)', desc: '공이 빠질 수 있는 구멍으로, 맵의 장애물 역할을 합니다.', imagePath: '/images/assets/obstacles/obstacle_hole.png', color: 'text-black' },
     { type: 'portal', label: '포탈 (Portal)', desc: '진입한 공을 연결된 다른 포탈로 즉시 이동시킵니다.', imagePath: '/images/assets/obstacles/obstacle_portal.png', color: 'text-purple-500' },
@@ -129,6 +131,8 @@ export default function ToolboxPanel() {
       case 'windcannon':
         newItem.w = 120; newItem.h = 120; newItem.windAngle = 90; newItem.windForce = 15; newItem.onFrames = 180; newItem.offFrames = 120; break;
       case 'luckygate':
+      case 'speedgate':
+      case 'slowgate':
         newItem.w = 140; newItem.h = 20; break;
       case 'flipper':
         newItem.w = 90; newItem.h = 20; newItem.length = 90; newItem.side = 'left'; newItem.restAngle = 30; newItem.swingAngle = -30; newItem.swingSpeed = 30; newItem.returnSpeed = 8; break;

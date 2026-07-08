@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, useSensor, useSensors, PointerSensor } from '@dnd-kit/core'
-import { toast } from 'sonner'
 import { useEditorStore, EditorItemType } from '@/store/editorStore'
 import ToolPalette from './ToolPalette'
 import EditorCanvas from './EditorCanvas'
@@ -10,12 +9,10 @@ import InspectorPanel from './InspectorPanel'
 import EditorToolbar from './EditorToolbar'
 import HistoryViewer from './HistoryViewer'
 import HistoryTimelinePanel from './HistoryTimelinePanel'
-import { Share2 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { stampService } from '@/lib/stampService'
 
 export default function EditorContainer() {
-  const { items, addItem, tabs, activeTabId, showHistoryPanel, setShowHistoryPanel } = useEditorStore()
+  const { addItem, tabs, activeTabId, showHistoryPanel, setShowHistoryPanel } = useEditorStore()
   const [activeId, setActiveId] = useState<string | null>(null)
   const [activeType, setActiveType] = useState<EditorItemType | null>(null)
 
@@ -98,42 +95,7 @@ export default function EditorContainer() {
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <EditorToolbar />
       
-      {/* 툴바 (Export 버튼) — 테스트 플레이는 EditorToolbar/ValidationPanel 의 실제 레이스 브리지로 이관됨 */}
-      {!isHistoryTab && (
-        <div className="absolute top-20 right-6 z-[200] flex gap-3">
-          <button
-            onClick={async () => {
-              if(items.length === 0) {
-                toast.error('맵에 배치된 요소가 없습니다.'); return;
-              }
-              const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-              const store = useEditorStore.getState();
-              const supabase = createClient();
-              const { error } = await supabase.from('map_presets').insert({
-                creator_id: 'guest',
-                title: 'Custom Map',
-                map_data: {
-                  items,
-                  worldHeight: store.worldHeight,
-                  wallStyle: store.wallStyle,
-                  bgImage: store.bgImage,
-                  layoutConfig: store.layoutConfig
-                },
-                share_code: code
-              });
-              if(error) toast.error('DB 저장 실패: ' + error.message)
-              else {
-                toast.success('맵 데이터가 서버에 배포되었습니다!');
-                toast('대시보드 화면에서 다음 코드를 입력하세요: ' + code, { duration: 10000 });
-              }
-            }}
-            className="flex items-center gap-2 bg-white/10 text-white px-5 py-2.5 rounded-full font-bold hover:bg-white/20 transition-colors border border-white/20 backdrop-blur-md"
-          >
-            <Share2 className="w-5 h-5" />
-            EXPORT
-          </button>
-        </div>
-      )}
+      {/* 레거시 EXPORT(무인증 공유코드) 는 툴바의 스토어 '배포' 플로우로 대체됨 */}
 
       {isHistoryTab ? (
         <div className="w-full h-full pt-14 flex items-center justify-center">

@@ -768,7 +768,7 @@ export default function EditorCanvas() {
       case 'wall': case 'piston': case 'startline': case 'endline': ni.w = 100; ni.h = 20; break
       case 'iceblock': ni.w = 60; ni.h = 25; ni.hp = 3; ni.maxHp = 3; break
       case 'windcannon': ni.w = 120; ni.h = 120; ni.windAngle = 90; ni.windForce = 15; break
-      case 'luckygate': ni.w = 140; ni.h = 20; break
+      case 'luckygate': case 'speedgate': case 'slowgate': ni.w = 140; ni.h = 20; break
       case 'flipper': ni.w = 90; ni.h = 20; ni.length = 90; ni.side = 'left'; ni.restAngle = 30; ni.swingAngle = -30; break
       case 'pin': case 'bumper': ni.radius = 15; break
       case 'blackhole': ni.radius = 150; ni.force = 5; break
