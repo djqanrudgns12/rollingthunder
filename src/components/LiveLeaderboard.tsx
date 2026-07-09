@@ -118,7 +118,7 @@ function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLeaderboardProps) 
   }
 
   return (
-    <div className="absolute top-4 right-4 z-50 flex flex-col pointer-events-auto w-56 max-w-[30vw]"
+    <div className="absolute top-4 right-4 z-50 flex flex-col pointer-events-auto w-64 max-w-[30vw]"
       style={{ height: 'calc(100vh - 2rem)' }}
     >
       {/* ═══════════════ 순위보드 영역 (상단 80%) ═══════════════ */}

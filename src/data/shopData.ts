@@ -13,6 +13,8 @@ export interface ShopItem {
   requiredRole?: 'guest' | 'user' | 'premium' | 'admin';
 }
 
+import { SVG_ASSETS } from '@/lib/SvgAssets';
+
 export const MOCK_ITEMS: ShopItem[] = [
   // ===================== SKINS =====================
   // Default (0)
@@ -130,18 +132,18 @@ export const MOCK_ITEMS: ShopItem[] = [
   { item_id: "piece_hole", category: "piece", name: "구멍", price: 0, rarity: "Normal", description: "공이 빠질 수 있는 구멍입니다.", image: "/images/assets/obstacles/obstacle_hole.png", isDefault: true },
   { item_id: "piece_blackhole", category: "piece", name: "블랙홀", price: 0, rarity: "Normal", description: "공을 빨아들이는 블랙홀입니다.", image: "/images/assets/obstacles/obstacle_blackhole.png", isDefault: true },
   { item_id: "piece_whitehole", category: "piece", name: "화이트홀", price: 0, rarity: "Normal", description: "블랙홀에서 빨아들인 공을 뱉어냅니다.", image: "/images/assets/obstacles/obstacle_whitehole.png", isDefault: true },
-  { item_id: "piece_iceblock", category: "piece", name: "얼음블록", price: 0, rarity: "Normal", description: "내구도가 닳아 결국 깨지는 블록입니다.", image: "", iconName: "Box", isDefault: true },
+  { item_id: "piece_iceblock", category: "piece", name: "얼음블록", price: 0, rarity: "Normal", description: "내구도가 닳아 결국 깨지는 블록입니다.", image: SVG_ASSETS.iceblock, iconName: "Box", isDefault: true },
   { item_id: "piece_polygon", category: "piece", name: "자유형 블록", price: 0, rarity: "Normal", description: "원하는 모양으로 만드는 블록입니다.", image: "", iconName: "CircleDashed", isDefault: true },
-  { item_id: "piece_spinner", category: "piece", name: "스피너", price: 0, rarity: "Normal", description: "빠르게 회전하며 불규칙하게 튕겨냅니다.", image: "", iconName: "Loader", isDefault: true },
-  { item_id: "piece_flipper", category: "piece", name: "플리퍼", price: 0, rarity: "Normal", description: "핀볼처럼 공을 강하게 쳐서 올려보냅니다.", image: "", iconName: "MoveDiagonal", isDefault: true },
+  { item_id: "piece_spinner", category: "piece", name: "스피너", price: 0, rarity: "Normal", description: "빠르게 회전하며 불규칙하게 튕겨냅니다.", image: SVG_ASSETS.spinner, iconName: "Loader", isDefault: true },
+  { item_id: "piece_flipper", category: "piece", name: "플리퍼", price: 0, rarity: "Normal", description: "핀볼처럼 공을 강하게 쳐서 올려보냅니다.", image: SVG_ASSETS.flipper, iconName: "MoveDiagonal", isDefault: true },
   // 상점 판매
   { item_id: "piece_windmill", category: "piece", name: "풍차", price: 1000, rarity: "Rare", description: "일정 속도로 회전하며 경로를 방해합니다.", image: "/images/assets/obstacles/obstacle_windmill.png", requiresPremium: true },
   { item_id: "piece_piston", category: "piece", name: "피스톤", price: 1000, rarity: "Rare", description: "주기적으로 튀어나와 강제로 밀어냅니다.", image: "/images/assets/obstacles/obstacle_piston.png", requiresPremium: true },
-  { item_id: "piece_windcannon", category: "piece", name: "송풍기", price: 2500, rarity: "Epic", description: "특정 방향으로 바람을 일으켜 밀어냅니다.", image: "/images/assets/obstacles/obstacle_blower.png", requiresPremium: true },
+  { item_id: "piece_windcannon", category: "piece", name: "송풍기", price: 2500, rarity: "Epic", description: "특정 방향으로 바람을 일으켜 밀어냅니다.", image: SVG_ASSETS.windcannon, requiresPremium: true },
   { item_id: "piece_portal", category: "piece", name: "포탈", price: 2500, rarity: "Epic", description: "진입한 공을 즉시 이동시킵니다.", image: "/images/assets/obstacles/obstacle_portal.png", requiresPremium: true },
-  { item_id: "piece_luckygate", category: "piece", name: "럭키게이트", price: 5000, rarity: "Legendary", description: "점수나 효과를 부여하는 특수 게이트입니다.", image: "", iconName: "Trophy", requiresPremium: true },
-  { item_id: "piece_speedgate", category: "piece", name: "스피드게이트", price: 5000, rarity: "Legendary", description: "통과 시 이동 속도를 크게 증가시킵니다.", image: "", iconName: "FastForward", requiresPremium: true },
-  { item_id: "piece_slowgate", category: "piece", name: "슬로우게이트", price: 5000, rarity: "Legendary", description: "통과 시 이동 속도를 크게 감소시킵니다.", image: "", iconName: "Rewind", requiresPremium: true },
+  { item_id: "piece_luckygate", category: "piece", name: "럭키게이트", price: 5000, rarity: "Legendary", description: "점수나 효과를 부여하는 특수 게이트입니다.", image: SVG_ASSETS.luckygate, iconName: "Trophy", requiresPremium: true },
+  { item_id: "piece_speedgate", category: "piece", name: "스피드게이트", price: 5000, rarity: "Legendary", description: "통과 시 이동 속도를 크게 증가시킵니다.", image: SVG_ASSETS.speedgate, iconName: "FastForward", requiresPremium: true },
+  { item_id: "piece_slowgate", category: "piece", name: "슬로우게이트", price: 5000, rarity: "Legendary", description: "통과 시 이동 속도를 크게 감소시킵니다.", image: SVG_ASSETS.slowgate, iconName: "Rewind", requiresPremium: true },
 
   // ===================== FRAMES (Walls) =====================
   // 기본 보유

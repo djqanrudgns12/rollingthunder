@@ -16,6 +16,9 @@ interface UIState {
   gameStage: 'dashboard' | 'playing' | 'winner_declared' | 'all_finished' | 'editor'
   setGameStage: (stage: 'dashboard' | 'playing' | 'winner_declared' | 'all_finished' | 'editor') => void
   
+  shopViewMode: 'shop' | 'inventory' | 'mapstore'
+  setShopViewMode: (mode: 'shop' | 'inventory' | 'mapstore') => void
+  
   customMapData: EditorItem[] | null
   setCustomMapData: (data: any[] | null) => void
   customMapMeta: { worldHeight?: number, wallStyle?: string, bgImage?: string | null, layoutConfig?: any } | null
@@ -71,6 +74,8 @@ export const useUIStore = create<UIState>()(
       hasClaimableMissions: false,
       gameStage: 'dashboard',
       setGameStage: (stage) => set({ gameStage: stage }),
+      shopViewMode: 'shop',
+      setShopViewMode: (mode) => set({ shopViewMode: mode }),
       setCustomMapData: (data) => set({ customMapData: data }),
       setCustomMapMeta: (meta) => set({ customMapMeta: meta }),
       setCustomMapTitle: (title) => set({ customMapTitle: title }),

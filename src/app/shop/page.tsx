@@ -53,7 +53,7 @@ export default function ShopPage() {
   const { chips, deductChipsLocally } = useChipStore();
   
   // 상태 관리 ('mapstore' = 커스텀 맵 스토어, 에메랄드 테마)
-  const [viewMode, setViewMode] = useState<'shop' | 'inventory' | 'mapstore'>('shop');
+  const { shopViewMode: viewMode, setShopViewMode: setViewMode } = useUIStore();
   const [activeTab, setActiveTab] = useState("skin");
 
   // 딥링크: /shop?view=mapstore (useSearchParams 의 Suspense 요구를 피해 직접 파싱)
@@ -378,43 +378,8 @@ export default function ShopPage() {
 
   return (
     <div className={`min-h-screen text-white overflow-hidden transition-colors duration-700 ${themeBg}`}>
-      <main className="max-w-7xl mx-auto pt-24 px-6 pb-12 grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
+      <main className="max-w-7xl mx-auto pt-32 px-6 pb-12 grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
         
-        {/* 상단 버튼 그룹 */}
-        <div className="absolute top-8 right-6 z-50 flex gap-4">
-          {/* 커스텀 맵 스토어 진입 버튼 — '내 보관함' 왼쪽, 에메랄드(그린) 박스 */}
-          <button
-            onClick={() => setViewMode(viewMode === 'mapstore' ? 'shop' : 'mapstore')}
-            className={`flex items-center gap-2 px-5 py-2.5 backdrop-blur-md border rounded-full font-bold text-sm transition-all shadow-lg group ${
-              viewMode === 'mapstore'
-                ? 'bg-amber-900/40 border-amber-500/30 text-amber-300 hover:bg-amber-800/60 hover:border-amber-400'
-                : 'bg-emerald-900/40 border-emerald-500/30 text-emerald-300 hover:bg-emerald-800/60 hover:border-emerald-400 shadow-emerald-900/30'
-            }`}
-          >
-            {viewMode === 'mapstore' ? <ShoppingCart size={16} /> : <Store size={16} />}
-            {viewMode === 'mapstore' ? '상점으로 가기' : '커스텀 맵 스토어'}
-          </button>
-
-          <button
-            onClick={() => setViewMode(viewMode === 'inventory' ? 'shop' : 'inventory')}
-            className={`flex items-center gap-2 px-5 py-2.5 backdrop-blur-md border rounded-full font-bold text-sm transition-all shadow-lg group ${
-              viewMode !== 'inventory'
-                ? 'bg-cyan-900/40 border-cyan-500/30 text-cyan-300 hover:bg-cyan-800/60 hover:border-cyan-400'
-                : 'bg-amber-900/40 border-amber-500/30 text-amber-300 hover:bg-amber-800/60 hover:border-amber-400'
-            }`}
-          >
-            {viewMode !== 'inventory' ? <Package size={16} /> : <ShoppingCart size={16} />}
-            {viewMode !== 'inventory' ? '내 보관함' : '상점으로 가기'}
-          </button>
-
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="flex items-center gap-2 px-5 py-2.5 bg-neutral-900/80 backdrop-blur-md border border-white/10 hover:border-neutral-500 hover:bg-neutral-800 rounded-full text-neutral-300 transition-all shadow-lg group"
-          >
-            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-            메인으로 돌아가기
-          </button>
-        </div>
 
         {viewMode === 'mapstore' ? (
           /* 커스텀 맵 스토어 모드: 쇼케이스+리스트 그리드를 통째로 대체 */

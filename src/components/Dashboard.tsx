@@ -321,10 +321,10 @@ export default function Dashboard() {
   }
 
   return (
-    <div className={`flex flex-col items-center justify-center w-full min-h-screen p-4 z-10 transition-colors duration-500 ${isBroadcasterMode ? 'bg-[#00ff00]' : 'bg-transparent'}`}>
+    <div className={`flex flex-col items-center justify-start pt-[120px] min-[1640px]:pt-8 w-full min-h-screen p-4 z-10 transition-colors duration-500 ${isBroadcasterMode ? 'bg-[#00ff00]' : 'bg-transparent'}`}>
       
-      {/* 화면 우측 상단 전역 유틸리티 버튼 (BGM, 설정) */}
-      <div className="absolute top-4 right-4 md:top-8 md:right-8 flex gap-3 z-50 items-center">
+      {/* 화면 우측 하단 전역 유틸리티 버튼 (BGM, 설정, 배너) */}
+      <div className="absolute bottom-4 right-4 md:bottom-8 md:right-8 flex gap-3 z-50 items-center">
         {/* Role-Based Promotional Features */}
         {(!userProfile || userProfile.role === 'guest') && (
           <motion.button
@@ -551,13 +551,13 @@ export default function Dashboard() {
                 
                 {/* 스킬 토글 (왼쪽 배치) */}
                 <div 
-                  className="flex flex-col justify-center items-center gap-1.5 shrink-0 bg-black/40 px-3 rounded-xl border border-white/5 h-[52px] cursor-pointer hover:bg-black/50 transition-colors shadow-inner" 
+                  className="flex flex-col justify-center items-center gap-1.5 shrink-0 bg-black/40 w-[84px] rounded-xl border border-white/5 h-[52px] cursor-pointer hover:bg-black/50 transition-colors shadow-inner" 
                   onClick={() => { playClickSound(); setSkillEnabled(!isSkillEnabled); }}
                   title="스킬 사용 여부"
                 >
-                  <label className="text-[10px] text-[var(--accent-secondary)] font-bold tracking-wider uppercase cursor-pointer pointer-events-none">스킬</label>
-                  <div className={`w-[36px] h-[18px] rounded-full relative transition-colors duration-300 ${isSkillEnabled ? 'bg-[var(--accent-primary)] shadow-[0_0_8px_rgba(0,255,204,0.4)]' : 'bg-white/20'}`}>
-                    <div className={`absolute top-[2px] left-[2px] w-[14px] h-[14px] rounded-full bg-black transition-transform duration-300 shadow-sm ${isSkillEnabled ? 'translate-x-[18px]' : 'translate-x-0'}`} />
+                  <label className="text-[11px] text-[var(--accent-secondary)] font-bold tracking-wider uppercase cursor-pointer pointer-events-none">스킬</label>
+                  <div className={`w-[44px] h-[22px] rounded-full relative transition-colors duration-300 ${isSkillEnabled ? 'bg-[var(--accent-primary)] shadow-[0_0_8px_rgba(0,255,204,0.4)]' : 'bg-white/20'}`}>
+                    <div className={`absolute top-[2px] left-[2px] w-[18px] h-[18px] rounded-full bg-black transition-transform duration-300 shadow-sm ${isSkillEnabled ? 'translate-x-[22px]' : 'translate-x-0'}`} />
                   </div>
                 </div>
 
