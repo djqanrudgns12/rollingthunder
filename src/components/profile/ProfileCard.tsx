@@ -84,19 +84,15 @@ export default function ProfileCard({ profile }: Props) {
   const handleLogout = async () => {
     setIsLoggingOut(true);
 
-    // Clear client states directly using the hook's setter for modal
+    // Clear client states synchronously to prevent race conditions with page reload
     setActiveModal('none');
     useUIStore.getState().setIsLoggedIn(false);
     useUIStore.getState().setUserProfile(null);
+    useInventoryStore.getState().reset();
 
-    // Reset chips using useChipStore
+    // Reset chips using useChipStore (using dynamic import here since it's not imported at the top, or just import it)
     import('@/store/chipStore').then(({ useChipStore }) => {
       useChipStore.getState().setChips(0);
-    });
-
-    // Reset inventory using useInventoryStore
-    import('@/store/inventoryStore').then(({ useInventoryStore }) => {
-      useInventoryStore.getState().reset();
     });
 
     try {

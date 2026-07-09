@@ -44,6 +44,13 @@ export default function GlobalPlayerHUD() {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session) {
+        // [캐시 무효화] 저장된 유저 ID와 현재 세션 ID가 다르면 스토어 초기화
+        const currentCachedUserId = useInventoryStore.getState().userId;
+        if (currentCachedUserId && currentCachedUserId !== session.user.id) {
+          useInventoryStore.getState().reset();
+          setUserProfile(null);
+        }
+
         setIsLoggedIn(true);
         const data = await getProfileOverviewAction();
         if (data) {
@@ -54,14 +61,29 @@ export default function GlobalPlayerHUD() {
         // 인벤토리 동기화 (서버 -> 클라이언트 덮어쓰기)
         const invData = await fetchInventoryAction();
         if (invData?.success && invData.inventory && invData.equipped) {
-          useInventoryStore.getState().hydrateFromServer(invData.inventory, invData.equipped);
+          useInventoryStore.getState().hydrateFromServer(session.user.id, invData.inventory, invData.equipped);
         }
       } else {
         setIsLoggedIn(false);
         setUserProfile(null);
+        useInventoryStore.getState().reset();
       }
     };
     initAuth();
+
+    // 전역 Auth 리스너: 로그아웃(세션 만료 포함) 감지 시 클라이언트 스토어 즉각 초기화
+    const supabase = createClient();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        setIsLoggedIn(false);
+        setUserProfile(null);
+        useInventoryStore.getState().reset();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [setIsLoggedIn, setUserProfile]);
 
   useEffect(() => {

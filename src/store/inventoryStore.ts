@@ -11,6 +11,7 @@ export interface EquippedItems {
 }
 
 interface InventoryState {
+  userId: string | null;
   inventory: string[];
   equipped: EquippedItems;
   
@@ -20,12 +21,13 @@ interface InventoryState {
   unequipItem: (category: keyof EquippedItems) => void;
   hasItem: (itemId: string) => boolean;
   reset: () => void;
-  hydrateFromServer: (inventory: string[], equipped: EquippedItems) => void;
+  hydrateFromServer: (userId: string, inventory: string[], equipped: EquippedItems) => void;
 }
 
 export const useInventoryStore = create<InventoryState>()(
   persist(
     (set, get) => ({
+      userId: null,
       inventory: [],
       equipped: {
         skin: null,
@@ -57,6 +59,7 @@ export const useInventoryStore = create<InventoryState>()(
       hasItem: (itemId) => get().inventory.includes(itemId),
       
       reset: () => set({
+        userId: null,
         inventory: [],
         equipped: {
           skin: null,
@@ -68,7 +71,8 @@ export const useInventoryStore = create<InventoryState>()(
         }
       }),
 
-      hydrateFromServer: (inventory, equipped) => set({
+      hydrateFromServer: (userId, inventory, equipped) => set({
+        userId,
         inventory,
         equipped,
       }),

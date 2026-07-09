@@ -109,6 +109,7 @@ export default function SettingsModal() {
       useChipStore.getState().setChips(0)
     })
     
+    // 명시적 동기 호출 (만약 top에 import 안되어있다면 dynamic import 사용 유지하지만, race condition 방지를 위해 즉시 실행되는 구조 선호. 여기서는 GlobalPlayerHUD 쪽에 의존성 높임)
     import('@/store/inventoryStore').then(({ useInventoryStore }) => {
       useInventoryStore.getState().reset()
     })
