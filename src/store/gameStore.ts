@@ -21,6 +21,10 @@ export interface SkillLogEntry {
 }
 
 interface GameState {
+  userId: string | null
+  setUserId: (id: string | null) => void
+  resetSession: () => void
+
   participants: Participant[]
   setParticipants: (participants: Participant[]) => void
   addParticipant: (participant: Participant) => void
@@ -100,6 +104,21 @@ interface GameState {
 export const useGameStore = create<GameState>()(
   persist(
     (set) => ({
+      userId: null,
+      setUserId: (userId) => set({ userId }),
+      resetSession: () => set({
+        userId: null,
+        participants: [],
+        gimmickDensity: 50,
+        targetWinnerCount: 1,
+        selectedMapPreset: 'random',
+        globalSkin: 'skin_chip_base',
+        gameMode: 'speed',
+        customWinningRank: 1,
+        isSkillEnabled: true,
+        skillLogs: [],
+      }),
+
       participants: [],
       setParticipants: (participants) => set({ participants }),
       addParticipant: (participant) => set((state) => ({ participants: [...state.participants, participant] })),
@@ -175,6 +194,7 @@ export const useGameStore = create<GameState>()(
     {
       name: 'rt-game-storage',
       partialize: (state) => ({
+        userId: state.userId,
         isMuted: state.isMuted,
         baseTimeScale: state.baseTimeScale,
         comebackStrength: state.comebackStrength,

@@ -114,6 +114,10 @@ export default function SettingsModal() {
       useInventoryStore.getState().reset()
     })
     
+    import('@/store/gameStore').then(({ useGameStore }) => {
+      useGameStore.getState().resetSession()
+    })
+    
     await logout()
     window.location.replace('/')
   }

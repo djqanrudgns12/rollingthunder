@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { useChipStore } from '@/store/chipStore';
 import { useUIStore } from '@/store/uiStore';
+import { useGameStore } from '@/store/gameStore';
 import { useRouter, usePathname } from 'next/navigation';
 import { ShoppingCart, User, Terminal } from 'lucide-react';
 import { getProfileOverviewAction } from '@/presentation/actions/profileActions';
@@ -50,6 +51,12 @@ export default function GlobalPlayerHUD() {
           useInventoryStore.getState().reset();
           setUserProfile(null);
         }
+        
+        const currentGameUserId = useGameStore.getState().userId;
+        if (currentGameUserId && currentGameUserId !== session.user.id) {
+          useGameStore.getState().resetSession();
+        }
+        useGameStore.getState().setUserId(session.user.id);
 
         setIsLoggedIn(true);
         const data = await getProfileOverviewAction();
@@ -67,6 +74,10 @@ export default function GlobalPlayerHUD() {
         setIsLoggedIn(false);
         setUserProfile(null);
         useInventoryStore.getState().reset();
+        
+        if (useGameStore.getState().userId !== null) {
+          useGameStore.getState().resetSession();
+        }
       }
     };
     initAuth();
@@ -78,6 +89,7 @@ export default function GlobalPlayerHUD() {
         setIsLoggedIn(false);
         setUserProfile(null);
         useInventoryStore.getState().reset();
+        useGameStore.getState().resetSession();
       }
     });
 

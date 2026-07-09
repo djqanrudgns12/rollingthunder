@@ -10,6 +10,7 @@ import { LogOut, UserX, LogIn, UserPlus, Terminal } from 'lucide-react';
 import { logout, deleteAccount } from '@/app/actions';
 import { useUIStore } from '@/store/uiStore';
 import { useInventoryStore } from '@/store/inventoryStore';
+import { useGameStore } from '@/store/gameStore';
 import { stampService } from '@/lib/stampService';
 
 interface Props {
@@ -89,6 +90,7 @@ export default function ProfileCard({ profile }: Props) {
     useUIStore.getState().setIsLoggedIn(false);
     useUIStore.getState().setUserProfile(null);
     useInventoryStore.getState().reset();
+    useGameStore.getState().resetSession();
 
     // Reset chips using useChipStore (using dynamic import here since it's not imported at the top, or just import it)
     import('@/store/chipStore').then(({ useChipStore }) => {
