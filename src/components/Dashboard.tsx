@@ -414,7 +414,7 @@ export default function Dashboard() {
                 </div>
               </div>
             </button>
-            {isAdmin && (
+            {(isAdmin || userProfile?.role === 'premium') && (
               <button
                 onClick={() => {
                   playClickSound();

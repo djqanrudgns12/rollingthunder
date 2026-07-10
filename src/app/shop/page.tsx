@@ -13,6 +13,7 @@ import MapStorePanel from "@/components/shop/MapStorePanel";
 
 import { MOCK_ITEMS, ShopItem } from "@/data/shopData";
 import { SKIN_DEFINITIONS } from "@/data/skinDefinitions";
+import AvatarBorder from "@/components/profile/AvatarBorder";
 
 import { useUIStore } from "@/store/uiStore";
 import { useInventoryStore } from "@/store/inventoryStore";
@@ -517,6 +518,10 @@ export default function ShopPage() {
                               '#a3a3a3'
                             }
                           />
+                        ) : item.category === 'border' ? (
+                          <AvatarBorder borderId={item.item_id} className="w-10 h-10 rounded-[12px] bg-neutral-800 flex items-center justify-center overflow-visible">
+                            <LucideIcons.User className="w-5 h-5 text-neutral-500" />
+                          </AvatarBorder>
                         ) : item.image ? (
                           <img src={item.image} alt={item.name} className="w-full h-full object-contain p-0.5 [clip-path:inset(2%_round_20%)]" />
                         ) : IconComp ? (

@@ -9,6 +9,7 @@ import { MOCK_ITEMS } from '@/data/shopData';
 import { LogOut, UserX, LogIn, UserPlus, Terminal } from 'lucide-react';
 import { logout, deleteAccount } from '@/app/actions';
 import { useUIStore } from '@/store/uiStore';
+import AvatarBorder from './AvatarBorder';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { useGameStore } from '@/store/gameStore';
 import { stampService } from '@/lib/stampService';
@@ -169,8 +170,14 @@ export default function ProfileCard({ profile }: Props) {
       break;
   }
 
-  // 최우선으로 장착된 아바타 확인 (보관함 연동)
+  // 최우선으로 장착된 아바타 및 테두리 확인 (보관함 연동)
   const activeAvatarId = equipped.avatar || profile?.avatar_id;
+  const activeBorderId = equipped.border;
+
+  // 장착된 테두리가 있으면 기본 직급 기반 border CSS 제거
+  if (activeBorderId && activeBorderId.startsWith('border_')) {
+    avatarBorder = ''; // AvatarBorder 컴포넌트가 대신 렌더링
+  }
 
   if (activeAvatarId) {
     const customAvatar = MOCK_ITEMS.find(item => item.item_id === activeAvatarId);
@@ -239,19 +246,23 @@ export default function ProfileCard({ profile }: Props) {
             style={{ transform: "translateZ(60px)" }}
             className="flex-shrink-0 flex items-center justify-center"
           >
-            {/* 아바타 크기를 대폭 확대하고 모서리가 둥근 사각형(Squircle) 형태로 변경 */}
-            <div className={`relative w-40 h-40 sm:w-56 sm:h-56 rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden border-[4px] bg-black/60 ${avatarBorder} group`}>
-              {/* 내부 글로우 효과 */}
-              <div className="absolute inset-0 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] z-10 pointer-events-none" />
-              <Image
-                src={avatarImage}
-                alt="Player Avatar"
-                fill
-                className="object-cover object-center scale-[1.15] transition-transform duration-700 group-hover:scale-125"
-                sizes="(max-width: 640px) 160px, 224px"
-                priority
-              />
-            </div>
+            <AvatarBorder 
+              borderId={activeBorderId} 
+              className={`relative w-40 h-40 sm:w-56 sm:h-56 rounded-[2rem] sm:rounded-[2.5rem] bg-black/60 group ${!activeBorderId ? 'border-[4px] ' + avatarBorder : ''}`}
+            >
+              <div className="absolute inset-0 rounded-[inherit] overflow-hidden">
+                {/* 내부 글로우 효과 */}
+                <div className="absolute inset-0 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] z-10 pointer-events-none" />
+                <Image
+                  src={avatarImage}
+                  alt="Player Avatar"
+                  fill
+                  className="object-cover object-center scale-[1.15] transition-transform duration-700 group-hover:scale-125"
+                  sizes="(max-width: 640px) 160px, 224px"
+                  priority
+                />
+              </div>
+            </AvatarBorder>
           </div>
 
           {/* 인포메이션 영역 (우측) */}

@@ -122,7 +122,36 @@ export const MOCK_ITEMS: ShopItem[] = [
   { item_id: "avatar_skull_5", category: "avatar", name: "골든 엠퍼러 스컬", price: 10000, rarity: "Mythic", description: "카지노의 제왕임을 증명하는 눈부신 순금 마스크 스컬입니다.", image: "/avatars/skull_gold.png" },
 
   // ===================== BORDERS =====================
-  { item_id: "border_coming_soon", category: "border", name: "테두리(준비중)", price: 0, rarity: "Normal", description: "추후 업데이트 예정입니다.", image: "" },
+  // Normal (500)
+  { item_id: "border_n_silver", category: "border", name: "실버 링", price: 500, rarity: "Normal", description: "깔끔하고 세련된 은빛 테두리입니다.", image: "" },
+  { item_id: "border_n_bronze", category: "border", name: "브론즈 기어", price: 500, rarity: "Normal", description: "단단한 청동으로 만들어진 테두리입니다.", image: "" },
+  { item_id: "border_n_wood", category: "border", name: "오크 우드", price: 500, rarity: "Normal", description: "따뜻한 느낌을 주는 참나무 테두리입니다.", image: "" },
+  { item_id: "border_n_stone", category: "border", name: "조약돌", price: 500, rarity: "Normal", description: "단단하고 묵직한 돌 테두리입니다.", image: "" },
+  { item_id: "border_n_leather", category: "border", name: "스티치 가죽", price: 500, rarity: "Normal", description: "장인의 솜씨가 깃든 가죽 테두리입니다.", image: "" },
+
+  // Rare (1000)
+  { item_id: "border_r_neon_blue", category: "border", name: "네온 블루", price: 1000, rarity: "Rare", description: "차가운 푸른빛이 감도는 네온 테두리입니다.", image: "" },
+  { item_id: "border_r_neon_pink", category: "border", name: "네온 핑크", price: 1000, rarity: "Rare", description: "화려한 핑크빛 네온 테두리입니다.", image: "" },
+  { item_id: "border_r_golden_wire", category: "border", name: "골든 와이어", price: 1000, rarity: "Rare", description: "정교하게 꼬아 만든 금빛 철사 테두리입니다.", image: "" },
+  { item_id: "border_r_holo", category: "border", name: "홀로그램 글래스", price: 1000, rarity: "Rare", description: "빛의 각도에 따라 색이 변하는 테두리입니다.", image: "" },
+  { item_id: "border_r_firefly", category: "border", name: "반딧불이 숲", price: 1000, rarity: "Rare", description: "작은 빛무리들이 떠도는 평화로운 테두리입니다.", image: "" },
+
+  // Epic (2000) - Premium Only
+  { item_id: "border_e_plasma", category: "border", name: "플라즈마 코어", price: 2000, rarity: "Epic", description: "고밀도 에너지가 방출되는 플라즈마 테두리입니다.", image: "", requiresPremium: true },
+  { item_id: "border_e_cyber_circuit", category: "border", name: "사이버 회로", price: 2000, rarity: "Epic", description: "데이터가 끊임없이 흐르는 전자 회로 테두리입니다.", image: "", requiresPremium: true },
+  { item_id: "border_e_lava_flow", category: "border", name: "흐르는 용암", price: 2000, rarity: "Epic", description: "뜨거운 용암이 역동적으로 흐르는 테두리입니다.", image: "", requiresPremium: true },
+  { item_id: "border_e_toxic_spill", category: "border", name: "맹독 방사능", price: 2000, rarity: "Epic", description: "위험한 녹색 형광 물질이 뿜어져 나오는 테두리입니다.", image: "", requiresPremium: true },
+  { item_id: "border_e_galaxy_spin", category: "border", name: "스파이럴 은하", price: 2000, rarity: "Epic", description: "별빛이 소용돌이치는 신비로운 은하수 테두리입니다.", image: "", requiresPremium: true },
+
+  // Legendary (3000) - Premium Only
+  { item_id: "border_l_dragon_scale", category: "border", name: "드래곤 스케일", price: 3000, rarity: "Legendary", description: "용의 숨결을 품은 붉은 비늘 테두리입니다.", image: "", requiresPremium: true },
+  { item_id: "border_l_phoenix_flame", category: "border", name: "불사조의 불꽃", price: 3000, rarity: "Legendary", description: "영원히 꺼지지 않는 성스러운 불꽃 테두리입니다.", image: "", requiresPremium: true },
+  { item_id: "border_l_void_abyss", category: "border", name: "공허의 심연", price: 3000, rarity: "Legendary", description: "빛조차 삼켜버리는 끝없는 심연의 테두리입니다.", image: "", requiresPremium: true },
+
+  // Mythic (5000) - Premium Only
+  { item_id: "border_m_god_halo", category: "border", name: "신성한 후광", price: 5000, rarity: "Mythic", description: "절대자의 권위를 상징하는 눈부신 황금빛 후광입니다.", image: "", requiresPremium: true },
+  { item_id: "border_m_matrix_glitch", category: "border", name: "매트릭스 글리치", price: 5000, rarity: "Mythic", description: "시공간에 균열을 일으키는 디지털 글리치 테두리입니다.", image: "", requiresPremium: true },
+  { item_id: "border_m_time_warp", category: "border", name: "타임 워프", price: 5000, rarity: "Mythic", description: "시간의 흐름을 비틀어버리는 초현실적 테두리입니다.", image: "", requiresPremium: true },
 
   // ===================== PIECES (OBSTACLES) =====================
   // 기본 보유(무료)

@@ -14,6 +14,7 @@ import { createClient } from '@/lib/supabase/client';
 import type { AuthChangeEvent } from '@supabase/supabase-js';
 import { fetchInventoryAction } from '@/app/actions/inventory';
 import { ShoppingCart, Package, ArrowLeft, Store } from 'lucide-react';
+import AvatarBorder from '@/components/profile/AvatarBorder';
 
 export default function GlobalPlayerHUD() {
   const router = useRouter();
@@ -185,11 +186,14 @@ export default function GlobalPlayerHUD() {
     }
   }
 
-  // TODO: 상점에서 구입/장착한 테두리가 있다면 여기서 조회하여 클래스를 변경합니다.
-  // 현재는 계정 등급(Role) 기반의 기본 제공 프레임을 할당합니다.
-  const activeFrameId = (equipped as any).frame || null; // inventory 스키마 지원 시 활성화
+  const activeBorderId = equipped.border;
+  const activeFrameId = equipped.frame || null;
   
   const renderAvatarFrame = () => {
+    if (activeBorderId && activeBorderId.startsWith('border_')) {
+      return null; // AvatarBorder 컴포넌트가 대신 렌더링
+    }
+    
     // 1. 커스텀 테두리를 장착한 경우 (예: 'cyberpunk')
     if (activeFrameId === 'cyberpunk') {
       return (
@@ -275,9 +279,11 @@ export default function GlobalPlayerHUD() {
             {renderAvatarFrame()}
             
             {/* Core Avatar (Fixed 90px size) */}
-            <div className={`absolute w-[90px] h-[90px] rounded-full border-4 border-[#0b0d13] bg-zinc-900 overflow-hidden ${profile?.role === 'admin' ? 'animate-[breathe-admin_3s_infinite]' : profile?.role === 'premium' ? 'animate-[breathe-premium_4s_infinite]' : 'shadow-[0_0_15px_rgba(0,0,0,0.8)]'}`}>
-              <Image src={avatarImage} alt="Avatar" fill className={`object-cover group-hover:scale-110 transition-transform duration-500 ${!profile || profile.role === 'user' ? 'grayscale opacity-80' : ''}`} />
-            </div>
+            <AvatarBorder borderId={activeBorderId} className={`absolute w-[90px] h-[90px] rounded-full bg-zinc-900 ${!activeBorderId ? 'border-4 border-[#0b0d13] ' + (profile?.role === 'admin' ? 'animate-[breathe-admin_3s_infinite]' : profile?.role === 'premium' ? 'animate-[breathe-premium_4s_infinite]' : 'shadow-[0_0_15px_rgba(0,0,0,0.8)]') : ''}`}>
+              <div className="absolute inset-0 rounded-[inherit] overflow-hidden">
+                <Image src={avatarImage} alt="Avatar" fill className={`object-cover group-hover:scale-110 transition-transform duration-500 ${!profile || profile.role === 'user' ? 'grayscale opacity-80' : ''}`} />
+              </div>
+            </AvatarBorder>
 
             {/* Role specific mini badge on avatar */}
             {profile?.role === 'admin' && (

@@ -5,6 +5,7 @@ import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import Image from 'next/image';
 import * as LucideIcons from 'lucide-react';
 import { SKIN_DEFINITIONS } from '@/data/skinDefinitions';
+import AvatarBorder from '@/components/profile/AvatarBorder';
 
 interface ShopShowcaseProps {
   selectedItem: any;
@@ -188,6 +189,10 @@ export default function ShopShowcase({ selectedItem }: ShopShowcaseProps) {
                 className="w-32 h-32 sm:w-40 sm:h-40 drop-shadow-2xl"
                 style={{ imageRendering: 'auto' }}
               />
+            ) : selectedItem?.category === 'border' ? (
+              <AvatarBorder borderId={selectedItem.item_id} className="w-24 h-24 sm:w-32 sm:h-32 rounded-[2rem] bg-neutral-800/80 flex items-center justify-center border-2 border-neutral-700 shadow-inner overflow-visible">
+                <LucideIcons.User className="w-12 h-12 text-neutral-500" />
+              </AvatarBorder>
             ) : selectedItem?.image ? (
               <Image 
                 src={selectedItem.image} 
