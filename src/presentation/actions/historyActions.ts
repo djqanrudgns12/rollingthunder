@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 
-export async function logMapEditAction(mapId: string, actionType: string, actionDetails: any) {
+export async function logMapEditAction(mapId: string, actionType: string, actionDetails: Record<string, unknown>) {
   try {
     const supabase = createClient()
     
@@ -20,8 +20,8 @@ export async function logMapEditAction(mapId: string, actionType: string, action
     }
 
     return { success: true }
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error logging map edit action:', err)
-    return { success: false, error: err.message }
+    return { success: false, error: err instanceof Error ? err.message : String(err) }
   }
 }

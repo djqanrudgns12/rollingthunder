@@ -53,7 +53,8 @@ export default function PhysicsCanvas() {
   
   // useShallow 선택자: 전체 store 구독을 피해 skillCooldowns(6프레임마다)·skillLogs 갱신이
   // 이 대형 컴포넌트를 초당 ~10회 재렌더하는 것을 차단. 아래 필드가 바뀔 때만 재렌더.
-  const { survivors: rosterSurvivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, setSelectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks, baseTimeScale, comebackStrength, playTime, isMuted, setMuted, mapDataCache } = useGameStore(useShallow((s) => ({
+  const { theme, survivors: rosterSurvivors, setSurvivors, targetWinnerCount, gameMode, customWinningRank, gimmickDensity, selectedMapPreset, setSelectedMapPreset, isSkillEnabled, addSkillLog, setSkillCooldowns, clearSkillLogs, randomWinningRanks, baseTimeScale, comebackStrength, playTime, isMuted, setMuted, mapDataCache } = useGameStore(useShallow((s) => ({
+    theme: s.theme,
     survivors: s.survivors, setSurvivors: s.setSurvivors,
     targetWinnerCount: s.targetWinnerCount, gameMode: s.gameMode, customWinningRank: s.customWinningRank,
     gimmickDensity: s.gimmickDensity, selectedMapPreset: s.selectedMapPreset, setSelectedMapPreset: s.setSelectedMapPreset,
@@ -253,7 +254,7 @@ export default function PhysicsCanvas() {
     let viewport: Viewport;
     let pipViewport: Viewport;
     let bgSprite: PIXI.Sprite;
-    let bgLayers: PIXI.Sprite[] = [];
+    const bgLayers: PIXI.Sprite[] = [];
     // 배경+장애물 전용 탈채도/감광 처리(참가자는 제외 → 상대적으로 도드라짐).
     // 차분 모드: ColorMatrix 필터(강한 탈채도+감광) 부착.
     // 평상시: 컨테이너 필터는 render-to-texture를 강제해 빠른 카메라 팬/줌 시 기물 잔상·글리치를
@@ -328,8 +329,8 @@ export default function PhysicsCanvas() {
     
     // Skill VFX Map
     const activeVFXMap = new Map<string, { cleanup: () => void }>();
-    let intervals: ReturnType<typeof setInterval>[] = [];
-    let tickers: Array<(ticker: PIXI.Ticker) => void> = [];
+    const intervals: ReturnType<typeof setInterval>[] = [];
+    const tickers: Array<(ticker: PIXI.Ticker) => void> = [];
     // 공유 ObstacleRenderer 가 등록한 ticker/gsap 해제자 (cleanup 시 호출)
     const itemDisposers: Array<() => void> = [];
 
@@ -413,7 +414,7 @@ export default function PhysicsCanvas() {
       : (presetMeta ? presetMeta.worldHeight : 2400);
     let destroyed = false;
     let initPromise: Promise<void> | null = null;
-    let appIsFullyInit = false;
+    const appIsFullyInit = false;
     
     const initPixi = async () => {
       // React Strict Mode 방어: 50ms 대기 후 언마운트되지 않았을 때만 초기화 시작
@@ -436,7 +437,7 @@ export default function PhysicsCanvas() {
         });
 
         if (destroyed) {
-          try { app.destroy({ removeView: true, children: true }); } catch (e) {}
+          try { app.destroy({ removeView: true }, { children: true }); } catch (e) {}
           return;
         }
 
@@ -503,7 +504,7 @@ export default function PhysicsCanvas() {
         }
 
         if (destroyed) {
-          try { app.destroy({ removeView: true, children: true }); } catch (e) {}
+          try { app.destroy({ removeView: true }, { children: true }); } catch (e) {}
           return;
         }
 

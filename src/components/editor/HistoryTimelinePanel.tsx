@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useEditorStore } from '@/store/editorStore';
 import { useGameStore } from '@/store/gameStore';
 import { X, Clock } from 'lucide-react';
+import { DEFAULT_THEME_WEIGHTS } from '@/engine/MapPresets';
 
 interface HistoryLog {
   id: string;
@@ -92,8 +93,9 @@ export default function HistoryTimelinePanel({ mapId, mapTitle, onClose }: Histo
         bgImage: snapshot.bgImage || null,
         isOfficial: false,
         description: '과거 작업 내역에서 복원된 맵입니다.',
-        lengthType: 'medium',
-        complexity: 3
+        lengthType: 'Middle',
+        complexity: 'Medium',
+        themeWeights: DEFAULT_THEME_WEIGHTS
       }
     });
 
@@ -108,7 +110,7 @@ export default function HistoryTimelinePanel({ mapId, mapTitle, onClose }: Histo
       title="작업 내역 타임라인" 
       icon={<Clock className="w-4 h-4" />} 
       onClose={onClose}
-      width="w-[400px]"
+      initialWidth={400}
       style={{ top: '80px', left: '20px' }}
       panelId="history"
     >

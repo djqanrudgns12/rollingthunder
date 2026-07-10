@@ -51,9 +51,9 @@ export class SaveMapUseCase {
     }
 
     // 빈 가중치 검사 후 기본값 주입
-    const finalThemeWeights = (mapData.themeWeights && Object.keys(mapData.themeWeights).length > 0)
+    const finalThemeWeights: Record<string, number> = (mapData.themeWeights && Object.keys(mapData.themeWeights).length > 0)
       ? mapData.themeWeights
-      : DEFAULT_THEME_WEIGHTS;
+      : { ...DEFAULT_THEME_WEIGHTS } as Record<string, number>;
 
     // 기본값 세팅 및 MapEntity 캐스팅
     const fullMapData: MapEntity = {

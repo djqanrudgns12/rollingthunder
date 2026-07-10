@@ -11,6 +11,7 @@ import { MOCK_ITEMS } from '@/data/shopData';
 import { useInventoryStore } from '@/store/inventoryStore';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
+import type { AuthChangeEvent } from '@supabase/supabase-js';
 import { fetchInventoryAction } from '@/app/actions/inventory';
 import { ShoppingCart, Package, ArrowLeft, Store } from 'lucide-react';
 
@@ -98,7 +99,7 @@ export default function GlobalPlayerHUD() {
     initAuth();
 
     const supabase = createClient();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent) => {
       if (event === 'SIGNED_OUT') {
         setIsLoggedIn(false);
         setUserProfile(null);
@@ -138,28 +139,28 @@ export default function GlobalPlayerHUD() {
   // 아바타 및 롤 세팅
   let avatarImage = '/avatars/avatar_guest.png';
   let roleTitle = 'GUEST';
-  let roleBadgeColor = 'bg-gray-700/50 text-gray-300 border-gray-500/30';
-  let glassPanelBorder = 'border-white/5';
+  let roleBadgeColor = 'bg-gray-700/50 text-[var(--text-primary)] border-gray-500/30';
+  let glassPanelBorder = 'border-[var(--panel-border)]';
   
   if (profile) {
     switch (profile.role) {
       case 'admin':
         avatarImage = '/avatars/avatar_admin.png';
         roleTitle = 'ADMIN';
-        roleBadgeColor = 'bg-gradient-to-r from-red-600 to-red-900 text-white shadow-[0_0_10px_rgba(255,0,85,0.5)] border-red-400/50';
+        roleBadgeColor = 'bg-gradient-to-r from-red-600 to-red-900 text-[var(--text-primary)] shadow-[0_0_10px_rgba(255,0,85,0.5)] border-red-400/50';
         glassPanelBorder = 'border-red-500/20';
         break;
       case 'premium':
         avatarImage = '/avatars/avatar_premium.png';
         roleTitle = 'PREMIUM';
-        roleBadgeColor = 'bg-gradient-to-r from-amber-500 to-amber-700 text-white shadow-[0_0_10px_rgba(251,191,36,0.4)] border-amber-300/50';
+        roleBadgeColor = 'bg-gradient-to-r from-amber-500 to-amber-700 text-[var(--text-primary)] shadow-[0_0_10px_rgba(251,191,36,0.4)] border-amber-300/50';
         glassPanelBorder = 'border-amber-500/20';
         break;
       case 'user':
         avatarImage = '/avatars/avatar_normal.png';
         roleTitle = 'NORMAL';
-        roleBadgeColor = 'bg-gray-700/50 text-gray-300 border-gray-500/30';
-        glassPanelBorder = 'border-white/5';
+        roleBadgeColor = 'bg-gray-700/50 text-[var(--text-primary)] border-gray-500/30';
+        glassPanelBorder = 'border-[var(--panel-border)]';
         break;
     }
   }
@@ -193,7 +194,7 @@ export default function GlobalPlayerHUD() {
       return <div className="absolute inset-0 z-0 rounded-full bg-[conic-gradient(from_0deg,transparent_40%,#fbbf24_80%,transparent_100%)] animate-[spin_4s_linear_infinite]"></div>;
     }
     // Guest/User Base Frame
-    return <div className="absolute inset-[6px] z-0 rounded-full border-[3px] border-white/10"></div>;
+    return <div className="absolute inset-[6px] z-0 rounded-full border-[3px] border-[var(--panel-border-hover)]"></div>;
   };
 
   const playerName = profile?.username || profile?.name || (isLoggedIn ? 'Player' : 'Guest');
@@ -234,16 +235,16 @@ export default function GlobalPlayerHUD() {
                   {roleTitle}
                 </div>
               </div>
-              <span className={`text-xl font-black tracking-wide ${profile?.role === 'admin' || profile?.role === 'premium' ? 'text-white' : 'text-gray-200'}`}>
+              <span className={`text-xl font-black tracking-wide ${profile?.role === 'admin' || profile?.role === 'premium' ? 'text-[var(--text-primary)]' : 'text-[var(--text-primary)]'}`}>
                 {playerName}
               </span>
             </div>
             
-            <div className="w-[1px] h-10 bg-white/10 ml-auto hidden sm:block"></div>
+            <div className="w-[1px] h-10 bg-[var(--btn-bg-hover)] ml-auto hidden sm:block"></div>
             
             {/* Chips Area */}
             <div className="flex items-center gap-3 relative z-10">
-              <div className="relative w-12 h-12 rounded-full flex items-center justify-center bg-black/60 shadow-[inset_0_2px_10px_rgba(255,215,0,0.1),0_0_15px_rgba(0,0,0,0.8)] border border-yellow-500/30">
+              <div className="relative w-12 h-12 rounded-full flex items-center justify-center bg-[var(--panel-bg-heavy)] shadow-[inset_0_2px_10px_rgba(255,215,0,0.1),0_0_15px_rgba(0,0,0,0.8)] border border-yellow-500/30">
                 <Image src="/images/assets/hud/luxury_chip_icon.png" alt="Chips" fill className="object-contain scale-125 float-anim drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]" />
               </div>
               <div className="flex flex-col items-start">
@@ -269,7 +270,7 @@ export default function GlobalPlayerHUD() {
 
             {/* Role specific mini badge on avatar */}
             {profile?.role === 'admin' && (
-              <div className="absolute -bottom-2 bg-red-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full border-2 border-[#0b0d13] shadow-[0_0_10px_rgba(255,0,85,0.8)] z-30">OWNER</div>
+              <div className="absolute -bottom-2 bg-red-600 text-[var(--text-primary)] text-[9px] font-black px-2 py-0.5 rounded-full border-2 border-[#0b0d13] shadow-[0_0_10px_rgba(255,0,85,0.8)] z-30">OWNER</div>
             )}
             {profile?.role === 'premium' && (
               <div className="absolute -bottom-2 bg-amber-500 text-black text-[9px] font-black px-2 py-0.5 rounded-full border-2 border-[#0b0d13] shadow-[0_0_10px_rgba(251,191,36,0.6)] z-30">VIP</div>
@@ -278,24 +279,24 @@ export default function GlobalPlayerHUD() {
         </div>
 
         {/* RIGHT: Context-Aware Action Navigation */}
-        <div className="glass-panel-heavy rounded-full flex items-center p-2 px-3 gap-2 pointer-events-auto border border-white/5 h-[72px] scale-[0.7] sm:scale-[0.8] md:scale-90 xl:scale-100 origin-top-right transition-transform duration-300">
+        <div className="glass-panel-heavy rounded-full flex items-center p-2 px-3 gap-2 pointer-events-auto border border-[var(--panel-border)] h-[72px] scale-[0.7] sm:scale-[0.8] md:scale-90 xl:scale-100 origin-top-right transition-transform duration-300">
           
           {pathname.startsWith('/shop') ? (
             <>
               {/* SHOP MODE NAVIGATION */}
-              <button onClick={() => { playClickSound(); setShopViewMode(shopViewMode === 'mapstore' ? 'shop' : 'mapstore'); }} className={`nav-btn flex items-center gap-3 px-5 h-full rounded-full transition-all group ${shopViewMode === 'mapstore' ? 'text-amber-400 bg-amber-500/10' : 'text-emerald-400 hover:bg-white/5'}`}>
+              <button onClick={() => { playClickSound(); setShopViewMode(shopViewMode === 'mapstore' ? 'shop' : 'mapstore'); }} className={`nav-btn flex items-center gap-3 px-5 h-full rounded-full transition-all group ${shopViewMode === 'mapstore' ? 'text-amber-400 bg-amber-500/10' : 'text-emerald-400 hover:bg-[var(--btn-bg)]'}`}>
                 {shopViewMode === 'mapstore' ? <ShoppingCart size={22} /> : <Store size={22} />}
                 <span className="text-[15px] font-black tracking-widest uppercase">{shopViewMode === 'mapstore' ? '상점으로 가기' : '맵 스토어'}</span>
               </button>
 
-              <button onClick={() => { playClickSound(); setShopViewMode(shopViewMode === 'inventory' ? 'shop' : 'inventory'); }} className={`nav-btn flex items-center gap-3 px-5 h-full rounded-full transition-all group ${shopViewMode === 'inventory' ? 'text-amber-400 bg-amber-500/10' : 'text-cyan-400 hover:bg-white/5'}`}>
+              <button onClick={() => { playClickSound(); setShopViewMode(shopViewMode === 'inventory' ? 'shop' : 'inventory'); }} className={`nav-btn flex items-center gap-3 px-5 h-full rounded-full transition-all group ${shopViewMode === 'inventory' ? 'text-amber-400 bg-amber-500/10' : 'text-cyan-400 hover:bg-[var(--btn-bg)]'}`}>
                 {shopViewMode !== 'inventory' ? <Package size={22} /> : <ShoppingCart size={22} />}
                 <span className="text-[15px] font-black tracking-widest uppercase">{shopViewMode !== 'inventory' ? '내 보관함' : '상점으로 가기'}</span>
               </button>
 
-              <div className="w-[1px] h-8 bg-white/10 mx-2"></div>
+              <div className="w-[1px] h-8 bg-[var(--btn-bg-hover)] mx-2"></div>
 
-              <button onClick={() => { playClickSound(); router.push('/dashboard'); }} className="nav-btn flex items-center gap-3 px-5 h-full rounded-full hover:bg-white/5 transition-all text-gray-400 hover:text-white group">
+              <button onClick={() => { playClickSound(); router.push('/dashboard'); }} className="nav-btn flex items-center gap-3 px-5 h-full rounded-full hover:bg-[var(--btn-bg)] transition-all text-[var(--text-muted)] hover:text-[var(--text-primary)] group">
                 <ArrowLeft size={22} className="group-hover:-translate-x-1 transition-transform" />
                 <span className="text-[15px] font-black tracking-widest uppercase">대기실 복귀</span>
               </button>
@@ -303,14 +304,14 @@ export default function GlobalPlayerHUD() {
           ) : (
             <>
               {/* LOBBY MODE NAVIGATION */}
-              <button onClick={() => { playClickSound(); router.push('/shop'); }} className="nav-btn flex items-center gap-3 px-6 h-full rounded-full hover:bg-white/5 transition-all text-gray-300 hover:text-amber-400 group">
+              <button onClick={() => { playClickSound(); router.push('/shop'); }} className="nav-btn flex items-center gap-3 px-6 h-full rounded-full hover:bg-[var(--btn-bg)] transition-all text-[var(--text-primary)] hover:text-amber-400 group">
                 <div className="w-11 h-11 relative drop-shadow-[0_0_8px_rgba(251,191,36,0.2)] group-hover:drop-shadow-[0_0_12px_rgba(251,191,36,0.6)] transition-all">
                   <Image src="/images/assets/hud/clean_shop_icon.png" alt="Shop" fill className="object-contain" />
                 </div>
                 <span className="text-[18px] font-black tracking-widest uppercase">상점</span>
               </button>
 
-              <button onClick={() => { playClickSound(); setActiveModal('stampBook'); }} className="nav-btn flex items-center gap-3 px-6 h-full rounded-full hover:bg-white/5 transition-all text-gray-300 hover:text-red-400 group relative">
+              <button onClick={() => { playClickSound(); setActiveModal('stampBook'); }} className="nav-btn flex items-center gap-3 px-6 h-full rounded-full hover:bg-[var(--btn-bg)] transition-all text-[var(--text-primary)] hover:text-red-400 group relative">
                 {hasClaimableMissions && <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full shadow-[0_0_10px_red] animate-pulse"></div>}
                 <div className="w-11 h-11 relative drop-shadow-[0_0_8px_rgba(239,68,68,0.2)] group-hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.6)] transition-all">
                   <Image src="/images/assets/hud/clean_mission_icon.png" alt="Mission" fill className="object-contain" />
@@ -319,7 +320,7 @@ export default function GlobalPlayerHUD() {
               </button>
 
               {profile?.role === 'admin' && (
-                <button onClick={() => { playClickSound(); router.push('/admin'); }} className="nav-btn flex items-center gap-3 px-6 h-full rounded-full hover:bg-white/5 transition-all text-gray-300 hover:text-cyan-400 group">
+                <button onClick={() => { playClickSound(); router.push('/admin'); }} className="nav-btn flex items-center gap-3 px-6 h-full rounded-full hover:bg-[var(--btn-bg)] transition-all text-[var(--text-primary)] hover:text-cyan-400 group">
                   <div className="w-11 h-11 relative drop-shadow-[0_0_8px_rgba(6,182,212,0.2)] group-hover:drop-shadow-[0_0_12px_rgba(6,182,212,0.6)] transition-all">
                     <Image src="/images/assets/hud/clean_admin_icon.png" alt="Admin" fill className="object-contain" />
                   </div>

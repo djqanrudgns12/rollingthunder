@@ -318,7 +318,7 @@ export class SkillSystem {
       if (dist < MAGNET_RADIUS && dist > 10) { // 10px 데드존 (특이점 방지)
         // 거리 반비례 제곱 인력: 가까울수록 강하게 끌어당김
         const strength = MAGNET_STRENGTH * Math.pow(1 - dist / MAGNET_RADIUS, 2);
-        let dvx = (dx / dist) * strength;
+        const dvx = (dx / dist) * strength;
         let dvy = (dy / dist) * strength;
 
         // 위(-y) 방향 인력 감쇠: 칩을 중력에 맞서 띄우는 것을 방지

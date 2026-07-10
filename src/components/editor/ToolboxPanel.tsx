@@ -16,7 +16,7 @@ interface ItemDef {
   variant?: string;
 }
 
-const CATEGORIES: Record<TabType, ItemDef[]> = {
+const CATEGORIES: Record<Exclude<TabType, 'backgrounds'>, ItemDef[]> = {
   obstacles: [
     { type: 'pin', label: '핀 (Pin)', desc: '공이 닿으면 통통 튕겨내는 가장 기본적인 원형 핀입니다.', imagePath: '/images/assets/obstacles/obstacle_pin.png', color: 'text-gray-300' },
     { type: 'bumper', label: '범퍼 (Bumper)', desc: '공이 강하게 부딪힐수록 더 멀리 튕겨내는 탄성 범퍼입니다.', imagePath: '/images/assets/obstacles/obstacle_bumper.png', color: 'text-yellow-400' },

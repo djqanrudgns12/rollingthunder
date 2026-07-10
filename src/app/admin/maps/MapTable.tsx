@@ -21,7 +21,7 @@ export default function MapTable({ initialMaps, initialCount }: { initialMaps: a
     if (result.success && result.data) {
       setMaps(result.data)
       setPage(newPage)
-      if (result.count !== undefined) setTotalCount(result.count)
+      if (typeof result.count === 'number') setTotalCount(result.count)
     } else {
       toast.error(`Error: ${result.error}`)
     }

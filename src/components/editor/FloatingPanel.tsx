@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, useDragControls } from 'framer-motion'
 import { GripHorizontal, Minus, Maximize2, X } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 
@@ -35,6 +35,7 @@ export default function FloatingPanel({
   
   const { panelOrder, bringToFront } = useEditorStore();
   const zIndex = 100 + panelOrder.indexOf(panelId);
+  const dragControls = useDragControls();
 
   const handleResizeStart = (e: React.PointerEvent) => {
     e.preventDefault();
@@ -68,7 +69,8 @@ export default function FloatingPanel({
     <motion.div
       drag
       dragMomentum={false}
-      dragHandle=".drag-handle"
+      dragListener={false}
+      dragControls={dragControls}
       initial={defaultPosition}
       dragConstraints={{ left: 0, top: 0, right: typeof window !== 'undefined' ? window.innerWidth - 100 : 1920, bottom: typeof window !== 'undefined' ? window.innerHeight - 100 : 1080 }}
       onPointerDownCapture={() => bringToFront(panelId)}
@@ -82,7 +84,10 @@ export default function FloatingPanel({
       }}
     >
       {/* Title Bar (Drag Handle) */}
-      <div className="drag-handle flex items-center justify-between p-2.5 bg-black/40 border-b border-white/10 cursor-grab active:cursor-grabbing group select-none shrink-0">
+      <div
+        className="drag-handle flex items-center justify-between p-2.5 bg-black/40 border-b border-white/10 cursor-grab active:cursor-grabbing group select-none shrink-0"
+        onPointerDown={(e) => dragControls.start(e)}
+      >
         <div className="flex items-center gap-2">
           <GripHorizontal className="w-4 h-4 text-gray-500 group-hover:text-gray-300 transition-colors" />
           {icon && <span className="text-blue-400">{icon}</span>}

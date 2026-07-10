@@ -24,7 +24,7 @@ export default function MapPreviewCanvas({ mapData, worldHeight, className = '' 
 
     // Calculate scaling to fit within MAX_CANVAS_HEIGHT while preserving aspect ratio
     // If map is short, we still want to fit width if necessary, but usually worldHeight >> width.
-    let scale = MAX_CANVAS_HEIGHT / Math.max(worldHeight, 800)
+    const scale = MAX_CANVAS_HEIGHT / Math.max(worldHeight, 800)
     
     // Set actual canvas size
     const canvasWidth = WORLD_WIDTH * scale

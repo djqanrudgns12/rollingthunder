@@ -127,11 +127,11 @@ export function applyDensity(
     const types = Object.keys(densityResult.injectionMix) as EditorItemType[];
     
     for (const type of types) {
-      let count = densityResult.injectionMix[type];
+      let count = densityResult.injectionMix[type] ?? 0;
       while (count > 0 && posIdx < positions.length) {
         const pos = positions[posIdx++];
         
-        let item: EditorItem = {
+        const item: EditorItem = {
           id: `inj_${type}_${posIdx}`,
           type,
           x: pos.x,

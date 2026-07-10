@@ -18,8 +18,8 @@ let postFinishFrames = 0;
 let isResolving = false; // "결과 빨리보기"(RESOLVE_REST) 터보 루프 진행 중 플래그
 
 let positionsBuffer: Float32Array;
-let bufferPool: ArrayBuffer[] = [];
-let obstacleBufferPool: ArrayBuffer[] = []; // OBSTACLE_FRAME 전용 풀(FRAME과 크기 다름)
+const bufferPool: ArrayBuffer[] = [];
+const obstacleBufferPool: ArrayBuffer[] = []; // OBSTACLE_FRAME 전용 풀(FRAME과 크기 다름)
 let isSkillEnabled = true;
 let baseTimeScale = 1.0; // 환경설정에서 지정한 기본 배속
 let effectTimeScale = 1.0; // 카메라 연출용 (슬로모션, 스냅 등)

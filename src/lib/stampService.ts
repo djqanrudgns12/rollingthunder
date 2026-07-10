@@ -130,7 +130,7 @@ class StampService {
     });
   }
 
-  public async getUserAchievements(userId: string) {
+  public async getUserAchievements(userId: string): Promise<UserMission[]> {
     // 모든 업적 목록과 유저의 진행 상태를 가져옴
     // Left join 처리가 필요하므로, missions 테이블을 기준으로 쿼리
     const supabase = createClient();
@@ -142,7 +142,7 @@ class StampService {
     if (error) throw error;
 
     // 포맷팅
-    return (data || []).map((mission: any, idx: number) => {
+    return ((data ?? []) as any[]).map((mission: any, idx: number) => {
       const userRecord = mission.user_achievements.find((ua: any) => ua.user_id === userId);
       return {
         // userRecord가 없는(아직 시작 안 한) 업적도 고유한 key를 갖도록 mission.id + idx를 fallback으로 사용
@@ -167,7 +167,7 @@ class StampService {
           condition_type: mission.condition_type
         }
       } as UserMission;
-    }).sort((a, b) => {
+    }).sort((a: UserMission, b: UserMission) => {
       const a_reward_pending = a.completed && !a.is_collected;
       const b_reward_pending = b.completed && !b.is_collected;
       if (a_reward_pending && !b_reward_pending) return -1;

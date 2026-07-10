@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
+import { persist } from 'zustand/middleware'
+import type { MapPresetMeta } from '@/engine/MapPresets'
 
 export interface Participant {
   id: string
@@ -45,8 +46,8 @@ interface GameState {
   setSelectedMapPreset: (preset: string) => void
 
   // ── 맵 데이터 캐시 (Supabase Fetch 결과) ──
-  mapDataCache: Record<string, any> | null
-  setMapDataCache: (cache: Record<string, any>) => void
+  mapDataCache: Record<string, MapPresetMeta> | null
+  setMapDataCache: (cache: Record<string, MapPresetMeta>) => void
 
   globalSkin: string
   setGlobalSkin: (skin: string) => void
@@ -214,11 +215,12 @@ export const useGameStore = create<GameState>()(
         bgmVolume: state.bgmVolume,
         sfxVolume: state.sfxVolume,
       }),
-      merge: (persistedState: any, currentState: GameState) => {
-        if (persistedState && persistedState.globalSkin === '') {
-          persistedState.globalSkin = 'skin_chip_base'
+      merge: (persistedState, currentState: GameState) => {
+        const persisted = (persistedState ?? {}) as Partial<GameState>
+        if (persisted.globalSkin === '') {
+          persisted.globalSkin = 'skin_chip_base'
         }
-        return { ...currentState, ...persistedState }
+        return { ...currentState, ...persisted }
       },
     }
   )

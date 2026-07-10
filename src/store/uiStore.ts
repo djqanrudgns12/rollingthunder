@@ -1,13 +1,29 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { EditorItem } from './editorStore'
+import type { EditorItem, EditorWallStyle } from './editorStore'
 import type { Participant } from './gameStore'
+import type { UserProfile } from '@/types/user'
+
+// 커스텀 맵 레이아웃 설정(에디터→게임 브리지에서 전달되는 부분 집합)
+export interface CustomMapLayoutConfig {
+  startLineY?: number
+  startMarginPercent?: number
+  endMarginPercent?: number
+  spawnGap?: number
+}
+
+export interface CustomMapMeta {
+  worldHeight?: number
+  wallStyle?: EditorWallStyle
+  bgImage?: string | null
+  layoutConfig?: CustomMapLayoutConfig
+}
 
 interface UIState {
   isSidebarOpen: boolean
   setSidebarOpen: (isOpen: boolean) => void
   toggleSidebar: () => void
-  
+
   activeModal: 'none' | 'mapLoad' | 'listManager' | 'settings' | 'auth' | 'stampBook' | 'profile' | 'premiumUpgrade'
   setActiveModal: (modal: 'none' | 'mapLoad' | 'listManager' | 'settings' | 'auth' | 'stampBook' | 'profile' | 'premiumUpgrade') => void
   authMode: 'login' | 'signup'
@@ -15,14 +31,14 @@ interface UIState {
 
   gameStage: 'dashboard' | 'playing' | 'winner_declared' | 'all_finished' | 'editor'
   setGameStage: (stage: 'dashboard' | 'playing' | 'winner_declared' | 'all_finished' | 'editor') => void
-  
+
   shopViewMode: 'shop' | 'inventory' | 'mapstore'
   setShopViewMode: (mode: 'shop' | 'inventory' | 'mapstore') => void
-  
+
   customMapData: EditorItem[] | null
-  setCustomMapData: (data: any[] | null) => void
-  customMapMeta: { worldHeight?: number, wallStyle?: string, bgImage?: string | null, layoutConfig?: any } | null
-  setCustomMapMeta: (meta: any | null) => void
+  setCustomMapData: (data: EditorItem[] | null) => void
+  customMapMeta: CustomMapMeta | null
+  setCustomMapMeta: (meta: CustomMapMeta | null) => void
   customMapTitle: string | null
   setCustomMapTitle: (title: string | null) => void
 
@@ -30,7 +46,7 @@ interface UIState {
   // 실제 게임 브리지(customMapData)를 재사용하지 않아 localStorage 오염을 방지한다.
   testPlaySession: {
     items: EditorItem[]
-    meta: { worldHeight?: number; wallStyle?: string; bgImage?: string | null; layoutConfig?: any }
+    meta: CustomMapMeta
     survivors: Participant[]
   } | null
   startTestPlay: (session: NonNullable<UIState['testPlaySession']>) => void
@@ -40,7 +56,7 @@ interface UIState {
   setBroadcasterMode: (isBroadcaster: boolean) => void
   isAnonymized: boolean
   setAnonymized: (isAnonymized: boolean) => void
-  
+
   gameTitle: string | null
   setGameTitle: (title: string) => void
 
@@ -50,8 +66,8 @@ interface UIState {
   setIsLoggedIn: (isLoggedIn: boolean) => void
   hasClaimableMissions: boolean
   setHasClaimableMissions: (hasClaimable: boolean) => void
-  userProfile: any | null // We use 'any' to avoid circular dependency or import issues, or we can import UserProfile
-  setUserProfile: (profile: any | null) => void
+  userProfile: UserProfile | null
+  setUserProfile: (profile: UserProfile | null) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -60,7 +76,7 @@ export const useUIStore = create<UIState>()(
       isSidebarOpen: false,
       setSidebarOpen: (isSidebarOpen) => set({ isSidebarOpen }),
       toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
-      
+
       customMapData: null,
       customMapMeta: null,
       customMapTitle: null,
@@ -96,16 +112,16 @@ export const useUIStore = create<UIState>()(
     {
       name: 'rt-ui-storage',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ 
-        isBroadcasterMode: state.isBroadcasterMode, 
+      partialize: (state) => ({
+        isBroadcasterMode: state.isBroadcasterMode,
         isAnonymized: state.isAnonymized,
         customMapData: state.customMapData,
         customMapMeta: state.customMapMeta,
         customMapTitle: state.customMapTitle
       }),
-      merge: (persistedState: any, currentState) => ({
+      merge: (persistedState, currentState) => ({
         ...currentState,
-        ...persistedState,
+        ...(persistedState as Partial<UIState>),
         activeModal: 'none', // 로컬 스토리지의 이전 상태를 무시하고 항상 모달 닫힘 상태로 초기화
       }),
     }

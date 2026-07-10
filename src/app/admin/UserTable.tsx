@@ -30,7 +30,7 @@ export default function UserTable({ initialUsers, initialCount }: { initialUsers
     if (result.success && result.data) {
       setUsers(result.data)
       setPage(newPage)
-      if (result.count !== undefined) setTotalCount(result.count)
+      if (typeof result.count === 'number') setTotalCount(result.count)
     } else {
       toast.error(`Error: ${result.error}`)
     }

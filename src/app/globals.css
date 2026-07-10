@@ -11,14 +11,27 @@
 @layer base {
   :root {
     /* Dark Theme (Default) */
+    /* Dark Theme (Default) */
     --bg-primary: hsl(225, 25%, 8%);
     --bg-secondary: hsl(225, 20%, 12%);
     --bg-glass: hsla(225, 20%, 15%, 0.7);
+    --glass-shadow: hsla(0, 0%, 0%, 0.3);
+    --glass-shadow-heavy: hsla(0, 0%, 0%, 0.4);
+    
+    --panel-bg: hsla(0, 0%, 0%, 0.25);
+    --panel-bg-heavy: hsla(0, 0%, 0%, 0.45);
+    --panel-border: hsla(0, 0%, 100%, 0.05);
+    --panel-border-hover: hsla(0, 0%, 100%, 0.15);
+    --btn-bg: hsla(0, 0%, 100%, 0.05);
+    --btn-bg-hover: hsla(0, 0%, 100%, 0.12);
+    
     --accent-primary: hsl(170, 100%, 50%); /* Cyan */
     --accent-secondary: hsl(280, 80%, 65%); /* Purple */
     --accent-warning: hsl(35, 100%, 55%); /* Amber */
     --text-primary: hsl(0, 0%, 95%);
     --text-secondary: hsl(225, 10%, 55%);
+    --text-muted: hsla(0, 0%, 100%, 0.5);
+    --text-faint: hsla(0, 0%, 100%, 0.3);
     
     --font-outfit: "Outfit", sans-serif;
     --font-pretendard: "Pretendard Variable", Pretendard, -apple-system, sans-serif;
@@ -26,14 +39,28 @@
   }
 
   [data-theme="light"] {
-    /* Light Theme */
-    --bg-primary: hsl(220, 20%, 97%);
-    --bg-secondary: hsl(220, 15%, 92%);
-    --bg-glass: hsla(220, 15%, 100%, 0.8);
-    --accent-primary: hsl(200, 90%, 45%);
-    --accent-secondary: hsl(260, 70%, 55%);
-    --text-primary: hsl(220, 25%, 15%);
-    --text-secondary: hsl(220, 10%, 45%);
+    /* Light Theme (Premium Pastel) */
+    /* Light Theme (Premium Pastel) */
+    --bg-primary: hsl(215, 30%, 97%);
+    --bg-secondary: hsl(215, 25%, 93%);
+    --bg-glass: hsla(0, 0%, 100%, 0.85);
+    --glass-shadow: hsla(215, 25%, 27%, 0.08);
+    --glass-shadow-heavy: hsla(215, 25%, 27%, 0.15);
+    
+    --panel-bg: hsla(0, 0%, 100%, 0.6);
+    --panel-bg-heavy: hsla(0, 0%, 100%, 0.85);
+    --panel-border: hsla(215, 25%, 27%, 0.08);
+    --panel-border-hover: hsla(215, 25%, 27%, 0.18);
+    --btn-bg: hsla(215, 25%, 27%, 0.03);
+    --btn-bg-hover: hsla(0, 0%, 100%, 0.9);
+    
+    --accent-primary: hsl(175, 70%, 45%); /* Soft Mint/Cyan */
+    --accent-secondary: hsl(270, 70%, 65%); /* Soft Violet */
+    --accent-warning: hsl(35, 100%, 50%); /* Warm Amber */
+    --text-primary: hsl(215, 35%, 20%); /* Deep Slate */
+    --text-secondary: hsl(215, 20%, 50%); /* Muted Slate */
+    --text-muted: hsla(215, 35%, 20%, 0.75);
+    --text-faint: hsla(215, 35%, 20%, 0.55);
   }
 
   * {
@@ -74,7 +101,7 @@
     backdrop-filter: blur(16px) saturate(180%);
     border: 1px solid hsla(0, 0%, 100%, 0.08);
     border-radius: 16px;
-    box-shadow: 0 8px 32px hsla(0, 0%, 0%, 0.3);
+    box-shadow: 0 8px 32px var(--glass-shadow);
   }
   
   .glass-panel-heavy {
@@ -82,7 +109,7 @@
     backdrop-filter: blur(24px) saturate(200%);
     border: 1px solid hsla(0, 0%, 100%, 0.15);
     border-radius: 16px;
-    box-shadow: 0 12px 40px hsla(0, 0%, 0%, 0.4);
+    box-shadow: 0 12px 40px var(--glass-shadow-heavy);
   }
 
   .text-glow-primary {

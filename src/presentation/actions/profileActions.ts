@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { UserRepository } from '@/infrastructure/supabase/userRepository';
-import { UserProfile } from '@/types/user';
+import { UserProfile, UserSettings } from '@/types/user';
 
 export async function getProfileOverviewAction(): Promise<UserProfile | null> {
   try {
@@ -34,7 +34,7 @@ export async function getProfileOverviewAction(): Promise<UserProfile | null> {
   }
 }
 
-export async function updateSettingsAction(settings: Record<string, any>): Promise<{ success: boolean; error?: string }> {
+export async function updateSettingsAction(settings: UserSettings): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -54,8 +54,8 @@ export async function updateSettingsAction(settings: Record<string, any>): Promi
     }
 
     return { success: true };
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error in updateSettingsAction:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }

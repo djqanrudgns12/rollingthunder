@@ -4,6 +4,8 @@ import React, { useEffect, useRef } from 'react'
 import * as PIXI from 'pixi.js'
 import { Viewport } from 'pixi-viewport'
 import { useEditorStore, EditorItem } from '@/store/editorStore'
+import { useGameStore } from '@/store/gameStore'
+import { useShallow } from 'zustand/react/shallow'
 import { createAppRenderContext } from '@/lib/render/RenderContext'
 import { createObstacleGraphic, ObstacleGraphic } from '@/lib/render/ObstacleRenderer'
 import { itemRotationRad } from '@/lib/render/rotation'
@@ -65,6 +67,7 @@ export default function EditorCanvas() {
   const overlayRef = useRef<PIXI.Container | null>(null)
   const nodeMapRef = useRef<Map<string, NodeEntry>>(new Map())
   const readyRef = useRef(false)
+  const { theme } = useGameStore(useShallow(s => ({ theme: s.theme })))
 
   // 스토어는 명령형(subscribe)으로만 다루어 불필요한 React 리렌더를 피한다.
   const setSelectedItemId = (id: string | null) => useEditorStore.getState().setSelectedItemId(id)

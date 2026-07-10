@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useUIStore } from '@/store/uiStore'
+import { useUIStore, type CustomMapMeta } from '@/store/uiStore'
 import { useGameStore } from '@/store/gameStore'
 import { toast } from 'sonner'
 import { X, Map, Store, Download, Hammer, Loader2 } from 'lucide-react'
@@ -48,7 +48,7 @@ interface CustomMapEntry {
   complexity?: string
   isPublished?: boolean
   items: any[]
-  meta: { worldHeight?: number; wallStyle?: string; bgImage?: string | null; layoutConfig?: any }
+  meta: CustomMapMeta
 }
 
 function lengthBadgeClass(label: string) {
@@ -141,7 +141,8 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
             items: d.snapshot?.items || [],
             meta: {
               worldHeight: d.snapshot?.worldHeight,
-              wallStyle: d.snapshot?.wallStyle,
+              // 스냅샷은 DB JSON이라 string으로 넘어옴 — 에디터가 기록한 값이므로 유니온으로 좁힘
+              wallStyle: d.snapshot?.wallStyle as CustomMapMeta['wallStyle'],
               bgImage: d.snapshot?.bgImage,
               layoutConfig: d.snapshot?.layoutConfig,
             },

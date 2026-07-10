@@ -5,7 +5,7 @@ import { useEditorStore, WorkspaceTab } from '@/store/editorStore'
 import { useGameStore } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
 import { Save, Undo, Redo, Magnet, Plus, Play, Pause, Loader2, Upload, X, History, ChevronDown, ChevronRight, Clock, Store } from 'lucide-react'
-import { MapPresets } from '@/engine/MapPresets'
+import { MapPresets, DEFAULT_THEME_WEIGHTS } from '@/engine/MapPresets'
 import { saveMapAction, deployMapAction, getMapsAction } from '@/presentation/actions/mapActions'
 import { saveUserMapAction, getMyUserMapsAction } from '@/presentation/actions/userMapActions'
 import { UserMapEntity, USER_MAP_SLOT_LIMIT } from '@/core/entities/UserMap'
@@ -166,7 +166,7 @@ export default function EditorToolbar() {
       layoutConfig,
       wallStyle,
       bgImage: bgImage || existingMap?.bgImage,
-      themeWeights: existingMap?.themeWeights,
+      themeWeights: { ...DEFAULT_THEME_WEIGHTS, ...existingMap?.themeWeights } as Record<string, number>,
       items
     })
 
@@ -181,13 +181,14 @@ export default function EditorToolbar() {
       [targetMapId]: {
         ...(existingMap || {}),
         name: finalMapName,
-        description: meta.description || existingMap?.description,
+        description: meta.description || existingMap?.description || '',
         lengthType: meta.lengthType,
         complexity: meta.complexity,
         worldHeight,
         layoutConfig,
         wallStyle,
         bgImage: bgImage || existingMap?.bgImage,
+        themeWeights: existingMap?.themeWeights ?? DEFAULT_THEME_WEIGHTS,
         items,
         isOfficial   // 프리셋이면 true 유지 → 캐시 오염 방지
       }

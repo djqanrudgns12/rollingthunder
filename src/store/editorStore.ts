@@ -1,5 +1,15 @@
 import { create } from 'zustand'
 import { useGameStore } from './gameStore'
+import type { Viewport } from 'pixi-viewport'
+import type { MapPresetMeta } from '@/engine/MapPresets'
+
+// 레이아웃 설정 (MapPresets.layoutConfig 와 동일 형태 — 에디터에서는 전 필드 선택적)
+export interface EditorLayoutConfig {
+  startLineY?: number;
+  startMarginPercent?: number;
+  endMarginPercent?: number;
+  spawnGap?: number;
+}
 
 // 하이엔드 기믹 타입 추가
 export type EditorItemType = 'pin' | 'bumper' | 'wall' | 'hole' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole' | 'spinner' | 'iceblock' | 'windcannon' | 'luckygate' | 'speedgate' | 'slowgate' | 'flipper' | 'startline' | 'endline' | 'polygon';
@@ -57,7 +67,7 @@ export interface WorkspaceTab {
     historyIndex: number;
     bgImage: string | null;
     worldHeight: number;
-    layoutConfig: any;
+    layoutConfig: EditorLayoutConfig;
     wallStyle: EditorWallStyle;
   };
 }
@@ -84,7 +94,7 @@ interface EditorState {
   mapId: string | null;
   bgImage: string | null;
   worldHeight: number;
-  layoutConfig: any;
+  layoutConfig: EditorLayoutConfig;
   wallStyle: EditorWallStyle;       // 외벽 스타일 (배경 너비/외벽 가이드에 사용)
   previewAnimating: boolean;        // 에디터 캔버스 기물 애니메이션 ON/OFF
   previewChipCount: number;         // 스폰 프리뷰/검증/테스트 플레이 공유 칩 수
@@ -119,7 +129,7 @@ interface EditorState {
   loadMapPreset: (mapId: string) => void;
   loadMapFromData: (
     mapId: string | null,
-    data: { items?: EditorItem[]; worldHeight?: number; wallStyle?: string; bgImage?: string | null; layoutConfig?: any },
+    data: { items?: EditorItem[]; worldHeight?: number; wallStyle?: string; bgImage?: string | null; layoutConfig?: EditorLayoutConfig },
     title: string
   ) => void;
   
@@ -140,12 +150,12 @@ interface EditorState {
   panelOrder: string[];
   bringToFront: (panelId: string) => void;
 
-  editorViewport: any | null;
-  setEditorViewport: (viewport: any | null) => void;
+  editorViewport: Viewport | null;
+  setEditorViewport: (viewport: Viewport | null) => void;
 }
 
 // 스냅샷 생성 유틸리티
-const createSnapshot = (state: any) => ({
+const createSnapshot = (state: EditorState): NonNullable<WorkspaceTab['stateSnapshot']> => ({
   items: state.items,
   history: state.history,
   historyIndex: state.historyIndex,
@@ -221,7 +231,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     // 현재 탭의 상태를 스냅샷으로 저장
     const currentTabId = state.activeTabId;
-    let updatedTabs = [...state.tabs];
+    const updatedTabs = [...state.tabs];
     if (currentTabId) {
       const currentTabIndex = updatedTabs.findIndex(t => t.id === currentTabId);
       if (currentTabIndex !== -1 && updatedTabs[currentTabIndex].type === 'map') {
@@ -256,7 +266,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     
     if (targetTabIndex === -1) return state;
 
-    let updatedTabs = [...state.tabs];
+    const updatedTabs = [...state.tabs];
     
     // 현재 탭 스냅샷 저장
     if (currentTabIndex !== -1 && state.tabs[currentTabIndex].type === 'map') {
@@ -412,7 +422,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     // addTab에서 스냅샷 초기화를 하지만, 최초 로딩 시엔 실제 데이터를 채워야 함
     setTimeout(() => {
-      const applyPreset = (preset: any) => {
+      const applyPreset = (preset: MapPresetMeta | undefined) => {
         if (preset) {
           useEditorStore.setState({
             mapId,

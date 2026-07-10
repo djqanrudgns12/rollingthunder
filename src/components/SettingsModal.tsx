@@ -162,33 +162,33 @@ export default function SettingsModal() {
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md max-h-[90dvh] bg-[var(--bg-secondary)] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+      <div className="relative w-full max-w-md max-h-[90dvh] bg-[var(--bg-secondary)] border border-[var(--panel-border-hover)] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/20 shrink-0">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--panel-border-hover)] bg-[var(--panel-bg)] shrink-0">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Zap className="w-5 h-5 text-[var(--accent-primary)]" />
             환경설정
           </h2>
           <button 
             onClick={handleCancel}
-            className="p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors"
+            className="p-2 rounded-lg hover:bg-[var(--btn-bg-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 p-1 bg-black/40 rounded-xl border border-white/5 mx-4 mt-4 shrink-0">
+        <div className="flex gap-2 p-1 bg-[var(--panel-bg-heavy)] rounded-xl border border-[var(--panel-border)] mx-4 mt-4 shrink-0">
           <button
             onClick={() => setActiveTab('audioDisplay')}
-            className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all ${activeTab === 'audioDisplay' ? 'bg-white/10 text-white shadow-sm' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}
+            className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all ${activeTab === 'audioDisplay' ? 'bg-[var(--btn-bg-hover)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-faint)] hover:text-[var(--text-muted)] hover:bg-[var(--btn-bg)]'}`}
           >
             음향 및 디스플레이
           </button>
           <button
             onClick={() => setActiveTab('ingame')}
-            className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all ${activeTab === 'ingame' ? 'bg-white/10 text-white shadow-sm' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}
+            className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all ${activeTab === 'ingame' ? 'bg-[var(--btn-bg-hover)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-faint)] hover:text-[var(--text-muted)] hover:bg-[var(--btn-bg)]'}`}
           >
             인게임 설정
           </button>
@@ -205,10 +205,10 @@ export default function SettingsModal() {
                   <Volume2 className="w-4 h-4 shrink-0" /> 음량 설정 (AUDIO)
                 </label>
                 
-                <div className="flex flex-col gap-2 bg-black/20 p-3 rounded-xl border border-white/5">
+                <div className="flex flex-col gap-2 bg-[var(--panel-bg)] p-3 rounded-xl border border-[var(--panel-border)]">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-white/70 font-medium">배경음악 (BGM)</span>
-                    <span className="text-[10px] text-white/50 font-mono bg-black/50 px-2 py-0.5 rounded-lg border border-white/10">{bgmVolume}%</span>
+                    <span className="text-sm text-[var(--text-muted)] font-medium">배경음악 (BGM)</span>
+                    <span className="text-[10px] text-[var(--text-muted)] font-mono bg-[var(--panel-bg-heavy)] px-2 py-0.5 rounded-lg border border-[var(--panel-border-hover)]">{bgmVolume}%</span>
                   </div>
                   <input 
                     type="range" 
@@ -220,10 +220,10 @@ export default function SettingsModal() {
                   />
                 </div>
 
-                <div className="flex flex-col gap-2 bg-black/20 p-3 rounded-xl border border-white/5">
+                <div className="flex flex-col gap-2 bg-[var(--panel-bg)] p-3 rounded-xl border border-[var(--panel-border)]">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-white/70 font-medium">효과음 (SFX)</span>
-                    <span className="text-[10px] text-white/50 font-mono bg-black/50 px-2 py-0.5 rounded-lg border border-white/10">{sfxVolume}%</span>
+                    <span className="text-sm text-[var(--text-muted)] font-medium">효과음 (SFX)</span>
+                    <span className="text-[10px] text-[var(--text-muted)] font-mono bg-[var(--panel-bg-heavy)] px-2 py-0.5 rounded-lg border border-[var(--panel-border-hover)]">{sfxVolume}%</span>
                   </div>
                   <input 
                     type="range" 
@@ -241,16 +241,16 @@ export default function SettingsModal() {
                 <label className="text-xs text-[#06b6d4] font-bold tracking-widest uppercase flex items-center gap-2">
                   <Sun className="w-4 h-4 shrink-0" /> 테마 (THEME)
                 </label>
-                <div className="flex gap-2 p-1 bg-black/40 rounded-xl border border-white/5">
+                <div className="flex gap-2 p-1 bg-[var(--panel-bg-heavy)] rounded-xl border border-[var(--panel-border)]">
                   <button
                     onClick={() => setTheme('dark')}
-                    className={`flex-1 flex justify-center items-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all ${theme === 'dark' ? 'bg-white/10 text-white shadow-sm' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}
+                    className={`flex-1 flex justify-center items-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all ${theme === 'dark' ? 'bg-[var(--btn-bg-hover)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-faint)] hover:text-[var(--text-muted)] hover:bg-[var(--btn-bg)]'}`}
                   >
                     <Moon className="w-4 h-4" /> 다크
                   </button>
                   <button
                     onClick={() => setTheme('light')}
-                    className={`flex-1 flex justify-center items-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all ${theme === 'light' ? 'bg-white text-black shadow-sm' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}
+                    className={`flex-1 flex justify-center items-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all ${theme === 'light' ? 'bg-white text-black shadow-sm' : 'text-[var(--text-faint)] hover:text-[var(--text-muted)] hover:bg-[var(--btn-bg)]'}`}
                   >
                     <Sun className="w-4 h-4" /> 라이트
                   </button>
@@ -265,7 +265,7 @@ export default function SettingsModal() {
                 <select
                   value={fontFamily}
                   onChange={(e) => setFontFamily(e.target.value)}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--accent-secondary)] transition-colors"
+                  className="w-full bg-[var(--panel-bg-heavy)] border border-[var(--panel-border-hover)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--accent-secondary)] transition-colors"
                   style={{ fontFamily: `var(--font-${fontFamily})` }}
                 >
                   {FONTS.map(f => (
@@ -273,7 +273,7 @@ export default function SettingsModal() {
                   ))}
                 </select>
                 <div 
-                  className="mt-2 p-2 sm:p-3 bg-black/30 rounded-lg border border-white/5 text-center truncate text-sm"
+                  className="mt-2 p-2 sm:p-3 bg-[var(--panel-bg)] rounded-lg border border-[var(--panel-border)] text-center truncate text-sm"
                   style={{ fontFamily: `var(--font-${fontFamily})` }}
                 >
                   가나다라마바사 ABCDE 12345
@@ -288,13 +288,13 @@ export default function SettingsModal() {
                 <div className="flex gap-1">
                   <button
                     onClick={() => setScreenShakeEnabled(true)}
-                    className={`flex-1 py-1.5 sm:py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${isScreenShakeEnabled ? 'bg-orange-500 text-white shadow-[0_0_10px_#f97316]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                    className={`flex-1 py-1.5 sm:py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${isScreenShakeEnabled ? 'bg-orange-500 text-[var(--text-primary)] shadow-[0_0_10px_#f97316]' : 'bg-[var(--panel-bg-heavy)] text-[var(--text-muted)] hover:bg-[var(--btn-bg-hover)]'}`}
                   >
                     ON
                   </button>
                   <button
                     onClick={() => setScreenShakeEnabled(false)}
-                    className={`flex-1 py-1.5 sm:py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${!isScreenShakeEnabled ? 'bg-black/80 text-white/80 border border-orange-500/50' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                    className={`flex-1 py-1.5 sm:py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${!isScreenShakeEnabled ? 'bg-black/80 text-[var(--text-primary)]/80 border border-orange-500/50' : 'bg-[var(--panel-bg-heavy)] text-[var(--text-muted)] hover:bg-[var(--btn-bg-hover)]'}`}
                   >
                     OFF
                   </button>
@@ -309,18 +309,18 @@ export default function SettingsModal() {
                 <div className="flex gap-1">
                   <button
                     onClick={() => setCalmMode(true)}
-                    className={`flex-1 py-1.5 sm:py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${calmMode ? 'bg-cyan-500 text-white shadow-[0_0_10px_#06b6d4]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                    className={`flex-1 py-1.5 sm:py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${calmMode ? 'bg-cyan-500 text-[var(--text-primary)] shadow-[0_0_10px_#06b6d4]' : 'bg-[var(--panel-bg-heavy)] text-[var(--text-muted)] hover:bg-[var(--btn-bg-hover)]'}`}
                   >
                     ON
                   </button>
                   <button
                     onClick={() => setCalmMode(false)}
-                    className={`flex-1 py-1.5 sm:py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${!calmMode ? 'bg-black/80 text-white/80 border border-cyan-500/50' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                    className={`flex-1 py-1.5 sm:py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${!calmMode ? 'bg-black/80 text-[var(--text-primary)]/80 border border-cyan-500/50' : 'bg-[var(--panel-bg-heavy)] text-[var(--text-muted)] hover:bg-[var(--btn-bg-hover)]'}`}
                   >
                     OFF
                   </button>
                 </div>
-                <p className="text-[9px] sm:text-[10px] text-white/40 leading-tight">화면 채도·글로우·카메라 움직임을 더 줄여 눈피로/어지러움을 완화합니다. (장애물 글로우 제거는 다음 레이스부터 적용)</p>
+                <p className="text-[9px] sm:text-[10px] text-[var(--text-faint)] leading-tight">화면 채도·글로우·카메라 움직임을 더 줄여 눈피로/어지러움을 완화합니다. (장애물 글로우 제거는 다음 레이스부터 적용)</p>
               </div>
             </>
           )}
@@ -337,7 +337,7 @@ export default function SettingsModal() {
                     <button
                       key={speed}
                       onClick={() => setBaseTimeScale(speed)}
-                      className={`flex-1 py-1.5 sm:py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${baseTimeScale === speed ? 'bg-orange-500 text-white shadow-[0_0_10px_#f97316]' : 'bg-black/50 text-white/50 hover:bg-white/10'}`}
+                      className={`flex-1 py-1.5 sm:py-2 px-0.5 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${baseTimeScale === speed ? 'bg-orange-500 text-[var(--text-primary)] shadow-[0_0_10px_#f97316]' : 'bg-[var(--panel-bg-heavy)] text-[var(--text-muted)] hover:bg-[var(--btn-bg-hover)]'}`}
                     >
                       {speed}x
                     </button>
@@ -351,10 +351,10 @@ export default function SettingsModal() {
                   <Zap className="w-4 h-4 shrink-0" /> 인게임 플레이 (IN GAME PLAY)
                 </label>
                 
-                <div className="flex flex-col gap-2 bg-black/20 p-3 rounded-xl border border-white/5">
+                <div className="flex flex-col gap-2 bg-[var(--panel-bg)] p-3 rounded-xl border border-[var(--panel-border)]">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-[var(--accent-secondary)] font-bold whitespace-nowrap">장애물 밀도 (OBSTACLES)</span>
-                    <span className="text-[10px] text-[var(--accent-secondary)] font-mono bg-black/50 px-2 py-0.5 rounded-lg border border-white/10 ml-2 whitespace-nowrap">{gimmickDensity}%</span>
+                    <span className="text-[10px] text-[var(--accent-secondary)] font-mono bg-[var(--panel-bg-heavy)] px-2 py-0.5 rounded-lg border border-[var(--panel-border-hover)] ml-2 whitespace-nowrap">{gimmickDensity}%</span>
                   </div>
                   <div className="flex items-center h-[38px] pt-1">
                     <input
@@ -366,15 +366,15 @@ export default function SettingsModal() {
                       className="w-full neon-slider"
                     />
                   </div>
-                  <p className="text-[10px] text-white/40 leading-relaxed -mt-1">
+                  <p className="text-[10px] text-[var(--text-faint)] leading-relaxed -mt-1">
                     트랙에 배치되는 장애물의 양을 조절합니다. 수치가 높을수록 장애물이 촘촘하게 배치되어 난이도가 상승합니다. 다음 레이스부터 반영됩니다.
                   </p>
                 </div>
 
-                <div className="flex flex-col gap-2 bg-black/20 p-3 rounded-xl border border-white/5">
+                <div className="flex flex-col gap-2 bg-[var(--panel-bg)] p-3 rounded-xl border border-[var(--panel-border)]">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-[var(--accent-secondary)] font-bold whitespace-nowrap">순위 역동성 (COMEBACK)</span>
-                    <span className="text-[10px] text-[var(--accent-secondary)] font-mono bg-black/50 px-2 py-0.5 rounded-lg border border-white/10 ml-2 whitespace-nowrap">{comebackStrength === 0 ? 'OFF' : `${comebackStrength}%`}</span>
+                    <span className="text-[10px] text-[var(--accent-secondary)] font-mono bg-[var(--panel-bg-heavy)] px-2 py-0.5 rounded-lg border border-[var(--panel-border-hover)] ml-2 whitespace-nowrap">{comebackStrength === 0 ? 'OFF' : `${comebackStrength}%`}</span>
                   </div>
                   <div className="flex items-center h-[38px] pt-1">
                     <input
@@ -386,15 +386,15 @@ export default function SettingsModal() {
                       className="w-full neon-slider"
                     />
                   </div>
-                  <p className="text-[10px] text-white/40 leading-relaxed -mt-1">
+                  <p className="text-[10px] text-[var(--text-faint)] leading-relaxed -mt-1">
                     하위권 추격·선두 접전을 유도하는 강도입니다. 0이면 순수 물리로만 진행되고, 높을수록 역전이 자주 일어납니다. 레이스 도중에도 즉시 반영됩니다.
                   </p>
                 </div>
 
-                <div className="flex flex-col gap-2 bg-black/20 p-3 rounded-xl border border-white/5">
+                <div className="flex flex-col gap-2 bg-[var(--panel-bg)] p-3 rounded-xl border border-[var(--panel-border)]">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-[var(--accent-secondary)] font-bold whitespace-nowrap">플레이 시간 (PLAY TIME)</span>
-                    <span className="text-[10px] text-[var(--accent-secondary)] font-mono bg-black/50 px-2 py-0.5 rounded-lg border border-white/10 ml-2 whitespace-nowrap">
+                    <span className="text-[10px] text-[var(--accent-secondary)] font-mono bg-[var(--panel-bg-heavy)] px-2 py-0.5 rounded-lg border border-[var(--panel-border-hover)] ml-2 whitespace-nowrap">
                       {playTime < 50 ? `빠른 마무리 · ${playTime}` : playTime > 50 ? `느긋하게 · ${playTime}` : '기본 · 50'}
                     </span>
                   </div>
@@ -408,7 +408,7 @@ export default function SettingsModal() {
                       className="w-full neon-slider"
                     />
                   </div>
-                  <p className="text-[10px] text-white/40 leading-relaxed -mt-1">
+                  <p className="text-[10px] text-[var(--text-faint)] leading-relaxed -mt-1">
                     낮을수록 우승 확정 후 남은 경기가 자동으로 빨라지고 끼인 마블 구조가 빨라집니다. 우승자가 정해지기 전의 레이스에는 영향을 주지 않으며, 50이 기존 진행과 동일합니다. 레이스 도중에도 즉시 반영됩니다.
                   </p>
                 </div>
@@ -419,7 +419,7 @@ export default function SettingsModal() {
         </div>
 
         {/* Setting Actions */}
-        <div className="p-4 sm:p-6 pt-3 flex gap-2 shrink-0 border-t border-white/10 bg-[var(--bg-secondary)]">
+        <div className="p-4 sm:p-6 pt-3 flex gap-2 shrink-0 border-t border-[var(--panel-border-hover)] bg-[var(--bg-secondary)]">
           <button
             onClick={handleLogout}
             title="로그아웃"
@@ -429,7 +429,7 @@ export default function SettingsModal() {
           </button>
           <button
             onClick={handleReset}
-            className="flex-1 h-11 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
+            className="flex-1 h-11 bg-[var(--btn-bg)] hover:bg-[var(--btn-bg-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
           >
             <RotateCcw className="w-4 h-4" />
             초기화

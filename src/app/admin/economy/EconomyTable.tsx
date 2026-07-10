@@ -23,7 +23,7 @@ export default function EconomyTable({ initialLogs, initialCount }: { initialLog
     if (result.success && result.data) {
       setLogs(result.data)
       setPage(newPage)
-      if (result.count !== undefined) setTotalCount(result.count)
+      if (typeof result.count === 'number') setTotalCount(result.count)
     } else {
       toast.error(`Error: ${result.error}`)
     }

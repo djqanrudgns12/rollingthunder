@@ -18,11 +18,7 @@ export default function GachaPage() {
     setIsShaking(true)
 
     try {
-      const res = await fetch('/api/gacha', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ participantId: 'guest_user_1', cost: 100 }) 
-      })
+      const res = await fetch('/api/gacha', { method: 'POST' })
       const data = await res.json()
       
       if (data.success) {

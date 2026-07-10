@@ -18,10 +18,8 @@ const nextConfig = {
   outputFileTracingRoot: __dirname,
   turbopack: {},
   eslint: {
+    // TODO: 잔여 no-explicit-any 정리 완료 후 제거 (typecheck는 이미 빌드 게이트로 복원됨)
     ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
   }
 };
 

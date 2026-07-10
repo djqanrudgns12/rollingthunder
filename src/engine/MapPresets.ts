@@ -37,8 +37,8 @@ export interface MapPresetMeta {
   layoutConfig?: {                           // PRD v6.0: 절대 좌표 배치 지원
     startLineY?: number;                     // 절대 좌표 (우선 적용)
     startMarginPercent?: number;             // 기존 비율 (하위 호환용)
-    endMarginPercent: number;
-    spawnGap: number;
+    endMarginPercent?: number;               // 소비처 전부 ?? 0.02 폴백 보유
+    spawnGap?: number;                       // 소비처 전부 ?? 50 폴백 보유
   };
   items: EditorItem[];                       // 장애물 배치 배열
 }

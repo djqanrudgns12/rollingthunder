@@ -32,20 +32,19 @@ export function calculateDensity(
     const keys = Object.keys(themeWeights) as (keyof ThemeWeights)[];
     
     for (const key of keys) {
-      const count = Math.round(injectionCount * themeWeights[key]);
+      const count = Math.round(injectionCount * (themeWeights[key] ?? 0));
       injectionMix[key] = count;
       remaining -= count;
     }
-    
+
     if (remaining !== 0) {
-      injectionMix['pin'] += remaining;
-      if (injectionMix['pin'] < 0) injectionMix['pin'] = 0;
+      injectionMix['pin'] = Math.max(0, (injectionMix['pin'] ?? 0) + remaining);
     }
-    
+
     // 포탈은 쌍(짝수)으로만 주입 가능
-    if (injectionMix['portal'] % 2 !== 0) {
-      injectionMix['portal'] -= 1;
-      injectionMix['pin'] += 1;
+    if ((injectionMix['portal'] ?? 0) % 2 !== 0) {
+      injectionMix['portal'] = (injectionMix['portal'] ?? 0) - 1;
+      injectionMix['pin'] = (injectionMix['pin'] ?? 0) + 1;
     }
   }
 

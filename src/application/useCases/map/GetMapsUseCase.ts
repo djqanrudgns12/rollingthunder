@@ -1,6 +1,6 @@
 import { MapEntity } from '@/core/entities/Map';
 import { MapRepository } from '@/infrastructure/supabase/mapRepository';
-import { MapPresets, MapPresetMeta } from '@/engine/MapPresets';
+import { MapPresets, MapPresetMeta, DEFAULT_THEME_WEIGHTS } from '@/engine/MapPresets';
 
 export class GetMapsUseCase {
   static async execute(): Promise<Record<string, MapPresetMeta>> {
@@ -21,8 +21,8 @@ export class GetMapsUseCase {
           worldHeight: map.worldHeight,
           wallStyle: map.wallStyle,
           bgImage: map.bgImage,
-          themeWeights: map.themeWeights || {},
-          layoutConfig: map.layoutConfig || {},
+          themeWeights: { ...DEFAULT_THEME_WEIGHTS, ...map.themeWeights },
+          layoutConfig: { endMarginPercent: 0.02, spawnGap: 50, ...map.layoutConfig },
           items: map.items.length > 0 ? map.items : (MapPresets[map.id]?.items || [])
         };
       }

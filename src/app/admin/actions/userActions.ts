@@ -23,7 +23,7 @@ export async function getUsers(page: number = 1, limit: number = 50) {
     const adminClient = createAdminClient()
     const { data: authData, error: authError } = await adminClient.auth.admin.listUsers()
     
-    let authUsersMap = new Map()
+    const authUsersMap = new Map()
     if (!authError && authData?.users) {
       authData.users.forEach(u => authUsersMap.set(u.id, u.last_sign_in_at))
     }

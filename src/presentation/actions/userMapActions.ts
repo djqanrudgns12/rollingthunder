@@ -4,11 +4,11 @@ import { AppError } from '@/core/errors/AppError';
 import { UserMapEntity, UserMapDownloadEntity } from '@/core/entities/UserMap';
 import type { ValidationResult } from '@/lib/editor/validationTypes';
 
-type ActionResult<T = {}> =
+type ActionResult<T = object> =
   | ({ success: true } & T)
   | { success: false; error: string; code: string };
 
-function toFailure(error: any): { success: false; error: string; code: string } {
+function toFailure(error: unknown): { success: false; error: string; code: string } {
   if (error instanceof AppError) {
     return { success: false, error: error.message, code: error.code };
   }
