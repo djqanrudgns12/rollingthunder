@@ -326,33 +326,31 @@ export default function Dashboard() {
       {/* 화면 우측 하단 전역 유틸리티 버튼 (BGM, 설정, 배너) */}
       <div className="absolute bottom-4 right-4 md:bottom-8 md:right-8 flex gap-3 z-50 items-center">
         {/* Role-Based Promotional Features */}
-        {(!userProfile || userProfile.role === 'guest') && (
+        {(!userProfile || userProfile.role === 'guest') ? (
           <motion.button
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             whileHover={{ scale: 1.05 }}
             onClick={() => setActiveModal('auth')}
-            className="mr-2 px-3 py-2 md:px-4 rounded-full bg-black/60 backdrop-blur-md border border-pink-500/50 flex items-center gap-2 shadow-[0_0_15px_rgba(236,72,153,0.3)] hover:shadow-[0_0_25px_rgba(236,72,153,0.6)] hover:border-cyan-400 transition-all group"
+            className="mr-2 px-5 py-3 md:px-6 md:py-3 rounded-full bg-black/60 backdrop-blur-md border border-pink-500/50 flex items-center gap-2 shadow-[0_0_15px_rgba(236,72,153,0.3)] hover:shadow-[0_0_25px_rgba(236,72,153,0.6)] hover:border-cyan-400 transition-all group"
           >
-            <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" />
-            <span className="text-[10px] md:text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-cyan-400 whitespace-nowrap hidden sm:block">
+            <Sparkles className="w-5 h-5 text-cyan-400 animate-pulse" />
+            <span className="text-sm md:text-base font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-cyan-400 whitespace-nowrap hidden sm:block">
               가입하고 혜택받기!
             </span>
           </motion.button>
-        )}
-        
-        {userProfile?.role === 'user' && (
+        ) : userProfile?.role === 'user' && (
           <motion.button
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             whileHover={{ scale: 1.05 }}
             onClick={() => setActiveModal('premiumUpgrade')}
-            className="mr-2 px-3 py-2 md:px-4 rounded-full bg-black/60 backdrop-blur-md border border-amber-500/50 flex items-center gap-2 shadow-[0_0_15px_rgba(251,191,36,0.3)] hover:shadow-[0_0_25px_rgba(251,191,36,0.6)] hover:border-purple-400 transition-all group"
+            className="mr-2 px-5 py-3 md:px-6 md:py-3 rounded-full bg-black/60 backdrop-blur-md border border-amber-500/50 flex items-center gap-2 shadow-[0_0_15px_rgba(251,191,36,0.3)] hover:shadow-[0_0_25px_rgba(251,191,36,0.6)] hover:border-purple-400 transition-all group"
           >
-            <Rocket className="w-4 h-4 text-amber-400 group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" />
-            <span className="text-[10px] md:text-xs font-bold text-amber-300 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)] whitespace-nowrap hidden sm:block">
+            <Rocket className="w-5 h-5 text-amber-400 group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" />
+            <span className="text-sm md:text-base font-bold text-amber-300 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)] whitespace-nowrap hidden sm:block">
               Premium 등급 UP
             </span>
           </motion.button>

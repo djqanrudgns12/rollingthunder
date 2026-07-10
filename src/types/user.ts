@@ -10,6 +10,7 @@ export interface UserProfile {
   avatar_id?: string | null;
   achievements_completed?: number;
   total_achievements?: number;
+  settings?: Record<string, any> | null;
   created_at: string;
   updated_at: string;
 }

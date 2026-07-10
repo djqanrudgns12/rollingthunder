@@ -65,6 +65,20 @@ export default function GlobalPlayerHUD() {
         if (data) {
           setUserProfile(data);
           useChipStore.getState().setChips(data.chips_balance);
+          
+          if (data.settings && Object.keys(data.settings).length > 0) {
+            const state = useGameStore.getState();
+            if (data.settings.gimmickDensity !== undefined) state.setGimmickDensity(data.settings.gimmickDensity);
+            if (data.settings.baseTimeScale !== undefined) state.setBaseTimeScale(data.settings.baseTimeScale);
+            if (data.settings.comebackStrength !== undefined) state.setComebackStrength(data.settings.comebackStrength);
+            if (data.settings.playTime !== undefined) state.setPlayTime(data.settings.playTime);
+            if (data.settings.isScreenShakeEnabled !== undefined) state.setScreenShakeEnabled(data.settings.isScreenShakeEnabled);
+            if (data.settings.calmMode !== undefined) state.setCalmMode(data.settings.calmMode);
+            if (data.settings.theme !== undefined) state.setTheme(data.settings.theme);
+            if (data.settings.fontFamily !== undefined) state.setFontFamily(data.settings.fontFamily);
+            if (data.settings.bgmVolume !== undefined) state.setBgmVolume(data.settings.bgmVolume);
+            if (data.settings.sfxVolume !== undefined) state.setSfxVolume(data.settings.sfxVolume);
+          }
         }
         
         const invData = await fetchInventoryAction();
@@ -290,26 +304,26 @@ export default function GlobalPlayerHUD() {
             <>
               {/* LOBBY MODE NAVIGATION */}
               <button onClick={() => { playClickSound(); router.push('/shop'); }} className="nav-btn flex items-center gap-3 px-6 h-full rounded-full hover:bg-white/5 transition-all text-gray-300 hover:text-amber-400 group">
-                <div className="w-8 h-8 relative drop-shadow-[0_0_8px_rgba(251,191,36,0.2)] group-hover:drop-shadow-[0_0_12px_rgba(251,191,36,0.6)] transition-all">
+                <div className="w-11 h-11 relative drop-shadow-[0_0_8px_rgba(251,191,36,0.2)] group-hover:drop-shadow-[0_0_12px_rgba(251,191,36,0.6)] transition-all">
                   <Image src="/images/assets/hud/clean_shop_icon.png" alt="Shop" fill className="object-contain" />
                 </div>
-                <span className="text-[15px] font-black tracking-widest uppercase">상점</span>
+                <span className="text-[18px] font-black tracking-widest uppercase">상점</span>
               </button>
 
               <button onClick={() => { playClickSound(); setActiveModal('stampBook'); }} className="nav-btn flex items-center gap-3 px-6 h-full rounded-full hover:bg-white/5 transition-all text-gray-300 hover:text-red-400 group relative">
                 {hasClaimableMissions && <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full shadow-[0_0_10px_red] animate-pulse"></div>}
-                <div className="w-8 h-8 relative drop-shadow-[0_0_8px_rgba(239,68,68,0.2)] group-hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.6)] transition-all">
+                <div className="w-11 h-11 relative drop-shadow-[0_0_8px_rgba(239,68,68,0.2)] group-hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.6)] transition-all">
                   <Image src="/images/assets/hud/clean_mission_icon.png" alt="Mission" fill className="object-contain" />
                 </div>
-                <span className="text-[15px] font-black tracking-widest uppercase">미션</span>
+                <span className="text-[18px] font-black tracking-widest uppercase">미션</span>
               </button>
 
               {profile?.role === 'admin' && (
                 <button onClick={() => { playClickSound(); router.push('/admin'); }} className="nav-btn flex items-center gap-3 px-6 h-full rounded-full hover:bg-white/5 transition-all text-gray-300 hover:text-cyan-400 group">
-                  <div className="w-8 h-8 relative drop-shadow-[0_0_8px_rgba(6,182,212,0.2)] group-hover:drop-shadow-[0_0_12px_rgba(6,182,212,0.6)] transition-all">
+                  <div className="w-11 h-11 relative drop-shadow-[0_0_8px_rgba(6,182,212,0.2)] group-hover:drop-shadow-[0_0_12px_rgba(6,182,212,0.6)] transition-all">
                     <Image src="/images/assets/hud/clean_admin_icon.png" alt="Admin" fill className="object-contain" />
                   </div>
-                  <span className="text-[15px] font-black tracking-widest uppercase">터미널</span>
+                  <span className="text-[18px] font-black tracking-widest uppercase">터미널</span>
                 </button>
               )}
             </>

@@ -5,6 +5,7 @@ import { useUIStore } from '@/store/uiStore'
 import { X, Moon, Sun, Type, Gauge, Zap, RotateCcw, Check, Activity, LogOut, Volume2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { logout } from '@/app/actions'
+import { updateSettingsAction } from '@/presentation/actions/profileActions'
 
 const FONTS = [
   { id: 'pretendard', name: 'Pretendard (기본)' },
@@ -98,8 +99,29 @@ export default function SettingsModal() {
   }
 
   const handleApply = () => {
-    // 현재 상태를 유지하고 닫기만 함 (zustand가 이미 실시간 반영 중)
     setActiveModal('none')
+    
+    // 백그라운드에서 환경설정 저장
+    const { userId } = useGameStore.getState();
+    if (userId) {
+      const state = useGameStore.getState();
+      const currentSettings = {
+        gimmickDensity: state.gimmickDensity,
+        baseTimeScale: state.baseTimeScale,
+        comebackStrength: state.comebackStrength,
+        playTime: state.playTime,
+        isScreenShakeEnabled: state.isScreenShakeEnabled,
+        calmMode: state.calmMode,
+        theme: state.theme,
+        fontFamily: state.fontFamily,
+        bgmVolume: state.bgmVolume,
+        sfxVolume: state.sfxVolume
+      };
+      
+      updateSettingsAction(currentSettings).catch(err => {
+        console.error('Failed to save settings:', err);
+      });
+    }
   }
 
   const handleLogout = async () => {

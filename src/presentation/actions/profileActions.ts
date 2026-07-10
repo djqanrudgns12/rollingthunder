@@ -33,3 +33,29 @@ export async function getProfileOverviewAction(): Promise<UserProfile | null> {
     return null;
   }
 }
+
+export async function updateSettingsAction(settings: Record<string, any>): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ settings })
+      .eq('id', user.id);
+
+    if (error) {
+      console.error('Error updating settings:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error in updateSettingsAction:', error);
+    return { success: false, error: error.message };
+  }
+}
