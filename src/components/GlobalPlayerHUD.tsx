@@ -113,6 +113,17 @@ export default function GlobalPlayerHUD() {
     };
   }, [setIsLoggedIn, setUserProfile]);
 
+  // ── 주요 경로 프리페치 (페이지 전환 속도 향상) ──
+  useEffect(() => {
+    if (!isClient) return;
+    // 현재 로비에 있으면 상점을, 상점에 있으면 로비를 미리 로드
+    if (pathname?.startsWith('/shop')) {
+      router.prefetch('/dashboard');
+    } else {
+      router.prefetch('/shop');
+    }
+  }, [isClient, pathname, router]);
+
   useEffect(() => {
     if (!isClient) return;
     setIsAnimating(true);
@@ -296,7 +307,16 @@ export default function GlobalPlayerHUD() {
 
               <div className="w-[1px] h-8 bg-[var(--btn-bg-hover)] mx-2"></div>
 
-              <button onClick={() => { playClickSound(); router.push('/dashboard'); }} className="nav-btn flex items-center gap-3 px-5 h-full rounded-full hover:bg-[var(--btn-bg)] transition-all text-[var(--text-muted)] hover:text-[var(--text-primary)] group">
+              <button onClick={() => {
+                playClickSound();
+                // BFCache 활용: 브라우저 히스토리가 있으면 뒤로가기(즉시 복원),
+                // 없으면(직접 URL 진입 등) push로 폴백
+                if (window.history.length > 1) {
+                  router.back();
+                } else {
+                  router.push('/dashboard');
+                }
+              }} className="nav-btn flex items-center gap-3 px-5 h-full rounded-full hover:bg-[var(--btn-bg)] transition-all text-[var(--text-muted)] hover:text-[var(--text-primary)] group">
                 <ArrowLeft size={22} className="group-hover:-translate-x-1 transition-transform" />
                 <span className="text-[15px] font-black tracking-widest uppercase">대기실 복귀</span>
               </button>

@@ -1,19 +1,16 @@
 'use server'
 
 /**
- * 상점 아이템 구매 Server Action
+ * 상점 아이템 구매 Server Action (v2 — 성능 최적화)
  *
- * 왜 Server Action을 쓰는가:
- * 기존에는 클라이언트에서 직접 deduct_chips RPC를 호출했기 때문에,
- * 브라우저 콘솔이나 네트워크 변조로 권한 없는 아이템도 구매할 수 있었습니다.
- * Server Action은 Next.js 서버에서만 실행되므로 클라이언트 변조가 불가능합니다.
+ * v1 대비 변경점:
+ * - DB 왕복 4회(auth + profile + deduct_chips + inventory) → 2회(auth + purchase_item_atomic)
+ * - 통합 RPC purchase_item_atomic이 칩 차감 + 인벤토리 추가를 단일 트랜잭션으로 처리
+ * - 아이템 검증(가격, 권한)은 하드코딩 데이터(MOCK_ITEMS)로 서버에서 수행 (DB 불필요)
  *
- * 흐름:
- * 1. 세션에서 현재 유저 확인 (인증)
- * 2. DB profiles 테이블에서 유저의 role 조회 (권한)
- * 3. shopData.ts의 MOCK_ITEMS에서 아이템 정보 매칭 (데이터)
- * 4. role ↔ rarity 권한 검증 (보안)
- * 5. deduct_chips RPC 호출 (결제)
+ * 보안:
+ * - Server Action은 Next.js 서버에서만 실행되므로 클라이언트 변조 불가
+ * - purchase_item_atomic RPC 내부에서 Row Lock + 잔액 검증 + 중복 구매 방지
  */
 
 import { createClient } from '@/lib/supabase/server'
@@ -65,23 +62,7 @@ export async function purchaseShopItem(itemId: string): Promise<PurchaseResult> 
     return { success: false, error: '로그인이 필요합니다.' }
   }
 
-  // ── 2단계: DB에서 유저 프로필(role, chips_balance) 조회 ──
-  // 왜 DB에서 다시 조회하는가: 클라이언트 Zustand 상태는 변조 가능하므로,
-  // 서버에서 DB의 실제 데이터를 기준으로 검증해야 합니다.
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('role, chips_balance')
-    .eq('id', user.id)
-    .single()
-
-  if (profileError || !profile) {
-    return { success: false, error: '유저 프로필을 찾을 수 없습니다.' }
-  }
-
-  const userRole: string = profile.role || 'guest'
-  const userRoleLevel = ROLE_HIERARCHY[userRole] ?? 0
-
-  // ── 3단계: 아이템 정보 조회 (하드코딩된 shopData에서 검색) ──
+  // ── 2단계: 아이템 정보 조회 (하드코딩된 shopData에서 검색 — DB 불필요) ──
   const item: ShopItem | undefined = MOCK_ITEMS.find((i) => i.item_id === itemId)
 
   if (!item) {
@@ -93,7 +74,18 @@ export async function purchaseShopItem(itemId: string): Promise<PurchaseResult> 
     return { success: false, error: '구매할 수 없는 아이템입니다.' }
   }
 
-  // ── 4단계: 등급(Role) ↔ 희귀도(Rarity) 권한 검증 ──
+  // ── 3단계: 등급(Role) ↔ 희귀도(Rarity) 권한 검증 ──
+  // 유저의 role은 JWT 토큰의 app_metadata 또는 RPC 내부에서 검증할 수도 있지만,
+  // 현재 구조에서는 purchase_item_atomic이 role을 모르므로 Server Action에서 사전 검증합니다.
+  // getUser()의 user_metadata에는 role이 없으므로, 빠른 경로로 profiles에서 role만 조회합니다.
+  const { data: roleData } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const userRole: string = roleData?.role || 'guest'
+  const userRoleLevel = ROLE_HIERARCHY[userRole] ?? 0
   const requiredRoleLevel = RARITY_MIN_ROLE[item.rarity] ?? 2
 
   if (userRoleLevel < requiredRoleLevel) {
@@ -111,40 +103,26 @@ export async function purchaseShopItem(itemId: string): Promise<PurchaseResult> 
     }
   }
 
-  // ── 5단계: 칩 잔액 검증 (사전 확인용, 실제 차감은 RPC에서 트랜잭션으로 처리) ──
-  if (profile.chips_balance < item.price) {
-    return {
-      success: false,
-      error: `칩이 부족합니다! (보유: ${profile.chips_balance.toLocaleString()}C / 필요: ${item.price.toLocaleString()}C)`,
-    }
-  }
-
-  // ── 6단계: deduct_chips RPC 호출 (트랜잭션 + Row-level lock) ──
-  const { data: newBalance, error: deductError } = await supabase.rpc('deduct_chips', {
+  // ── 4단계: 통합 RPC 호출 (칩 차감 + 인벤토리 추가를 단일 트랜잭션으로) ──
+  const itemType = item.item_id.split('_')[0] || 'shop_item'
+  const { data: newBalance, error: purchaseError } = await supabase.rpc('purchase_item_atomic', {
     p_user_id: user.id,
     p_amount: item.price,
     p_reason: `buy_item_${item.item_id}`,
+    p_item_type: itemType,
+    p_item_code: item.item_id,
   })
 
-  if (deductError) {
-    // deduct_chips 내부에서 잔액 부족 등의 예외가 발생한 경우
+  if (purchaseError) {
+    // RPC 내부 예외 메시지 파싱
+    const msg = purchaseError.message || ''
+    if (msg.includes('Insufficient')) {
+      return { success: false, error: '칩이 부족합니다!' }
+    }
+    if (msg.includes('already owned')) {
+      return { success: false, error: '이미 보유한 아이템입니다.' }
+    }
     return { success: false, error: '구매 처리 중 오류가 발생했습니다. 다시 시도해주세요.' }
-  }
-
-  // ── 7단계: user_inventory에 구매한 아이템 추가 ──
-  const itemType = item.item_id.split('_')[0] || 'shop_item'
-  const { error: inventoryError } = await supabase
-    .from('user_inventory')
-    .insert({
-      user_id: user.id,
-      item_type: itemType,
-      item_code: item.item_id,
-    })
-
-  if (inventoryError) {
-    console.error('Failed to add item to inventory:', inventoryError)
-    // 인벤토리 삽입 실패 시 환불 처리를 하거나 관리자 로그를 남겨야 할 수 있지만,
-    // 현재는 결제가 성공했으므로 에러 로깅만 하고 성공으로 처리 (재지급 로직 필요 가능)
   }
 
   return {

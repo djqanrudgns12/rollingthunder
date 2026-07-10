@@ -75,14 +75,24 @@ export default function ShopPage() {
     return SKIN_DEFINITIONS[key] ? key : null;
   }, []);
 
-  // 미션 이벤트 및 상점 BGM 재생
+  // 미션 이벤트 및 상점 BGM 재생 (비차단 지연 로드)
   useEffect(() => {
-    import('@/engine/AudioEngine').then(({ soundManager }) => {
-      soundManager.playShopBgm();
-    });
+    // BGM 로드를 requestIdleCallback으로 지연하여 초기 렌더를 막지 않음
+    const loadBgm = () => {
+      import('@/engine/AudioEngine').then(({ soundManager }) => {
+        soundManager.playShopBgm();
+      });
+    };
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(loadBgm);
+    } else {
+      setTimeout(loadBgm, 100);
+    }
     stampService.trackEvent('visit_shop', 1);
     stampService.flushPlayEvents();
-  }, []);
+    // 대기실 복귀용 프리페치
+    router.prefetch('/dashboard');
+  }, [router]);
 
   // 현재 선택된 아이템 (탭 변경 시 기본값 재설정)
   const [selectedItem, setSelectedItem] = useState<ShopItem | null>(null);
@@ -224,23 +234,43 @@ export default function ShopPage() {
       }
 
       try {
-        // 서버 액션 호출: 서버에서 유저 role, rarity 권한, 칩 잔액을 모두 검증 후 차감
+        // ── 낙관적 업데이트: 서버 응답 전에 UI 즉시 반영 ──
+        deductChipsLocally(item.price);
+        buyItem(item.item_id);
+
+        // 서버 액션 호출
         const result = await purchaseShopItem(item.item_id);
 
         if (!result.success) {
+          // ── 실패 시 롭백 ──
+          useChipStore.getState().addChipsLocally(item.price);
+          // 인벤토리에서 제거 (현재 inventoryStore에 removeItem이 없으므로,
+          // 상태를 직접 불변 필터로 복원)
+          const currentInv = useInventoryStore.getState().inventory;
+          useInventoryStore.setState({
+            inventory: currentInv.filter(id => id !== item.item_id)
+          });
           toast.error(result.error || "구매 중 오류가 발생했습니다.");
           return;
         }
 
-        // 구매 성공: 클라이언트 상태 동기화
-        deductChipsLocally(item.price);
-        buyItem(item.item_id);
+        // 서버 응답의 실제 잔액으로 보정 (낙관적 값과 실제 값 동기화)
+        if (result.newBalance !== undefined) {
+          useChipStore.getState().setChips(result.newBalance);
+        }
+
         toast.success(`${item.name} 구매 완료! (-${item.price.toLocaleString()}C)`);
         
         // 미션 이벤트: 아이템 구매
         stampService.trackEvent('buy_item', 1);
         stampService.flushPlayEvents();
       } catch (error) {
+        // ── 네트워크 오류 시 롭백 ──
+        useChipStore.getState().addChipsLocally(item.price);
+        const currentInv = useInventoryStore.getState().inventory;
+        useInventoryStore.setState({
+          inventory: currentInv.filter(id => id !== item.item_id)
+        });
         toast.error("네트워크 오류가 발생했습니다.");
       }
     } else {

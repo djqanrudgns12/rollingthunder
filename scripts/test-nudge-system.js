@@ -51,10 +51,10 @@ test('Y_BIAS should produce extreme upward-biased distribution', () => {
 });
 
 test('MAX_IMPULSE clamp should cap extreme inputs', () => {
-  const extremeIntensity = 4000; // 비정상 입력
+  const extremeIntensity = 16000; // 비정상 입력
   const mass = 1220; // 기본 칩 질량 (π × 18² × 1.2)
-  const rawImpulse = extremeIntensity * 0.5 * mass; // 2,440,000
-  const clampedImpulse = Math.min(MAX_IMPULSE * mass, rawImpulse); // 1,830,000
+  const rawImpulse = extremeIntensity * 0.5 * mass; // 9,760,000
+  const clampedImpulse = Math.min(MAX_IMPULSE * mass, rawImpulse); // 7,320,000
 
   assert.strictEqual(clampedImpulse, MAX_IMPULSE * mass,
     'Extreme impulse should be clamped to MAX_IMPULSE × mass');
