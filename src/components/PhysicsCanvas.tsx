@@ -13,6 +13,7 @@ import { stampService } from '@/lib/stampService'
 import { useChipStore } from '@/store/chipStore'
 import { createClient } from '@/lib/supabase/client'
 import { getSkinTexture, isVectorSkin, shouldSpin, clearSkinCache } from '@/lib/SkinTextureFactory'
+import { normalizeSkinId } from '@/lib/skinUtils'
 
 import LiveLeaderboard from './LiveLeaderboard'
 import PostGameLeaderboard from './PostGameLeaderboard'
@@ -1584,15 +1585,9 @@ export default function PhysicsCanvas() {
                   }
                 } catch { colNum = 0x00ffcc; }
                 
-                let skinKey = survivor.skinId || 'chip_base_1';
-                // [버그 수정] 'chip_base'(번호 없음)가 들어오면 SKIN_DEFINITIONS에 없어
-                // 벡터 텍스처 생성 실패 → fallback(단색 원). 인덱스 기반 순환으로 자동 배정.
-                if (skinKey === 'chip_base' || skinKey === 'skin_chip_base') {
-                  skinKey = `chip_base_${(dataIndex % 5) + 1}`;
-                }
-                // Remove UR_ and SR_ prefix for asset loading
-                if (skinKey === 'UR_blackhole') skinKey = 'blackhole';
-                if (skinKey === 'SR_cat') skinKey = 'cat';
+                // [중앙 정규화] skinUtils.normalizeSkinId로 모든 접두사 제거 + 유효성 검증 일괄 처리
+                let skinKey = normalizeSkinId(survivor.skinId)
+                  || `chip_base_${(dataIndex % 5) + 1}`;
                 
                 const R = 18; // Physics radius
                 
@@ -1721,10 +1716,10 @@ export default function PhysicsCanvas() {
             if (isChip && survivor) {
               const iconWrapper = container.getChildByLabel('icon');
               if (iconWrapper) {
-                const skinKey = survivor.skinId?.replace('skin_', '') || 'chip_base_1';
+                const skinKeyForSpin = normalizeSkinId(survivor.skinId) || 'chip_base_1';
                 // 회전 정책: skinDefinitions의 spin 속성 기반 (데이터 드리븐)
                 // 방사 대칭 스킨만 회전, 방향성 있는 스킨은 정방향 유지
-                if (shouldSpin(skinKey)) {
+                if (shouldSpin(skinKeyForSpin)) {
                   iconWrapper.rotation += (vx * 0.005);
                 }
               }

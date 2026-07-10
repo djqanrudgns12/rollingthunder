@@ -59,7 +59,7 @@ export default function ShopShowcase({ selectedItem }: ShopShowcaseProps) {
 
   /**
    * 벡터 스킨 여부 판별 + skinKey 추출
-   * item_id 패턴: "skin_chip_base" → "chip_base_1", "skin_cat" → "cat", "horse" → "horse"
+   * item_id 패턴: "skin_chip_base" → "chip_base_1", "skin_cat" → "cat", "skin_horse" → "horse"
    */
   const getVectorSkinKey = useCallback((item: any): string | null => {
     if (!item || item.category !== 'skin') return null;

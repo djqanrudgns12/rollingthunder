@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useGameStore } from '@/store/gameStore'
+import { useGameStore, type Participant } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
+import { resolveSkinId } from '@/lib/skinUtils'
 
 // 싱글톤이므로 모듈 스코프에서 한 번만 가져옴 — 매 렌더마다 참조가 바뀌지 않아
 // useEffect 의존성 배열이 불필요하게 재실행되는 것을 방지
@@ -44,8 +45,16 @@ export function useRosterSync() {
 
         if (!error && data?.participants) {
           isSyncingFromServer.current = true
-          // 로컬 훼손을 최소화하면서 서버 데이터를 우선적으로 보여주기 위해 setParticipants 수행
-          setParticipants(data.participants)
+          // [중앙 정규화] 서버에서 복원된 skinId를 현재 globalSkin 기준으로 정규화
+          // 서버에 이전 스킨 상태가 박제되어 있어도 현재 설정과 정합성 보장
+          const serverGlobalSkin = data.global_skin || 'skin_chip_base'
+          const normalized = (data.participants as Participant[]).map(
+            (p, idx) => ({
+              ...p,
+              skinId: resolveSkinId(serverGlobalSkin, p.skinId, idx),
+            }),
+          )
+          setParticipants(normalized)
           // 서버에 저장된 스킨 일괄 설정이 있으면 드롭다운(globalSkin)도 함께 복원
           if (data.global_skin) {
             setGlobalSkin(data.global_skin)
@@ -86,7 +95,15 @@ export function useRosterSync() {
             if (aborted) return
             if (payload.new && 'participants' in payload.new) {
               isSyncingFromServer.current = true
-              setParticipants(payload.new.participants)
+              // [중앙 정규화] Realtime 콜백에서도 skinId 정규화 적용
+              const rtGlobalSkin = payload.new.global_skin || 'skin_chip_base'
+              const rtNormalized = (payload.new.participants as Participant[]).map(
+                (p, idx) => ({
+                  ...p,
+                  skinId: resolveSkinId(rtGlobalSkin, p.skinId, idx),
+                }),
+              )
+              setParticipants(rtNormalized)
               if (payload.new.global_skin) {
                 setGlobalSkin(payload.new.global_skin)
               }

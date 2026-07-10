@@ -19,8 +19,8 @@ export const MOCK_ITEMS: ShopItem[] = [
   // ===================== SKINS =====================
   // Default (0)
   { item_id: "skin_chip_base", category: "skin", name: "포커칩", price: 0, rarity: "Normal", description: "기본 지급되는 포커칩 스킨입니다.", image: "", iconName: "Circle", isDefault: true },
-  { item_id: "horse", category: "skin", name: "경주마", price: 0, rarity: "Normal", description: "기본 지급되는 경주마 스킨입니다.", image: "", iconName: "Zap", isDefault: true },
-  { item_id: "spaceship", category: "skin", name: "우주선", price: 0, rarity: "Normal", description: "기본 지급되는 우주선 스킨입니다.", image: "", iconName: "Rocket", isDefault: true },
+  { item_id: "skin_horse", category: "skin", name: "경주마", price: 0, rarity: "Normal", description: "기본 지급되는 경주마 스킨입니다.", image: "", iconName: "Zap", isDefault: true },
+  { item_id: "skin_spaceship", category: "skin", name: "우주선", price: 0, rarity: "Normal", description: "기본 지급되는 우주선 스킨입니다.", image: "", iconName: "Rocket", isDefault: true },
 
   // Normal (1000)
   { item_id: "skin_shuriken", category: "skin", name: "표창", price: 1000, rarity: "Normal", description: "날렵한 표창 스킨입니다.", image: "/images/assets/skins/shuriken.png" },

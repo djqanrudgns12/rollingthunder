@@ -16,6 +16,7 @@ import { MOCK_ITEMS } from '@/data/shopData'
 import { stampService } from '@/lib/stampService'
 import SkinCanvasPreview from './shop/SkinCanvasPreview'
 import { SKIN_DEFINITIONS } from '@/data/skinDefinitions'
+import { resolveSkinId } from '@/lib/skinUtils'
 
 // Skin Preview Helper Component
 function SkinPreviewIcon({ skinId }: { skinId: string }) {
@@ -175,12 +176,10 @@ export default function Dashboard() {
   const handleSkinChange = (newSkin: string) => {
     setGlobalSkin(newSkin)
     
-    // 포커칩(랜덤)인 경우 chip_base_* 로 할당
-    const cleanId = newSkin.replace(/^skin_/, '');
-    
-    setParticipants(participants.map(p => ({
+    // [중앙 정규화] skinUtils.resolveSkinId로 일괄 처리
+    setParticipants(participants.map((p, idx) => ({
       ...p,
-      skinId: cleanId === 'chip_base' ? `chip_base_${Math.floor(Math.random() * 5) + 1}` : cleanId
+      skinId: resolveSkinId(newSkin, p.skinId, idx)
     })))
   }
 
@@ -199,10 +198,8 @@ export default function Dashboard() {
       const newId = `chip-${crypto.randomUUID()}`
       const finalName = isAnonymized ? getRandomAnimal() : name
       
-      // 스킨 일괄 설정에 따라 배정
-      const effectiveGlobalSkin = globalSkin || 'skin_chip_base';
-      const cleanSkinId = effectiveGlobalSkin.replace(/^skin_/, '');
-      const finalSkinId = cleanSkinId === 'chip_base' ? `chip_base_${Math.floor(Math.random() * 5) + 1}` : cleanSkinId
+      // [중앙 정규화] skinUtils.resolveSkinId로 스킨 배정
+      const finalSkinId = resolveSkinId(globalSkin, null, newParticipants.length)
       // [버그 수정] HSL → HEX 변환하여 저장
       // 왜: PIXI.Color가 소수점 hue가 포함된 HSL 문자열을 잘못 파싱하여 0(검은색) 반환.
       // ⚠️ 중요: Canvas를 루프 내에서 생성하면 브라우저 GPU 컨텍스트 한도(16개) 초과로
@@ -283,20 +280,12 @@ export default function Dashboard() {
       // Optimistic UI - Start game instantly, save session in background
       clearSkillLogs()
       
-      // [버그 수정] 게임 시작 직전, 모든 참가자의 skinId를 현재 globalSkin 기준으로 재배정.
-      // 서버 로스터(user_current_roster)에는 이전 환경에서 박제된 skinId가 담겨 올 수 있어,
-      // 빈 값만 채우면 드롭다운 표시 스킨과 실제 렌더 스킨이 어긋난다.
-      const effectiveSkin = globalSkin || 'skin_chip_base';
-      const cleanSkin = effectiveSkin.replace(/^skin_/, '');
-      const sanitizedParticipants = participants.map((p, idx) => {
-        if (cleanSkin === 'chip_base') {
-          // 포커칩(랜덤): 이미 chip_base 변형이면 유지, 아니면 변형 배정
-          if (p.skinId && /^chip_base_\d+$/.test(p.skinId)) return p;
-          return { ...p, skinId: `chip_base_${(idx % 5) + 1}` };
-        }
-        if (p.skinId === cleanSkin) return p;
-        return { ...p, skinId: cleanSkin };
-      });
+      // [중앙 정규화] 게임 시작 직전, 모든 참가자의 skinId를 현재 globalSkin 기준으로 재배정.
+      // skinUtils.resolveSkinId가 모든 정규화·포커칩 변형 배정을 일괄 처리.
+      const sanitizedParticipants = participants.map((p, idx) => ({
+        ...p,
+        skinId: resolveSkinId(globalSkin, p.skinId, idx)
+      }));
       
       if (JSON.stringify(sanitizedParticipants) !== JSON.stringify(participants)) {
         setParticipants(sanitizedParticipants)
