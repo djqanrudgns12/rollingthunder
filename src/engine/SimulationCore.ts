@@ -298,6 +298,8 @@ export class SimulationCore {
 
     // 외벽
     MapBuilder.createWalls(this.world, config.width, this.worldHeight, 100, config.wallStyle);
+    // 투명 천장 (판 흔들기 등 강력한 상향 힘에 의한 이탈 방지)
+    MapBuilder.createRect(this.world, config.width / 2, -500, config.width + 200, 100, 'wall');
 
     // 장애물 배치
     const isCustomMap = config.isCustomMap ?? false;

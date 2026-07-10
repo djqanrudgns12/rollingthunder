@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 
 import * as PIXI from 'pixi.js'
 import { Viewport } from 'pixi-viewport'
@@ -18,6 +18,8 @@ import LiveLeaderboard from './LiveLeaderboard'
 import PostGameLeaderboard from './PostGameLeaderboard'
 import { generateSkillMessage } from './SkillLogOverlay'
 import { Map as MapIcon, Dices, Rocket, Music4, Pause, FastForward, ChevronUp, Play, VolumeX } from 'lucide-react'
+import { Transition } from '@headlessui/react'
+import clsx from 'clsx'
 import gsap from 'gsap'
 // [성능 최적화] GlowFilter/ColorOverlayFilter 제거 — GPU 필터 패스 0으로 축소
 // tint + glow 스프라이트로 대체하여 저사양 GPU(Intel UHD 620)에서 +10~20fps 개선
@@ -31,6 +33,13 @@ import { createBackground, createStartEndLines } from '@/lib/render/StageChrome'
 // 맵 가로 폭은 고정 (물리엔진·카메라·미니맵 공유)
 const WORLD_WIDTH = 800;
 // WORLD_HEIGHT는 맵 프리셋에 따라 동적으로 결정됨 (기본값 2400)
+
+// ── Nudge(판 흔들기) 밸런스 상수 ──
+const NUDGE_COST = 34;            // 1회 게이지 소모량 (100 기준, 최대 연속 2회)
+const NUDGE_COOLDOWN_MS = 2000;   // 쿨타임 2초
+const NUDGE_REGEN_PER_SEC = 8;    // 초당 게이지 회복량 (빈→만충: ~12.5초)
+const NUDGE_FORCE = 800;          // 칩 임펄스 강도 (기존 200 → 800 대폭 상향)
+const NUDGE_SHAKE_INTENSITY = 25; // 카메라 셰이크 강도 (더 강한 지진 효과)
 
 export default function PhysicsCanvas() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -78,6 +87,15 @@ export default function PhysicsCanvas() {
   const cameraDirectorRef = useRef<any>(null);
   const [fastForwardMultiplier, setFastForwardMultiplier] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
+  // ── Nudge(판 흔들기) 상태 ──
+  const [nudgeGauge, setNudgeGauge] = useState(100);
+  const [nudgeCooldownActive, setNudgeCooldownActive] = useState(false);
+  const [nudgeEffectActive, setNudgeEffectActive] = useState(false); // 중앙 텍스트 애니메이션 상태
+  const [isScreenShaking, setIsScreenShaking] = useState(false); // 전체 화면 지진 효과 상태
+  const nudgeLastUsedRef = useRef<number>(0);
+  const nudgeCooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nudgeEffectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const screenShakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 엔드게임 페이싱(PRD-endgame-pacing): 마무리 자동 가속 배지 / 결과 빨리보기 진행 상태
   const [isFinishRush, setIsFinishRush] = useState(false);
   const [isResolvingRest, setIsResolvingRest] = useState(false);
@@ -155,6 +173,12 @@ export default function PhysicsCanvas() {
         e.preventDefault();
         setIsPaused(prev => !prev);
       }
+      // ── Shift 키 → 판 흔들기(Nudge) ──
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+        e.preventDefault();
+        handleNudgeRef.current?.();
+      }
     };
 
     // capture: true 를 사용하여 Pixi나 다른 DOM 요소가 이벤트를 삼키기 전에 강제로 가로챔
@@ -214,13 +238,66 @@ export default function PhysicsCanvas() {
     }
   }, [])
 
-  const handleNudge = useCallback(() => {
-    if (workerRef.current && (gameState === 'playing' || gameState === 'winner_declared')) {
-      workerRef.current.postMessage({ type: 'NUDGE', payload: { force: 200 } });
-      // 흔들림 OFF 시 기기 진동(햅틱)도 함께 끔
-      if (navigator.vibrate && useGameStore.getState().isScreenShakeEnabled) navigator.vibrate(50);
+  /**
+   * 판 흔들기(Nudge) — 교사의 판 개입 시스템.
+   * 1. 가드 검사 (게임 상태, 일시정지, 게이지, 쿨타임)
+   * 2. 게이지 차감 + 쿨타임 시작
+   * 3. 워커에 NUDGE 메시지 → NudgeSystem.applyNudgeToChips()
+   * 4. 카메라 셰이크 (차분 모드: 셰이크만 억제, 물리 효과 유지)
+   * 5. SFX + 햅틱
+   * 6. 쿨타임 비동기 해제
+   */
+  const handleNudge = useCallback(async () => {
+    try {
+      const now = Date.now();
+      if (!workerRef.current) return;
+      if (gameState !== 'playing' && gameState !== 'winner_declared') return;
+      if (isPaused) return;
+      if (nudgeGauge < NUDGE_COST) return;
+      if (now - nudgeLastUsedRef.current < NUDGE_COOLDOWN_MS) return;
+
+      nudgeLastUsedRef.current = now;
+      setNudgeGauge(prev => Math.max(0, prev - NUDGE_COST));
+      setNudgeCooldownActive(true);
+
+      workerRef.current.postMessage({ type: 'NUDGE', payload: { force: NUDGE_FORCE } });
+      cameraDirectorRef.current?.addShake(NUDGE_SHAKE_INTENSITY);
+      soundManager.playSfx('ui_nudge');
+
+      // --- 중앙 텍스트 이펙트 트리거 ---
+      setNudgeEffectActive(true);
+      if (nudgeEffectTimerRef.current) clearTimeout(nudgeEffectTimerRef.current);
+      nudgeEffectTimerRef.current = setTimeout(() => {
+        setNudgeEffectActive(false);
+        nudgeEffectTimerRef.current = null;
+      }, 1500);
+
+      // --- 전체 화면 지진 효과 트리거 ---
+      setIsScreenShaking(true);
+      if (screenShakeTimerRef.current) clearTimeout(screenShakeTimerRef.current);
+      screenShakeTimerRef.current = setTimeout(() => {
+        setIsScreenShaking(false);
+        screenShakeTimerRef.current = null;
+      }, 500);
+
+      if (navigator.vibrate && useGameStore.getState().isScreenShakeEnabled) {
+        navigator.vibrate([30, 50, 30]);
+      }
+
+      if (nudgeCooldownTimerRef.current) clearTimeout(nudgeCooldownTimerRef.current);
+      nudgeCooldownTimerRef.current = setTimeout(() => {
+        setNudgeCooldownActive(false);
+        nudgeCooldownTimerRef.current = null;
+      }, NUDGE_COOLDOWN_MS);
+    } catch (error) {
+      console.error('[Nudge] Error:', error);
+      setNudgeCooldownActive(false);
     }
-  }, [gameState])
+  }, [gameState, isPaused, nudgeGauge]);
+
+  // Shift 키 바인딩을 위한 ref (handleKeyDown 클로저 밖에서도 최신 콜백 참조)
+  const handleNudgeRef = useRef(handleNudge);
+  useEffect(() => { handleNudgeRef.current = handleNudge; }, [handleNudge]);
 
   const handleStart = useCallback(() => {
     if (workerRef.current && gameState === 'idle' && isWorkerReady) {
@@ -228,6 +305,13 @@ export default function PhysicsCanvas() {
       soundManager.playSfx('sys_start');
       workerRef.current.postMessage({ type: 'START' });
       setGameState('playing');
+      // ── Nudge 상태 초기화 ──
+      setNudgeGauge(100);
+      setNudgeCooldownActive(false);
+      setNudgeEffectActive(false);
+      nudgeLastUsedRef.current = 0;
+      if (nudgeCooldownTimerRef.current) { clearTimeout(nudgeCooldownTimerRef.current); nudgeCooldownTimerRef.current = null; }
+      if (nudgeEffectTimerRef.current) { clearTimeout(nudgeEffectTimerRef.current); nudgeEffectTimerRef.current = null; }
     }
   }, [gameState, isWorkerReady, clearSkillLogs])
 
@@ -237,6 +321,34 @@ export default function PhysicsCanvas() {
       workerRef.current.postMessage({ type: 'SHUFFLE', payload: { width: WORLD_WIDTH } });
     }
   }, [gameState])
+
+  // ── Nudge 게이지 자연 회복 (requestAnimationFrame 기반 — 배속과 독립) ──
+  useEffect(() => {
+    if (gameState !== 'playing' && gameState !== 'winner_declared') return;
+    let rafId: number;
+    let lastTime = performance.now();
+
+    const tick = (now: number) => {
+      const dt = Math.min((now - lastTime) / 1000, 0.1); // 탭 전환 시 폭주 방지 (100ms 측)
+      lastTime = now;
+      setNudgeGauge(prev => {
+        if (prev >= 100) return 100;
+        return Math.min(100, prev + NUDGE_REGEN_PER_SEC * dt);
+      });
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [gameState]);
+
+  // ── Nudge 타이머 cleanup (컴포넌트 언마운트 시) ──
+  useEffect(() => {
+    return () => {
+      if (nudgeCooldownTimerRef.current) clearTimeout(nudgeCooldownTimerRef.current);
+      if (nudgeEffectTimerRef.current) clearTimeout(nudgeEffectTimerRef.current);
+      if (screenShakeTimerRef.current) clearTimeout(screenShakeTimerRef.current);
+    };
+  }, []);
 
   // "결과 빨리보기": 우승 확정 후 남은 주자의 완주를 워커 터보 루프로 고속 처리(타임랩스).
   // 실제 물리 결과 그대로이므로 순위표는 실시간 진행과 동일하다.
@@ -2174,7 +2286,11 @@ export default function PhysicsCanvas() {
   };
 
   return (
-    <div className={`relative w-full h-full flex flex-col items-center justify-center overflow-hidden ${isBroadcasterMode ? 'bg-[#00ff00]' : 'bg-black'}`}>
+    <div className={clsx(
+      "relative w-full h-full flex flex-col items-center justify-center overflow-hidden",
+      isBroadcasterMode ? 'bg-[#00ff00]' : 'bg-black',
+      isScreenShaking && "animate-screen-shake"
+    )}>
 
       <LiveLeaderboard rankings={rankings} finishedFeed={finishedFeed} />
 
@@ -2353,6 +2469,91 @@ export default function PhysicsCanvas() {
           </div>
         </div>
       )}
+
+      {/* ── 중앙 텍스트 이펙트 (판 흔들기) ── */}
+      <Transition
+        show={nudgeEffectActive}
+        enter="transition-all duration-100 ease-out"
+        enterFrom="opacity-0 scale-50 -translate-y-4"
+        enterTo="opacity-100 scale-100 translate-y-0"
+        leave="transition-all duration-700 ease-in"
+        leaveFrom="opacity-100 scale-100 translate-y-0"
+        leaveTo="opacity-0 scale-150 -translate-y-8"
+      >
+        <div className="absolute inset-0 flex items-center justify-center z-[200] pointer-events-none">
+          <div className="animate-[nudgeWiggle_0.2s_infinite]">
+            <h1 className="text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-orange-300 to-red-600 drop-shadow-[0_0_40px_rgba(249,115,22,1)] filter">
+              판 흔들기!
+            </h1>
+          </div>
+        </div>
+      </Transition>
+
+      {/* ── 판 흔들기(Nudge) 버튼 — 하단 컨트롤바 바로 위 ── */}
+      <Transition
+        show={gameState === 'playing' || gameState === 'winner_declared'}
+        enter="transition-all duration-500 ease-out"
+        enterFrom="opacity-0 translate-y-4 scale-90"
+        enterTo="opacity-100 translate-y-0 scale-100"
+        leave="transition-all duration-300 ease-in"
+        leaveFrom="opacity-100 translate-y-0 scale-100"
+        leaveTo="opacity-0 translate-y-4 scale-90"
+      >
+        <div className="absolute bottom-[115px] left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-1">
+          <button
+            onClick={handleNudge}
+            disabled={nudgeCooldownActive || nudgeGauge < NUDGE_COST}
+            className={clsx(
+              'relative group h-[52px] px-6 rounded-2xl flex items-center justify-center gap-2 overflow-hidden',
+              'backdrop-blur-xl transition-all duration-300',
+              'shadow-[0_4px_30px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)]',
+              nudgeCooldownActive || nudgeGauge < NUDGE_COST
+                ? 'bg-black/60 border border-white/5 cursor-not-allowed opacity-60 text-gray-500'
+                : [
+                    'bg-black/40 border border-white/10 text-gray-200',
+                    'hover:bg-white/10 hover:-translate-y-[2px] hover:text-white',
+                    'hover:shadow-[0_10px_30px_rgba(255,255,255,0.1),inset_0_1px_0_rgba(255,255,255,0.2)]',
+                    'active:scale-95 active:shadow-none',
+                    'cursor-pointer',
+                  ]
+            )}
+            title="판 흔들기 · Shift 키 (지진 발생)"
+          >
+            {/* 배경 게이지 바 (가로로 차오름) */}
+            <div 
+              className="absolute left-0 top-0 bottom-0 bg-white/10 transition-all duration-200 ease-linear"
+              style={{ width: `${nudgeGauge}%` }}
+            />
+
+            {/* 쿨타임 스피너 오버레이 */}
+            {nudgeCooldownActive && (
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
+                <div className="w-5 h-5 border-2 border-white/40 border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+
+            {/* 이모지 아이콘 + hover wiggle */}
+            <span
+              className={clsx(
+                'text-xl select-none transition-transform duration-200 z-20',
+                !(nudgeCooldownActive || nudgeGauge < NUDGE_COST) && 'group-hover:animate-[nudgeWiggle_0.4s_ease-in-out]'
+              )}
+            >
+              🫨
+            </span>
+
+            {/* 명시적 텍스트 라벨 */}
+            <span className="font-bold text-current text-sm tracking-wide z-20 transition-colors">
+              판 흔들기
+            </span>
+          </button>
+
+          {/* 라벨 + 키보드 힌트 */}
+          <span className="text-[10px] font-bold text-gray-300 tracking-widest select-none uppercase drop-shadow">
+            단축키 <kbd className="text-[9px] text-black bg-white/80 px-1.5 py-0.5 rounded ml-0.5 font-mono">Shift</kbd>
+          </span>
+        </div>
+      </Transition>
 
       {/* 메인 하단 독 (Dock) — 하단 밀착 + 상하 여백 최소화(py-0.5) */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-black/40 backdrop-blur-xl border border-white/10 px-3 py-0.5 rounded-2xl shadow-[0_4px_30px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] transition-all duration-700 ease-in-out">
