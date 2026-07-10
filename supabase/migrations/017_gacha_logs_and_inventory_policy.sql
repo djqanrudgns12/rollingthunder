@@ -1,16 +1,24 @@
 -- =============================================================
--- 017: 가챠 로그 테이블 신설 + user_inventory INSERT 정책 보강
+-- 017: 가챠 로그 테이블 스키마 정렬 + user_inventory INSERT 정책 보강
 --
 -- 배경:
---  1) /api/gacha 라우트가 gacha_logs 테이블에 기록을 시도하지만
---     테이블이 어떤 마이그레이션에도 존재하지 않아 가챠 API가 항상 실패했다.
---  2) user_inventory 에는 SELECT 정책(007)만 있고 INSERT 정책이 없어,
---     상점 구매(purchaseShopItem)에서 칩 차감(RPC, SECURITY DEFINER)은
---     성공하고 아이템 지급 INSERT 는 RLS 에 막히는 정합 붕괴가 가능했다.
+--  1) gacha_logs 테이블이 마이그레이션에 없이 라이브 DB 에 수동 생성돼 있었고,
+--     예전 가챠 라우트가 쓰던 구 스키마(participant_id TEXT / reward_item_id)였다.
+--     그 라우트는 participant_id 를 'guest_user_1' 로 하드코딩해 실제 유저와
+--     연결되지 않은 테스트 로그만 남겼으므로 보존 가치가 없다.
+--     신 라우트는 인증 세션(user_id) + deduct_chips RPC 기준으로 재작성되었으므로,
+--     구 테이블을 폐기하고 신 스키마로 재생성한다.
+--  2) user_inventory 에 명시적 INSERT 정책을 보강한다(idempotent).
+--     상점 구매는 현재 정상 동작하나, 정책을 마이그레이션으로 고정해 재현성을 확보한다.
+--
+-- ⚠️ 이 스크립트는 구 gacha_logs(테스트 로그)를 DROP 한다. 실제 유저 데이터는 없다.
 -- =============================================================
 
--- 1. 가챠 감사 로그
-CREATE TABLE IF NOT EXISTS public.gacha_logs (
+-- 1. 구 가챠 로그 폐기 후 신 스키마로 재생성
+--    (감사 로그이며 다른 테이블이 참조하지 않으므로 CASCADE 로 정책/인덱스까지 정리)
+DROP TABLE IF EXISTS public.gacha_logs CASCADE;
+
+CREATE TABLE public.gacha_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     cost BIGINT NOT NULL DEFAULT 0,
@@ -19,7 +27,7 @@ CREATE TABLE IF NOT EXISTS public.gacha_logs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_gacha_logs_user
+CREATE INDEX idx_gacha_logs_user
     ON public.gacha_logs (user_id, created_at DESC);
 
 ALTER TABLE public.gacha_logs ENABLE ROW LEVEL SECURITY;
