@@ -31,19 +31,14 @@ export class PublishUserMapUseCase {
       throw new PermissionDeniedError('본인이 만든 맵만 배포할 수 있습니다.');
     }
 
-    // 검증 결과 구조/통과 검사
+    // 검증 결과 구조 검사 — 검증 실행 자체는 필수지만, 미통과 항목이 있어도 배포는 허용한다.
+    // (통과 여부는 summary.checks 에 그대로 기록되어 스토어에서 참고 지표로 노출 가능)
     const checks = validationResult?.checks;
     if (!Array.isArray(checks) || checks.length === 0) {
       throw new ValidationError('검증 결과가 없습니다. 맵 검증을 먼저 실행해 주세요.');
     }
     if (typeof validationResult.races !== 'number' || validationResult.races < MIN_VALIDATION_RACES) {
       throw new ValidationError(`검증 레이스가 부족합니다. (최소 ${MIN_VALIDATION_RACES}회)`);
-    }
-    const failed = checks.filter((c) => !c.ok);
-    if (failed.length > 0) {
-      throw new ValidationError(
-        `맵 검증을 통과해야 배포할 수 있습니다. 미통과: ${failed.map((c) => c.label).join(', ')}`
-      );
     }
 
     // heatmap/stuckSamples 등 대용량 필드는 제외하고 요약만 저장

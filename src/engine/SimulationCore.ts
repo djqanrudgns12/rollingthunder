@@ -380,6 +380,11 @@ export class SimulationCore {
           vertices: userData.vertices,
           hp: userData.hp,
           maxHp: userData.maxHp,
+          // 송풍기 렌더링(기물 방향·바람 화살표)에 필요 — 누락 시 항상 기본 방향(90°)으로 그려진다
+          windAngle: userData.windAngle,
+          windForce: userData.windForce,
+          onFrames: userData.onFrames,
+          offFrames: userData.offFrames,
         });
         // 움직이는 기물은 매 프레임 트랜스폼을 렌더로 보내기 위해 고정 순서로 수집
         if (MOVING_OBSTACLE_TYPES.has(userData.type) && userData.id) {

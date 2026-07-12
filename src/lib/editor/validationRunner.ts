@@ -171,7 +171,7 @@ export async function runValidationLoop(cfg: ValidationConfig, cb: RunnerCallbac
     { label: '완주시간(중앙)', ok: med >= T.finishTime.min && med <= T.finishTime.max, value: `${fmt(med)}s`, target: `${T.finishTime.min}~${T.finishTime.max}s` },
     { label: '공정성', ok: fairness < T.fairness.max, value: fmt(fairness, 2), target: `<${T.fairness.max}` },
     { label: '엣지허깅', ok: edgePct < T.edgeHugging.maxPct, value: `${fmt(edgePct)}%`, target: `<${T.edgeHugging.maxPct}%` },
-    { label: '정체(스톰/미완주)', ok: gravityStorms === 0 && timedOutRaces === 0, value: `${gravityStorms}/${timedOutRaces}`, target: '0/0' },
+    { label: '정체(스톰/미완주)', ok: gravityStorms <= T.stall.maxStorms && timedOutRaces <= T.stall.maxTimedOutRaces, value: `${gravityStorms}/${timedOutRaces}`, target: `≤${T.stall.maxStorms}/≤${T.stall.maxTimedOutRaces}` },
     { label: '박진감(선두교체)', ok: avgLead >= T.leadChanges.min, value: fmt(avgLead), target: `≥${T.leadChanges.min}` },
     { label: '기믹적중', ok: dead.length === 0, value: `${fmt(avgGimmick * 100)}% (죽은 ${dead.length})`, target: '죽은 0' },
   ]

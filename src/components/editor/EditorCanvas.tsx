@@ -609,6 +609,10 @@ export default function EditorCanvas() {
       const cur = useEditorStore.getState().items.find(it => it.id === id)
       if (!cur) return
       const startW = cur.w || 40, startH = cur.h || 40, startR = cur.radius || startW / 2
+      const startX = cur.x, startY = cur.y
+      // 회전된 기물도 잡은 변만 늘어나도록 로컬 좌표계에서 계산
+      const rot = itemRotationRad(cur)
+      const cos = Math.cos(rot), sin = Math.sin(rot)
 
       const onMove = (ev: any) => {
         const p = getLocalPos(ev, itemsLayer)
@@ -621,13 +625,22 @@ export default function EditorCanvas() {
           if (snap) nr = Math.round(nr / 5) * 5
           useEditorStore.getState().updateItemSilent(id, { radius: nr, w: nr * 2, h: nr * 2 })
         } else {
+          // 포인터 이동량을 기물 로컬 축으로 투영
+          const ldx = dx * cos + dy * sin
+          const ldy = -dx * sin + dy * cos
           let nw = startW, nh = startH
-          if (type.includes('r')) nw = Math.max(10, startW + dx * 2)
-          if (type.includes('l')) nw = Math.max(10, startW - dx * 2)
-          if (type.includes('b')) nh = Math.max(10, startH + dy * 2)
-          if (type.includes('t')) nh = Math.max(10, startH - dy * 2)
+          if (type.includes('r')) nw = Math.max(10, startW + ldx)
+          if (type.includes('l')) nw = Math.max(10, startW - ldx)
+          if (type.includes('b')) nh = Math.max(10, startH + ldy)
+          if (type.includes('t')) nh = Math.max(10, startH - ldy)
           if (snap) { nw = Math.round(nw / 10) * 10; nh = Math.round(nh / 10) * 10 }
-          useEditorStore.getState().updateItemSilent(id, { w: Math.round(nw), h: Math.round(nh) })
+          nw = Math.round(nw); nh = Math.round(nh)
+          // 반대쪽 변이 고정되도록 실제 적용된 크기 변화의 절반만큼 중심을 이동
+          const sx = (type.includes('r') ? (nw - startW) : type.includes('l') ? (startW - nw) : 0) / 2
+          const sy = (type.includes('b') ? (nh - startH) : type.includes('t') ? (startH - nh) : 0) / 2
+          const nx = startX + sx * cos - sy * sin
+          const ny = startY + sx * sin + sy * cos
+          useEditorStore.getState().updateItemSilent(id, { w: nw, h: nh, x: Math.round(nx), y: Math.round(ny) })
         }
       }
       const onUp = () => {

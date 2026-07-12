@@ -37,6 +37,8 @@ export default function PublishMapModal({
   const [failedChecks, setFailedChecks] = useState<{ label: string; value: string; target: string }[]>([]);
   const [failMessage, setFailMessage] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  /** 미통과여도 강제 배포할 수 있도록 마지막 검증 결과 보관 */
+  const lastResultRef = useRef<ValidationResult | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -44,6 +46,7 @@ export default function PublishMapModal({
       setProgress(0);
       setFailedChecks([]);
       setFailMessage(null);
+      lastResultRef.current = null;
     }
     return () => abortRef.current?.abort();
   }, [isOpen]);
@@ -94,15 +97,21 @@ export default function PublishMapModal({
       abortRef.current = null;
     }
 
+    lastResultRef.current = result;
     const failed = result.checks.filter((c) => !c.ok);
     if (failed.length > 0) {
+      // 미통과여도 배포는 가능 — 결과를 보여주고 사용자가 강제 배포를 선택할 수 있게 한다.
       setFailedChecks(failed.map((c) => ({ label: c.label, value: c.value, target: c.target })));
       setFailMessage(null);
       setStep('failed');
       return;
     }
 
-    // 2) 서버 배포
+    await publishNow(result);
+  };
+
+  // 2) 서버 배포 (검증 통과 직후 또는 미통과 강제 배포)
+  const publishNow = async (result: ValidationResult) => {
     setStep('publishing');
     const res = await publishUserMapAction(mapId, result);
     if (res.success) {
@@ -142,7 +151,7 @@ export default function PublishMapModal({
             <>
               <p className="text-sm">
                 <strong className="text-white">'{mapName}'</strong> 맵을 커스텀 맵 스토어에 {isRepublish ? '다시 ' : ''}배포합니다.
-                배포 전에 헤드리스 시뮬레이션 검증({PUBLISH_VALIDATION_RACES}회)을 통과해야 하며, 통과 시 즉시 공개됩니다.
+                배포 전에 헤드리스 시뮬레이션 검증({PUBLISH_VALIDATION_RACES}회)이 실행되며, 미통과 항목이 있어도 확인 후 배포할 수 있습니다.
               </p>
               <div className="flex items-start gap-2 text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded px-3 py-2.5">
                 <Coins className="w-4 h-4 shrink-0 mt-0.5" />
@@ -192,8 +201,9 @@ export default function PublishMapModal({
 
           {step === 'failed' && (
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-semibold text-red-400">
-                <XCircle className="w-4 h-4" /> 검증을 통과해야 배포할 수 있습니다
+              <div className="flex items-center gap-2 text-sm font-semibold text-amber-400">
+                <XCircle className="w-4 h-4" />
+                {failedChecks.length > 0 ? '검증 미통과 항목이 있습니다' : '배포에 실패했습니다'}
               </div>
               {failMessage && <p className="text-xs text-red-300">{failMessage}</p>}
               {failedChecks.length > 0 && (
@@ -201,16 +211,19 @@ export default function PublishMapModal({
                   {failedChecks.map((c, i) => (
                     <div key={i} className="flex items-center justify-between text-xs">
                       <span className="text-gray-400">{c.label}</span>
-                      <span className="font-mono text-red-400">
+                      <span className="font-mono text-amber-400">
                         ✗ {c.value} <span className="text-gray-600">({c.target})</span>
                       </span>
                     </div>
                   ))}
                 </div>
               )}
-              <p className="text-[11px] text-gray-500">
-                맵 검증 패널의 히트맵과 지표 툴팁을 참고해 맵을 개선한 뒤 다시 시도해 주세요.
-              </p>
+              {failedChecks.length > 0 && (
+                <p className="text-[11px] text-gray-500">
+                  미통과 항목이 있어도 그대로 배포할 수 있습니다. 맵 검증 패널의 히트맵과 지표 툴팁을 참고해
+                  개선한 뒤 다시 검증하는 것을 권장합니다.
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -223,6 +236,14 @@ export default function PublishMapModal({
           >
             닫기
           </button>
+          {step === 'failed' && failedChecks.length > 0 && lastResultRef.current && (
+            <button
+              onClick={() => publishNow(lastResultRef.current!)}
+              className="flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold text-black bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 transition-colors"
+            >
+              <Store className="w-4 h-4" /> 그래도 배포
+            </button>
+          )}
           {(step === 'confirm' || step === 'failed') && (
             <button
               onClick={runPublish}

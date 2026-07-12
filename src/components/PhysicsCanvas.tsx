@@ -574,6 +574,7 @@ export default function PhysicsCanvas() {
           '/images/assets/obstacles/obstacle_whitehole.png',
           '/images/assets/obstacles/obstacle_hole.png',
           '/images/assets/obstacles/obstacle_piston.png',
+          '/images/assets/obstacles/obstacle_blower.png',
           '/images/assets/obstacles/windmill_rotor.png',
           '/images/assets/obstacles/ice_block_base.png',
           '/images/assets/obstacles/ice_block_crack_1.png',
@@ -2235,19 +2236,14 @@ export default function PhysicsCanvas() {
       itemDisposers.forEach(d => { try { d() } catch {} });
       
       destroyed = true;
-      clearSkinCache();
+      // Do not call clearSkinCache() here, as textureCache is global and destroying it breaks other active Canvas instances in React StrictMode.
       
       if (appIsFullyInit && app) {
         try {
           if (app.canvas && app.canvas.parentNode) {
             app.canvas.parentNode.removeChild(app.canvas);
           }
-          // 강제 컨텍스트 반환: 브라우저 WebGL 컨텍스트 한계(보통 16개) 도달 방지
-          const gl = (app.renderer as any)?.gl || (app.renderer as any)?.context?.gl;
-          if (gl) {
-            const ext = gl.getExtension('WEBGL_lose_context');
-            if (ext) ext.loseContext();
-          }
+          // app.destroy({ removeView: true }, { children: true }) handles context and DOM cleanup cleanly.
           app.destroy(true, { children: true });
         } catch (e) {
           console.error("PIXI destroy error:", e);
