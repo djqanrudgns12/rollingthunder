@@ -84,35 +84,56 @@ export default function AvatarBorder({ borderId, children, className = '' }: Ava
       // ================= Epic =================
       case 'border_e_plasma':
         return (
-          <div className="absolute inset-[-5px] rounded-[inherit] p-[5px] z-10 pointer-events-none overflow-hidden">
-            <motion.div 
-              animate={{ rotate: 360 }} 
-              transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,transparent_0_340deg,#a855f7_360deg)]"
-            />
-            <div className="absolute inset-[3px] rounded-[inherit] bg-black" style={{ zIndex: -1 }} />
-            <div className="absolute inset-0 rounded-[inherit] border-2 border-purple-500/50 shadow-[0_0_25px_#a855f7] mix-blend-overlay" />
-          </div>
+          <>
+            <div className="absolute inset-[-5px] rounded-[inherit] z-10 pointer-events-none" style={{
+              WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+              WebkitMaskComposite: 'xor',
+              maskComposite: 'exclude',
+              padding: '5px'
+            }}>
+              <motion.div 
+                animate={{ rotate: 360 }} 
+                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,transparent_0_340deg,#a855f7_360deg)]"
+              />
+              <div className="absolute inset-0 rounded-[inherit] border-2 border-purple-500/50 shadow-[0_0_25px_#a855f7]" />
+            </div>
+            {/* Center soft glow */}
+            <div className="absolute inset-0 rounded-[inherit] shadow-[inset_0_0_15px_rgba(168,85,247,0.3)] pointer-events-none z-10" />
+          </>
         );
       case 'border_e_cyber_circuit':
         return (
-          <div className="absolute inset-[-6px] rounded-[inherit] border-[4px] border-cyan-500 outline outline-2 outline-offset-2 outline-cyan-900 pointer-events-none z-10 shadow-[0_0_20px_#06b6d4]">
+          <div className="absolute inset-[-6px] rounded-[inherit] border-[4px] border-cyan-500 outline outline-2 outline-offset-2 outline-cyan-900 pointer-events-none z-10 shadow-[0_0_20px_#06b6d4] overflow-hidden">
             <motion.div 
               animate={{ opacity: [0, 1, 0] }}
               transition={{ duration: 1.5, repeat: Infinity, ease: "steps(3)" }}
               className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPjxyZWN0IHdpZHRoPSI4IiBoZWlnaHQ9IjgiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAyOGQ5OCIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9zdmc+')] opacity-50 mix-blend-screen"
+              style={{
+                maskImage: 'radial-gradient(circle at center, transparent 40%, black 100%)',
+                WebkitMaskImage: 'radial-gradient(circle at center, transparent 40%, black 100%)'
+              }}
             />
           </div>
         );
       case 'border_e_lava_flow':
         return (
-          <div className="absolute inset-[-6px] rounded-[inherit] border-[6px] border-orange-600 shadow-[0_0_30px_#ea580c] pointer-events-none z-10 overflow-hidden">
-             <motion.div 
-               animate={{ y: [0, -20] }}
-               transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-               className="absolute inset-[-20px] bg-gradient-to-t from-red-600 via-orange-500 to-yellow-400 opacity-60 mix-blend-color-burn"
-             />
-          </div>
+          <>
+            <div className="absolute inset-[-6px] rounded-[inherit] border-[6px] border-orange-600 shadow-[0_0_30px_#ea580c] pointer-events-none z-10 overflow-hidden" style={{
+              WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+              WebkitMaskComposite: 'xor',
+              maskComposite: 'exclude',
+              padding: '6px'
+            }}>
+               <motion.div 
+                 animate={{ y: [0, -20] }}
+                 transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                 className="absolute inset-[-20px] bg-gradient-to-t from-red-600 via-orange-500 to-yellow-400"
+               />
+            </div>
+            {/* Subtle center overlay */}
+            <div className="absolute inset-0 rounded-[inherit] bg-orange-500/10 mix-blend-overlay pointer-events-none z-10 shadow-[inset_0_0_15px_rgba(234,88,12,0.3)]" />
+          </>
         );
       case 'border_e_toxic_spill':
         return (
@@ -126,25 +147,37 @@ export default function AvatarBorder({ borderId, children, className = '' }: Ava
         );
       case 'border_e_galaxy_spin':
         return (
-          <div className="absolute inset-[-6px] rounded-[inherit] p-[6px] z-10 pointer-events-none overflow-hidden shadow-[0_0_30px_rgba(99,102,241,0.6)]">
-             <motion.div 
-              animate={{ rotate: -360 }} 
-              transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#312e81,#4338ca,#312e81,#4338ca,#312e81)]"
-            />
-            <div className="absolute inset-[4px] rounded-[inherit] bg-black/80" style={{ zIndex: -1 }} />
-          </div>
+          <>
+            <div className="absolute inset-[-6px] rounded-[inherit] z-10 pointer-events-none shadow-[0_0_30px_rgba(99,102,241,0.6)]" style={{
+              WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+              WebkitMaskComposite: 'xor',
+              maskComposite: 'exclude',
+              padding: '6px'
+            }}>
+               <motion.div 
+                animate={{ rotate: -360 }} 
+                transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#312e81,#4338ca,#312e81,#4338ca,#312e81)]"
+              />
+            </div>
+            <div className="absolute inset-0 rounded-[inherit] shadow-[inset_0_0_20px_rgba(67,56,202,0.4)] pointer-events-none z-10" />
+          </>
         );
 
       // ================= Legendary =================
       case 'border_l_dragon_scale':
         return (
           <div className="absolute inset-[-8px] rounded-[inherit] border-[8px] border-red-800 shadow-[0_0_40px_#991b1b,inset_0_0_20px_#991b1b] pointer-events-none z-10 overflow-hidden">
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMCIgaGVpZ2h0PSIxMCI+PHBvbHlnb24gcG9pbnRzPSI1LDAgMTAsNSA1LDEwIDAsNSIgZmlsbD0iI2Y4NzE3MSIgb3BhY2l0eT0iMC4zIi8+PC9zdmc+')] opacity-80" />
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMCIgaGVpZ2h0PSIxMCI+PHBvbHlnb24gcG9pbnRzPSI1LDAgMTAsNSA1LDEwIDAsNSIgZmlsbD0iI2Y4NzE3MSIgb3BhY2l0eT0iMC4zIi8+PC9zdmc+')] opacity-80" 
+              style={{
+                maskImage: 'radial-gradient(circle at center, transparent 50%, black 100%)',
+                WebkitMaskImage: 'radial-gradient(circle at center, transparent 50%, black 100%)'
+              }}
+            />
             <motion.div 
                animate={{ opacity: [0.4, 0.8, 0.4] }}
                transition={{ duration: 3, repeat: Infinity }}
-               className="absolute inset-0 bg-gradient-to-br from-red-500/30 to-transparent"
+               className="absolute inset-0 bg-gradient-to-br from-red-500/20 to-transparent mix-blend-overlay"
             />
           </div>
         );
@@ -205,7 +238,13 @@ export default function AvatarBorder({ borderId, children, className = '' }: Ava
               transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2 }}
               className="absolute inset-[-2px] rounded-[inherit] border-[2px] border-white mix-blend-difference"
             />
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzE2YTM0YSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9zdmc+')] opacity-30" />
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzE2YTM0YSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9zdmc+')] opacity-30" 
+              style={{
+                maskImage: 'radial-gradient(circle at center, transparent 40%, black 100%)',
+                WebkitMaskImage: 'radial-gradient(circle at center, transparent 40%, black 100%)'
+              }}
+            />
+            <div className="absolute inset-0 rounded-[inherit] shadow-[inset_0_0_20px_rgba(34,197,94,0.2)]" />
           </div>
         );
       case 'border_m_time_warp':
