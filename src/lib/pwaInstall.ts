@@ -27,17 +27,47 @@ let deferredPrompt: BeforeInstallPromptEvent | null = null
 let appInstalled = false
 const listeners = new Set<() => void>()
 const emit = () => listeners.forEach((listener) => listener())
+// 클릭 시점에 이벤트가 아직 도착하지 않은 경우를 위한 대기열 (waitForInstallPrompt)
+const promptWaiters = new Set<(e: BeforeInstallPromptEvent | null) => void>()
 
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault() // 브라우저 기본 미니 인포바를 막고 우리 버튼에서 제어
     deferredPrompt = e as BeforeInstallPromptEvent
+    promptWaiters.forEach((waiter) => waiter(deferredPrompt))
+    promptWaiters.clear()
     emit()
   })
   window.addEventListener('appinstalled', () => {
     appInstalled = true
     deferredPrompt = null
     emit()
+  })
+}
+
+/** 이 브라우저가 네이티브 설치 프롬프트 API를 지원하는지 (Chrome/Edge 계열) */
+export function supportsNativePrompt(): boolean {
+  return 'onbeforeinstallprompt' in window
+}
+
+/**
+ * beforeinstallprompt가 아직 발행되지 않았다면 잠시 기다린다.
+ * 크롬은 설치 가능성 판정 후 이벤트를 늦게 쏘는 경우가 있어, 클릭 직후의 공백을 메운다.
+ * (사용자 제스처의 transient activation은 ~5초 유지되므로 이 대기 후에도 prompt() 호출이 유효하다)
+ */
+function waitForInstallPrompt(timeoutMs: number): Promise<BeforeInstallPromptEvent | null> {
+  if (deferredPrompt) return Promise.resolve(deferredPrompt)
+  if (!supportsNativePrompt()) return Promise.resolve(null)
+  return new Promise((resolve) => {
+    const waiter = (e: BeforeInstallPromptEvent | null) => {
+      clearTimeout(timer)
+      resolve(e)
+    }
+    const timer = setTimeout(() => {
+      promptWaiters.delete(waiter)
+      resolve(null)
+    }, timeoutMs)
+    promptWaiters.add(waiter)
   })
 }
 
@@ -76,12 +106,13 @@ export function getGuidePlatform(): GuidePlatform {
 }
 
 /**
- * 포획해 둔 네이티브 설치 프롬프트를 표시한다.
+ * 네이티브 설치 프롬프트를 표시한다.
+ * 이벤트가 아직 도착하지 않았다면 최대 waitMs 동안 기다렸다가 띄운다.
  * 이벤트는 1회용이므로 사용 즉시 폐기한다(거절 시 브라우저가 조건에 따라 재발급).
  */
-export async function promptInstall(): Promise<'accepted' | 'dismissed' | 'unavailable'> {
-  if (!deferredPrompt) return 'unavailable'
-  const promptEvent = deferredPrompt
+export async function promptInstall(waitMs = 1800): Promise<'accepted' | 'dismissed' | 'unavailable'> {
+  const promptEvent = deferredPrompt ?? (await waitForInstallPrompt(waitMs))
+  if (!promptEvent) return 'unavailable'
   deferredPrompt = null
   emit()
   await promptEvent.prompt()

@@ -2,7 +2,7 @@
 
 import { useState, useSyncExternalStore } from 'react'
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react'
-import { Download, Share2, Plus, Check, X } from 'lucide-react'
+import { Download, Share2, Plus, Check, X, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   getGuidePlatform,
@@ -53,19 +53,25 @@ export default function InstallAppButton({ variant = 'header' }: { variant?: 'he
   const status = useSyncExternalStore(subscribeInstallStatus, getInstallStatusSnapshot, getInstallStatusServerSnapshot)
   const [guideOpen, setGuideOpen] = useState(false)
   const [platform, setPlatform] = useState<GuidePlatform>('desktop')
+  const [waiting, setWaiting] = useState(false)
 
   if (status === 'unknown' || status === 'installed') return null
 
   const handleClick = async () => {
-    if (status === 'available') {
-      const outcome = await promptInstall()
-      if (outcome === 'accepted') {
-        toast.success('설치가 시작되었습니다! 홈 화면에서 만나요 🎉')
-        return
-      }
-      if (outcome === 'dismissed') return // 사용자가 프롬프트를 닫음 — 조용히 종료
+    if (waiting) return
+    // 항상 네이티브 프롬프트를 먼저 시도한다.
+    // 이벤트가 아직 도착하지 않은 경우(promptInstall이 최대 1.8초 대기) 스피너를 보여준다.
+    setWaiting(true)
+    const outcome = await promptInstall()
+    setWaiting(false)
+
+    if (outcome === 'accepted') {
+      toast.success('설치가 시작되었습니다! 홈 화면에서 만나요 🎉')
+      return
     }
-    // 프롬프트 불가 환경(iOS, Firefox 등) → 플랫폼별 안내
+    if (outcome === 'dismissed') return // 사용자가 프롬프트를 닫음 — 조용히 종료
+
+    // 네이티브 프롬프트가 정말 불가능한 환경(iOS, Firefox 등)만 플랫폼별 안내로 폴백
     setPlatform(getGuidePlatform())
     setGuideOpen(true)
   }
@@ -77,19 +83,29 @@ export default function InstallAppButton({ variant = 'header' }: { variant?: 'he
       {variant === 'header' ? (
         <button
           onClick={handleClick}
-          className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--text-primary)] bg-white/5 hover:bg-white/10 border border-white/10 transition-colors flex items-center gap-1.5"
+          disabled={waiting}
+          className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--text-primary)] bg-white/5 hover:bg-white/10 border border-white/10 transition-colors flex items-center gap-1.5 disabled:opacity-60"
         >
-          <Download className="w-4 h-4 text-[var(--accent-primary)]" />
+          {waiting ? (
+            <Loader2 className="w-4 h-4 text-[var(--accent-primary)] animate-spin" />
+          ) : (
+            <Download className="w-4 h-4 text-[var(--accent-primary)]" />
+          )}
           <span className="hidden sm:inline">앱 설치</span>
         </button>
       ) : (
         <button
           onClick={handleClick}
+          disabled={waiting}
           title="앱 설치"
           aria-label="앱 설치"
-          className="w-12 h-12 rounded-full bg-[var(--panel-bg-heavy)] backdrop-blur-md border border-[var(--panel-border-hover)] flex items-center justify-center hover:bg-[var(--btn-bg-hover)] transition-all hover:scale-110 shadow-lg group"
+          className="w-12 h-12 rounded-full bg-[var(--panel-bg-heavy)] backdrop-blur-md border border-[var(--panel-border-hover)] flex items-center justify-center hover:bg-[var(--btn-bg-hover)] transition-all hover:scale-110 shadow-lg group disabled:opacity-60"
         >
-          <Download className="w-6 h-6 text-[var(--text-muted)] group-hover:text-[var(--accent-primary)] transition-colors" />
+          {waiting ? (
+            <Loader2 className="w-6 h-6 text-[var(--accent-primary)] animate-spin" />
+          ) : (
+            <Download className="w-6 h-6 text-[var(--text-muted)] group-hover:text-[var(--accent-primary)] transition-colors" />
+          )}
         </button>
       )}
 

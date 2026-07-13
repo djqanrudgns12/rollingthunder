@@ -2,6 +2,8 @@
   "name": "Rolling Thunder",
   "short_name": "RollingThunder",
   "description": "물리 엔진 기반 하이엔드 무작위 추첨 웹 애플리케이션",
+  "id": "/",
+  "scope": "/",
   "start_url": "/",
   "display": "fullscreen",
   "background_color": "#000000",
