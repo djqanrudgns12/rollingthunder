@@ -15,6 +15,7 @@ import { useInventoryStore } from '@/store/inventoryStore'
 import { MOCK_ITEMS } from '@/data/shopData'
 import { stampService } from '@/lib/stampService'
 import SkinCanvasPreview from './shop/SkinCanvasPreview'
+import InstallAppButton from './pwa/InstallAppButton'
 import { SKIN_DEFINITIONS } from '@/data/skinDefinitions'
 import { resolveSkinId } from '@/lib/skinUtils'
 
@@ -344,6 +345,9 @@ export default function Dashboard() {
             </span>
           </motion.button>
         )}
+
+        {/* PWA 앱 설치 (설치 가능/미설치 환경에서만 노출) */}
+        <InstallAppButton variant="round" />
 
         <button
           onClick={() => {

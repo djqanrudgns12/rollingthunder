@@ -58,11 +58,10 @@ function subscribeMotionPref(callback: () => void) {
 }
 
 function getMotionSnapshot(): 'on' | 'off' {
-  // 사용자 저장값 > (모션 저감 || 차분 모드) > 기본 켜짐
+  // 사용자 저장값이 있으면 그것을 존중, 없으면 기본 ON
   const saved = localStorage.getItem(MOTION_STORAGE_KEY)
   if (saved === 'on' || saved === 'off') return saved
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  return reduced || useGameStore.getState().calmMode ? 'off' : 'on'
+  return 'on'
 }
 
 const getMotionServerSnapshot = () => 'unknown' as const

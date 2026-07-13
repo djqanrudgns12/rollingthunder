@@ -8,6 +8,7 @@ import { soundManager } from '@/engine/AudioEngine'
 import { useGameStore } from '@/store/gameStore'
 import HeroPhysics, { type HeroPhysicsHandle } from './HeroPhysics'
 import AuthDialog, { type AuthMode } from './AuthDialog'
+import InstallAppButton from '@/components/pwa/InstallAppButton'
 
 /**
  * 랜딩 페이지 클라이언트 셸.
@@ -91,6 +92,8 @@ export default function LandingShell({
             <a href="#faq" className="hover:text-[var(--text-primary)] transition-colors">FAQ</a>
           </nav>
           <div className="flex items-center gap-2">
+            {/* PWA 설치 (설치 가능/미설치 환경에서만 노출) */}
+            <InstallAppButton variant="header" />
             <button
               onClick={() => openAuth('login')}
               className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--text-primary)] bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
