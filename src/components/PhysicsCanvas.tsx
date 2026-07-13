@@ -527,7 +527,6 @@ export default function PhysicsCanvas() {
       : (presetMeta ? presetMeta.worldHeight : 2400);
     let destroyed = false;
     let initPromise: Promise<void> | null = null;
-    const appIsFullyInit = false;
     
     const initPixi = async () => {
       // React Strict Mode 방어: 50ms 대기 후 언마운트되지 않았을 때만 초기화 시작
@@ -549,10 +548,8 @@ export default function PhysicsCanvas() {
           powerPreference: 'high-performance',
         });
 
-        if (destroyed) {
-          try { app.destroy({ removeView: true }, { children: true }); } catch (e) {}
-          return;
-        }
+        // 파괴는 cleanup의 initPromise 체인이 단일 경로로 수행
+        if (destroyed) return;
 
         if (containerRef.current) {
           containerRef.current.appendChild(app.canvas);
@@ -617,10 +614,8 @@ export default function PhysicsCanvas() {
           console.error("Asset load error:", err);
         }
 
-        if (destroyed) {
-          try { app.destroy({ removeView: true }, { children: true }); } catch (e) {}
-          return;
-        }
+        // 파괴는 cleanup의 initPromise 체인이 단일 경로로 수행
+        if (destroyed) return;
 
         // 모든 텍스처에 linear 스케일 모드 강제 → 확대/축소 시 샘플링 아티팩트(찢어짐) 완화
         for (const url of texturesToLoad) {
@@ -2199,7 +2194,10 @@ export default function PhysicsCanvas() {
     initPromise = initPixi();
 
     return () => {
+      destroyed = true; // in-flight initPixi가 다음 async 체크포인트에서 중단되도록 최우선 설정
       isMounted = false;
+      setIsWorkerReady(false); // 재초기화 동안 시작 버튼 비활성화
+
       // VFX 자원 정리: gsap 트윈, ticker 콜백 등 GC 불가 자원 해제
       activeVFXMap.forEach((vfx) => { try { vfx.cleanup(); } catch {} });
       activeVFXMap.clear();
@@ -2232,23 +2230,30 @@ export default function PhysicsCanvas() {
         workerRef.current = null;
       }
       intervals.forEach(i => clearInterval(i));
-      tickers.forEach(t => app.ticker.remove(t));
+      if (app) tickers.forEach(t => app.ticker.remove(t));
       itemDisposers.forEach(d => { try { d() } catch {} });
-      
-      destroyed = true;
+
       // Do not call clearSkinCache() here, as textureCache is global and destroying it breaks other active Canvas instances in React StrictMode.
-      
-      if (appIsFullyInit && app) {
+
+      // 단일 파괴 경로: 비동기 init 완료를 기다린 뒤 딱 한 번 파괴 (PIXI v8 패턴)
+      const destroyApp = () => {
+        if (!app) return; // StrictMode 50ms 대기 중 취소된 경우: 생성된 게 없음
+        try { app.ticker.stop(); } catch {}
+        if (cameraDirectorRef.current === cameraDirector) cameraDirectorRef.current = null;
+        cameraDirector = null;
+        shockwaveRef.current = null;
+        if (appRef.current === app) appRef.current = null;
+        try { glowTexture.destroy(true); } catch {} // effect 회차마다 새로 생성되는 로컬 텍스처 누수 방지
         try {
-          if (app.canvas && app.canvas.parentNode) {
-            app.canvas.parentNode.removeChild(app.canvas);
-          }
-          // app.destroy({ removeView: true }, { children: true }) handles context and DOM cleanup cleanly.
-          app.destroy(true, { children: true });
+          // removeView: true → canvas DOM 제거까지 PIXI가 처리
+          // texture 파괴 옵션은 켜지 않음 → PIXI.Assets 전역 캐시 보존 (StrictMode/재초기화 안전)
+          app.destroy({ removeView: true }, { children: true, texture: false, textureSource: false });
         } catch (e) {
           console.error("PIXI destroy error:", e);
         }
-      }
+      };
+      if (initPromise) initPromise.then(destroyApp, destroyApp);
+      else destroyApp();
     };
   }, [survivors, targetWinnerCount, gimmickDensity, setSurvivors, setGameStage, customMapData, gameMode, customWinningRank, isSkillEnabled, randomWinningRanks, selectedMapPreset, testPlaySession]);
   const getOrdinalSuffix = (n: number) => {
