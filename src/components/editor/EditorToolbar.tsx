@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useEditorStore, WorkspaceTab } from '@/store/editorStore'
 import { useGameStore } from '@/store/gameStore'
 import { useUIStore } from '@/store/uiStore'
@@ -46,6 +46,7 @@ export default function EditorToolbar() {
 
   // Dropdown menu & Title editing state
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const addMenuRef = useRef<HTMLDivElement>(null);
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [isOfficialExpanded, setIsOfficialExpanded] = useState(true);
@@ -71,9 +72,14 @@ export default function EditorToolbar() {
   }, [refreshMyMaps])
 
   useEffect(() => {
-    const handleOutsideClick = () => setShowAddMenu(false);
-    if (showAddMenu) document.addEventListener('click', handleOutsideClick);
-    return () => document.removeEventListener('click', handleOutsideClick);
+    if (!showAddMenu) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node)) {
+        setShowAddMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [showAddMenu]);
 
   // ────────────────────────────────────────────────────────────
@@ -422,7 +428,7 @@ export default function EditorToolbar() {
         </div>
 
         {/* 맵 추가 버튼 (스크롤 밖으로 분리하여 Clipping 버그 해결) */}
-        <div className="relative h-full flex items-center border-l border-[#333]">
+        <div ref={addMenuRef} className="relative h-full flex items-center border-l border-[#333]">
           <button
             onClick={(e) => {
               e.stopPropagation();
