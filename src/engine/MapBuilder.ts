@@ -121,7 +121,8 @@ export class MapBuilder {
     
     if (item.type === 'portal') {
       // 반경 확대(20→38): "확률 지름길"이 의미 있게 작동하도록(칩 일부가 실제로 워프)
-      colliderDesc = RAPIER.ColliderDesc.ball(38).setSensor(true);
+      // 에디터에서 명시적으로 radius 를 지정한 포탈은 그 값을 존중(시각-물리 일치)
+      colliderDesc = RAPIER.ColliderDesc.ball(item.radius || 38).setSensor(true);
     } else if (item.type === 'booster') {
       // 넓은 가속 패드(50×50→90×44): 레인을 가로질러 안정적으로 트리거되도록 확대
       colliderDesc = RAPIER.ColliderDesc.cuboid(45, 22).setSensor(true);

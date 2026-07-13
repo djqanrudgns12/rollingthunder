@@ -95,10 +95,14 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
     mg.rect(-25, -25, 50, 50)
     mg.fill({ color: 0x55ff55, alpha: 0.8 })
   } else if (item.type === 'windmill') {
+    // 물리 콜라이더(MapBuilder: w×h 십자 cuboid)와 동일하게 w=날개 스팬, h=날개 두께를 반영.
+    // (기존 110×110 고정 스프라이트는 에디터 리사이즈가 시각에 반영되지 않던 원인)
+    const w = item.w || 100
+    const h = item.h || 10
     const sprite = new PIXI.Sprite(ctx.getTexture(OBS('obstacle_windmill')))
     sprite.anchor.set(0.5)
-    sprite.width = 110
-    sprite.height = 110
+    sprite.width = w * 1.1
+    sprite.height = w * 1.1
     g.addChild(sprite)
 
     const speed = item.speed || 3
@@ -112,10 +116,10 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
       }
       disposers.push(ctx.registerTicker(windTick))
     } else {
-      drawRotationGuide(g, 55, speed)
+      drawRotationGuide(g, w * 0.55, speed)
     }
-    mg.rect(-50, -5, 100, 10)
-    mg.rect(-5, -50, 10, 100)
+    mg.rect(-w / 2, -h / 2, w, h)
+    mg.rect(-h / 2, -w / 2, h, w)
     mg.fill({ color: 0x00ffff, alpha: 0.6 })
   } else if (item.type === 'spinner') {
     const w = item.w || 200

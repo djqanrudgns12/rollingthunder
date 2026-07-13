@@ -38,6 +38,8 @@ function getLocalPos(ev: any, layer: PIXI.Container) {
 
 // 원형으로 취급하여 비례 리사이즈하는 타입
 const CIRCLE_TYPES = new Set(['pin', 'bumper', 'portal', 'blackhole', 'whitehole', 'hole'])
+// 물리 콜라이더 크기가 고정(MapBuilder: 부스터 45×22 센서)이라 리사이즈가 무의미한 타입 — 핸들 미노출(이동·회전만)
+const FIXED_SIZE_TYPES = new Set(['booster'])
 
 // x,y 를 제외한 "비주얼 시그니처". 동일하면 노드를 재생성하지 않고 위치만 갱신한다.
 // (piston 은 애니메이션이 x,y/waypointB 기준이므로 위치도 시그니처에 포함)
@@ -490,22 +492,24 @@ export default function EditorCanvas() {
     sel.addChild(ring)
 
     const isCircle = CIRCLE_TYPES.has(item.type)
-    const handleDefs: Array<[string, number, number]> = [
-      ['tl', cx - hw, cy - hh], ['tc', cx, cy - hh], ['tr', cx + hw, cy - hh],
-      ['cl', cx - hw, cy], ['cr', cx + hw, cy],
-      ['bl', cx - hw, cy + hh], ['bc', cx, cy + hh], ['br', cx + hw, cy + hh],
-    ]
-    for (const [type, hx, hy] of handleDefs) {
-      const h = new PIXI.Graphics()
-      h.rect(-hs, -hs, hs * 2, hs * 2).fill({ color: 0xffffff }).stroke({ width: sw, color: 0x00aaff })
-      h.position.set(hx, hy)
-      h.eventMode = 'static'
-      if (type === 'tl' || type === 'br') h.cursor = 'nwse-resize'
-      else if (type === 'tr' || type === 'bl') h.cursor = 'nesw-resize'
-      else if (type === 'tc' || type === 'bc') h.cursor = 'ns-resize'
-      else h.cursor = 'ew-resize'
-      attachResize(h, item.id, type, isCircle)
-      sel.addChild(h)
+    if (!FIXED_SIZE_TYPES.has(item.type)) {
+      const handleDefs: Array<[string, number, number]> = [
+        ['tl', cx - hw, cy - hh], ['tc', cx, cy - hh], ['tr', cx + hw, cy - hh],
+        ['cl', cx - hw, cy], ['cr', cx + hw, cy],
+        ['bl', cx - hw, cy + hh], ['bc', cx, cy + hh], ['br', cx + hw, cy + hh],
+      ]
+      for (const [type, hx, hy] of handleDefs) {
+        const h = new PIXI.Graphics()
+        h.rect(-hs, -hs, hs * 2, hs * 2).fill({ color: 0xffffff }).stroke({ width: sw, color: 0x00aaff })
+        h.position.set(hx, hy)
+        h.eventMode = 'static'
+        if (type === 'tl' || type === 'br') h.cursor = 'nwse-resize'
+        else if (type === 'tr' || type === 'bl') h.cursor = 'nesw-resize'
+        else if (type === 'tc' || type === 'bc') h.cursor = 'ns-resize'
+        else h.cursor = 'ew-resize'
+        attachResize(h, item.id, type, isCircle)
+        sel.addChild(h)
+      }
     }
 
     // 회전 핸들 (원형 타입 제외) — 우측 상단 모서리 바깥쪽 (버튼형)
@@ -609,7 +613,9 @@ export default function EditorCanvas() {
       const cur = useEditorStore.getState().items.find(it => it.id === id)
       if (!cur) return
       const startW = cur.w || 40, startH = cur.h || 40, startR = cur.radius || startW / 2
+      const startL = cur.length || 90
       const startX = cur.x, startY = cur.y
+      const itemType = cur.type
       // 회전된 기물도 잡은 변만 늘어나도록 로컬 좌표계에서 계산
       const rot = itemRotationRad(cur)
       const cos = Math.cos(rot), sin = Math.sin(rot)
@@ -624,10 +630,30 @@ export default function EditorCanvas() {
           let nr = Math.max(5, startR + sign * delta)
           if (snap) nr = Math.round(nr / 5) * 5
           useEditorStore.getState().updateItemSilent(id, { radius: nr, w: nr * 2, h: nr * 2 })
+          return
+        }
+        // 포인터 이동량을 기물 로컬 축으로 투영
+        const ldx = dx * cos + dy * sin
+        const ldy = -dx * sin + dy * cos
+        if (itemType === 'windmill') {
+          // 십자 날개(회전 대칭): 중심 고정, 바깥으로 끌면 스팬(w)만 확장. 두께(h)는 인스펙터에서.
+          const outward =
+            (type.includes('r') ? ldx : type.includes('l') ? -ldx : 0) +
+            (type.includes('b') ? ldy : type.includes('t') ? -ldy : 0)
+          let nw = Math.max(20, startW + outward)
+          if (snap) nw = Math.round(nw / 10) * 10
+          useEditorStore.getState().updateItemSilent(id, { w: Math.round(nw) })
+        } else if (itemType === 'flipper') {
+          // 피벗 고정 막대: 가로 핸들=길이(length, 피벗 반대끝만 이동), 세로 핸들=두께(h)
+          let nl = startL, nh = startH
+          if (type.includes('r')) nl = Math.max(20, startL + ldx)
+          else if (type.includes('l')) nl = Math.max(20, startL - ldx)
+          if (type.includes('b')) nh = Math.max(6, startH + ldy)
+          else if (type.includes('t')) nh = Math.max(6, startH - ldy)
+          if (snap) { nl = Math.round(nl / 10) * 10; nh = Math.round(nh / 5) * 5 }
+          // w 는 length 와 동기(에디터 선택 박스·직렬화 하위 호환)
+          useEditorStore.getState().updateItemSilent(id, { length: Math.round(nl), w: Math.round(nl), h: Math.round(nh) })
         } else {
-          // 포인터 이동량을 기물 로컬 축으로 투영
-          const ldx = dx * cos + dy * sin
-          const ldy = -dx * sin + dy * cos
           let nw = startW, nh = startH
           if (type.includes('r')) nw = Math.max(10, startW + ldx)
           if (type.includes('l')) nw = Math.max(10, startW - ldx)
