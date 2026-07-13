@@ -278,16 +278,31 @@ export default function ProfileCard({ profile }: Props) {
               </p>
             </div>
 
-            {/* 중단: 플레이어 이름 및 아이디 */}
+            {/* 중단: 닉네임 / 플레이어 이름 / 아이디 */}
             <div style={{ transform: "translateZ(70px)" }} className="mt-8 flex flex-col items-center sm:items-start text-center sm:text-left">
-              <p className="text-xs opacity-70 uppercase tracking-widest mb-1">플레이어 이름</p>
-              <p className={`text-2xl sm:text-3xl lg:text-4xl font-bold tracking-wider truncate w-full ${neonGlow}`}>
-                {profile.username || profile.name || 'ANONYMOUS'}
+              {/* 닉네임 (최상단, 가장 크게 표시) */}
+              <p className="text-xs opacity-70 uppercase tracking-widest mb-1">닉네임</p>
+              <p className={`font-bold tracking-wider truncate w-full ${neonGlow} ${
+                (profile.nickname || profile.name || 'ANONYMOUS').length > 7
+                  ? 'text-xl sm:text-2xl lg:text-3xl'
+                  : 'text-2xl sm:text-3xl lg:text-4xl'
+              }`}>
+                {profile.nickname || profile.name || 'ANONYMOUS'}
               </p>
+
+              {/* 플레이어 이름 (Name) */}
+              <div className="flex items-center gap-2 mt-4">
+                <span className="text-[10px] opacity-60 uppercase tracking-widest font-bold border border-white/20 px-1.5 py-0.5 rounded-md">Name</span>
+                <p className="text-sm font-medium opacity-80 truncate max-w-[200px] sm:max-w-[300px]">
+                  {profile.name || 'N/A'}
+                </p>
+              </div>
+
+              {/* 아이디 (Username) */}
               <div className="flex items-center gap-2 mt-1.5">
                 <span className="text-[10px] opacity-60 uppercase tracking-widest font-bold border border-white/20 px-1.5 py-0.5 rounded-md">ID</span>
                 <p className="text-xs sm:text-sm font-mono opacity-70 truncate max-w-[200px] sm:max-w-[300px]">
-                  {displayId}
+                  {profile.username || displayId}
                 </p>
               </div>
             </div>

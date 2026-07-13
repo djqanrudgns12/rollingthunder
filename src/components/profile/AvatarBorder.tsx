@@ -107,7 +107,7 @@ export default function AvatarBorder({ borderId, children, className = '' }: Ava
           <div className="absolute inset-[-6px] rounded-[inherit] border-[4px] border-cyan-500 outline outline-2 outline-offset-2 outline-cyan-900 pointer-events-none z-10 shadow-[0_0_20px_#06b6d4] overflow-hidden">
             <motion.div 
               animate={{ opacity: [0, 1, 0] }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: "steps(3)" }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "linear", times: [0, 0.5, 1] }}
               className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPjxyZWN0IHdpZHRoPSI4IiBoZWlnaHQ9IjgiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAyOGQ5OCIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9zdmc+')] opacity-50 mix-blend-screen"
               style={{
                 maskImage: 'radial-gradient(circle at center, transparent 40%, black 100%)',

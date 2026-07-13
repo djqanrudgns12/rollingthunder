@@ -31,6 +31,7 @@ export async function signup(formData: FormData) {
   const username = formData.get('username') as string
   const password = formData.get('password') as string
   const name = formData.get('name') as string
+  const nickname = formData.get('nickname') as string
   const keepLoggedIn = formData.get('keepLoggedIn') === 'true'
 
   // 게스트 상태 연동 (칩, 인벤토리, 장착 아이템)
@@ -57,6 +58,7 @@ export async function signup(formData: FormData) {
       data: {
         username: username, 
         name: name,
+        nickname: nickname,
         guest_chips: guestChips || '0',
         guest_inventory: guestInventory,
         guest_equipped: guestEquipped,

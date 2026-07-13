@@ -212,7 +212,7 @@ export default function GlobalPlayerHUD() {
     return <div className="absolute inset-[6px] z-0 rounded-full border-[3px] border-[var(--panel-border-hover)]"></div>;
   };
 
-  const playerName = profile?.username || profile?.name || (isLoggedIn ? 'Player' : 'Guest');
+  const playerName = profile?.nickname || profile?.name || (isLoggedIn ? 'Player' : 'Guest');
 
   return (
     <>

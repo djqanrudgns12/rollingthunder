@@ -28,9 +28,22 @@ export default function LoginPage() {
       const password = formData.get('password') as string
       const passwordConfirm = formData.get('passwordConfirm') as string
       const name = formData.get('name') as string
+      const nickname = formData.get('nickname') as string
 
       if (!name || name.trim() === '') {
         setError("이름을 입력해주세요.")
+        setLoading(false)
+        return
+      }
+
+      if (!nickname || nickname.trim() === '') {
+        setError("닉네임을 입력해주세요.")
+        setLoading(false)
+        return
+      }
+
+      if (nickname.trim().length > 10) {
+        setError("닉네임은 최대 10자까지 입력할 수 있습니다.")
         setLoading(false)
         return
       }
@@ -93,19 +106,35 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           {/* 이름 입력창 (회원가입 시에만 표시) */}
           {!isLogin && (
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="name" className="text-sm font-medium text-[var(--text-primary)]">
-                이름
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                required={!isLogin}
-                className="bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/50 transition-all"
-                placeholder="홍길동"
-              />
-            </div>
+            <>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="name" className="text-sm font-medium text-[var(--text-primary)]">
+                  이름
+                </label>
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  required={!isLogin}
+                  className="bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/50 transition-all"
+                  placeholder="홍길동"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="nickname" className="text-sm font-medium text-[var(--text-primary)]">
+                  닉네임
+                </label>
+                <input
+                  id="nickname"
+                  name="nickname"
+                  type="text"
+                  required={!isLogin}
+                  maxLength={10}
+                  className="bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/50 transition-all"
+                  placeholder="게임에서 사용할 닉네임 (최대 10자)"
+                />
+              </div>
+            </>
           )}
 
           <div className="flex flex-col gap-1.5">

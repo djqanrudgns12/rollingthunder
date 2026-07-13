@@ -18,6 +18,7 @@ export interface UserProfile {
   email?: string | null;
   username: string | null;
   name: string | null;
+  nickname: string | null;
   role: 'user' | 'premium' | 'admin' | 'guest';
   chips_balance: number;
   total_games_played: number;
