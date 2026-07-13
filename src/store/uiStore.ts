@@ -24,8 +24,8 @@ interface UIState {
   setSidebarOpen: (isOpen: boolean) => void
   toggleSidebar: () => void
 
-  activeModal: 'none' | 'mapLoad' | 'listManager' | 'settings' | 'auth' | 'stampBook' | 'profile' | 'premiumUpgrade'
-  setActiveModal: (modal: 'none' | 'mapLoad' | 'listManager' | 'settings' | 'auth' | 'stampBook' | 'profile' | 'premiumUpgrade') => void
+  activeModal: 'none' | 'mapLoad' | 'listManager' | 'settings' | 'auth' | 'stampBook' | 'profile' | 'premiumUpgrade' | 'reconsent'
+  setActiveModal: (modal: 'none' | 'mapLoad' | 'listManager' | 'settings' | 'auth' | 'stampBook' | 'profile' | 'premiumUpgrade' | 'reconsent') => void
   authMode: 'login' | 'signup'
   setAuthMode: (mode: 'login' | 'signup') => void
 

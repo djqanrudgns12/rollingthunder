@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { login, signup } from '@/app/actions'
 import { useUIStore } from '@/store/uiStore'
 import { useChipStore } from '@/store/chipStore'
@@ -13,9 +13,12 @@ export default function AuthModal() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
+  // authMode가 바뀌면 렌더 중에 파생 상태를 조정 (effect 내 setState로 인한 연쇄 렌더 방지)
+  const [prevAuthMode, setPrevAuthMode] = useState(authMode)
+  if (prevAuthMode !== authMode) {
+    setPrevAuthMode(authMode)
     setIsLogin(authMode === 'login')
-  }, [authMode])
+  }
 
   if (activeModal !== 'auth') return null
 
@@ -32,6 +35,7 @@ export default function AuthModal() {
       const password = formData.get('password') as string
       const passwordConfirm = formData.get('passwordConfirm') as string
       const name = formData.get('name') as string
+      const nickname = formData.get('nickname') as string
 
       if (!name || name.trim() === '') {
         setError("이름을 입력해주세요.")
@@ -39,8 +43,26 @@ export default function AuthModal() {
         return
       }
 
+      if (!nickname || nickname.trim() === '') {
+        setError("닉네임을 입력해주세요.")
+        setLoading(false)
+        return
+      }
+
+      if (nickname.trim().length > 10) {
+        setError("닉네임은 최대 10자까지 입력할 수 있습니다.")
+        setLoading(false)
+        return
+      }
+
       if (password !== passwordConfirm) {
         setError("비밀번호가 일치하지 않습니다.")
+        setLoading(false)
+        return
+      }
+
+      if (formData.get('termsAgreed') !== 'true' || formData.get('privacyAgreed') !== 'true') {
+        setError("이용약관과 개인정보처리방침에 동의해주세요.")
         setLoading(false)
         return
       }
@@ -85,9 +107,10 @@ export default function AuthModal() {
       }
       
       setActiveModal('none')
-    } catch (err: any) {
+    } catch (error) {
       // Server Action redirect throws an error on the client in some Next.js versions.
       // err.digest is usually "NEXT_REDIRECT"
+      const err = error as { message?: string; digest?: string }
       if (err?.message === 'NEXT_REDIRECT' || err?.digest?.startsWith('NEXT_REDIRECT')) {
         setActiveModal('none')
         throw err;
@@ -131,19 +154,35 @@ export default function AuthModal() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {/* 이름 입력창 (회원가입 시에만 표시) */}
             {!isLogin && (
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="name" className="text-sm font-medium text-[var(--text-primary)]">
-                  이름
-                </label>
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  required={!isLogin}
-                  className="bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/50 transition-all"
-                  placeholder="홍길동"
-                />
-              </div>
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="name" className="text-sm font-medium text-[var(--text-primary)]">
+                    이름
+                  </label>
+                  <input
+                    id="name"
+                    name="name"
+                    type="text"
+                    required={!isLogin}
+                    className="bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/50 transition-all"
+                    placeholder="홍길동"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="nickname" className="text-sm font-medium text-[var(--text-primary)]">
+                    닉네임
+                  </label>
+                  <input
+                    id="nickname"
+                    name="nickname"
+                    type="text"
+                    required={!isLogin}
+                    maxLength={10}
+                    className="bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/50 transition-all"
+                    placeholder="게임에서 사용할 닉네임 (최대 10자)"
+                  />
+                </div>
+              </>
             )}
 
             <div className="flex flex-col gap-1.5">
@@ -188,6 +227,38 @@ export default function AuthModal() {
                   className="bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/50 transition-all"
                   placeholder="••••••••"
                 />
+              </div>
+            )}
+
+            {/* 약관 동의 (회원가입 시에만 표시) — 서버 액션에서도 필수 검증됨 */}
+            {!isLogin && (
+              <div className="flex flex-col gap-2.5 p-3 rounded-lg bg-black/20 border border-white/5">
+                <div className="flex items-start gap-2">
+                  <input
+                    id="termsAgreed"
+                    name="termsAgreed"
+                    type="checkbox"
+                    value="true"
+                    required
+                    className="mt-0.5 w-4 h-4 shrink-0 rounded border-white/20 bg-black/30 text-[var(--accent-primary)] focus:ring-[var(--accent-primary)]/50 focus:ring-offset-0 cursor-pointer"
+                  />
+                  <label htmlFor="termsAgreed" className="text-xs leading-5 text-[var(--text-secondary)] select-none cursor-pointer">
+                    <a href="/terms" target="_blank" rel="noopener" className="text-[var(--accent-primary)] underline underline-offset-2 hover:text-white transition-colors">서비스 이용약관</a>에 동의합니다. (필수)
+                  </label>
+                </div>
+                <div className="flex items-start gap-2">
+                  <input
+                    id="privacyAgreed"
+                    name="privacyAgreed"
+                    type="checkbox"
+                    value="true"
+                    required
+                    className="mt-0.5 w-4 h-4 shrink-0 rounded border-white/20 bg-black/30 text-[var(--accent-primary)] focus:ring-[var(--accent-primary)]/50 focus:ring-offset-0 cursor-pointer"
+                  />
+                  <label htmlFor="privacyAgreed" className="text-xs leading-5 text-[var(--text-secondary)] select-none cursor-pointer">
+                    <a href="/privacy" target="_blank" rel="noopener" className="text-[var(--accent-primary)] underline underline-offset-2 hover:text-white transition-colors">개인정보처리방침</a>을 확인했으며 개인정보 수집·이용에 동의합니다. (필수)
+                  </label>
+                </div>
               </div>
             )}
 

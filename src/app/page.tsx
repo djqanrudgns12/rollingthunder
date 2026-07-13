@@ -1,242 +1,66 @@
-'use client'
+import type { Metadata } from 'next'
+import LandingShell from '@/components/landing/LandingShell'
+import LandingFooter from '@/components/landing/LandingFooter'
+import { FeaturesSection, HowItWorksSection, TechSection } from '@/components/landing/LandingSections'
+import FaqSection from '@/components/landing/FaqSection'
+import { FAQ_ITEMS } from '@/components/landing/faqData'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { login, signup } from './actions'
-import { soundManager } from '@/engine/AudioEngine'
+export const metadata: Metadata = {
+  title: 'Rolling Thunder — 물리 엔진이 결정하는 공정한 추첨 레이스',
+  description:
+    '사다리타기는 이제 그만. 이름만 넣으면 Rust 물리 엔진 위에서 도파민 터지는 추첨 레이스가 시작됩니다. 설치 없이, 무료로, 브라우저에서 바로.',
+  openGraph: {
+    title: 'Rolling Thunder — 중력에게 맡기세요',
+    description: '물리 엔진 기반 무작위 추첨 레이스. 맵 에디터, 가챠 스킨, 미션까지 — 설치 없이 브라우저에서 바로.',
+    type: 'website',
+    locale: 'ko_KR',
+  },
+}
 
-export default function LoginPage() {
-  const router = useRouter()
-  const [isLogin, setIsLogin] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+// 검색엔진 구조화 데이터 — FAQPage는 faqData 단일 소스에서 생성해 화면 노출 내용과 항상 일치시킨다.
+const JSON_LD = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'SoftwareApplication',
+      name: 'Rolling Thunder',
+      applicationCategory: 'GameApplication',
+      operatingSystem: 'Web',
+      description: '물리 엔진 기반 무작위 추첨 레이스 웹 애플리케이션. 맵 에디터, 커스텀 맵 스토어, 가챠 스킨, 미션 시스템 제공.',
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'KRW' },
+      author: { '@type': 'Person', name: '찰떡쌤' },
+      inLanguage: 'ko',
+    },
+    {
+      '@type': 'FAQPage',
+      mainEntity: FAQ_ITEMS.map((item) => ({
+        '@type': 'Question',
+        name: item.question,
+        acceptedAnswer: { '@type': 'Answer', text: item.answer },
+      })),
+    },
+  ],
+}
 
-  useEffect(() => {
-    soundManager.stopAllBgm();
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-    
-    const formData = new FormData(e.currentTarget)
-    const username = formData.get('username') as string
-    
-    // 회원가입일 경우 추가 검증
-    if (!isLogin) {
-      const password = formData.get('password') as string
-      const passwordConfirm = formData.get('passwordConfirm') as string
-      const name = formData.get('name') as string
-      const nickname = formData.get('nickname') as string
-
-      if (!name || name.trim() === '') {
-        setError("이름을 입력해주세요.")
-        setLoading(false)
-        return
-      }
-
-      if (!nickname || nickname.trim() === '') {
-        setError("닉네임을 입력해주세요.")
-        setLoading(false)
-        return
-      }
-
-      if (nickname.trim().length > 10) {
-        setError("닉네임은 최대 10자까지 입력할 수 있습니다.")
-        setLoading(false)
-        return
-      }
-
-      if (password !== passwordConfirm) {
-        setError("비밀번호가 일치하지 않습니다.")
-        setLoading(false)
-        return
-      }
-    }
-
-    // 엄격한 아이디 유효성 검사 (정규식)
-    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
-      setError("아이디는 영문, 숫자, 밑줄(_) 3~20자로 입력해주세요.")
-      setLoading(false)
-      return
-    }
-
-    try {
-      if (isLogin) {
-        const result = await login(formData)
-        if (result?.error) setError(result.error)
-        if (result?.success) window.location.href = '/dashboard'
-      } else {
-        const result = await signup(formData)
-        if (result?.error) setError(result.error)
-        if (result?.success) window.location.href = '/dashboard'
-      }
-    } catch (err: any) {
-      if (err?.message === 'NEXT_REDIRECT' || err?.digest?.startsWith('NEXT_REDIRECT')) {
-        throw err;
-      }
-      console.error(err)
-      setError("오류가 발생했습니다. 다시 시도해주세요.")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleGuestLogin = () => {
-    // 비회원은 바로 대시보드로 이동
-    router.push('/dashboard')
-  }
-
+// 로그인 사용자는 미들웨어가 /dashboard로 보내므로, 이 페이지는 항상 비로그인 방문자용이다.
+export default function LandingPage() {
   return (
-    <div className="flex-1 w-full h-[100dvh] flex flex-col items-center justify-center p-4 bg-[var(--bg-primary)]">
-      <div className="glass-panel-heavy w-full max-w-sm p-8 flex flex-col gap-6 relative overflow-hidden">
-        {/* 네온 장식 효과 */}
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--accent-primary)] to-transparent opacity-50" />
-        
-        <div className="text-center">
-          <h1 className="text-3xl font-outfit font-bold text-glow-primary text-[var(--accent-primary)] mb-2">
-            {isLogin ? '로그인' : '회원가입'}
-          </h1>
-          <p className="text-[var(--text-secondary)] text-sm leading-relaxed">
-            {isLogin ? 'Rolling Thunder 세션을 불러옵니다.' : '계정을 생성하고 여러 기능을 누려보세요.'}
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          {/* 이름 입력창 (회원가입 시에만 표시) */}
-          {!isLogin && (
-            <>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="name" className="text-sm font-medium text-[var(--text-primary)]">
-                  이름
-                </label>
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  required={!isLogin}
-                  className="bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/50 transition-all"
-                  placeholder="홍길동"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="nickname" className="text-sm font-medium text-[var(--text-primary)]">
-                  닉네임
-                </label>
-                <input
-                  id="nickname"
-                  name="nickname"
-                  type="text"
-                  required={!isLogin}
-                  maxLength={10}
-                  className="bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/50 transition-all"
-                  placeholder="게임에서 사용할 닉네임 (최대 10자)"
-                />
-              </div>
-            </>
-          )}
-
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="username" className="text-sm font-medium text-[var(--text-primary)]">
-              아이디
-            </label>
-            <input
-              id="username"
-              name="username"
-              type="text"
-              required
-              className="bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/50 transition-all"
-              placeholder="아이디를 입력해주세요"
-            />
-          </div>
-          
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="password" className="text-sm font-medium text-[var(--text-primary)]">
-              비밀번호
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              className="bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/50 transition-all"
-              placeholder="••••••••"
-            />
-          </div>
-
-          {/* 비밀번호 확인 입력창 (회원가입 시에만 표시) */}
-          {!isLogin && (
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="passwordConfirm" className="text-sm font-medium text-[var(--text-primary)]">
-                비밀번호 확인
-              </label>
-              <input
-                id="passwordConfirm"
-                name="passwordConfirm"
-                type="password"
-                required={!isLogin}
-                className="bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/50 transition-all"
-                placeholder="••••••••"
-              />
-            </div>
-          )}
-
-          {/* 로그인 상태 유지 체크박스 */}
-          <div className="flex items-center gap-2 mt-1">
-            <input
-              id="keepLoggedIn"
-              name="keepLoggedIn"
-              type="checkbox"
-              value="true"
-              defaultChecked={true}
-              className="w-4 h-4 rounded border-white/20 bg-black/30 text-[var(--accent-primary)] focus:ring-[var(--accent-primary)]/50 focus:ring-offset-0 cursor-pointer"
-            />
-            <label htmlFor="keepLoggedIn" className="text-sm text-[var(--text-secondary)] select-none cursor-pointer">
-              로그인 상태 유지
-            </label>
-          </div>
-
-          {error && (
-            <div className="text-[var(--accent-warning)] text-sm p-3 bg-[var(--accent-warning)]/10 rounded-lg border border-[var(--accent-warning)]/20 flex items-start gap-2">
-              <span className="mt-0.5">⚠️</span>
-              <span className="truncate-1-line whitespace-normal leading-tight">{error}</span>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/80 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold py-3.5 rounded-lg transition-colors mt-2"
-          >
-            {loading ? '처리 중...' : (isLogin ? '로그인' : '계정 생성')}
-          </button>
-        </form>
-
-        <div className="flex flex-col gap-3">
-          <div className="text-center text-sm text-[var(--text-secondary)] pt-4 border-t border-white/5">
-            {isLogin ? '계정이 없으신가요?' : '이미 계정이 있으신가요?'}
-            <button 
-              onClick={() => {
-                setIsLogin(!isLogin)
-                setError(null)
-              }} 
-              type="button"
-              className="ml-2 text-[var(--accent-secondary)] hover:text-white transition-colors font-medium hover:underline"
-            >
-              {isLogin ? '회원가입' : '로그인'}
-            </button>
-          </div>
-
-          <button
-            onClick={handleGuestLogin}
-            type="button"
-            className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium py-3 rounded-lg transition-colors"
-          >
-            비회원으로 계속하기
-          </button>
-        </div>
-      </div>
-    </div>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
+      />
+      <LandingShell
+        sections={
+          <>
+            <FeaturesSection />
+            <HowItWorksSection />
+            <TechSection />
+            <FaqSection />
+          </>
+        }
+        footer={<LandingFooter />}
+      />
+    </>
   )
 }

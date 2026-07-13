@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createSession } from '@/actions/db'
 import MapLoadModal, { DEFAULT_MAPS } from './MapLoadModal'
 import ListManagerModal from './ListManagerModal'
-import { Video, Map, Circle, Car, Rocket, Zap, Cat, Target, Volume2, VolumeX, Settings, Ghost, Bot, Flame, Star, Smile, Cloud, Anchor, Wind, Dog, Bird, Diamond, Clover, Cherry, Rabbit, Turtle, CircleDashed, Sparkles } from 'lucide-react'
+import { Video, Map, Circle, Car, Rocket, Zap, Cat, Target, Volume2, VolumeX, Settings, Ghost, Bot, Flame, Star, Smile, Cloud, Anchor, Wind, Dog, Bird, Diamond, Clover, Cherry, Rabbit, Turtle, CircleDashed, Sparkles, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import PremiumUpgradeModal from './profile/PremiumUpgradeModal'
@@ -364,6 +364,26 @@ export default function Dashboard() {
         >
           <Settings className="w-6 h-6 text-[var(--text-muted)] group-hover:text-[var(--text-primary)]" />
         </button>
+        
+        <button
+          onClick={async () => {
+            playClickSound();
+            if (window.confirm('정말 로그아웃(나가기) 하시겠습니까?')) {
+              useUIStore.getState().setIsLoggedIn(false)
+              useUIStore.getState().setUserProfile(null)
+              import('@/store/chipStore').then(({ useChipStore }) => useChipStore.getState().setChips(0))
+              import('@/store/inventoryStore').then(({ useInventoryStore }) => useInventoryStore.getState().reset())
+              import('@/store/gameStore').then(({ useGameStore }) => useGameStore.getState().resetSession())
+              const { logout } = await import('@/app/actions')
+              await logout()
+              window.location.replace('/')
+            }
+          }}
+          title="로그아웃 및 나가기"
+          className="w-12 h-12 rounded-full bg-red-500/10 backdrop-blur-md border border-red-500/20 flex items-center justify-center hover:bg-red-500/20 hover:border-red-500/40 transition-all hover:scale-110 shadow-lg group"
+        >
+          <LogOut className="w-5 h-5 text-red-400/80 group-hover:text-red-300" />
+        </button>
       </div>
 
       <div className={`p-5 md:p-8 rounded-3xl w-full max-w-2xl flex flex-col gap-4 shadow-2xl transition-all duration-500 max-h-[calc(100dvh-2rem)] overflow-y-auto custom-scrollbar ${isBroadcasterMode ? 'bg-black border-2 border-green-500' : 'glass-panel-heavy'}`}>
@@ -626,10 +646,14 @@ export default function Dashboard() {
           </button>
         </div>
         <div className="w-full text-left mt-1 shrink-0 -mb-2 md:-mb-4">
-          <div className="flex items-center text-[10px] text-[var(--text-faint)] font-medium tracking-wide ml-1">
+          <div className="flex items-center flex-wrap text-[10px] text-[var(--text-faint)] font-medium tracking-wide ml-1">
             © Copyright
             <img src="/images/assets/chaltteok.png" alt="찰떡쌤" className="w-4 h-4 mx-1 object-contain" />
             찰떡쌤. 단순한 뽑기도 즐거움을 누려 보세요!
+            <span className="mx-2 opacity-50">|</span>
+            <a href="/terms" target="_blank" rel="noopener" className="hover:text-[var(--text-muted)] underline-offset-2 hover:underline transition-colors">이용약관</a>
+            <span className="mx-1 opacity-50">·</span>
+            <a href="/privacy" target="_blank" rel="noopener" className="hover:text-[var(--text-muted)] underline-offset-2 hover:underline transition-colors">개인정보처리방침</a>
           </div>
         </div>
       </div>

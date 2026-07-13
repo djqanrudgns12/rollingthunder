@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { TERMS_VERSION, PRIVACY_VERSION } from '@/lib/legal'
 
 // 이메일 기반 인증을 우회하기 위한 가상 도메인
 const FAKE_DOMAIN = '@rt.local'
@@ -34,6 +35,11 @@ export async function signup(formData: FormData) {
   const nickname = formData.get('nickname') as string
   const keepLoggedIn = formData.get('keepLoggedIn') === 'true'
 
+  // 약관·개인정보처리방침 동의는 모든 가입 경로에서 필수
+  if (formData.get('termsAgreed') !== 'true' || formData.get('privacyAgreed') !== 'true') {
+    return { error: '이용약관과 개인정보처리방침에 동의해야 가입할 수 있습니다.' }
+  }
+
   // 게스트 상태 연동 (칩, 인벤토리, 장착 아이템)
   const guestChips = formData.get('guestChips') as string | null
   const guestInventoryStr = formData.get('guestInventory') as string | null
@@ -56,12 +62,15 @@ export async function signup(formData: FormData) {
     password,
     options: {
       data: {
-        username: username, 
+        username: username,
         name: name,
         nickname: nickname,
         guest_chips: guestChips || '0',
         guest_inventory: guestInventory,
         guest_equipped: guestEquipped,
+        // handle_new_user 트리거가 user_consents에 동의 이력으로 기록
+        terms_version: TERMS_VERSION,
+        privacy_version: PRIVACY_VERSION,
       }
     }
   })

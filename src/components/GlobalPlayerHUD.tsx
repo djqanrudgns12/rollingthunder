@@ -7,6 +7,7 @@ import { useUIStore } from '@/store/uiStore';
 import { useGameStore } from '@/store/gameStore';
 import { useRouter, usePathname } from 'next/navigation';
 import { getProfileOverviewAction } from '@/presentation/actions/profileActions';
+import { getConsentStatusAction } from '@/presentation/actions/consentActions';
 import { MOCK_ITEMS } from '@/data/shopData';
 import { useInventoryStore } from '@/store/inventoryStore';
 import Image from 'next/image';
@@ -63,7 +64,19 @@ export default function GlobalPlayerHUD() {
         useGameStore.getState().setUserId(session.user.id);
 
         setIsLoggedIn(true);
-        const data = await getProfileOverviewAction();
+        // 프로필과 동의 상태를 병렬 조회 (동일 왕복 내 처리 — 추가 지연 없음)
+        const [data, consentStatus] = await Promise.all([
+          getProfileOverviewAction(),
+          getConsentStatusAction(),
+        ]);
+
+        // 현재 시행 버전 약관에 동의 이력이 없는 회원은 재동의 게이트를 띄운다.
+        // /terms, /privacy에서는 문서 열람을 막지 않도록 생략(링크는 새 탭으로 열리지만 직접 방문 보호).
+        const path = window.location.pathname;
+        if (consentStatus.needsReconsent && !path.startsWith('/terms') && !path.startsWith('/privacy')) {
+          useUIStore.getState().setActiveModal('reconsent');
+        }
+
         if (data) {
           setUserProfile(data);
           useChipStore.getState().setChips(data.chips_balance);
