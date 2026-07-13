@@ -119,7 +119,7 @@ export default function LandingShell({
 
       <main id="main">
       {/* 히어로 */}
-      <section id="top" className="relative min-h-[calc(100dvh-4rem)] flex flex-col items-center justify-center overflow-hidden">
+      <section id="top" className="relative min-h-[calc(100dvh-4rem)] flex flex-col items-center justify-center overflow-x-clip">
         {/* 정적 배경 (모션 저감 시에도 항상 표시되는 폴백) */}
         <div
           aria-hidden="true"
