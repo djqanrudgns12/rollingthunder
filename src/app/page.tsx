@@ -6,14 +6,13 @@ import FaqSection from '@/components/landing/FaqSection'
 import { FAQ_ITEMS } from '@/components/landing/faqData'
 
 export const metadata: Metadata = {
-  title: 'Rolling Thunder — 물리 엔진이 결정하는 공정한 추첨 레이스',
+  title: 'Rolling Thunder — 리얼 무작위로 결정되는 공정한 추첨 레이스',
   description:
-    '사다리타기는 이제 그만. 이름만 넣으면 Rust 물리 엔진 위에서 도파민 터지는 추첨 레이스가 시작됩니다. 설치 없이, 무료로, 브라우저에서 바로.',
+    '사다리타기는 이제 그만. 이름만 넣으면 진짜 랜덤으로 도파민 터지는 추첨 레이스가 시작됩니다. 설치 없이, 무료로, 브라우저에서 바로.',
   openGraph: {
-    title: 'Rolling Thunder — 중력에게 맡기세요',
-    description: '물리 엔진 기반 무작위 추첨 레이스. 맵 에디터, 가챠 스킨, 미션까지 — 설치 없이 브라우저에서 바로.',
-    type: 'website',
-    locale: 'ko_KR',
+    title: 'Rolling Thunder — 신나는 추첨 레이스',
+    description: '리얼 무작위 추첨 레이스. 맵 에디터, 가챠 스킨, 미션까지 — 설치 없이 브라우저에서 바로.',
+    url: '/',
   },
 }
 
@@ -26,7 +25,7 @@ const JSON_LD = {
       name: 'Rolling Thunder',
       applicationCategory: 'GameApplication',
       operatingSystem: 'Web',
-      description: '물리 엔진 기반 무작위 추첨 레이스 웹 애플리케이션. 맵 에디터, 커스텀 맵 스토어, 가챠 스킨, 미션 시스템 제공.',
+      description: '리얼 무작위 추첨 레이스 웹 애플리케이션. 맵 에디터, 커스텀 맵 스토어, 가챠 스킨, 미션 시스템 제공.',
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'KRW' },
       author: { '@type': 'Person', name: '찰떡쌤' },
       inLanguage: 'ko',

@@ -35,7 +35,7 @@ export default function TermsPage() {
 
       <Article id="article-1" title="제1조 (목적)">
         <p>
-          본 약관은 <strong>찰떡쌤</strong>(이하 &ldquo;운영자&rdquo;)이 제공하는 물리 엔진 기반 무작위 추첨 웹 서비스{' '}
+          본 약관은 <strong>찰떡쌤</strong>(이하 &ldquo;운영자&rdquo;)이 제공하는 리얼 무작위 추첨 웹 서비스{' '}
           <strong>Rolling Thunder</strong>(이하 &ldquo;서비스&rdquo;)의 이용과 관련하여, 운영자와 이용자 간의 권리, 의무 및
           책임사항, 서비스 이용 조건과 절차를 규정함을 목적으로 합니다.
         </p>

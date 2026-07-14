@@ -49,9 +49,29 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Rolling Thunder | 도파민 터지는 레이스",
-  description: "Premium dynamic marble race and physics simulation game.",
-  manifest: "/manifest.json",
+  metadataBase: new URL('https://www.rollinthunder.net'),
+  title: {
+    default: 'Rolling Thunder | 신나는 추첨 레이스',
+    template: '%s | Rolling Thunder',
+  },
+  description: '리얼 무작위 추첨 레이스. 이름만 넣으면 도파민 터지는 레이스가 시작됩니다. 설치 없이, 무료로, 브라우저에서 바로.',
+  manifest: '/manifest.json',
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'ko_KR',
+    siteName: 'Rolling Thunder',
+    images: [{ url: '/images/og-cover.png', width: 1200, height: 630, alt: 'Rolling Thunder — 신나는 추첨 레이스' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    images: ['/images/og-cover.png'],
+  },
+  icons: {
+    icon: '/icon.png',
+  },
 };
 
 export default function RootLayout({

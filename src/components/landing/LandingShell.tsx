@@ -146,7 +146,7 @@ export default function LandingShell({
           </h1>
 
           <p className="text-lg sm:text-xl text-[var(--text-secondary)] leading-relaxed max-w-2xl font-medium">
-            이름만 넣으면 진짜 물리 법칙으로 굴러가는 짜릿한 뽑기가 시작됩니다. 
+            이름만 넣으면 진짜 랜덤으로 굴러가는 짜릿한 뽑기가 시작됩니다. 
             <br className="hidden sm:block" />
             복잡한 설치 없이, 교실 화면에 띄우기만 하세요!
           </p>
@@ -247,7 +247,7 @@ export default function LandingShell({
         />
         <div className="relative max-w-3xl mx-auto px-5 py-24 text-center flex flex-col items-center gap-5">
           <h2 className="font-outfit font-bold text-3xl sm:text-4xl text-[var(--text-primary)]">
-            지금, 중력에게 맡겨보세요
+            지금, 신나는 추첨 레이스를 시작하세요
           </h2>
           <p className="text-[var(--text-secondary)] leading-relaxed">
             회원가입은 10초면 충분합니다. 이메일도 필요 없어요.

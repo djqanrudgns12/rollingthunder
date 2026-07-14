@@ -13,7 +13,7 @@ export default function LandingFooter() {
             <img src="/icon.png" alt="Rolling Thunder" className="w-9 h-9 object-contain" />
             <div>
               <div className="font-outfit font-bold tracking-[0.2em] text-[var(--text-primary)]">ROLLING THUNDER</div>
-              <div className="text-xs text-[var(--text-secondary)]">물리 엔진 기반 무작위 추첨 레이스</div>
+              <div className="text-xs text-[var(--text-secondary)]">리얼 무작위 추첨 레이스</div>
             </div>
           </div>
           <nav className="flex items-center gap-3 text-sm">
