@@ -73,7 +73,7 @@ export class SkillSystem {
   public static recalcPhysics(body: RAPIER.RigidBody, chipId: string) {
     // 칩의 기본 물리 속성 (ChipFactory.ts 참조)
     let targetGravity = 1.0;
-    let targetDamping = 0.18;
+    let targetDamping = 0.16;
     let targetRestitution = 0.6;
     let targetFriction = 0.2;
 

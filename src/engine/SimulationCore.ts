@@ -48,7 +48,7 @@ export interface SimInitConfig {
   playTime?: number;       // "플레이 시간" 설정(0~100, 기본 50=중립). PRD-endgame-pacing 참조
 }
 
-const GLOBAL_SPEED_MODIFIER = 0.9; // 전체 게임 배속 하향 조정치
+const GLOBAL_SPEED_MODIFIER = 1.0; // 전체 게임 배속 (1.0 = 실시간)
 const COOLDOWN_SCALE = 1 / GLOBAL_SPEED_MODIFIER; // 프레임 기반 쿨타임 길이 비례 증가 상수
 
 const PORTAL_COOLDOWN_FRAMES = Math.round(60 * COOLDOWN_SCALE);   // 1초
@@ -69,7 +69,7 @@ const MAX_CHIP_SPEED = 2000;
 // ── 수직 낙하감 튜닝 (PRD-gameplay-dynamics §4.A) ──
 // 수평 속도 전용 지수 감쇠(초당). 기물이 주는 측면 킥(임펄스)은 그대로 들어오되
 // 이후 공기저항처럼 자연 감쇠해 수직 낙하로 복귀 → "해파리 글라이딩" 질감 제거.
-// linearDamping(0.18, 종단 낙하속도 결정)은 축 구분이 없으므로 건드리지 않고 여기서 x축만 처리.
+// linearDamping(0.16, 종단 낙하속도 결정)은 축 구분이 없으므로 건드리지 않고 여기서 x축만 처리.
 // 바람 대포(~300px/s² 연속 가속)의 평형 측면 속도 ≈ 300/0.9 ≈ 330px/s → 기물 체감 보존.
 const H_DAMP = 0.9;
 // 수평 속도 소프트 캡(px/s): 초과분만 강감쇠(하드 클램프 아님) — 극단적 측면 발사 방지.
