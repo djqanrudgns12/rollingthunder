@@ -129,7 +129,33 @@ const ICE_HIT_COOLDOWN_FRAMES = 8;
 const ICE_HIT_MIN_IMPACT = 10;
 // 물리 구동으로 시각을 매 프레임 동기화해야 하는 "움직이는" 기물 타입.
 // (렌더가 로컬 타이머로 독립 애니메이션하면 물리 콜라이더와 어긋나므로 실제 트랜스폼을 전송한다.)
-const MOVING_OBSTACLE_TYPES = new Set(['spinner', 'piston', 'windmill', 'flipper']);
+const MOVING_OBSTACLE_TYPES = new Set(['spinner', 'piston', 'windmill', 'flipper', 'pendulum']);
+
+// ── 신규 장애물 10종 상수 (docs/PRD-new-obstacles.md) ──
+// 컨베이어: 벨트 접선 속도로 수렴시키는 최대 가속(px/s²). 송풍기(300px/s²)보다 강하지만
+// 목표 속도 도달 시 자동 0이 되는 "수렴형"이라 무한 가속이 없다.
+const CONVEYOR_ACCEL = 900;
+// 슬라임: 프레임당 감쇠 상한(블랙홀 drag와 동일한 안전장치)
+const STICKY_MAX_DRAG_PER_FRAME = 0.5;
+// 무중력 존 gravityScale. 정확히 0을 쓰지 않는 두 가지 이유:
+//  ① 0은 홀 함정/스턴/캐논 포획의 "동결" 신호로 예약 → 존 소유와 동결을 구분해야 함(§5).
+//  ② 하강 레이스에서 완전 0중력은 존 안에서 속도가 0이 된 칩을 영구히 띄워 정체시킨다.
+// 아주 약한 잔여 중력(0.08)이면 부유감은 유지하되 멈춘 칩도 반드시 서서히 가라앉아 빠져나간다.
+const ZEROG_SCALE = 0.08;
+// 지뢰: 중심부 넉백 Δv = BASE + force×PER_FORCE (선형 falloff), 재장전 쿨다운
+const MINE_DV_BASE = 200;
+const MINE_DV_PER_FORCE = 50;
+const MINE_COOLDOWN_FRAMES = Math.round(240 * COOLDOWN_SCALE); // ~4초 재장전
+// 캐논: 포획 → CHARGE 프레임 후 발사. 발사 속도 = BASE + power×PER_POWER (MAX_CHIP_SPEED 캡 보호)
+const CANNON_CHARGE_FRAMES = Math.round(45 * COOLDOWN_SCALE);   // ~0.75초 충전
+const CANNON_COOLDOWN_FRAMES = Math.round(120 * COOLDOWN_SCALE); // 발사 후 동일 캐논 재포획 면제
+const CANNON_SPEED_BASE = 250;
+const CANNON_SPEED_PER_POWER = 150;
+// 초신성 펄사: 충격파 Δv = BASE + force×PER_FORCE (sqrt falloff)
+const SUPERNOVA_DV_BASE = 150;
+const SUPERNOVA_DV_PER_FORCE = 60;
+// 폭발류(지뢰/펄사) 상향 넉백 감쇠 — 과도한 역주행(위로 되돌아감) 방지
+const BLAST_UPWARD_DAMP = 0.6;
 // 중력장 force 1당 중심부 Δv/frame(px/s).
 // v3: 0.52는 v2 속도 상향(중력 147px/s², 종단 ~817px/s) 이후 프리셋 force 3~4 기준
 // 통과 편향이 ~2%에 불과해 "효과 없음"으로 체감됐다(헤드리스 측정). 3배 상향해
@@ -174,7 +200,13 @@ export class SimulationCore {
   private cachedWhiteholes: RAPIER.RigidBody[] = [];
   private cachedWindcannons: RAPIER.RigidBody[] = [];
   private cachedFlippers: RAPIER.RigidBody[] = [];
-  private cachedKinematics: RAPIER.RigidBody[] = []; // windmill/spinner/piston
+  private cachedKinematics: RAPIER.RigidBody[] = []; // windmill/spinner/piston/pendulum
+  // ── 신규 장애물 캐시 (docs/PRD-new-obstacles.md) ──
+  private cachedConveyors: RAPIER.RigidBody[] = [];
+  private cachedSticky: RAPIER.RigidBody[] = [];
+  private cachedGravityZones: RAPIER.RigidBody[] = []; // zerog + heavyg
+  private cachedTrapdoors: RAPIER.RigidBody[] = [];
+  private cachedSupernovas: RAPIER.RigidBody[] = [];
   private portalsByColor: Map<string, RAPIER.RigidBody[]> = new Map();
   // chipId → RigidBody O(1) 룩업 (SkillSystem, RankingTracker에 전달)
   chipBodyMap: Map<string, RAPIER.RigidBody> = new Map();
@@ -214,6 +246,11 @@ export class SimulationCore {
   private holeRespawns: { body: RAPIER.RigidBody; chipId: string; atFrame: number; x: number; y: number }[] = [];
   private luckyEffects: { body: RAPIER.RigidBody; chipId: string; atFrame: number; restore: () => void }[] = [];
   private pendingRemovals: RAPIER.RigidBody[] = [];
+  // 캐논 발사 예약(홀 리스폰 스케줄 패턴) — 칩별 포획→충전→발사
+  private cannonLaunches: { body: RAPIER.RigidBody; chipId: string; cannonId: string; atFrame: number; angle: number; speed: number; x: number; y: number }[] = [];
+  // 중력 존(zerog/heavyg)이 gravityScale을 소유 중인 칩 — 홀/스턴/캐논의 동결(0)과
+  // 구분해 존 퇴장 시에만 원복한다(§5 원복 충돌 방지).
+  private gravityZoneOwned = new Set<string>();
 
   // Anti-Stuck 상태
   private chipMaxY = new Map<string, number>();
@@ -265,6 +302,8 @@ export class SimulationCore {
     this.holeRespawns.length = 0;
     this.luckyEffects.length = 0;
     this.pendingRemovals.length = 0;
+    this.cannonLaunches.length = 0;
+    this.gravityZoneOwned.clear();
     this.chipMaxY.clear();
     this.chipLastProgressFrame.clear();
     this.rescueBaseY.clear();
@@ -338,6 +377,27 @@ export class SimulationCore {
             ? MapBuilder.createFlipper(this.world!, item)
             : MapBuilder.createKinematic(this.world!, item);
           if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
+        } else if (item.type === 'conveyor' || item.type === 'sticky' || item.type === 'zerog' || item.type === 'heavyg') {
+          const body = MapBuilder.createFieldZone(this.world!, item);
+          if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
+        } else if (item.type === 'mine') {
+          const body = MapBuilder.createMine(this.world!, item);
+          if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
+        } else if (item.type === 'cannon') {
+          const body = MapBuilder.createCannon(this.world!, item);
+          if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
+        } else if (item.type === 'trapdoor') {
+          const body = MapBuilder.createTrapdoor(this.world!, item);
+          if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
+        } else if (item.type === 'icerink') {
+          const body = MapBuilder.createIceRink(this.world!, item);
+          if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
+        } else if (item.type === 'pendulum') {
+          const body = MapBuilder.createPendulum(this.world!, item);
+          if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
+        } else if (item.type === 'supernova') {
+          const body = MapBuilder.createSupernova(this.world!, item);
+          if (body && item.soundTag) (body.userData as any).soundTag = item.soundTag;
         } else if (item.type === 'portal' || item.type === 'booster' || item.type === 'blackhole' || item.type === 'whitehole' || item.type === 'hole' || item.type === 'windcannon' || item.type === 'luckygate' || item.type === 'speedgate' || item.type === 'slowgate') {
           const body = item.type === 'windcannon' 
             ? MapBuilder.createWindCannon(this.world!, item)
@@ -385,6 +445,11 @@ export class SimulationCore {
           windForce: userData.windForce,
           onFrames: userData.onFrames,
           offFrames: userData.offFrames,
+          // 신규 장애물 렌더링 필드(진자 length/swingAngle, 존/폭발류 force, 캐논 power)
+          length: userData.length,
+          swingAngle: userData.swingAngle,
+          force: userData.force,
+          power: userData.power,
         });
         // 움직이는 기물은 매 프레임 트랜스폼을 렌더로 보내기 위해 고정 순서로 수집
         if (MOVING_OBSTACLE_TYPES.has(userData.type) && userData.id) {
@@ -401,6 +466,13 @@ export class SimulationCore {
       if (it.type === 'iceblock') return { ...it, type: 'wall' };
       if (it.type === 'hole') return { ...it, radius: (it.radius || 30) + 20 };
       if (it.type === 'portal') return { ...it, radius: 40 };
+      // 신규 위험 기물: 지뢰/펄사 중심부·진자 스윙 반경 위 리스폰 금지(보수적 근사)
+      if (it.type === 'mine') return { ...it, radius: Math.max(30, (it.radius || 140) * 0.4) };
+      if (it.type === 'supernova') return { ...it, radius: Math.max(40, (it.radius || 200) * 0.4) };
+      if (it.type === 'pendulum') {
+        const r = (it.length || 140) + 30;
+        return { ...it, type: 'wall', w: r * 2, h: r * 2 };
+      }
       if (it.type === 'polygon' && Array.isArray(it.vertices)) {
         const r = it.vertices.reduce((m: number, v: any) => Math.max(m, Math.hypot(v.x, v.y)), 20);
         return { ...it, type: 'wall', w: r * 2, h: r * 2 };
@@ -486,6 +558,13 @@ export class SimulationCore {
     this.applyGravityWells();
     this.applyWindCannons();
     this.applyFlippers();
+    // 신규 장애물 이펙트 (docs/PRD-new-obstacles.md)
+    this.applyConveyors();
+    this.applySticky();
+    this.applyGravityZones();
+    this.applyTrapdoors();
+    this.applySupernovas();
+    this.processCannonLaunches();
     this.processHoleRespawns();
     this.processLuckyEffects();
     this.processPendingRemovals();
@@ -584,6 +663,11 @@ export class SimulationCore {
     this.cachedWindcannons = [];
     this.cachedFlippers = [];
     this.cachedKinematics = [];
+    this.cachedConveyors = [];
+    this.cachedSticky = [];
+    this.cachedGravityZones = [];
+    this.cachedTrapdoors = [];
+    this.cachedSupernovas = [];
     this.portalsByColor.clear();
     this.world!.forEachRigidBody((b) => {
       const d = b.userData as any;
@@ -593,8 +677,13 @@ export class SimulationCore {
         case 'whitehole': this.cachedWhiteholes.push(b); break;
         case 'windcannon': this.cachedWindcannons.push(b); break;
         case 'flipper': this.cachedFlippers.push(b); break;
-        case 'windmill': case 'spinner': case 'piston':
+        case 'windmill': case 'spinner': case 'piston': case 'pendulum':
           this.cachedKinematics.push(b); break;
+        case 'conveyor': this.cachedConveyors.push(b); break;
+        case 'sticky': this.cachedSticky.push(b); break;
+        case 'zerog': case 'heavyg': this.cachedGravityZones.push(b); break;
+        case 'trapdoor': this.cachedTrapdoors.push(b); break;
+        case 'supernova': this.cachedSupernovas.push(b); break;
         case 'portal': {
           const color = d.color;
           let arr = this.portalsByColor.get(color);
@@ -622,6 +711,13 @@ export class SimulationCore {
     this.cachedWindcannons = [];
     this.cachedFlippers = [];
     this.cachedKinematics = [];
+    this.cachedConveyors = [];
+    this.cachedSticky = [];
+    this.cachedGravityZones = [];
+    this.cachedTrapdoors = [];
+    this.cachedSupernovas = [];
+    this.cannonLaunches = [];
+    this.gravityZoneOwned.clear();
     this.portalsByColor.clear();
   }
 
@@ -755,8 +851,8 @@ export class SimulationCore {
       let chipBody: RAPIER.RigidBody | null = null;
       let sensorBody: RAPIER.RigidBody | null = null;
 
-      if (d1?.type === 'chip' && ['portal', 'booster', 'hole', 'luckygate', 'speedgate', 'slowgate', 'flipper', 'windcannon'].includes(d2?.type)) { chipBody = b1; sensorBody = b2; }
-      if (d2?.type === 'chip' && ['portal', 'booster', 'hole', 'luckygate', 'speedgate', 'slowgate', 'flipper', 'windcannon'].includes(d1?.type)) { chipBody = b2; sensorBody = b1; }
+      if (d1?.type === 'chip' && ['portal', 'booster', 'hole', 'luckygate', 'speedgate', 'slowgate', 'flipper', 'windcannon', 'mine', 'cannon'].includes(d2?.type)) { chipBody = b1; sensorBody = b2; }
+      if (d2?.type === 'chip' && ['portal', 'booster', 'hole', 'luckygate', 'speedgate', 'slowgate', 'flipper', 'windcannon', 'mine', 'cannon'].includes(d1?.type)) { chipBody = b2; sensorBody = b1; }
 
       // 얼음 블록 충돌 로직
       if (d1?.type === 'iceblock' || d2?.type === 'iceblock') {
@@ -888,6 +984,56 @@ export class SimulationCore {
             this.lastWarpFrame.set(cooldownKey, this.frame);
             this.applyLuckyEffect(chipBody, chipData, 'speed_down', sensorData);
           }
+        } else if (sensorData.type === 'mine') {
+          // 지뢰: 접촉 트리거 → 폭발 반경 내 모든 칩에 방사형 넉백(다중칩 광역 혼돈).
+          // 럭키게이트 repel(단일칩)과 달리 반경·강도·falloff 기반 광역 임펄스.
+          const mineKey = `mine_${sensorData.id}`;
+          const lastBlast = this.lastWarpFrame.get(mineKey) ?? -99999;
+          if (this.frame - lastBlast > MINE_COOLDOWN_FRAMES) {
+            this.lastWarpFrame.set(mineKey, this.frame);
+            const mp = sensorBody.translation();
+            const blastR = sensorData.radius || 140;
+            const dvMax = MINE_DV_BASE + (sensorData.force ?? 6) * MINE_DV_PER_FORCE;
+            for (const other of this.activeChips) {
+              const od = other.userData as any;
+              if (od?.finished) continue;
+              if (other.gravityScale() === 0) continue; // 홀/스턴/캐논 동결 칩 제외
+              const op = other.translation();
+              let dx = op.x - mp.x, dy = op.y - mp.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist > blastR) continue;
+              if (dist < 1) { dx = 0; dy = -1; } else { dx /= dist; dy /= dist; }
+              const dv = dvMax * (1 - dist / blastR); // 선형 falloff
+              const dvy = dy * dv * (dy < 0 ? BLAST_UPWARD_DAMP : 1); // 상향 넉백 감쇠
+              this.applyDeltaV(other, dx * dv, dvy);
+            }
+            this.events.push({ type: 'MINE_EXPLODE', payload: { id: sensorData.id, x: mp.x, y: mp.y, radius: blastR } });
+            this.events.push({ type: 'SOUND_EFFECT', payload: { type: 'bumperHit', impulse: 600, x: mp.x } });
+          }
+        } else if (sensorData.type === 'cannon') {
+          // 캐논: 포획(동결) → CANNON_CHARGE_FRAMES 충전 후 지정 각도로 고속 발사.
+          // 칩·캐논별 쿨다운으로 발사 직후 재포획 핑퐁 방지.
+          const cannonKey = `cannon_${chipData.id}_${sensorData.id}`;
+          const lastCapture = this.lastWarpFrame.get(cannonKey) ?? -99999;
+          if (this.frame - lastCapture > CANNON_COOLDOWN_FRAMES && chipBody.gravityScale() !== 0) {
+            this.lastWarpFrame.set(cannonKey, this.frame);
+            const cp = sensorBody.translation();
+            chipBody.setTranslation({ x: cp.x, y: cp.y }, true);
+            chipBody.setLinvel({ x: 0, y: 0 }, true);
+            chipBody.setGravityScale(0, true); // 동결(홀 함정과 동일 신호)
+            this.gravityZoneOwned.delete(chipData.id); // 존 소유권 해제(§5 원복 충돌 방지)
+            this.cannonLaunches.push({
+              body: chipBody,
+              chipId: chipData.id,
+              cannonId: sensorData.id,
+              atFrame: this.frame + CANNON_CHARGE_FRAMES,
+              angle: sensorData.rotation ?? 0,
+              speed: CANNON_SPEED_BASE + (sensorData.power ?? 4) * CANNON_SPEED_PER_POWER,
+              x: cp.x,
+              y: cp.y,
+            });
+            this.events.push({ type: 'SOUND_EFFECT', payload: { type: 'holeTrapped' } });
+          }
         }
       }
     });
@@ -1002,6 +1148,205 @@ export class SimulationCore {
       } catch {}
     }
     this.pendingRemovals = [];
+  }
+
+  // ── 신규 장애물 이펙트 (docs/PRD-new-obstacles.md) ─────────────────────────
+
+  /** 칩이 회전된 사각 존(OBB) 내부에 있는지 검사 — 존형 기물 공용 헬퍼 */
+  private static insideOBB(px: number, py: number, cx: number, cy: number, halfW: number, halfH: number, rot: number): boolean {
+    const dx = px - cx, dy = py - cy;
+    const cos = Math.cos(rot), sin = Math.sin(rot);
+    const lx = dx * cos + dy * sin;
+    const ly = -dx * sin + dy * cos;
+    return Math.abs(lx) <= halfW && Math.abs(ly) <= halfH;
+  }
+
+  /** 컨베이어 벨트: 존 내부 칩의 속도를 벨트 접선 방향 목표 속도로 수렴(지속적 측면 운송) */
+  private applyConveyors() {
+    const belts = this.cachedConveyors;
+    if (belts.length === 0) return;
+    const dt = this.world!.integrationParameters.dt;
+    for (const belt of belts) {
+      const d = belt.userData as any;
+      const bp = belt.translation();
+      const rot = belt.rotation();
+      const halfW = (d.w || 160) / 2;
+      // 벨트 표면 위에 얹힌 칩(반경 18)까지 커버하도록 세로 판정 +22px
+      const halfH = (d.h || 24) / 2 + 22;
+      const beltSpeed = d.speed ?? 250; // px/s, 음수면 로컬 -x 방향
+      const dirX = Math.cos(rot), dirY = Math.sin(rot); // 로컬 +x(접선) 방향
+      for (const chip of this.activeChips) {
+        const cd = chip.userData as any;
+        if (cd?.finished) continue;
+        if (chip.gravityScale() === 0) continue; // 동결 칩 제외
+        const cp = chip.translation();
+        if (!SimulationCore.insideOBB(cp.x, cp.y, bp.x, bp.y, halfW, halfH, rot)) continue;
+        const v = chip.linvel();
+        const along = v.x * dirX + v.y * dirY;
+        const diff = beltSpeed - along;
+        const maxDv = CONVEYOR_ACCEL * dt;
+        const dv = Math.max(-maxDv, Math.min(maxDv, diff)); // 목표 도달 시 자동 0(수렴형)
+        this.applyDeltaV(chip, dirX * dv, dirY * dv);
+      }
+    }
+  }
+
+  /** 점착 슬라임: 머무는 동안만 매 프레임 속도 감쇠(퇴장 즉시 자연 회복 — 상태 저장 불필요) */
+  private applySticky() {
+    const zones = this.cachedSticky;
+    if (zones.length === 0) return;
+    const dt = this.world!.integrationParameters.dt;
+    for (const zone of zones) {
+      const d = zone.userData as any;
+      const zp = zone.translation();
+      const rot = zone.rotation();
+      const halfW = (d.w || 140) / 2;
+      const halfH = (d.h || 90) / 2;
+      const drag = Math.min((d.force ?? 4) * dt, STICKY_MAX_DRAG_PER_FRAME);
+      for (const chip of this.activeChips) {
+        const cd = chip.userData as any;
+        if (cd?.finished) continue;
+        if (chip.gravityScale() === 0) continue;
+        const cp = chip.translation();
+        if (!SimulationCore.insideOBB(cp.x, cp.y, zp.x, zp.y, halfW, halfH, rot)) continue;
+        const v = chip.linvel();
+        chip.setLinvel({ x: v.x * (1 - drag), y: v.y * (1 - drag) }, true);
+      }
+    }
+  }
+
+  /**
+   * 무중력/중력강화 존: 존 내부 칩의 gravityScale 을 목표값으로, 퇴장 시 1.0 원복.
+   * ⚠️ 원복 충돌 방지(§5): gravityScale===0 은 홀 함정/스턴/캐논의 "동결" 신호이므로
+   * (zerog 는 ZEROG_SCALE=0.0001 사용) 동결 칩은 절대 건드리지 않고 소유권만 해제한다.
+   */
+  private applyGravityZones() {
+    const zones = this.cachedGravityZones;
+    if (zones.length === 0 && this.gravityZoneOwned.size === 0) return;
+
+    // 1) 이번 프레임 존 내부 칩 → 목표 스케일 수집
+    const inside = new Map<string, number>();
+    for (const zone of zones) {
+      const d = zone.userData as any;
+      const zp = zone.translation();
+      const rot = zone.rotation();
+      const halfW = (d.w || 160) / 2;
+      const halfH = (d.h || 140) / 2;
+      const target = d.type === 'zerog' ? ZEROG_SCALE : Math.max(1, Math.min(5, d.force ?? 2.5));
+      for (const chip of this.activeChips) {
+        const cd = chip.userData as any;
+        if (cd?.finished) continue;
+        const cp = chip.translation();
+        if (SimulationCore.insideOBB(cp.x, cp.y, zp.x, zp.y, halfW, halfH, rot)) {
+          inside.set(cd.id, target);
+        }
+      }
+    }
+
+    // 2) 적용: 동결(0) 칩은 다른 시스템 소유 — 건드리지 않고 존 소유권도 해제
+    for (const [chipId, target] of inside) {
+      const chip = this.chipBodyMap.get(chipId);
+      if (!chip) continue;
+      if (chip.gravityScale() === 0) { this.gravityZoneOwned.delete(chipId); continue; }
+      chip.setGravityScale(target, true);
+      this.gravityZoneOwned.add(chipId);
+    }
+
+    // 3) 퇴장 원복: 소유 중인데 이번 프레임 어떤 존에도 없는 칩만 기본 물리로 복원
+    if (this.gravityZoneOwned.size === 0) return;
+    for (const chipId of Array.from(this.gravityZoneOwned)) {
+      if (inside.has(chipId)) continue;
+      this.gravityZoneOwned.delete(chipId);
+      const chip = this.chipBodyMap.get(chipId);
+      if (!chip) continue;
+      if (chip.gravityScale() === 0) continue; // 동결 상태 — 홀/스턴 restore 가 처리
+      chip.setGravityScale(1, true);
+      // 스킬이 물리를 변경한 칩은 스킬 기준선으로 재계산(홀 리스폰과 동일 경로)
+      SkillSystem.recalcPhysics(chip, chipId);
+    }
+  }
+
+  /** 함정문: onFrames(닫힘) ↔ offFrames(열림) 주기로 콜라이더 토글 — 열릴 때 칩이 통과 낙하 */
+  private applyTrapdoors() {
+    for (const b of this.cachedTrapdoors) {
+      const d = b.userData as any;
+      if (!d) continue;
+      const on = d.onFrames || 180;
+      const off = d.offFrames || 90;
+      const phase = this.frame % (on + off);
+      if (phase === on) {
+        try { b.collider(0)?.setEnabled(false); } catch {}
+        this.events.push({ type: 'TRAPDOOR_OPEN', payload: { id: d.id } });
+      } else if (phase === 0 && this.frame > 0) {
+        try { b.collider(0)?.setEnabled(true); } catch {}
+        this.events.push({ type: 'TRAPDOOR_CLOSE', payload: { id: d.id } });
+      }
+    }
+  }
+
+  /** 초신성 펄사: 충전(onFrames) 후 반경 내 전 칩에 방사형 충격파(주기적 광역 넉백) */
+  private applySupernovas() {
+    const novas = this.cachedSupernovas;
+    if (novas.length === 0) return;
+    for (const nova of novas) {
+      const d = nova.userData as any;
+      if (!d) continue;
+      const on = d.onFrames || 150;
+      const off = d.offFrames || 30;
+      const phase = this.frame % (on + off);
+      if (phase === 0) {
+        // 충전 시작 텔레그래프(렌더러가 코어 팽창 연출)
+        this.events.push({ type: 'SUPERNOVA_CHARGE', payload: { id: d.id, frames: on } });
+        continue;
+      }
+      if (phase !== on) continue;
+      // 충격파 방출
+      const np = nova.translation();
+      const R = d.radius || 200;
+      const dvMax = SUPERNOVA_DV_BASE + (d.force ?? 6) * SUPERNOVA_DV_PER_FORCE;
+      for (const chip of this.activeChips) {
+        const cd = chip.userData as any;
+        if (cd?.finished) continue;
+        if (chip.gravityScale() === 0) continue;
+        const cp = chip.translation();
+        let dx = cp.x - np.x, dy = cp.y - np.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > R) continue;
+        if (dist < 1) { dx = 0; dy = 1; } else { dx /= dist; dy /= dist; }
+        const falloff = Math.sqrt(1 - dist / R);
+        const dvx = dx * dvMax * falloff;
+        let dvy = dy * dvMax * falloff;
+        if (dvy < 0) dvy *= BLAST_UPWARD_DAMP; // 상향 넉백 감쇠
+        this.applyDeltaV(chip, dvx, dvy);
+      }
+      this.events.push({ type: 'SUPERNOVA_PULSE', payload: { id: d.id, x: np.x, y: np.y, radius: R } });
+      this.events.push({ type: 'SOUND_EFFECT', payload: { type: 'bumperHit', impulse: 500, x: np.x } });
+    }
+  }
+
+  /** 캐논 발사 예약 처리: 충전 완료 시 동결 해제 + 지정 각도(0°=위)로 발사 */
+  private processCannonLaunches() {
+    if (this.cannonLaunches.length === 0) return;
+    const remaining: typeof this.cannonLaunches = [];
+    for (const l of this.cannonLaunches) {
+      if (this.frame >= l.atFrame) {
+        try {
+          const rad = l.angle * (Math.PI / 180);
+          const dirX = Math.sin(rad);
+          const dirY = -Math.cos(rad);
+          l.body.setGravityScale(1, true);
+          SkillSystem.recalcPhysics(l.body, l.chipId);
+          l.body.setLinvel({ x: dirX * l.speed, y: dirY * l.speed }, true);
+          this.events.push({ type: 'CANNON_FIRE', payload: { id: l.cannonId, chipId: l.chipId, x: l.x, y: l.y, angle: l.angle } });
+          this.events.push({ type: 'SOUND_EFFECT', payload: { type: 'bumperHit', impulse: 400, x: l.x } });
+        } catch {
+          // body 해제됨 → 무시
+        }
+      } else {
+        remaining.push(l);
+      }
+    }
+    this.cannonLaunches = remaining;
   }
 
   private applyWindCannons() {
@@ -1217,6 +1562,16 @@ export class SimulationCore {
       // 풍차/스피너: kinematicVelocityBased는 매 프레임 속도를 재설정해야 유지됨
       if ((d?.type === 'windmill' || d?.type === 'spinner') && d.speed) {
         b.setAngvel(d.speed, true);
+        continue;
+      }
+
+      // 진자 파괴추: 피벗 고정 바디의 "회전"만으로 진자 호를 그린다(콜라이더는 로컬 (0,length) 오프셋).
+      // 목표각 θ = 진폭·sin(위상) 을 피스톤과 동일한 sim 시간축(clockNext)으로 추적.
+      if (d?.type === 'pendulum') {
+        const amp = (d.swingAngle ?? 60) * (Math.PI / 180);
+        const speed = d.speed || 2;
+        const targetRot = amp * Math.sin(clockNext * speed * 0.02);
+        b.setAngvel((targetRot - b.rotation()) / dtSim, true);
         continue;
       }
 

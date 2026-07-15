@@ -339,6 +339,162 @@ export class MapBuilder {
     return body;
   }
 
+  // ── 신규 장애물 10종 (docs/PRD-new-obstacles.md) ──────────────────────────
+
+  /**
+   * 필드 존(conveyor/sticky/zerog/heavyg): 충돌 이벤트 없이 SimulationCore가
+   * 매 프레임 OBB 포함 검사로 효과를 적용한다(송풍기 applyWindCannons 방식).
+   * 센서 콜라이더는 시각적 디버그/일관성용이며 이벤트를 발생시키지 않는다.
+   */
+  static createFieldZone(world: RAPIER.World, item: any) {
+    const desc = RAPIER.RigidBodyDesc.fixed()
+      .setTranslation(item.x, item.y)
+      .setRotation((item.angle ?? item.rotation ?? 0) * (Math.PI / 180));
+    const body = world.createRigidBody(desc);
+
+    const w = item.w || 160;
+    const h = item.h || (item.type === 'conveyor' ? 24 : 120);
+    const colliderDesc = RAPIER.ColliderDesc.cuboid(w / 2, h / 2).setSensor(true);
+    world.createCollider(colliderDesc, body);
+
+    const userData: any = { type: item.type, id: item.id, w, h };
+    if (item.type === 'conveyor') {
+      // speed: 벨트 목표 접선 속도(px/s). 음수면 로컬 -x 방향으로 운송.
+      userData.speed = item.speed ?? 250;
+    } else if (item.type === 'sticky') {
+      // force: 초당 감쇠율(점성). 4 → 종단 낙하속도 ≈ 중력/4 ≈ 37px/s
+      userData.force = item.force ?? 4;
+    } else if (item.type === 'heavyg') {
+      // force: 중력 배율(gravityScale 목표값)
+      userData.force = item.force ?? 2.5;
+    }
+    body.userData = userData as UserData;
+    return body;
+  }
+
+  /** 지뢰: 접촉 트리거 센서(소형) + 광역 폭발 반경(radius)/강도(force)는 userData 로 전달 */
+  static createMine(world: RAPIER.World, item: any) {
+    const desc = RAPIER.RigidBodyDesc.fixed().setTranslation(item.x, item.y);
+    const body = world.createRigidBody(desc);
+    // 트리거 반경은 기물 시각 크기(고정 22px). radius 는 "폭발 반경"으로 별도 저장.
+    const colliderDesc = RAPIER.ColliderDesc.ball(22)
+      .setSensor(true)
+      .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+    world.createCollider(colliderDesc, body);
+    body.userData = {
+      type: 'mine',
+      id: item.id,
+      radius: item.radius || 140, // 폭발 반경
+      force: item.force ?? 6,     // 폭발 강도(레벨)
+    } as UserData;
+    return body;
+  }
+
+  /** 캐논: 입구 센서 진입 시 포획 → 충전 후 지정 각도(0°=위, 부스터와 동일 규약)로 발사 */
+  static createCannon(world: RAPIER.World, item: any) {
+    const desc = RAPIER.RigidBodyDesc.fixed()
+      .setTranslation(item.x, item.y)
+      .setRotation((item.angle ?? item.rotation ?? 0) * (Math.PI / 180));
+    const body = world.createRigidBody(desc);
+    const colliderDesc = RAPIER.ColliderDesc.ball(30)
+      .setSensor(true)
+      .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+    world.createCollider(colliderDesc, body);
+    body.userData = {
+      type: 'cannon',
+      id: item.id,
+      rotation: item.angle ?? item.rotation ?? 0, // 발사 방향(도)
+      power: item.power ?? 4,                     // 발사 속도 레벨
+    } as UserData;
+    return body;
+  }
+
+  /** 함정문: 평소 단단한 바닥. SimulationCore가 onFrames/offFrames 주기로 콜라이더를 토글한다. */
+  static createTrapdoor(world: RAPIER.World, item: any) {
+    const desc = RAPIER.RigidBodyDesc.fixed()
+      .setTranslation(item.x, item.y)
+      .setRotation((item.angle ?? item.rotation ?? 0) * (Math.PI / 180));
+    const body = world.createRigidBody(desc);
+    const w = item.w || 120;
+    const h = item.h || 16;
+    const colliderDesc = RAPIER.ColliderDesc.cuboid(w / 2, h / 2)
+      .setRestitution(0.1)
+      .setFriction(0.6);
+    world.createCollider(colliderDesc, body);
+    body.userData = {
+      type: 'trapdoor',
+      id: item.id,
+      w, h,
+      onFrames: item.onFrames || 180,  // 닫힘(단단함) 지속
+      offFrames: item.offFrames || 90, // 열림(통과) 지속
+    } as UserData;
+    return body;
+  }
+
+  /** 빙판 지대: friction≈0 정적 표면 — 물리 재질만으로 동작(코어 이펙트 불필요) */
+  static createIceRink(world: RAPIER.World, item: any) {
+    const desc = RAPIER.RigidBodyDesc.fixed()
+      .setTranslation(item.x, item.y)
+      .setRotation((item.angle ?? item.rotation ?? 0) * (Math.PI / 180));
+    const body = world.createRigidBody(desc);
+    const w = item.w || 180;
+    const h = item.h || 16;
+    const colliderDesc = RAPIER.ColliderDesc.cuboid(w / 2, h / 2)
+      .setRestitution(item.restitution ?? 0.05)
+      .setFriction(0.0);
+    world.createCollider(colliderDesc, body);
+    body.userData = { type: 'icerink', id: item.id, w, h } as UserData;
+    return body;
+  }
+
+  /**
+   * 진자 파괴추: 바디는 피벗(item.x, item.y)에 고정되고 추 콜라이더는 로컬 (0, length)에
+   * 오프셋(플리퍼의 오프셋 콜라이더 패턴). 회전만으로 진자 호를 그린다 →
+   * OBSTACLE_FRAME 위치(피벗 고정)+회전 브로드캐스트로 시각·물리 완전 동기.
+   */
+  static createPendulum(world: RAPIER.World, item: any) {
+    const desc = RAPIER.RigidBodyDesc.kinematicVelocityBased()
+      .setTranslation(item.x, item.y)
+      .setCcdEnabled(true); // 고속 스윙 관통 방지(풍차와 동일)
+    const body = world.createRigidBody(desc);
+
+    const length = item.length || 140;
+    const bobR = item.radius || 24;
+    const colliderDesc = RAPIER.ColliderDesc.ball(bobR)
+      .setTranslation(0, length)
+      .setRestitution(0.8)
+      .setFriction(0.2);
+    world.createCollider(colliderDesc, body);
+
+    body.userData = {
+      type: 'pendulum',
+      id: item.id,
+      radius: bobR,
+      length,
+      swingAngle: item.swingAngle ?? 60, // 진폭(도)
+      speed: item.speed || 2,            // 스윙 속도
+    } as UserData;
+    return body;
+  }
+
+  /** 초신성 펄사: 고정 중심에서 주기적으로 광역 방사형 충격파(위치 스캔형 — 이벤트 불필요) */
+  static createSupernova(world: RAPIER.World, item: any) {
+    const desc = RAPIER.RigidBodyDesc.fixed().setTranslation(item.x, item.y);
+    const body = world.createRigidBody(desc);
+    const radius = item.radius || 200;
+    const colliderDesc = RAPIER.ColliderDesc.ball(radius).setSensor(true);
+    world.createCollider(colliderDesc, body);
+    body.userData = {
+      type: 'supernova',
+      id: item.id,
+      radius,
+      force: item.force ?? 6,          // 충격파 강도(레벨)
+      onFrames: item.onFrames || 150,  // 충전(텔레그래프) 시간
+      offFrames: item.offFrames || 30, // 휴지 시간
+    } as UserData;
+    return body;
+  }
+
   static buildRandomMap(world: RAPIER.World, width: number, height: number, density: number) {
     // 스마트 분산 배치:
     //  1) 구조물(램프/풍차/블랙홀/범퍼 클러스터)을 ~560px 구간마다 "골격"으로 먼저 배치하고

@@ -12,7 +12,7 @@ export interface EditorLayoutConfig {
 }
 
 // 하이엔드 기믹 타입 추가
-export type EditorItemType = 'pin' | 'bumper' | 'wall' | 'hole' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole' | 'spinner' | 'iceblock' | 'windcannon' | 'luckygate' | 'speedgate' | 'slowgate' | 'flipper' | 'startline' | 'endline' | 'polygon';
+export type EditorItemType = 'pin' | 'bumper' | 'wall' | 'hole' | 'portal' | 'booster' | 'windmill' | 'piston' | 'blackhole' | 'whitehole' | 'spinner' | 'iceblock' | 'windcannon' | 'luckygate' | 'speedgate' | 'slowgate' | 'flipper' | 'startline' | 'endline' | 'polygon' | 'conveyor' | 'sticky' | 'icerink' | 'zerog' | 'heavyg' | 'trapdoor' | 'mine' | 'cannon' | 'pendulum' | 'supernova';
 
 // 외벽 스타일 (MapPresets.WallStyle 과 동일 — 순환 import 회피 위해 로컬 정의)
 export type EditorWallStyle = 'straight' | 'zigzag' | 'narrow' | 'wide' | 'funnel' | 'hourglass' | 'diamond' | 'wave' | 'sawtooth' | 'asymmetric';

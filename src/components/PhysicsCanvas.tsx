@@ -579,6 +579,12 @@ export default function PhysicsCanvas() {
           '/images/assets/obstacles/ice_block_crack_3.png',
           '/images/assets/obstacles/ice_block_crack_4.png',
           '/images/assets/obstacles/ice_block_shatter.png',
+          // 신규 히어로 PNG 5종 (docs/PRD-new-obstacles.md)
+          '/images/assets/obstacles/obstacle_conveyor.png',
+          '/images/assets/obstacles/obstacle_mine.png',
+          '/images/assets/obstacles/obstacle_cannon.png',
+          '/images/assets/obstacles/obstacle_pendulum.png',
+          '/images/assets/obstacles/obstacle_supernova.png',
           '/images/assets/skins/pr_dragon.png',
           '/images/assets/skins/pr_unicorn.png',
           '/images/assets/skins/pr_dino.png',
@@ -1956,6 +1962,75 @@ export default function PhysicsCanvas() {
           }
         } else if (type === 'WIND_ON' || type === 'WIND_OFF') {
           // Not strictly required since graphics loop handles it
+        } else if (type === 'MINE_EXPLODE') {
+          // 지뢰 폭발: 확장 충격 링 + 파편 파티클 + 카메라 셰이크
+          soundManager.playSfx('gimmick_domino', 40, payload.x);
+          cameraDirector?.addShake(6);
+          const target = graphicsMap.get(payload.id);
+          if (target) gsap.fromTo(target.scale, { x: 1.4, y: 1.4 }, { x: 1, y: 1, duration: 0.35, ease: 'elastic.out(1, 0.4)' });
+          const shock = new PIXI.Graphics();
+          shock.circle(0, 0, 20);
+          shock.stroke({ width: 5, color: 0xff5533, alpha: 0.9 });
+          shock.position.set(payload.x, payload.y);
+          particleLayer.addChild(shock);
+          const gr = (payload.radius || 140) / 20;
+          gsap.to(shock.scale, { x: gr, y: gr, duration: 0.4, ease: 'power2.out' });
+          gsap.to(shock, { alpha: 0, duration: 0.4, onComplete: () => shock.destroy() });
+          for (let i = 0; i < 14; i++) {
+            const p = new PIXI.Graphics();
+            p.circle(0, 0, Math.random() * 3 + 2);
+            p.fill({ color: 0xffaa44, alpha: 0.9 });
+            p.position.set(payload.x, payload.y);
+            particleLayer.addChild(p);
+            const a = Math.random() * Math.PI * 2;
+            const d = 40 + Math.random() * 70;
+            gsap.to(p.position, { x: payload.x + Math.cos(a) * d, y: payload.y + Math.sin(a) * d, duration: 0.5, ease: 'power2.out' });
+            gsap.to(p, { alpha: 0, duration: 0.5, onComplete: () => p.destroy() });
+          }
+        } else if (type === 'CANNON_FIRE') {
+          // 캐논 발사: 머즐 플래시 + 발사 방향 충격
+          soundManager.playSfx('gimmick_pipe', 40, payload.x);
+          const cannon = graphicsMap.get(payload.id);
+          if (cannon) gsap.fromTo(cannon.scale, { x: 1.25, y: 1.25 }, { x: 1, y: 1, duration: 0.3, ease: 'elastic.out(1, 0.4)' });
+          const flash = new PIXI.Graphics();
+          flash.star(0, 0, 8, 34, 14);
+          flash.fill({ color: 0x9df3ff, alpha: 0.9 });
+          flash.position.set(payload.x, payload.y);
+          particleLayer.addChild(flash);
+          gsap.to(flash.scale, { x: 1.8, y: 1.8, duration: 0.3, ease: 'power2.out' });
+          gsap.to(flash, { alpha: 0, duration: 0.3, onComplete: () => flash.destroy() });
+        } else if (type === 'SUPERNOVA_CHARGE') {
+          // 충전 텔레그래프: 코어 확대 예고
+          const nova = graphicsMap.get(payload.id);
+          if (nova) gsap.fromTo(nova.scale, { x: 1, y: 1 }, { x: 1.15, y: 1.15, duration: (payload.frames || 150) / 60, ease: 'power1.in' });
+        } else if (type === 'SUPERNOVA_PULSE') {
+          // 초신성 충격파: 대반경 확장 링 + 강한 셰이크
+          soundManager.playSfx('gimmick_domino', 55, payload.x);
+          cameraDirector?.addShake(10);
+          const nova = graphicsMap.get(payload.id);
+          if (nova) gsap.fromTo(nova.scale, { x: 1.3, y: 1.3 }, { x: 1, y: 1, duration: 0.5, ease: 'elastic.out(1, 0.35)' });
+          for (let k = 0; k < 2; k++) {
+            const ring = new PIXI.Graphics();
+            ring.circle(0, 0, 30);
+            ring.stroke({ width: 6 - k * 2, color: k === 0 ? 0xffd070 : 0xff6aa0, alpha: 0.9 });
+            ring.position.set(payload.x, payload.y);
+            particleLayer.addChild(ring);
+            const gr = (payload.radius || 200) / 30;
+            gsap.to(ring.scale, { x: gr, y: gr, duration: 0.55, delay: k * 0.06, ease: 'power2.out' });
+            gsap.to(ring, { alpha: 0, duration: 0.55, delay: k * 0.06, onComplete: () => ring.destroy() });
+          }
+        } else if (type === 'TRAPDOOR_OPEN' || type === 'TRAPDOOR_CLOSE') {
+          // 함정문 개폐: 패널 페이드/미끄러짐
+          const door = graphicsMap.get(payload.id);
+          if (door) {
+            const panels: any = door.children.find((c: any) => c.label === 'trapPanels');
+            if (panels) {
+              const open = type === 'TRAPDOOR_OPEN';
+              gsap.to(panels, { alpha: open ? 0.12 : 0.95, duration: 0.18 });
+              gsap.to(panels.scale, { x: open ? 0.1 : 1, duration: 0.18, ease: open ? 'power2.in' : 'back.out(2)' });
+            }
+            if (type === 'TRAPDOOR_OPEN') soundManager.playSfx('ui_door_slam', 0, 400);
+          }
         } else if (type === 'SKILL_FIRED') {
           // ═══════════════════════════════════════════════════════════════════
           // ██ PROTECTED: 완주자의 스킬 발동은 UI에서도 이중 차단 ██

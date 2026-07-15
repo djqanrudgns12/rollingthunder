@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { useEditorStore, EditorItemType, EditorItem } from '@/store/editorStore'
 import { Plus, Trash2, MapPin, CircleDashed, Zap, Fan, ArrowDownToLine, Loader, Wind, Trophy, MoveDiagonal, Circle, Waypoints, Aperture, Sun, Square, Box, Flag, FlagTriangleRight, ChevronLeft, ChevronRight, FastForward, Rewind } from 'lucide-react'
+import { SVG_ASSETS } from '@/lib/SvgAssets'
 
 type TabType = 'obstacles' | 'frames' | 'backgrounds'
 
@@ -33,6 +34,17 @@ const CATEGORIES: Record<Exclude<TabType, 'backgrounds'>, ItemDef[]> = {
     { type: 'portal', label: '포탈 (Portal)', desc: '진입한 공을 연결된 다른 포탈로 즉시 이동시킵니다.', imagePath: '/images/assets/obstacles/obstacle_portal.png', color: 'text-purple-500' },
     { type: 'blackhole', label: '블랙홀 (Blackhole)', desc: '근처의 공을 중심부로 강력하게 빨아들입니다.', imagePath: '/images/assets/obstacles/obstacle_blackhole.png', color: 'text-gray-600' },
     { type: 'whitehole', label: '화이트홀 (Whitehole)', desc: '빨아들인 공을 다른 곳으로 강하게 뱉어냅니다.', imagePath: '/images/assets/obstacles/obstacle_whitehole.png', color: 'text-white' },
+    // ── 신규 장애물 10종 (docs/PRD-new-obstacles.md) ──
+    { type: 'conveyor', label: '컨베이어 벨트 (Conveyor)', desc: '벨트 방향으로 공을 지속적으로 실어 나릅니다.', imagePath: '/images/assets/obstacles/obstacle_conveyor.png', color: 'text-amber-400' },
+    { type: 'sticky', label: '점착 슬라임 (Sticky)', desc: '영역에 머무는 동안 공을 끈끈하게 감속시킵니다.', imagePath: SVG_ASSETS.sticky, color: 'text-green-400' },
+    { type: 'icerink', label: '빙판 지대 (Ice Rink)', desc: '마찰이 없어 공이 접지력을 잃고 미끄러집니다.', imagePath: SVG_ASSETS.icerink, color: 'text-cyan-300' },
+    { type: 'zerog', label: '무중력 존 (Zero-G)', desc: '영역 안에서 중력이 사라져 공이 부유합니다.', imagePath: SVG_ASSETS.zerog, color: 'text-purple-400' },
+    { type: 'heavyg', label: '중력 강화 존 (Heavy-G)', desc: '영역 안에서 중력이 강해져 공이 급강하합니다.', imagePath: SVG_ASSETS.heavyg, color: 'text-orange-500' },
+    { type: 'trapdoor', label: '함정문 (Trapdoor)', desc: '주기적으로 바닥이 열려 공을 통과시킵니다.', imagePath: SVG_ASSETS.trapdoor, color: 'text-yellow-500' },
+    { type: 'mine', label: '지뢰 (Mine)', desc: '접촉 시 폭발해 반경 내 모든 공을 밀어냅니다.', imagePath: '/images/assets/obstacles/obstacle_mine.png', color: 'text-red-500' },
+    { type: 'cannon', label: '캐논 (Cannon)', desc: '공을 붙잡았다가 지정 방향으로 강하게 발사합니다.', imagePath: '/images/assets/obstacles/obstacle_cannon.png', color: 'text-cyan-400' },
+    { type: 'pendulum', label: '진자 파괴추 (Pendulum)', desc: '고정 축을 중심으로 크게 왕복 스윙하는 파괴추입니다.', imagePath: '/images/assets/obstacles/obstacle_pendulum.png', color: 'text-pink-500' },
+    { type: 'supernova', label: '초신성 펄사 (Supernova)', desc: '주기적으로 광역 충격파를 방출해 공을 밀쳐냅니다.', imagePath: '/images/assets/obstacles/obstacle_supernova.png', color: 'text-fuchsia-500' },
   ],
   frames: [
     { type: 'wall', label: '벽 (Wall)', desc: '콘셉트에 맞는 기본적인 경계 벽입니다.', imagePath: '/images/assets/obstacles/obstacle_wall.png', color: 'text-gray-500' },
@@ -158,6 +170,27 @@ export default function ToolboxPanel() {
           { x: -50, y: 50 }
         ];
         break;
+      // ── 신규 장애물 10종 (docs/PRD-new-obstacles.md) ──
+      case 'conveyor':
+        newItem.w = 180; newItem.h = 24; newItem.angle = 0; newItem.speed = 250; break;
+      case 'sticky':
+        newItem.w = 140; newItem.h = 90; newItem.force = 4; break;
+      case 'icerink':
+        newItem.w = 180; newItem.h = 16; newItem.angle = 0; break;
+      case 'zerog':
+        newItem.w = 160; newItem.h = 140; break;
+      case 'heavyg':
+        newItem.w = 160; newItem.h = 140; newItem.force = 2.5; break;
+      case 'trapdoor':
+        newItem.w = 120; newItem.h = 16; newItem.angle = 0; newItem.onFrames = 180; newItem.offFrames = 90; break;
+      case 'mine':
+        newItem.radius = 140; newItem.force = 6; break;
+      case 'cannon':
+        newItem.angle = 0; newItem.power = 4; break;
+      case 'pendulum':
+        newItem.length = 140; newItem.radius = 24; newItem.swingAngle = 60; newItem.speed = 2; break;
+      case 'supernova':
+        newItem.radius = 200; newItem.force = 6; newItem.onFrames = 150; newItem.offFrames = 30; break;
       default:
         newItem.w = 40; newItem.h = 40; break;
     }

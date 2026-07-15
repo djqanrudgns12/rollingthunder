@@ -364,6 +364,194 @@ export function createObstacleGraphic(item: any, ctx: RenderContext): ObstacleGr
     if (!animated) drawFlipperGuide(g, length, item.restAngle, item.swingAngle)
     mg.roundRect(0, -thickness / 2, length, thickness, thickness / 2)
     mg.fill({ color: 0xff4444, alpha: 0.8 })
+  } else if (item.type === 'conveyor') {
+    // 컨베이어 벨트: 가로 타일링 스프라이트 + 진행 스크롤 애니메이션
+    const w = item.w || 160
+    const h = item.h || 24
+    const texture = ctx.getTexture(OBS('obstacle_conveyor'))
+    const sprite = new PIXI.TilingSprite({ texture, width: w, height: h })
+    sprite.anchor.set(0.5)
+    g.addChild(sprite)
+    const speed = item.speed ?? 250
+    if (animated) {
+      const dir = speed >= 0 ? 1 : -1
+      const tick = (ticker: PIXI.Ticker) => {
+        if (g.destroyed) return
+        sprite.tilePosition.x += dir * (ticker.deltaMS / 1000) * 90
+      }
+      disposers.push(ctx.registerTicker(tick))
+    }
+    mg.rect(-w / 2, -h / 2, w, h)
+    mg.fill({ color: 0xffc23d, alpha: 0.6 })
+  } else if (item.type === 'sticky') {
+    // 점착 슬라임: 반투명 초록 젤리 존 + 기포
+    const w = item.w || 140, h = item.h || 90
+    const blob = new PIXI.Graphics()
+    blob.roundRect(-w / 2, -h / 2, w, h, Math.min(w, h) * 0.3)
+    blob.fill({ color: 0x5fd41f, alpha: 0.45 })
+    blob.stroke({ color: 0x8dff4d, width: 3, alpha: 0.85 })
+    g.addChild(blob)
+    for (const [bx, by, br] of [[-w * 0.22, -h * 0.1, 7], [w * 0.16, h * 0.12, 5], [w * 0.28, -h * 0.16, 4]] as const) {
+      const bub = new PIXI.Graphics()
+      bub.circle(0, 0, br)
+      bub.fill({ color: 0xdfffc0, alpha: 0.6 })
+      bub.position.set(bx, by)
+      g.addChild(bub)
+      if (animated) gsapTo(bub.position, { y: by - 8, duration: 1.4 + Math.random(), yoyo: true, repeat: -1, ease: 'sine.inOut' })
+    }
+    mg.rect(-w / 2, -h / 2, w, h)
+    mg.fill({ color: 0x5fd41f, alpha: 0.6 })
+  } else if (item.type === 'icerink') {
+    // 빙판 지대: 반투명 백청색 얼음판 + 광택
+    const w = item.w || 180, h = item.h || 16
+    const ice = new PIXI.Graphics()
+    ice.roundRect(-w / 2, -h / 2, w, h, h * 0.4)
+    ice.fill({ color: 0xa5e8ff, alpha: 0.5 })
+    ice.stroke({ color: 0xffffff, width: 2, alpha: 0.8 })
+    ice.moveTo(-w / 2 + 12, -h / 4)
+    ice.lineTo(w / 2 - 12, -h / 4)
+    ice.stroke({ color: 0xffffff, width: 2, alpha: 0.45 })
+    g.addChild(ice)
+    mg.rect(-w / 2, -h / 2, w, h)
+    mg.fill({ color: 0xa5e8ff, alpha: 0.7 })
+  } else if (item.type === 'zerog') {
+    // 무중력 존: 반투명 보라/시안 버블 + 부유 파티클
+    const w = item.w || 160, h = item.h || 140
+    const zone = new PIXI.Graphics()
+    zone.roundRect(-w / 2, -h / 2, w, h, 18)
+    zone.fill({ color: 0xa855f7, alpha: 0.2 })
+    zone.stroke({ color: 0xc084fc, width: 3, alpha: 0.85 })
+    g.addChild(zone)
+    for (const [px, py, pr] of [[-w * 0.25, -h * 0.2, 6], [w * 0.2, -h * 0.05, 5], [0, h * 0.2, 7], [w * 0.3, h * 0.15, 4]] as const) {
+      const p = new PIXI.Graphics()
+      p.circle(0, 0, pr)
+      p.fill({ color: 0xffffff, alpha: 0.7 })
+      p.position.set(px, py)
+      g.addChild(p)
+      if (animated) gsapTo(p.position, { y: py - 12, duration: 1.5 + Math.random(), yoyo: true, repeat: -1, ease: 'sine.inOut' })
+    }
+    mg.rect(-w / 2, -h / 2, w, h)
+    mg.fill({ color: 0xa855f7, alpha: 0.5 })
+  } else if (item.type === 'heavyg') {
+    // 중력 강화 존: 반투명 적/주황 + 하강 화살표
+    const w = item.w || 160, h = item.h || 140
+    const zone = new PIXI.Graphics()
+    zone.roundRect(-w / 2, -h / 2, w, h, 18)
+    zone.fill({ color: 0xe11d2e, alpha: 0.18 })
+    zone.stroke({ color: 0xff7a3c, width: 3, alpha: 0.85 })
+    g.addChild(zone)
+    const arrows = new PIXI.Graphics()
+    for (const ax of [-w * 0.25, 0, w * 0.25]) {
+      arrows.moveTo(ax, -h * 0.25)
+      arrows.lineTo(ax, h * 0.2)
+      arrows.moveTo(ax - 9, h * 0.06)
+      arrows.lineTo(ax, h * 0.2)
+      arrows.lineTo(ax + 9, h * 0.06)
+    }
+    arrows.stroke({ color: 0xffd6a0, width: 4, alpha: 0.85 })
+    g.addChild(arrows)
+    mg.rect(-w / 2, -h / 2, w, h)
+    mg.fill({ color: 0xe11d2e, alpha: 0.5 })
+  } else if (item.type === 'trapdoor') {
+    // 함정문: 프레임 + 두 여닫이 패널(TRAPDOOR_OPEN/CLOSE 이벤트로 개폐 연출)
+    const w = item.w || 120, h = item.h || 16
+    const frame = new PIXI.Graphics()
+    frame.roundRect(-w / 2 - 4, -h / 2 - 4, w + 8, h + 8, 4)
+    frame.fill({ color: 0x0c0e13, alpha: 0.85 })
+    g.addChild(frame)
+    const panels = new PIXI.Graphics()
+    panels.rect(-w / 2, -h / 2, w / 2 - 2, h)
+    panels.rect(2, -h / 2, w / 2 - 2, h)
+    panels.fill({ color: 0x3a4050, alpha: 0.95 })
+    panels.stroke({ color: 0xffb020, width: 2, alpha: 0.9 })
+    panels.label = 'trapPanels'
+    g.addChild(panels)
+    mg.rect(-w / 2, -h / 2, w, h)
+    mg.fill({ color: 0xffb020, alpha: 0.6 })
+  } else if (item.type === 'mine') {
+    // 지뢰: PNG 기뢰 + 폭발 반경 가이드(희미한 점선 원)
+    const blastR = item.radius || 140
+    const ring = new PIXI.Graphics()
+    ring.circle(0, 0, blastR)
+    ring.stroke({ width: 2, color: 0xff4444, alpha: 0.22 })
+    g.addChild(ring)
+    const sprite = new PIXI.Sprite(ctx.getTexture(OBS('obstacle_mine')))
+    sprite.anchor.set(0.5)
+    sprite.width = 64
+    sprite.height = 64
+    g.addChild(sprite)
+    mg.circle(0, 0, 20)
+    mg.fill({ color: 0xff3333, alpha: 0.8 })
+  } else if (item.type === 'cannon') {
+    // 캐논: PNG 포신(0°=위, 각도는 컨테이너 회전이 처리) + 포획 코어 펄스
+    const sprite = new PIXI.Sprite(ctx.getTexture(OBS('obstacle_cannon')))
+    sprite.anchor.set(0.5)
+    sprite.width = 90
+    sprite.height = 90
+    g.addChild(sprite)
+    mg.circle(0, 0, 24)
+    mg.fill({ color: 0x37e6ff, alpha: 0.8 })
+  } else if (item.type === 'pendulum') {
+    // 진자 파괴추: 피벗(원점) → 사슬 → 추(로컬 (0,length)). 게임은 OBSTACLE_FRAME 이
+    // g.rotation 을 구동해 실제 물리 스윙과 일치. 에디터는 로컬 타이머로 미리보기.
+    const length = item.length || 140
+    const bobR = item.radius || 24
+    const chain = new PIXI.Graphics()
+    chain.moveTo(0, 0)
+    chain.lineTo(0, length)
+    chain.stroke({ width: 6, color: 0x8a93a5, alpha: 0.9 })
+    g.addChild(chain)
+    const mount = new PIXI.Graphics()
+    mount.circle(0, 0, 8)
+    mount.fill({ color: 0x3a4050 })
+    mount.stroke({ width: 2, color: 0x8a93a5 })
+    g.addChild(mount)
+    const bob = new PIXI.Sprite(ctx.getTexture(OBS('obstacle_pendulum')))
+    bob.anchor.set(0.5)
+    bob.width = bobR * 2.4
+    bob.height = bobR * 2.4
+    bob.position.set(0, length)
+    g.addChild(bob)
+    const ampRad = (item.swingAngle ?? 60) * (Math.PI / 180)
+    const speed = item.speed || 2
+    if (ctx.physicsDriven) {
+      // 게임: 물리(OBSTACLE_FRAME)가 g.rotation 구동
+    } else if (animated) {
+      let t = 0
+      const tick = (ticker: PIXI.Ticker) => {
+        if (g.destroyed) return
+        t += ticker.deltaMS / 1000
+        g.rotation = ampRad * Math.sin(t * speed * 1.2)
+      }
+      disposers.push(ctx.registerTicker(tick))
+    } else {
+      // 정지 가이드: 스윙 양 끝 호
+      const guide = new PIXI.Graphics()
+      guide.arc(0, 0, length, Math.PI / 2 - ampRad, Math.PI / 2 + ampRad)
+      guide.stroke({ width: 1.5, color: 0xff5ab4, alpha: 0.4 })
+      g.addChild(guide)
+    }
+    mg.circle(0, length, bobR)
+    mg.fill({ color: 0xff5ab4, alpha: 0.8 })
+  } else if (item.type === 'supernova') {
+    // 초신성 펄사: PNG 코어(맥동/회전) + 충격파 반경 가이드
+    const R = item.radius || 200
+    const ring = new PIXI.Graphics()
+    ring.circle(0, 0, R)
+    ring.stroke({ width: 2, color: 0xffa040, alpha: 0.22 })
+    g.addChild(ring)
+    const sprite = new PIXI.Sprite(ctx.getTexture(OBS('obstacle_supernova')))
+    sprite.anchor.set(0.5)
+    sprite.width = 130
+    sprite.height = 130
+    g.addChild(sprite)
+    if (animated) {
+      const baseScale = sprite.scale.x
+      gsapTo(sprite.scale, { x: baseScale * 1.12, y: baseScale * 1.12, duration: 1.2, yoyo: true, repeat: -1, ease: 'sine.inOut' })
+      gsapTo(sprite, { rotation: Math.PI * 2, duration: 14, repeat: -1, ease: 'none' })
+    }
+    mg.circle(0, 0, 30)
+    mg.fill({ color: 0xff8040, alpha: 0.8 })
   }
 
   // 피스톤 왕복 애니메이션 (waypointB 가 있을 때)

@@ -279,6 +279,69 @@ function ItemPropertiesContent({ selectedItem }: { selectedItem: EditorItem }) {
             </div>
           )}
 
+          {/* ── 신규 장애물 10종 (docs/PRD-new-obstacles.md) ── */}
+          {selectedItem.type === 'conveyor' && (
+            <div className="grid grid-cols-2 gap-3">
+              {renderNumberField('벨트 속도(±)', 'speed', 10)}
+              <div className="col-span-2 text-[10px] text-gray-500">※ 각도(Transform)로 벨트 방향을, 음수 속도로 역방향을 지정합니다.</div>
+            </div>
+          )}
+
+          {selectedItem.type === 'sticky' && (
+            <div className="grid grid-cols-2 gap-3">
+              {renderNumberField('점성(감쇠)', 'force', 0.5)}
+            </div>
+          )}
+
+          {selectedItem.type === 'heavyg' && (
+            <div className="grid grid-cols-2 gap-3">
+              {renderNumberField('중력 배율', 'force', 0.5)}
+            </div>
+          )}
+
+          {(selectedItem.type === 'trapdoor') && (
+            <div className="grid grid-cols-2 gap-3">
+              {renderNumberField('닫힘 프레임', 'onFrames', 10)}
+              {renderNumberField('열림 프레임', 'offFrames', 10)}
+            </div>
+          )}
+
+          {selectedItem.type === 'mine' && (
+            <div className="grid grid-cols-2 gap-3">
+              {renderNumberField('폭발 반경', 'radius', 10)}
+              {renderNumberField('폭발 강도', 'force', 1)}
+            </div>
+          )}
+
+          {selectedItem.type === 'cannon' && (
+            <div className="grid grid-cols-2 gap-3">
+              {renderNumberField('발사 속도(1~8)', 'power', 1)}
+              <div className="col-span-2 text-[10px] text-gray-500">※ 각도(Transform)로 발사 방향을 지정합니다. (0°=위)</div>
+            </div>
+          )}
+
+          {selectedItem.type === 'pendulum' && (
+            <div className="grid grid-cols-2 gap-3">
+              {renderNumberField('팔 길이', 'length', 5)}
+              {renderNumberField('추 크기', 'radius', 1)}
+              {renderNumberField('진폭(도)', 'swingAngle', 5)}
+              {renderNumberField('스윙 속도', 'speed', 0.5)}
+            </div>
+          )}
+
+          {selectedItem.type === 'supernova' && (
+            <div className="grid grid-cols-2 gap-3">
+              {renderNumberField('충격파 반경', 'radius', 10)}
+              {renderNumberField('충격파 강도', 'force', 1)}
+              {renderNumberField('충전 프레임', 'onFrames', 10)}
+              {renderNumberField('휴지 프레임', 'offFrames', 10)}
+            </div>
+          )}
+
+          {(selectedItem.type === 'zerog' || selectedItem.type === 'icerink') && (
+            <div className="text-[10px] text-gray-500">※ 크기·각도는 Transform(너비/높이/각도)로 조절합니다.</div>
+          )}
+
         </div>
       </div>
 

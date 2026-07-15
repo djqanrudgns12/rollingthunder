@@ -173,6 +173,17 @@ export const MOCK_ITEMS: ShopItem[] = [
   { item_id: "piece_luckygate", category: "piece", name: "럭키게이트", price: 5000, rarity: "Legendary", description: "점수나 효과를 부여하는 특수 게이트입니다.", image: SVG_ASSETS.luckygate, iconName: "Trophy", requiresPremium: true },
   { item_id: "piece_speedgate", category: "piece", name: "스피드게이트", price: 5000, rarity: "Legendary", description: "통과 시 이동 속도를 크게 증가시킵니다.", image: SVG_ASSETS.speedgate, iconName: "FastForward", requiresPremium: true },
   { item_id: "piece_slowgate", category: "piece", name: "슬로우게이트", price: 5000, rarity: "Legendary", description: "통과 시 이동 속도를 크게 감소시킵니다.", image: SVG_ASSETS.slowgate, iconName: "Rewind", requiresPremium: true },
+  // 신규 장애물 10종 (docs/PRD-new-obstacles.md) — 프리미엄 전용 구매형
+  { item_id: "piece_conveyor", category: "piece", name: "컨베이어 벨트", price: 1500, rarity: "Rare", description: "벨트 방향으로 공을 지속적으로 실어 나릅니다.", image: "/images/assets/obstacles/obstacle_conveyor.png", requiresPremium: true },
+  { item_id: "piece_sticky", category: "piece", name: "점착 슬라임", price: 1500, rarity: "Rare", description: "영역에 머무는 동안 공을 끈끈하게 감속시킵니다.", image: SVG_ASSETS.sticky, requiresPremium: true },
+  { item_id: "piece_icerink", category: "piece", name: "빙판 지대", price: 1500, rarity: "Rare", description: "마찰이 없어 공이 접지력을 잃고 미끄러집니다.", image: SVG_ASSETS.icerink, requiresPremium: true },
+  { item_id: "piece_zerog", category: "piece", name: "무중력 존", price: 2500, rarity: "Epic", description: "영역 안에서 중력이 사라져 공이 부유합니다.", image: SVG_ASSETS.zerog, requiresPremium: true },
+  { item_id: "piece_heavyg", category: "piece", name: "중력 강화 존", price: 2500, rarity: "Epic", description: "영역 안에서 중력이 강해져 공이 급강하합니다.", image: SVG_ASSETS.heavyg, requiresPremium: true },
+  { item_id: "piece_trapdoor", category: "piece", name: "함정문", price: 2500, rarity: "Epic", description: "주기적으로 바닥이 열려 공을 통과시킵니다.", image: SVG_ASSETS.trapdoor, requiresPremium: true },
+  { item_id: "piece_mine", category: "piece", name: "지뢰", price: 3000, rarity: "Epic", description: "접촉 시 폭발해 반경 내 모든 공을 밀어냅니다.", image: "/images/assets/obstacles/obstacle_mine.png", requiresPremium: true },
+  { item_id: "piece_cannon", category: "piece", name: "캐논", price: 5000, rarity: "Legendary", description: "공을 붙잡았다가 지정 방향으로 강하게 발사합니다.", image: "/images/assets/obstacles/obstacle_cannon.png", requiresPremium: true },
+  { item_id: "piece_pendulum", category: "piece", name: "진자 파괴추", price: 5000, rarity: "Legendary", description: "고정 축을 중심으로 크게 왕복 스윙하는 파괴추입니다.", image: "/images/assets/obstacles/obstacle_pendulum.png", requiresPremium: true },
+  { item_id: "piece_supernova", category: "piece", name: "초신성 펄사", price: 8000, rarity: "Mythic", description: "주기적으로 광역 충격파를 방출해 공을 밀쳐냅니다.", image: "/images/assets/obstacles/obstacle_supernova.png", requiresPremium: true },
 
   // ===================== FRAMES (Walls) =====================
   // 기본 보유
