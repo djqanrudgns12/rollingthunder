@@ -71,6 +71,22 @@
     @apply bg-[var(--bg-primary)] text-[var(--text-primary)] antialiased;
     overscroll-behavior-y: none;
     touch-action: pan-x pan-y;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* iOS Safe Area 대응: notch·홈바 영역 보호 */
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* 게임 UI 요소 불필요한 텍스트 선택 방지 */
+  button, [role="button"] {
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   canvas {

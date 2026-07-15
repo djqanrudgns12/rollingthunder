@@ -247,15 +247,15 @@ export default function GlobalPlayerHUD() {
       `}</style>
       
       {/* GLOBAL TOP HEADER (V12) */}
-      <div className="fixed top-4 left-4 right-4 md:top-8 md:left-8 md:right-8 z-[9999] flex justify-between items-start pointer-events-none">
+      <div className="fixed top-2 left-2 right-2 sm:top-4 sm:left-4 sm:right-4 md:top-8 md:left-8 md:right-8 z-[9999] flex justify-between items-start pointer-events-none">
         
         {/* LEFT: Modular Profile Panel */}
-        <div className="relative flex items-center w-[450px] pointer-events-auto scale-[0.7] sm:scale-[0.8] md:scale-90 xl:scale-100 origin-top-left transition-transform duration-300">
+        <div className="relative flex items-center w-auto max-w-[75vw] sm:max-w-none sm:w-[380px] md:w-[450px] pointer-events-auto scale-[0.65] sm:scale-[0.8] md:scale-90 xl:scale-100 origin-top-left transition-transform duration-300">
           
           {/* Glass Body */}
           <button 
             onClick={() => { playClickSound(); setActiveModal('profile'); }}
-            className={`glass-panel-heavy ml-[55px] pl-[65px] pr-8 h-[72px] rounded-r-full border ${glassPanelBorder} flex items-center gap-6 relative border-l-0 flex-1 hover:brightness-110 transition-all text-left`}
+            className={`glass-panel-heavy ml-[45px] sm:ml-[55px] pl-[50px] sm:pl-[65px] pr-4 sm:pr-8 h-[60px] sm:h-[72px] rounded-r-full border ${glassPanelBorder} flex items-center gap-3 sm:gap-6 relative border-l-0 flex-1 hover:brightness-110 transition-all text-left`}
           >
             <div className="flex flex-col items-start justify-center relative z-10">
               <div className="flex items-center gap-2 mb-1">
@@ -263,21 +263,21 @@ export default function GlobalPlayerHUD() {
                   {roleTitle}
                 </div>
               </div>
-              <span className={`text-xl font-black tracking-wide ${profile?.role === 'admin' || profile?.role === 'premium' ? 'text-[var(--text-primary)]' : 'text-[var(--text-primary)]'}`}>
+              <span className={`text-base sm:text-xl font-black tracking-wide ${profile?.role === 'admin' || profile?.role === 'premium' ? 'text-[var(--text-primary)]' : 'text-[var(--text-primary)]'}`}>
                 {playerName}
               </span>
             </div>
             
-            <div className="w-[1px] h-10 bg-[var(--btn-bg-hover)] ml-auto hidden sm:block"></div>
+            <div className="w-[1px] h-8 sm:h-10 bg-[var(--btn-bg-hover)] ml-auto hidden sm:block"></div>
             
             {/* Chips Area */}
             <div className="flex items-center gap-3 relative z-10">
-              <div className="relative w-12 h-12 rounded-full flex items-center justify-center bg-[var(--panel-bg-heavy)] shadow-[inset_0_2px_10px_rgba(255,215,0,0.1),0_0_15px_rgba(0,0,0,0.8)] border border-yellow-500/30">
+              <div className="relative w-9 h-9 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-[var(--panel-bg-heavy)] shadow-[inset_0_2px_10px_rgba(255,215,0,0.1),0_0_15px_rgba(0,0,0,0.8)] border border-yellow-500/30">
                 <Image src="/images/assets/hud/luxury_chip_icon.png" alt="Chips" fill className="object-contain scale-125 float-anim drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]" />
               </div>
               <div className="flex flex-col items-start">
                 <span className="text-[9px] font-black tracking-widest text-yellow-500/80 uppercase leading-none mb-1">CHIPS</span>
-                <motion.span className={`text-2xl font-black leading-none tracking-tighter ${profile?.role === 'admin' || profile?.role === 'premium' ? 'text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 to-yellow-500 drop-shadow-[0_2px_15px_rgba(251,191,36,0.3)]' : 'text-yellow-500'}`}>
+                <motion.span className={`text-lg sm:text-2xl font-black leading-none tracking-tighter ${profile?.role === 'admin' || profile?.role === 'premium' ? 'text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 to-yellow-500 drop-shadow-[0_2px_15px_rgba(251,191,36,0.3)]' : 'text-yellow-500'}`}>
                   {rounded}
                 </motion.span>
               </div>
@@ -287,12 +287,12 @@ export default function GlobalPlayerHUD() {
           {/* Modular Avatar & Frame Container (Absolute over the left edge) */}
           <button 
             onClick={() => { playClickSound(); setActiveModal('profile'); }}
-            className="absolute left-0 top-1/2 -translate-y-1/2 w-[110px] h-[110px] z-20 flex items-center justify-center group cursor-pointer"
+            className="absolute left-0 top-1/2 -translate-y-1/2 w-[85px] h-[85px] sm:w-[110px] sm:h-[110px] z-20 flex items-center justify-center group cursor-pointer"
           >
             {renderAvatarFrame()}
             
             {/* Core Avatar (Fixed 90px size) */}
-            <AvatarBorder borderId={activeBorderId} className={`absolute w-[90px] h-[90px] rounded-full bg-zinc-900 ${!activeBorderId ? 'border-4 border-[#0b0d13] ' + (profile?.role === 'admin' ? 'animate-[breathe-admin_3s_infinite]' : profile?.role === 'premium' ? 'animate-[breathe-premium_4s_infinite]' : 'shadow-[0_0_15px_rgba(0,0,0,0.8)]') : ''}`}>
+            <AvatarBorder borderId={activeBorderId} className={`absolute w-[68px] h-[68px] sm:w-[90px] sm:h-[90px] rounded-full bg-zinc-900 ${!activeBorderId ? 'border-4 border-[#0b0d13] ' + (profile?.role === 'admin' ? 'animate-[breathe-admin_3s_infinite]' : profile?.role === 'premium' ? 'animate-[breathe-premium_4s_infinite]' : 'shadow-[0_0_15px_rgba(0,0,0,0.8)]') : ''}`}>
               <div className="absolute inset-0 rounded-[inherit] overflow-hidden">
                 <Image src={avatarImage} alt="Avatar" fill className={`object-cover group-hover:scale-110 transition-transform duration-500 ${!profile || profile.role === 'user' ? 'grayscale opacity-80' : ''}`} />
               </div>
@@ -309,22 +309,22 @@ export default function GlobalPlayerHUD() {
         </div>
 
         {/* RIGHT: Context-Aware Action Navigation */}
-        <div className="glass-panel-heavy rounded-full flex items-center p-2 px-3 gap-2 pointer-events-auto border border-[var(--panel-border)] h-[72px] scale-[0.7] sm:scale-[0.8] md:scale-90 xl:scale-100 origin-top-right transition-transform duration-300">
+        <div className="glass-panel-heavy rounded-full flex items-center p-1.5 px-2 sm:p-2 sm:px-3 gap-1 sm:gap-2 pointer-events-auto border border-[var(--panel-border)] h-[52px] sm:h-[64px] md:h-[72px] scale-[0.65] sm:scale-[0.8] md:scale-90 xl:scale-100 origin-top-right transition-transform duration-300">
           
           {pathname.startsWith('/shop') ? (
             <>
               {/* SHOP MODE NAVIGATION */}
-              <button onClick={() => { playClickSound(); setShopViewMode(shopViewMode === 'mapstore' ? 'shop' : 'mapstore'); }} className={`nav-btn flex items-center gap-3 px-5 h-full rounded-full transition-all group ${shopViewMode === 'mapstore' ? 'text-amber-400 bg-amber-500/10' : 'text-emerald-400 hover:bg-[var(--btn-bg)]'}`}>
-                {shopViewMode === 'mapstore' ? <ShoppingCart size={22} /> : <Store size={22} />}
-                <span className="text-[15px] font-black tracking-widest uppercase">{shopViewMode === 'mapstore' ? '상점으로 가기' : '맵 스토어'}</span>
+              <button onClick={() => { playClickSound(); setShopViewMode(shopViewMode === 'mapstore' ? 'shop' : 'mapstore'); }} className={`nav-btn flex items-center gap-2 sm:gap-3 px-3 sm:px-5 h-full rounded-full transition-all group ${shopViewMode === 'mapstore' ? 'text-amber-400 bg-amber-500/10' : 'text-emerald-400 hover:bg-[var(--btn-bg)]'}`}>
+                {shopViewMode === 'mapstore' ? <ShoppingCart size={20} /> : <Store size={20} />}
+                <span className="text-[13px] sm:text-[15px] font-black tracking-widest uppercase hidden sm:inline">{shopViewMode === 'mapstore' ? '상점으로 가기' : '맵 스토어'}</span>
               </button>
 
-              <button onClick={() => { playClickSound(); setShopViewMode(shopViewMode === 'inventory' ? 'shop' : 'inventory'); }} className={`nav-btn flex items-center gap-3 px-5 h-full rounded-full transition-all group ${shopViewMode === 'inventory' ? 'text-amber-400 bg-amber-500/10' : 'text-cyan-400 hover:bg-[var(--btn-bg)]'}`}>
-                {shopViewMode !== 'inventory' ? <Package size={22} /> : <ShoppingCart size={22} />}
-                <span className="text-[15px] font-black tracking-widest uppercase">{shopViewMode !== 'inventory' ? '내 보관함' : '상점으로 가기'}</span>
+              <button onClick={() => { playClickSound(); setShopViewMode(shopViewMode === 'inventory' ? 'shop' : 'inventory'); }} className={`nav-btn flex items-center gap-2 sm:gap-3 px-3 sm:px-5 h-full rounded-full transition-all group ${shopViewMode === 'inventory' ? 'text-amber-400 bg-amber-500/10' : 'text-cyan-400 hover:bg-[var(--btn-bg)]'}`}>
+                {shopViewMode !== 'inventory' ? <Package size={20} /> : <ShoppingCart size={20} />}
+                <span className="text-[13px] sm:text-[15px] font-black tracking-widest uppercase hidden sm:inline">{shopViewMode !== 'inventory' ? '내 보관함' : '상점으로 가기'}</span>
               </button>
 
-              <div className="w-[1px] h-8 bg-[var(--btn-bg-hover)] mx-2"></div>
+              <div className="w-[1px] h-6 sm:h-8 bg-[var(--btn-bg-hover)] mx-1 sm:mx-2"></div>
 
               <button onClick={() => {
                 playClickSound();
@@ -335,35 +335,35 @@ export default function GlobalPlayerHUD() {
                 } else {
                   router.push('/dashboard');
                 }
-              }} className="nav-btn flex items-center gap-3 px-5 h-full rounded-full hover:bg-[var(--btn-bg)] transition-all text-[var(--text-muted)] hover:text-[var(--text-primary)] group">
-                <ArrowLeft size={22} className="group-hover:-translate-x-1 transition-transform" />
-                <span className="text-[15px] font-black tracking-widest uppercase">대기실 복귀</span>
+              }} className="nav-btn flex items-center gap-2 sm:gap-3 px-3 sm:px-5 h-full rounded-full hover:bg-[var(--btn-bg)] transition-all text-[var(--text-muted)] hover:text-[var(--text-primary)] group">
+                <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+                <span className="text-[13px] sm:text-[15px] font-black tracking-widest uppercase hidden sm:inline">대기실 복귀</span>
               </button>
             </>
           ) : (
             <>
               {/* LOBBY MODE NAVIGATION */}
-              <button onClick={() => { playClickSound(); router.push('/shop'); }} className="nav-btn flex items-center gap-3 px-6 h-full rounded-full hover:bg-[var(--btn-bg)] transition-all text-[var(--text-primary)] hover:text-amber-400 group">
-                <div className="w-11 h-11 relative drop-shadow-[0_0_8px_rgba(251,191,36,0.2)] group-hover:drop-shadow-[0_0_12px_rgba(251,191,36,0.6)] transition-all">
+              <button onClick={() => { playClickSound(); router.push('/shop'); }} className="nav-btn flex items-center gap-2 sm:gap-3 px-3 sm:px-6 h-full rounded-full hover:bg-[var(--btn-bg)] transition-all text-[var(--text-primary)] hover:text-amber-400 group">
+                <div className="w-8 h-8 sm:w-11 sm:h-11 relative drop-shadow-[0_0_8px_rgba(251,191,36,0.2)] group-hover:drop-shadow-[0_0_12px_rgba(251,191,36,0.6)] transition-all">
                   <Image src="/images/assets/hud/clean_shop_icon.png" alt="Shop" fill className="object-contain" />
                 </div>
-                <span className="text-[18px] font-black tracking-widest uppercase">상점</span>
+                <span className="text-[13px] sm:text-[18px] font-black tracking-widest uppercase hidden sm:inline">상점</span>
               </button>
 
-              <button onClick={() => { playClickSound(); setActiveModal('stampBook'); }} className="nav-btn flex items-center gap-3 px-6 h-full rounded-full hover:bg-[var(--btn-bg)] transition-all text-[var(--text-primary)] hover:text-red-400 group relative">
-                {hasClaimableMissions && <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full shadow-[0_0_10px_red] animate-pulse"></div>}
-                <div className="w-11 h-11 relative drop-shadow-[0_0_8px_rgba(239,68,68,0.2)] group-hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.6)] transition-all">
+              <button onClick={() => { playClickSound(); setActiveModal('stampBook'); }} className="nav-btn flex items-center gap-2 sm:gap-3 px-3 sm:px-6 h-full rounded-full hover:bg-[var(--btn-bg)] transition-all text-[var(--text-primary)] hover:text-red-400 group relative">
+                {hasClaimableMissions && <div className="absolute top-1 right-1 sm:top-2 sm:right-2 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-red-500 rounded-full shadow-[0_0_10px_red] animate-pulse"></div>}
+                <div className="w-8 h-8 sm:w-11 sm:h-11 relative drop-shadow-[0_0_8px_rgba(239,68,68,0.2)] group-hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.6)] transition-all">
                   <Image src="/images/assets/hud/clean_mission_icon.png" alt="Mission" fill className="object-contain" />
                 </div>
-                <span className="text-[18px] font-black tracking-widest uppercase">미션</span>
+                <span className="text-[13px] sm:text-[18px] font-black tracking-widest uppercase hidden sm:inline">미션</span>
               </button>
 
               {profile?.role === 'admin' && (
-                <button onClick={() => { playClickSound(); router.push('/admin'); }} className="nav-btn flex items-center gap-3 px-6 h-full rounded-full hover:bg-[var(--btn-bg)] transition-all text-[var(--text-primary)] hover:text-cyan-400 group">
-                  <div className="w-11 h-11 relative drop-shadow-[0_0_8px_rgba(6,182,212,0.2)] group-hover:drop-shadow-[0_0_12px_rgba(6,182,212,0.6)] transition-all">
+                <button onClick={() => { playClickSound(); router.push('/admin'); }} className="nav-btn flex items-center gap-2 sm:gap-3 px-3 sm:px-6 h-full rounded-full hover:bg-[var(--btn-bg)] transition-all text-[var(--text-primary)] hover:text-cyan-400 group">
+                  <div className="w-8 h-8 sm:w-11 sm:h-11 relative drop-shadow-[0_0_8px_rgba(6,182,212,0.2)] group-hover:drop-shadow-[0_0_12px_rgba(6,182,212,0.6)] transition-all">
                     <Image src="/images/assets/hud/clean_admin_icon.png" alt="Admin" fill className="object-contain" />
                   </div>
-                  <span className="text-[18px] font-black tracking-widest uppercase">터미널</span>
+                  <span className="text-[13px] sm:text-[18px] font-black tracking-widest uppercase hidden sm:inline">터미널</span>
                 </button>
               )}
             </>

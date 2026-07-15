@@ -311,10 +311,10 @@ export default function Dashboard() {
   }
 
   return (
-    <div className={`flex flex-col items-center justify-start pt-[120px] min-[1640px]:pt-8 w-full min-h-screen p-4 z-10 transition-colors duration-500 ${isBroadcasterMode ? 'bg-[#00ff00]' : 'bg-transparent'}`}>
+    <div className={`flex flex-col items-center justify-start pt-20 sm:pt-24 min-[1640px]:pt-8 w-full min-h-screen p-2 sm:p-4 z-10 transition-colors duration-500 ${isBroadcasterMode ? 'bg-[#00ff00]' : 'bg-transparent'}`}>
       
       {/* 화면 우측 하단 전역 유틸리티 버튼 (BGM, 설정, 배너) */}
-      <div className="absolute bottom-4 right-4 md:bottom-8 md:right-8 flex gap-3 z-50 items-center">
+      <div className="absolute bottom-4 right-4 md:bottom-8 md:right-8 flex gap-2 sm:gap-3 z-50 items-center pb-[env(safe-area-inset-bottom)]">
         {/* Role-Based Promotional Features */}
         {(!userProfile || userProfile.role === 'guest') ? (
           <motion.button
@@ -323,7 +323,7 @@ export default function Dashboard() {
             transition={{ duration: 0.5 }}
             whileHover={{ scale: 1.05 }}
             onClick={() => setActiveModal('auth')}
-            className="mr-2 px-5 py-3 md:px-6 md:py-3 rounded-full bg-[var(--panel-bg-heavy)] backdrop-blur-md border border-pink-500/50 flex items-center gap-2 shadow-[0_0_15px_rgba(236,72,153,0.3)] hover:shadow-[0_0_25px_rgba(236,72,153,0.6)] hover:border-cyan-400 transition-all group"
+            className="mr-1 sm:mr-2 px-3 py-2 sm:px-5 sm:py-3 md:px-6 md:py-3 rounded-full bg-[var(--panel-bg-heavy)] backdrop-blur-md border border-pink-500/50 flex items-center gap-2 shadow-[0_0_15px_rgba(236,72,153,0.3)] hover:shadow-[0_0_25px_rgba(236,72,153,0.6)] hover:border-cyan-400 transition-all group"
           >
             <Sparkles className="w-5 h-5 text-cyan-400 animate-pulse" />
             <span className="text-sm md:text-base font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-cyan-400 whitespace-nowrap hidden sm:block">
@@ -337,7 +337,7 @@ export default function Dashboard() {
             transition={{ duration: 0.5 }}
             whileHover={{ scale: 1.05 }}
             onClick={() => setActiveModal('premiumUpgrade')}
-            className="mr-2 px-5 py-3 md:px-6 md:py-3 rounded-full bg-[var(--panel-bg-heavy)] backdrop-blur-md border border-[var(--accent-warning)] flex items-center gap-2 shadow-[0_0_15px_rgba(251,191,36,0.3)] hover:shadow-[0_0_25px_rgba(251,191,36,0.6)] hover:border-purple-400 transition-all group"
+            className="mr-1 sm:mr-2 px-3 py-2 sm:px-5 sm:py-3 md:px-6 md:py-3 rounded-full bg-[var(--panel-bg-heavy)] backdrop-blur-md border border-[var(--accent-warning)] flex items-center gap-2 shadow-[0_0_15px_rgba(251,191,36,0.3)] hover:shadow-[0_0_25px_rgba(251,191,36,0.6)] hover:border-purple-400 transition-all group"
           >
             <Rocket className="w-5 h-5 text-[var(--accent-warning)] group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" />
             <span className="text-sm md:text-base font-bold text-[var(--accent-warning)] drop-shadow-[0_0_5px_rgba(251,191,36,0.5)] whitespace-nowrap hidden sm:block">
@@ -355,16 +355,16 @@ export default function Dashboard() {
             setMuted(next);
             import('@/engine/AudioEngine').then(({ soundManager }) => soundManager.setMuted(next));
           }}
-          className="w-12 h-12 rounded-full bg-[var(--panel-bg-heavy)] backdrop-blur-md border border-[var(--panel-border-hover)] flex items-center justify-center hover:bg-[var(--btn-bg-hover)] transition-all hover:scale-110 shadow-lg group"
+          className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[var(--panel-bg-heavy)] backdrop-blur-md border border-[var(--panel-border-hover)] flex items-center justify-center hover:bg-[var(--btn-bg-hover)] transition-all hover:scale-110 shadow-lg group"
         >
-          {isMuted ? <VolumeX className="w-6 h-6 text-[var(--text-muted)]" /> : <Volume2 className="w-6 h-6 text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)] group-hover:text-cyan-300" />}
+          {isMuted ? <VolumeX className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--text-muted)]" /> : <Volume2 className="w-5 h-5 sm:w-6 sm:h-6 text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)] group-hover:text-cyan-300" />}
         </button>
         <button
           onClick={() => {
             playClickSound();
             useUIStore.getState().setActiveModal('settings');
           }}
-          className="w-12 h-12 rounded-full bg-[var(--panel-bg-heavy)] backdrop-blur-md border border-[var(--panel-border-hover)] flex items-center justify-center hover:bg-[var(--btn-bg-hover)] transition-all hover:scale-110 shadow-lg group"
+          className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[var(--panel-bg-heavy)] backdrop-blur-md border border-[var(--panel-border-hover)] flex items-center justify-center hover:bg-[var(--btn-bg-hover)] transition-all hover:scale-110 shadow-lg group"
         >
           <Settings className="w-6 h-6 text-[var(--text-muted)] group-hover:text-[var(--text-primary)]" />
         </button>
@@ -384,30 +384,30 @@ export default function Dashboard() {
             }
           }}
           title="로그아웃 및 나가기"
-          className="w-12 h-12 rounded-full bg-red-500/10 backdrop-blur-md border border-red-500/20 flex items-center justify-center hover:bg-red-500/20 hover:border-red-500/40 transition-all hover:scale-110 shadow-lg group"
+          className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-500/10 backdrop-blur-md border border-red-500/20 flex items-center justify-center hover:bg-red-500/20 hover:border-red-500/40 transition-all hover:scale-110 shadow-lg group"
         >
           <LogOut className="w-5 h-5 text-red-400/80 group-hover:text-red-300" />
         </button>
       </div>
 
-      <div className={`p-5 md:p-8 rounded-3xl w-full max-w-2xl flex flex-col gap-4 shadow-2xl transition-all duration-500 max-h-[calc(100dvh-2rem)] overflow-y-auto custom-scrollbar ${isBroadcasterMode ? 'bg-black border-2 border-green-500' : 'glass-panel-heavy'}`}>
+      <div className={`p-4 sm:p-5 md:p-8 rounded-2xl sm:rounded-3xl w-full max-w-2xl lg:max-w-3xl flex flex-col gap-3 sm:gap-4 shadow-2xl transition-all duration-500 max-h-[calc(100dvh-2rem)] overflow-y-auto custom-scrollbar ${isBroadcasterMode ? 'bg-black border-2 border-green-500' : 'glass-panel-heavy'}`}>
         {/* Header (Text Logo) - 항상 고정 */}
-        <div className="relative text-center flex flex-col items-center shrink-0 mb-6 animate-in fade-in slide-in-from-top-4 w-full">
-          <div className="flex items-center justify-center gap-3 md:gap-4">
+        <div className="relative text-center flex flex-col items-center shrink-0 mb-3 sm:mb-6 animate-in fade-in slide-in-from-top-4 w-full">
+          <div className="flex items-center justify-center gap-2 sm:gap-3 md:gap-4">
             <img 
               src="/icon.png" 
               alt="Rolling Thunder Icon" 
-              className="h-12 md:h-16 w-auto object-contain drop-shadow-[0_0_15px_rgba(0,255,255,0.5)] transition-transform duration-300 hover:rotate-6 hover:scale-110"
+              className="h-8 sm:h-12 md:h-16 w-auto object-contain drop-shadow-[0_0_15px_rgba(0,255,255,0.5)] transition-transform duration-300 hover:rotate-6 hover:scale-110"
             />
-            <h1 className="text-5xl md:text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 drop-shadow-[0_0_15px_rgba(0,255,255,0.5)] pr-2">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 drop-shadow-[0_0_15px_rgba(0,255,255,0.5)] pr-2">
               ROLLING THUNDER
             </h1>
           </div>
-          <p className="text-lg font-bold mt-2 text-cyan-300 text-shadow-sm animate-pulse">오늘 우리 자웅을 가리자!</p>
+          <p className="text-sm sm:text-lg font-bold mt-1 sm:mt-2 text-cyan-300 text-shadow-sm animate-pulse">오늘 우리 자웅을 가리자!</p>
         </div>
 
         {/* Body (Forms) - 화면이 작을 때 스크롤 됨 */}
-        <div className="flex flex-col gap-3 overflow-y-auto scrollbar-hide flex-1 pb-2">
+        <div className="flex flex-col gap-2 sm:gap-3 overflow-y-auto scrollbar-hide flex-1 pb-2">
           
           {/* 그룹 1: 기본 설정 (맵) */}
           <div className="flex gap-3 shrink-0 flex-col md:flex-row bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)]">
@@ -459,7 +459,7 @@ export default function Dashboard() {
           <div className="flex flex-col gap-4 bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shrink-0">
             <div className="flex flex-col gap-3 pb-3 border-b border-[var(--panel-border)]">
               <label className="text-xs text-[var(--text-muted)] font-bold tracking-widest uppercase whitespace-nowrap">게임 모드 (GAME MODE)</label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 sm:flex gap-2">
                 <button 
                   onClick={() => { playClickSound(); setGameMode('speed'); }}
                   className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${gameMode === 'speed' ? 'bg-[var(--accent-primary)] text-black shadow-[0_0_10px_var(--accent-primary)]' : 'bg-[var(--panel-bg-heavy)] text-[var(--text-muted)] hover:bg-[var(--btn-bg-hover)]'}`}
@@ -494,7 +494,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="flex flex-row gap-4 mt-1">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-1">
               {/* 참가자 스킨 (SKINS) */}
               <div className="flex flex-col gap-2 flex-1 bg-[var(--panel-bg)] p-3 rounded-xl border border-[var(--panel-border)]">
                 <label className="text-xs text-[var(--accent-primary)] font-bold tracking-widest uppercase whitespace-nowrap">참가자 스킨 (SKINS)</label>
@@ -558,11 +558,11 @@ export default function Dashboard() {
           {/* 그룹 4: 참가자 입력 및 목록 */}
           <div className="flex flex-col gap-3 bg-[var(--panel-bg)] p-4 rounded-2xl border border-[var(--panel-border)] shrink-0">
             <div className="flex flex-col gap-1">
-              <div className="flex gap-2 items-stretch">
+              <div className="flex flex-wrap sm:flex-nowrap gap-2 items-stretch">
                 
                 {/* 스킬 토글 (왼쪽 배치) */}
                 <div 
-                  className="flex flex-col justify-center items-center gap-1.5 shrink-0 bg-[var(--panel-bg-heavy)] w-[84px] rounded-xl border border-[var(--panel-border)] h-[52px] cursor-pointer hover:bg-[var(--panel-bg-heavy)] transition-colors shadow-inner" 
+                  className="flex flex-col justify-center items-center gap-1.5 shrink-0 bg-[var(--panel-bg-heavy)] w-full sm:w-[84px] rounded-xl border border-[var(--panel-border)] h-[40px] sm:h-[52px] cursor-pointer hover:bg-[var(--panel-bg-heavy)] transition-colors shadow-inner" 
                   onClick={() => { playClickSound(); setSkillEnabled(!isSkillEnabled); }}
                   title="스킬 사용 여부"
                 >
@@ -574,7 +574,7 @@ export default function Dashboard() {
 
                 <textarea 
                   placeholder="참가자 이름 (쉼표/공백/줄바꿈 다중입력)" 
-                  className="flex-[3] bg-[var(--panel-bg-heavy)] border border-[var(--panel-border-hover)] rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-secondary)] transition-colors text-sm resize-none scrollbar-hide h-[52px]"
+                  className="flex-[3] min-w-0 bg-[var(--panel-bg-heavy)] border border-[var(--panel-border-hover)] rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-secondary)] transition-colors text-sm resize-none scrollbar-hide h-[44px] sm:h-[52px]"
                   value={nameInput}
                   onChange={(e) => {
                     setNameInput(e.target.value)
@@ -631,8 +631,8 @@ export default function Dashboard() {
                 {participants.map(p => (
                   <div key={p.id} className="bg-[var(--btn-bg)] hover:bg-[var(--btn-bg-hover)] border border-[var(--panel-border-hover)] rounded-full px-2.5 py-1 flex items-center gap-1.5 group relative backdrop-blur-sm transition-colors cursor-default">
                     <div className="w-2 h-2 rounded-full shadow-[0_0_5px_currentColor] shrink-0" style={{ backgroundColor: p.color, color: p.color }}></div>
-                    <span className="text-xs font-medium text-[var(--text-primary)] truncate max-w-[75px] leading-none mt-[1px] block">{p.name}</span>
-                    <button onClick={() => handleRemoveParticipant(p.id)} className="text-[var(--text-faint)] hover:text-red-400 opacity-0 md:opacity-100 transition-opacity shrink-0 ml-0.5 text-[10px] leading-none w-3 h-3 flex items-center justify-center">×</button>
+                    <span className="text-[11px] sm:text-xs font-medium text-[var(--text-primary)] truncate max-w-[60px] sm:max-w-[75px] leading-none mt-[1px] block">{p.name}</span>
+                    <button onClick={() => handleRemoveParticipant(p.id)} className="text-[var(--text-faint)] hover:text-red-400 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0 ml-0.5 text-[10px] leading-none w-3 h-3 flex items-center justify-center">×</button>
                   </div>
                 ))}
               </div>
@@ -640,11 +640,11 @@ export default function Dashboard() {
           </div>
         </div>
         {/* Footer (Buttons) - 항상 고정 */}
-        <div className="flex gap-4 shrink-0 pt-2 border-t border-[var(--panel-border-hover)]">
+        <div className="flex gap-3 sm:gap-4 shrink-0 pt-2 border-t border-[var(--panel-border-hover)]">
           <button onClick={handleClearParticipants} className="flex-1 bg-[var(--btn-bg)] hover:bg-[var(--btn-bg-hover)] text-[var(--text-muted)] font-bold py-4 rounded-xl transition-colors border border-[var(--panel-border-hover)]">
             초기화
           </button>
-          <button onClick={handleStart} className="flex-[3] bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-black font-extrabold text-xl tracking-widest py-4 rounded-xl hover:opacity-90 transition-opacity shadow-[0_0_30px_var(--accent-primary)] flex items-center justify-center gap-3">
+          <button onClick={handleStart} className="flex-[3] bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-black font-extrabold text-base sm:text-xl tracking-widest py-3 sm:py-4 rounded-xl hover:opacity-90 transition-opacity shadow-[0_0_30px_var(--accent-primary)] flex items-center justify-center gap-2 sm:gap-3">
             <Video className="animate-pulse" />
             GAME START
           </button>

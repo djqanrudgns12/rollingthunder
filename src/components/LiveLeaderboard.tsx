@@ -118,11 +118,11 @@ function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLeaderboardProps) 
   }
 
   return (
-    <div className="absolute top-4 right-4 z-50 flex flex-col pointer-events-auto w-64 max-w-[30vw]"
+    <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-50 flex flex-col pointer-events-auto w-[42vw] sm:w-[35vw] md:w-64 md:max-w-[30vw]"
       style={{ height: 'calc(100vh - 2rem)' }}
     >
       {/* ═══════════════ 순위보드 영역 (상단 80%) ═══════════════ */}
-      <div className="flex-[4] min-h-0 bg-black/30 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden flex flex-col">
+      <div className="flex-[4] min-h-0 bg-black/30 backdrop-blur-md rounded-xl sm:rounded-2xl border border-white/10 overflow-hidden flex flex-col">
         <div className={cn("flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-1 flex flex-col", sizes.gap)}>
           {combinedRankings.map((p, index) => {
             const isFinished = p.isFinished;
@@ -148,7 +148,7 @@ function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLeaderboardProps) 
                 )}
                 <div
                   className={cn(
-                    "relative flex items-center gap-2 px-2 rounded-xl overflow-hidden shadow-md border transition-all duration-300",
+                    "relative flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2 rounded-lg sm:rounded-xl overflow-hidden shadow-md border transition-all duration-300",
                     sizes.py,
                     isTargetRank ? "border-[#00ffcc] shadow-[0_0_15px_rgba(0,255,204,0.5)] z-10" :
                     isFinished ? "border-white/20 shadow-[0_2px_12px_rgba(0,0,0,0.5)] z-10" : 
@@ -240,7 +240,7 @@ function LiveLeaderboard({ rankings, finishedFeed = [] }: LiveLeaderboardProps) 
 
       {/* ═══════════════ 스킬 로그 영역 (하단 20%) ═══════════════ */}
       {/* 스타크래프트 대화창처럼 어두운 반투명 박스에 고정. 로그가 아래서부터 쌓인다. */}
-      <div className="flex-1 min-h-0 bg-black/60 backdrop-blur-lg rounded-2xl border border-white/10 overflow-hidden">
+      <div className="flex-1 min-h-0 bg-black/60 backdrop-blur-lg rounded-xl sm:rounded-2xl border border-white/10 overflow-hidden">
         <SkillLogOverlay />
       </div>
     </div>

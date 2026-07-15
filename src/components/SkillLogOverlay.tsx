@@ -55,13 +55,13 @@ export default function SkillLogOverlay() {
     <div className="flex flex-col h-full">
       {/* 헤더: 전투 로그 타이틀 */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 shrink-0 bg-black/40">
-        <span className="text-xs font-bold tracking-[0.2em] text-white/50 uppercase">⚔ Skill Log</span>
+        <span className="text-[10px] sm:text-xs font-bold tracking-[0.2em] text-white/50 uppercase">⚔ Skill Log</span>
       </div>
 
       {/* 로그 본체: 스크롤 가능한 대화창 영역 */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2 custom-scrollbar flex flex-col"
+        className="flex-1 overflow-y-auto overflow-x-hidden px-2 sm:px-4 py-1.5 sm:py-2 custom-scrollbar flex flex-col"
       >
         {/* mt-auto를 사용하여 아이템이 적을 때는 하단에 정렬되고, 많아지면 정상적으로 위/아래 스크롤 가능하게 함 */}
         <div className="mt-auto flex flex-col">
@@ -74,14 +74,14 @@ export default function SkillLogOverlay() {
               // animation: slideIn 0.3s ease-out으로 framer-motion의 spring과 유사한 효과
               <div
                 key={log.id}
-                className="py-1 text-sm leading-snug whitespace-normal break-keep drop-shadow-md flex items-start gap-2"
+                className="py-0.5 sm:py-1 text-[11px] sm:text-sm leading-snug whitespace-normal break-keep drop-shadow-md flex items-start gap-1.5 sm:gap-2"
                 style={{
                   animation: 'skillLogSlideIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
                 }}
               >
                 {/* 플레이어 아이콘 (순위보드와 동일한 색상 도트) */}
                 <div 
-                  className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_currentColor] shrink-0 mt-[6px]"
+                  className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shadow-[0_0_8px_currentColor] shrink-0 mt-[5px] sm:mt-[6px]"
                   style={{ backgroundColor: log.playerColor, color: log.playerColor }} 
                 />
                 <div className="flex-1">

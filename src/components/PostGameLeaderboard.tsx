@@ -73,7 +73,7 @@ export default function PostGameLeaderboard({ finishedFeed }: PostGameLeaderboar
         initial={{ scale: 0.9, opacity: 0, y: 30 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        className={`relative flex flex-col items-center bg-[#0a0a0c] bg-cover bg-center bg-no-repeat border border-white/10 rounded-[2.5rem] p-6 md:p-8 shadow-[0_20px_80px_rgba(0,0,0,0.9)] pointer-events-auto w-[95vw] max-w-7xl mx-auto overflow-hidden ${totalPlayers > 5 ? 'h-[85vh]' : 'h-auto max-h-[90vh]'}`}
+        className={`relative flex flex-col items-center bg-[#0a0a0c] bg-cover bg-center bg-no-repeat border border-white/10 rounded-2xl sm:rounded-[2.5rem] p-4 sm:p-6 md:p-8 shadow-[0_20px_80px_rgba(0,0,0,0.9)] pointer-events-auto w-[98vw] sm:w-[95vw] max-w-7xl mx-auto overflow-hidden ${totalPlayers > 5 ? 'h-[85vh]' : 'h-auto max-h-[90vh]'}`}
         style={{ fontFamily: fontFamily || 'inherit', backgroundImage: 'url("/images/assets/ui/premium_leaderboard_bg.png")' }}
       >
         {/* Dark overlay over the image to ensure text readability */}
@@ -82,20 +82,20 @@ export default function PostGameLeaderboard({ finishedFeed }: PostGameLeaderboar
         {/* Subtle top glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-50" />
 
-        <h2 className="relative z-10 text-3xl md:text-5xl font-black text-white/90 mb-4 drop-shadow-md text-center uppercase tracking-widest shrink-0 font-['Inter',sans-serif]">
+        <h2 className="relative z-10 text-xl sm:text-3xl md:text-5xl font-black text-white/90 mb-2 sm:mb-4 drop-shadow-md text-center uppercase tracking-widest shrink-0 font-['Inter',sans-serif]">
           {headerText}
         </h2>
 
         <div className="relative z-10 flex flex-col w-full h-full overflow-hidden">
           {/* Winners Section */}
-          <div className={`flex w-full justify-center gap-4 md:gap-6 mb-3 shrink-0 ${winners.length > 3 ? 'flex-wrap' : ''}`}>
+          <div className={`flex w-full justify-center gap-2 sm:gap-4 md:gap-6 mb-2 sm:mb-3 shrink-0 ${winners.length > 3 ? 'flex-wrap' : ''}`}>
             {winners.map((w, idx) => (
               <motion.div 
                 key={w.survivor.id}
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 + (idx * 0.15), type: 'spring', stiffness: 150, damping: 20 }}
-                className={`group relative flex flex-col items-center justify-center p-4 rounded-3xl backdrop-blur-2xl overflow-hidden transition-all duration-500 hover:scale-[1.03] ${winners.length === 1 ? 'w-48 h-52' : winners.length <= 3 ? 'w-40 h-44' : 'w-36 h-40'}`}
+                className={`group relative flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl sm:rounded-3xl backdrop-blur-2xl overflow-hidden transition-all duration-500 hover:scale-[1.03] ${winners.length === 1 ? 'w-32 h-36 sm:w-48 sm:h-52' : winners.length <= 3 ? 'w-28 h-32 sm:w-40 sm:h-44' : 'w-24 h-28 sm:w-36 sm:h-40'}`}
                 style={{ 
                   background: `linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.01) 100%)`,
                   boxShadow: `0 8px 32px 0 rgba(0, 0, 0, 0.4), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.05)`
@@ -114,7 +114,7 @@ export default function PostGameLeaderboard({ finishedFeed }: PostGameLeaderboar
                 />
                 
                 <div 
-                  className={`relative flex items-center justify-center rounded-full mb-2 z-10 ${winners.length <= 2 ? 'w-16 h-16' : 'w-12 h-12'}`}
+                  className={`relative flex items-center justify-center rounded-full mb-1 sm:mb-2 z-10 ${winners.length <= 2 ? 'w-10 h-10 sm:w-16 sm:h-16' : 'w-8 h-8 sm:w-12 sm:h-12'}`}
                   style={{ 
                     background: `linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02))`,
                     boxShadow: `inset 0 1px 1px 0 rgba(255,255,255,0.3), 0 8px 16px 0 rgba(0,0,0,0.4)`
@@ -122,13 +122,13 @@ export default function PostGameLeaderboard({ finishedFeed }: PostGameLeaderboar
                 >
                   <div className="absolute inset-0 rounded-full blur-md opacity-40 transition-opacity duration-500 group-hover:opacity-70" style={{ backgroundColor: w.survivor.color }} />
                   {winners.length <= 2 ? (
-                    <Crown className="w-10 h-10 z-10" style={{ color: '#ffffff', filter: `drop-shadow(0 2px 4px rgba(0,0,0,0.5))` }} />
+                    <Crown className="w-7 h-7 sm:w-10 sm:h-10 z-10" style={{ color: '#ffffff', filter: `drop-shadow(0 2px 4px rgba(0,0,0,0.5))` }} />
                   ) : (
-                    <Trophy className="w-7 h-7 z-10" style={{ color: '#ffffff', filter: `drop-shadow(0 2px 4px rgba(0,0,0,0.5))` }} />
+                    <Trophy className="w-5 h-5 sm:w-7 sm:h-7 z-10" style={{ color: '#ffffff', filter: `drop-shadow(0 2px 4px rgba(0,0,0,0.5))` }} />
                   )}
                 </div>
                 
-                <span className={`font-extrabold text-transparent bg-clip-text z-10 truncate w-full text-center ${winners.length <= 2 ? 'text-2xl mb-2' : 'text-xl mb-1.5'}`}
+                <span className={`font-extrabold text-transparent bg-clip-text z-10 truncate w-full text-center ${winners.length <= 2 ? 'text-lg sm:text-2xl mb-1 sm:mb-2' : 'text-base sm:text-xl mb-0.5 sm:mb-1.5'}`}
                       style={{ backgroundImage: `linear-gradient(to bottom, #ffffff, rgba(255,255,255,0.6))` }}>
                   {w.survivor.name}
                 </span>
@@ -137,7 +137,7 @@ export default function PostGameLeaderboard({ finishedFeed }: PostGameLeaderboar
                   className="px-4 py-1 rounded-full z-10 backdrop-blur-md border border-white/10"
                   style={{ backgroundColor: `${w.survivor.color}15` }}
                 >
-                  <span className={`font-bold tracking-[0.2em] ${winners.length <= 2 ? 'text-sm' : 'text-xs'}`} style={{ color: w.survivor.color }}>
+                  <span className={`font-bold tracking-[0.2em] ${winners.length <= 2 ? 'text-xs sm:text-sm' : 'text-[10px] sm:text-xs'}`} style={{ color: w.survivor.color }}>
                     {getOrdinalSuffix(w.rank)}
                   </span>
                 </div>
@@ -155,17 +155,17 @@ export default function PostGameLeaderboard({ finishedFeed }: PostGameLeaderboar
               </div>
             )}
             
-            <div className={`grid w-full gap-1.5 md:gap-2 ${gridCols} flex-1 overflow-y-auto pr-2 scrollbar-hide content-start pb-2`}>
+            <div className={`grid w-full gap-1 sm:gap-1.5 md:gap-2 ${gridCols} flex-1 overflow-y-auto pr-1 sm:pr-2 scrollbar-hide content-start pb-2`}>
               {others.map((o, idx) => (
                 <motion.div
                   key={o.survivor.id}
                   initial={{ x: -30, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: 0.8 + (idx * 0.05) }}
-                  className="group flex items-center w-full bg-white/[0.01] hover:bg-white/[0.04] rounded-xl border border-white/5 hover:border-white/10 transition-all duration-300 py-1.5 px-3 relative overflow-hidden"
+                  className="group flex items-center w-full bg-white/[0.01] hover:bg-white/[0.04] rounded-lg sm:rounded-xl border border-white/5 hover:border-white/10 transition-all duration-300 py-1 sm:py-1.5 px-2 sm:px-3 relative overflow-hidden"
                 >
                   <span 
-                    className="font-black w-12 shrink-0 text-xl md:text-2xl transition-all duration-300 group-hover:scale-110 italic"
+                    className="font-black w-8 sm:w-12 shrink-0 text-base sm:text-xl md:text-2xl transition-all duration-300 group-hover:scale-110 italic"
                     style={{ 
                       color: o.rank <= 3 ? '#ffffff' : 'rgba(255,255,255,0.85)',
                       textShadow: `0 2px 4px rgba(0,0,0,0.8), 0 0 ${Math.max(4, 15 - o.rank)}px ${o.survivor.color}${o.rank <= 5 ? 'ff' : '80'}`
@@ -174,9 +174,9 @@ export default function PostGameLeaderboard({ finishedFeed }: PostGameLeaderboar
                     {o.rank}
                   </span>
                   
-                  <div className="shrink-0 rounded-full mr-3 md:mr-4 w-3 h-3 md:w-3.5 md:h-3.5 opacity-80 group-hover:opacity-100 transition-opacity shadow-[0_0_8px_currentColor]" style={{ backgroundColor: o.survivor.color, color: o.survivor.color }} />
+                  <div className="shrink-0 rounded-full mr-2 sm:mr-3 md:mr-4 w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 opacity-80 group-hover:opacity-100 transition-opacity shadow-[0_0_8px_currentColor]" style={{ backgroundColor: o.survivor.color, color: o.survivor.color }} />
                   
-                  <span className="font-bold text-white/70 group-hover:text-white truncate flex-1 text-xl md:text-[22px] leading-none pb-[1px] transition-colors">
+                  <span className="font-bold text-white/70 group-hover:text-white truncate flex-1 text-base sm:text-xl md:text-[22px] leading-none pb-[1px] transition-colors">
                     {o.survivor.name}
                   </span>
                 </motion.div>
@@ -189,7 +189,7 @@ export default function PostGameLeaderboard({ finishedFeed }: PostGameLeaderboar
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.5, duration: 0.6 }}
-            className="w-full flex justify-center mt-3 shrink-0"
+            className="w-full flex justify-center mt-2 sm:mt-3 shrink-0 pb-[env(safe-area-inset-bottom)]"
           >
             <button 
               onClick={handleReturnToLobby}

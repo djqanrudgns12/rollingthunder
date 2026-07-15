@@ -252,7 +252,7 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity">
       {/* max-w-lg 에서 max-w-4xl 로 넓혀서 2단 분할 레이아웃 적용 */}
-      <div className="bg-[#111] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90dvh] overflow-hidden shadow-2xl flex flex-col relative animate-in fade-in zoom-in duration-300">
+      <div className="bg-[#111] border border-white/10 rounded-xl sm:rounded-2xl w-full max-w-4xl max-h-[90dvh] overflow-hidden shadow-2xl flex flex-col relative animate-in fade-in zoom-in duration-300">
 
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-white/5 shrink-0">
@@ -293,9 +293,9 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
         </div>
 
         {/* Content (2단 분할) */}
-        <div className="flex flex-1 min-h-[300px] overflow-hidden">
+        <div className="flex flex-col md:flex-row flex-1 min-h-[250px] sm:min-h-[300px] overflow-hidden">
           {/* 좌측 리스트 패널 */}
-          <div className="w-1/2 p-6 border-r border-white/5 overflow-y-auto custom-scrollbar">
+          <div className="w-full md:w-1/2 p-4 sm:p-6 md:border-r border-b md:border-b-0 border-white/5 overflow-y-auto custom-scrollbar">
             {activeTab === 'default' && (
               <div className="flex flex-col gap-3 pr-1">
                 <p className="text-sm text-white/50 mb-2">기본으로 제공되는 맵 프리셋을 선택하세요.</p>
@@ -384,7 +384,7 @@ export default function MapLoadModal({ isOpen, onClose }: MapLoadModalProps) {
           </div>
 
           {/* 우측 미리보기 패널 */}
-          <div className="w-1/2 p-6 flex flex-col items-center justify-center bg-black/20">
+          <div className="hidden md:flex w-1/2 p-6 flex-col items-center justify-center bg-black/20">
             {previewMeta ? (
               <div className="w-full h-full flex flex-col gap-4 animate-in fade-in duration-300">
                 <div className="text-center">
