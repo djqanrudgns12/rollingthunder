@@ -20,7 +20,7 @@ interface PublishMapModalProps {
   mapId: string;
   mapName: string;
   isRepublish: boolean;
-  onPublished: () => void;
+  onPublished: () => void | Promise<void>;
 }
 
 export default function PublishMapModal({
@@ -118,7 +118,7 @@ export default function PublishMapModal({
       toast.success(isRepublish ? '스토어에 업데이트 배포되었습니다!' : '커스텀 맵 스토어에 배포되었습니다!');
       stampService.trackEvent('publish_map', 1);
       stampService.flushPlayEvents();
-      onPublished();
+      await onPublished();
       onClose();
     } else {
       setFailMessage(res.error);

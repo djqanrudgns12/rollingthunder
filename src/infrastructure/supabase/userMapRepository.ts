@@ -150,7 +150,7 @@ export class UserMapRepository {
 
   static async publish(id: string, validationSummary: any): Promise<void> {
     const supabase = await createClient();
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('user_maps')
       .update({
         is_published: true,
@@ -158,9 +158,14 @@ export class UserMapRepository {
         validation_summary: validationSummary,
         validated_at: new Date().toISOString(),
       })
-      .eq('id', id);
+      .eq('id', id)
+      .select('id')
+      .single();
     if (error) {
       throw new DatabaseError(`맵 배포 중 오류가 발생했습니다: ${error.message}`);
+    }
+    if (!data) {
+      throw new DatabaseError('맵 배포에 실패했습니다. 대상 맵을 찾을 수 없거나 권한이 부족합니다.');
     }
   }
 

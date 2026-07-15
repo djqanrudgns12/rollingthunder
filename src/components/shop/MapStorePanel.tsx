@@ -37,6 +37,7 @@ export default function MapStorePanel() {
 
   const [maps, setMaps] = useState<UserMapEntity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [sort, setSort] = useState<"popular" | "latest">("popular");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -47,6 +48,7 @@ export default function MapStorePanel() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setLoadError(null);
     Promise.all([
       getStoreMapsAction({ sort: "popular", limit: 60 }),
       getMyDownloadsAction(),
@@ -57,6 +59,10 @@ export default function MapStorePanel() {
       if (store.success) {
         setMaps(store.maps);
         if (store.maps.length > 0) setSelectedId(store.maps[0].id);
+      } else {
+        console.error('[MapStorePanel] 스토어 맵 조회 실패:', store.error);
+        setLoadError(store.error);
+        toast.error(`맵 스토어 로드 실패: ${store.error}`);
       }
       if (downloads.success) {
         setOwnedSourceIds(new Set(downloads.downloads.map((d) => d.sourceMapId).filter(Boolean) as string[]));
@@ -64,6 +70,12 @@ export default function MapStorePanel() {
       if (likes.success) {
         setLikedIds(new Set(likes.mapIds));
       }
+    }).catch((err) => {
+      if (cancelled) return;
+      setLoading(false);
+      console.error('[MapStorePanel] 스토어 로드 중 예외:', err);
+      setLoadError('스토어를 불러오는 중 오류가 발생했습니다.');
+      toast.error('맵 스토어를 불러오지 못했습니다.');
     });
     return () => { cancelled = true; };
   }, []);
@@ -303,6 +315,17 @@ export default function MapStorePanel() {
             <div className="h-64 flex flex-col items-center justify-center gap-3 text-center bg-neutral-900/40 rounded-2xl border border-emerald-900/40">
               <Store className="w-12 h-12 text-emerald-700" />
               <p className="text-neutral-400 text-sm">커스텀 맵 스토어는 로그인 후 이용할 수 있습니다.</p>
+            </div>
+          ) : loadError ? (
+            <div className="h-64 flex flex-col items-center justify-center gap-3 text-center bg-red-950/30 rounded-2xl border border-red-900/40">
+              <Store className="w-12 h-12 text-red-700" />
+              <p className="text-red-300 text-sm">{loadError}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-2 px-4 py-1.5 text-xs font-bold rounded-full bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30 transition-colors"
+              >
+                새로고침
+              </button>
             </div>
           ) : visibleMaps.length === 0 ? (
             <div className="h-64 flex flex-col items-center justify-center gap-3 text-center bg-neutral-900/40 rounded-2xl border border-emerald-900/40">
