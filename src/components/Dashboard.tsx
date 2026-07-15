@@ -311,7 +311,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className={`flex flex-col items-center justify-start pt-20 sm:pt-24 min-[1640px]:pt-8 w-full min-h-screen p-2 sm:p-4 z-10 transition-colors duration-500 ${isBroadcasterMode ? 'bg-[#00ff00]' : 'bg-transparent'}`}>
+    <div className={`flex flex-col items-center justify-start pt-20 sm:pt-20 md:pt-8 w-full min-h-screen p-2 sm:p-4 z-10 transition-colors duration-500 ${isBroadcasterMode ? 'bg-[#00ff00]' : 'bg-transparent'}`}>
       
       {/* 화면 우측 하단 전역 유틸리티 버튼 (BGM, 설정, 배너) */}
       <div className="absolute bottom-4 right-4 md:bottom-8 md:right-8 flex gap-2 sm:gap-3 z-50 items-center pb-[env(safe-area-inset-bottom)]">
@@ -390,7 +390,7 @@ export default function Dashboard() {
         </button>
       </div>
 
-      <div className={`p-4 sm:p-5 md:p-8 rounded-2xl sm:rounded-3xl w-full max-w-2xl lg:max-w-3xl flex flex-col gap-3 sm:gap-4 shadow-2xl transition-all duration-500 max-h-[calc(100dvh-6.5rem)] sm:max-h-[calc(100dvh-8rem)] min-[1640px]:max-h-[calc(100dvh-3.5rem)] overflow-y-auto custom-scrollbar ${isBroadcasterMode ? 'bg-black border-2 border-green-500' : 'glass-panel-heavy'}`}>
+      <div className={`p-3 sm:p-4 md:p-6 rounded-2xl sm:rounded-3xl w-full max-w-2xl lg:max-w-3xl flex flex-col gap-1.5 sm:gap-2 shadow-2xl transition-all duration-500 max-h-[calc(100dvh-6.5rem)] sm:max-h-[calc(100dvh-7rem)] md:max-h-[calc(100dvh-3.5rem)] overflow-y-auto custom-scrollbar ${isBroadcasterMode ? 'bg-black border-2 border-green-500' : 'glass-panel-heavy'}`}>
         {/* Header (Text Logo) - 항상 고정 */}
         <div className="relative text-center flex flex-col items-center shrink-0 mb-3 sm:mb-6 animate-in fade-in slide-in-from-top-4 w-full">
           <div className="flex items-center justify-center gap-2 sm:gap-3 md:gap-4">
