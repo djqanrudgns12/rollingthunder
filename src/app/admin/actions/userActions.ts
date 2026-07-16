@@ -4,36 +4,50 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient, requireAdmin } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
-export async function getUsers(page: number = 1, limit: number = 50) {
+export type SortColumn = 'username' | 'role' | 'chips_balance' | 'created_at' | 'last_seen_at'
+export type SortDirection = 'asc' | 'desc'
+
+export async function getUsers(
+  page: number = 1,
+  limit: number = 50,
+  searchQuery?: string,
+  sortColumn: SortColumn = 'created_at',
+  sortDirection: SortDirection = 'desc',
+) {
   try {
     const supabase = await createClient()
     await requireAdmin(supabase)
 
     const offset = (page - 1) * limit
 
-    const { data: profiles, error, count } = await supabase
+    // 검색+정렬+last_seen_at 을 profiles 테이블에서 직접 조회
+    // auth.admin.listUsers() 의존을 제거하여 1000명 제한 버그 해소
+    let query = supabase
       .from('profiles')
-      .select('id, username, role, chips_balance, created_at', { count: 'exact' })
-      .order('created_at', { ascending: false })
+      .select('id, username, nickname, name, role, chips_balance, created_at, last_seen_at', { count: 'exact' })
+
+    // 검색 필터: username, nickname, name 대상 (ilike 부분일치)
+    // UUID(id)는 타입 캐스트(::text)를 PostgREST가 지원하지 않으므로,
+    // UUID 형식인 경우에만 정확 일치(eq)로 추가한다.
+    if (searchQuery && searchQuery.trim()) {
+      const term = searchQuery.trim()
+      const likeTerm = `%${term}%`
+      const isUUID = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i.test(term)
+
+      let orFilter = `username.ilike.${likeTerm},nickname.ilike.${likeTerm},name.ilike.${likeTerm}`
+      if (isUUID) {
+        orFilter += `,id.eq.${term}`
+      }
+      query = query.or(orFilter)
+    }
+
+    const { data: profiles, error, count } = await query
+      .order(sortColumn, { ascending: sortDirection === 'asc' })
       .range(offset, offset + limit - 1)
 
     if (error) throw error
 
-    // Fetch auth.users to get last_sign_in_at
-    const adminClient = createAdminClient()
-    const { data: authData, error: authError } = await adminClient.auth.admin.listUsers()
-    
-    const authUsersMap = new Map()
-    if (!authError && authData?.users) {
-      authData.users.forEach(u => authUsersMap.set(u.id, u.last_sign_in_at))
-    }
-
-    const usersWithLastSignIn = profiles?.map(p => ({
-      ...p,
-      last_sign_in_at: authUsersMap.get(p.id) || null
-    }))
-
-    return { success: true, data: usersWithLastSignIn, count }
+    return { success: true, data: profiles, count }
   } catch (error) {
     console.error('[getUsers Error]:', error)
     return { success: false, error: error instanceof Error ? error.message : '유저 목록을 불러오는데 실패했습니다.' }
