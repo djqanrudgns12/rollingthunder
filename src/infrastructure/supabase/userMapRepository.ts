@@ -131,7 +131,9 @@ export class UserMapRepository {
     const supabase = await createClient();
     let query = supabase
       .from('user_maps')
-      .select('*, profiles(name, username)')
+      // FK 힌트 필수: user_map_likes(맵♥유저)가 user_maps↔profiles 다대다 경로를 만들어
+      // 무힌트 임베드는 PGRST201(관계 모호)로 실패한다 → owner_id FK로 명시.
+      .select('*, profiles!user_maps_owner_id_fkey(name, username)')
       .eq('is_published', true)
       .limit(options.limit ?? 60);
 
