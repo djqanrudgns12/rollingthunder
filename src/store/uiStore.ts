@@ -112,18 +112,16 @@ export const useUIStore = create<UIState>()(
     {
       name: 'rt-ui-storage',
       storage: createJSONStorage(() => localStorage),
+      // ⚠️ 신원 데이터(userProfile/isLoggedIn/isAdmin)는 persist하지 않는다.
+      // 자동 하이드레이트는 세션 확인 전에 실행되어 게스트/타계정에서 이전 계정 데이터가
+      // 순간 노출되는 잔여 데이터 문제를 일으킨다. 대신 userId로 스탬프된 lobbyCache를
+      // GlobalPlayerHUD가 getSession() 확인 후에만 읽어 페인트한다([src/lib/lobbyCache.ts]).
       partialize: (state) => ({
         isBroadcasterMode: state.isBroadcasterMode,
         isAnonymized: state.isAnonymized,
         customMapData: state.customMapData,
         customMapMeta: state.customMapMeta,
         customMapTitle: state.customMapTitle,
-        // 캐시퍼스트 페인트: 새 창에서 서버 응답 전에도 프로필/로그인/관리자 UI를 즉시 표시.
-        // 서버 부트스트랩(getLobbyBootstrapAction)이 도착하면 덮어쓰고,
-        // 로그아웃·계정 전환 시 GlobalPlayerHUD가 셋 다 초기화한다(표시 전용 — 권한은 서버가 검증).
-        userProfile: state.userProfile,
-        isLoggedIn: state.isLoggedIn,
-        isAdmin: state.isAdmin,
       }),
       merge: (persistedState, currentState) => ({
         ...currentState,

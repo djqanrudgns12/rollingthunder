@@ -7,6 +7,7 @@ import { useUIStore } from '@/store/uiStore';
 import { useGameStore } from '@/store/gameStore';
 import { useRouter, usePathname } from 'next/navigation';
 import { getLobbyBootstrapAction } from '@/presentation/actions/bootstrapActions';
+import { readLobbyCache, writeLobbyCache, clearLobbyCache } from '@/lib/lobbyCache';
 import { MOCK_ITEMS } from '@/data/shopData';
 import { useInventoryStore } from '@/store/inventoryStore';
 import Image from 'next/image';
@@ -49,23 +50,32 @@ export default function GlobalPlayerHUD() {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session) {
-        const currentCachedUserId = useInventoryStore.getState().userId;
-        if (currentCachedUserId && currentCachedUserId !== session.user.id) {
+        const uid = session.user.id;
+
+        // 계정 전환 가드 — 라이브 세션에서 계정이 바뀐 경우 이전 데이터 즉시 폐기
+        const currentGameUserId = useGameStore.getState().userId;
+        if (currentGameUserId && currentGameUserId !== uid) {
           useInventoryStore.getState().reset();
           setUserProfile(null);
           useChipStore.getState().setChips(0);
           useUIStore.getState().setIsAdmin(false);
-        }
-
-        const currentGameUserId = useGameStore.getState().userId;
-        if (currentGameUserId && currentGameUserId !== session.user.id) {
           useGameStore.getState().resetSession();
         }
-        useGameStore.getState().setUserId(session.user.id);
-
+        useGameStore.getState().setUserId(uid);
         setIsLoggedIn(true);
-        // 단일 부트스트랩 왕복: 프로필+동의여부+인벤토리+업적통계를 한 번에 조회
-        // (기존 3액션 워터폴 — getProfileOverview → getConsentStatus → fetchInventory — 대체)
+
+        // 1) 캐시퍼스트 즉시 페인트 — userId가 정확히 일치하는 캐시만 사용(잔여 데이터 원천 차단).
+        //    게스트/타계정에서는 readLobbyCache가 null을 반환하므로 아무것도 뜨지 않는다.
+        const cached = readLobbyCache(uid);
+        if (cached) {
+          setUserProfile(cached.profile);
+          useUIStore.getState().setIsAdmin(cached.profile.role === 'admin');
+          useChipStore.getState().setChips(cached.chips);
+          useInventoryStore.getState().hydrateFromServer(uid, cached.inventory, cached.equipped);
+        }
+
+        // 2) 서버 단일 부트스트랩 왕복으로 최신본 갱신 + 캐시 재기록
+        //    (프로필+동의여부+인벤토리+업적통계를 한 번에 — 기존 3액션 워터폴 대체)
         const data = await getLobbyBootstrapAction();
 
         // 현재 시행 버전 약관에 동의 이력이 없는 회원은 재동의 게이트를 띄운다.
@@ -96,14 +106,25 @@ export default function GlobalPlayerHUD() {
             if (settings.sfxVolume !== undefined) state.setSfxVolume(settings.sfxVolume);
           }
 
-          useInventoryStore.getState().hydrateFromServer(session.user.id, data.inventory, data.equipped);
+          useInventoryStore.getState().hydrateFromServer(uid, data.inventory, data.equipped);
+
+          // 다음 접속의 즉시 페인트용 캐시 갱신(userId 스탬프)
+          writeLobbyCache({
+            userId: uid,
+            profile: data.profile,
+            chips: data.profile.chips_balance,
+            inventory: data.inventory,
+            equipped: data.equipped,
+          });
         }
       } else {
+        // 게스트 — 모든 계정 데이터 + 캐시 완전 제거
         setIsLoggedIn(false);
         setUserProfile(null);
         useUIStore.getState().setIsAdmin(false);
         useChipStore.getState().setChips(0);
         useInventoryStore.getState().reset();
+        clearLobbyCache();
 
         if (useGameStore.getState().userId !== null) {
           useGameStore.getState().resetSession();
@@ -120,6 +141,7 @@ export default function GlobalPlayerHUD() {
         useUIStore.getState().setIsAdmin(false);
         useChipStore.getState().setChips(0);
         useInventoryStore.getState().reset();
+        clearLobbyCache();
         useGameStore.getState().resetSession();
       }
     });
