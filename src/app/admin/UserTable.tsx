@@ -27,6 +27,8 @@ interface User {
 
 // ─── 정렬 가능한 컬럼 정의 ───
 const SORTABLE_COLUMNS: { key: SortColumn; label: string }[] = [
+  { key: 'nickname', label: '닉네임' },
+  { key: 'name', label: '이름' },
   { key: 'username', label: '식별자 (ID)' },
   { key: 'role', label: '접근 등급 (권한)' },
   { key: 'chips_balance', label: '보유 자산 (칩)' },
@@ -119,7 +121,7 @@ export default function UserTable({ initialUsers, initialCount }: { initialUsers
     if (sortColumn === column) {
       newDirection = sortDirection === 'asc' ? 'desc' : 'asc'
     } else {
-      newDirection = column === 'username' || column === 'role' ? 'asc' : 'desc'
+      newDirection = column === 'nickname' || column === 'name' || column === 'username' || column === 'role' ? 'asc' : 'desc'
     }
     setSortColumn(column)
     setSortDirection(newDirection)
@@ -398,17 +400,27 @@ export default function UserTable({ initialUsers, initialCount }: { initialUsers
                       </span>
                     )}
                   </td>
+                  {/* 닉네임 */}
+                  <td className="px-6 py-4">
+                    <span className="text-white font-bold tracking-wide">{user.nickname || <span className="text-slate-600 italic">—</span>}</span>
+                  </td>
+                  {/* 이름 */}
+                  <td className="px-6 py-4">
+                    <span className="text-slate-300">{user.name || <span className="text-slate-600 italic">—</span>}</span>
+                  </td>
+                  {/* 식별자 (ID) */}
                   <td className="px-6 py-4">
                     <div className="flex items-center">
                       <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_5px_#0ff] mr-3"></div>
                       <div>
-                        <p className="text-white font-bold tracking-wide">{user.username}</p>
-                        <p className="text-slate-500 text-xs font-mono mt-0.5" title={user.id}>
-                          ID: {user.id.slice(0, 8)}...
+                        <p className="text-cyan-200 font-bold tracking-wide text-xs">{user.username}</p>
+                        <p className="text-slate-600 text-[10px] font-mono mt-0.5" title={user.id}>
+                          {user.id.slice(0, 8)}…
                         </p>
                       </div>
                     </div>
                   </td>
+                  {/* 접근 등급 */}
                   <td className="px-6 py-4">
                     <select
                       value={user.role}
@@ -420,6 +432,7 @@ export default function UserTable({ initialUsers, initialCount }: { initialUsers
                       <option value="user">User</option>
                     </select>
                   </td>
+                  {/* 보유 자산 (칩) */}
                   <td className="px-6 py-4">
                     <div className="flex items-center border border-yellow-600/30 bg-black/40 rounded-sm px-2 py-1 w-32 group-hover:border-yellow-500/60 transition-colors">
                       <Coins className="w-3 h-3 text-yellow-500 mr-2" />
@@ -435,9 +448,11 @@ export default function UserTable({ initialUsers, initialCount }: { initialUsers
                       />
                     </div>
                   </td>
+                  {/* 가입일 */}
                   <td className="px-6 py-4 text-slate-500 font-mono text-xs">
                     {new Date(user.created_at).toLocaleDateString()}
                   </td>
+                  {/* 최종 접속일 */}
                   <td className="px-6 py-4 text-slate-500 font-mono text-xs">
                     {user.last_seen_at ? new Date(user.last_seen_at).toLocaleString() : '접속 기록 없음'}
                   </td>
@@ -455,7 +470,7 @@ export default function UserTable({ initialUsers, initialCount }: { initialUsers
             })}
             {users.length === 0 && (
               <tr>
-                <td colSpan={7} className="text-center py-8 text-slate-500 text-sm">
+                <td colSpan={9} className="text-center py-8 text-slate-500 text-sm">
                   {debouncedSearch ? `"${debouncedSearch}" 검색 결과가 없습니다.` : '검색된 유저가 없습니다.'}
                 </td>
               </tr>

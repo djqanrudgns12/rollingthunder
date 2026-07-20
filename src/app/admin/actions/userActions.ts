@@ -5,7 +5,7 @@ import { createAdminClient, requireAdmin } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { PREMIUM_UPGRADE_BONUS_CHIPS, PREMIUM_UPGRADE_REASON } from '@/lib/premium'
 
-export type SortColumn = 'username' | 'role' | 'chips_balance' | 'created_at' | 'last_seen_at'
+export type SortColumn = 'nickname' | 'name' | 'username' | 'role' | 'chips_balance' | 'created_at' | 'last_seen_at'
 export type SortDirection = 'asc' | 'desc'
 
 export async function getUsers(
