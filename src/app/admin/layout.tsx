@@ -15,16 +15,16 @@ export const metadata = {
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   // 1. 관리자 권한 확인 (서버 레벨)
   const supabase = await createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user } } = await supabase.auth.getUser()
   
-  if (!session) {
+  if (!user) {
     redirect('/')
   }
 
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
-    .eq('id', session.user.id)
+    .eq('id', user.id)
     .single()
 
   if (profile?.role !== 'admin') {
@@ -118,7 +118,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <div className="flex items-center pl-6 border-l border-cyan-900/50">
             <div className="text-right mr-3">
               <p className="text-xs text-cyan-500 tracking-wide font-bold">운영자</p>
-              <p className="text-sm font-bold text-white">{session.user.email}</p>
+              <p className="text-sm font-bold text-white">{user.email}</p>
             </div>
           </div>
         </header>
