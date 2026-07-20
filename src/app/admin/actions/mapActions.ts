@@ -47,13 +47,13 @@ export async function getAdminMaps(
     let userMapsQuery = supabase
       .from('user_maps')
       .select(
-        'id, name, description, length_type, complexity, is_published, is_featured, download_count, like_count, created_at, owner_id, profiles!inner(username)',
+        'id, name, description, length_type, complexity, is_published, is_featured, download_count, like_count, created_at, owner_id, profiles!user_maps_owner_id_fkey(username)',
         { count: 'exact' },
       )
 
     if (searchQuery && searchQuery.trim()) {
       const likeTerm = `%${searchQuery.trim()}%`
-      userMapsQuery = userMapsQuery.or(`name.ilike.${likeTerm},profiles.username.ilike.${likeTerm}`)
+      userMapsQuery = userMapsQuery.ilike('name', likeTerm)
     }
 
     const { data: userMaps, error: umError, count: umCount } = await userMapsQuery
