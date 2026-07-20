@@ -6,14 +6,12 @@ import { useChipStore } from '@/store/chipStore';
 import { useUIStore } from '@/store/uiStore';
 import { useGameStore } from '@/store/gameStore';
 import { useRouter, usePathname } from 'next/navigation';
-import { getProfileOverviewAction } from '@/presentation/actions/profileActions';
-import { getConsentStatusAction } from '@/presentation/actions/consentActions';
+import { getLobbyBootstrapAction } from '@/presentation/actions/bootstrapActions';
 import { MOCK_ITEMS } from '@/data/shopData';
 import { useInventoryStore } from '@/store/inventoryStore';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import type { AuthChangeEvent } from '@supabase/supabase-js';
-import { fetchInventoryAction } from '@/app/actions/inventory';
 import { ShoppingCart, Package, ArrowLeft, Store } from 'lucide-react';
 import AvatarBorder from '@/components/profile/AvatarBorder';
 
@@ -55,8 +53,10 @@ export default function GlobalPlayerHUD() {
         if (currentCachedUserId && currentCachedUserId !== session.user.id) {
           useInventoryStore.getState().reset();
           setUserProfile(null);
+          useChipStore.getState().setChips(0);
+          useUIStore.getState().setIsAdmin(false);
         }
-        
+
         const currentGameUserId = useGameStore.getState().userId;
         if (currentGameUserId && currentGameUserId !== session.user.id) {
           useGameStore.getState().resetSession();
@@ -64,47 +64,47 @@ export default function GlobalPlayerHUD() {
         useGameStore.getState().setUserId(session.user.id);
 
         setIsLoggedIn(true);
-        // 프로필과 동의 상태를 병렬 조회 (동일 왕복 내 처리 — 추가 지연 없음)
-        const [data, consentStatus] = await Promise.all([
-          getProfileOverviewAction(),
-          getConsentStatusAction(),
-        ]);
+        // 단일 부트스트랩 왕복: 프로필+동의여부+인벤토리+업적통계를 한 번에 조회
+        // (기존 3액션 워터폴 — getProfileOverview → getConsentStatus → fetchInventory — 대체)
+        const data = await getLobbyBootstrapAction();
 
         // 현재 시행 버전 약관에 동의 이력이 없는 회원은 재동의 게이트를 띄운다.
         // /terms, /privacy에서는 문서 열람을 막지 않도록 생략(링크는 새 탭으로 열리지만 직접 방문 보호).
         const path = window.location.pathname;
-        if (consentStatus.needsReconsent && !path.startsWith('/terms') && !path.startsWith('/privacy')) {
+        if (data?.needsReconsent && !path.startsWith('/terms') && !path.startsWith('/privacy')) {
           useUIStore.getState().setActiveModal('reconsent');
         }
 
         if (data) {
-          setUserProfile(data);
-          useChipStore.getState().setChips(data.chips_balance);
-          
-          if (data.settings && Object.keys(data.settings).length > 0) {
+          setUserProfile(data.profile);
+          // isAdmin은 이 프로필이 단일 소스(기존 GameManager의 별도 role 쿼리 제거됨)
+          useUIStore.getState().setIsAdmin(data.profile.role === 'admin');
+          useChipStore.getState().setChips(data.profile.chips_balance);
+
+          const settings = data.profile.settings;
+          if (settings && Object.keys(settings).length > 0) {
             const state = useGameStore.getState();
-            if (data.settings.gimmickDensity !== undefined) state.setGimmickDensity(data.settings.gimmickDensity);
-            if (data.settings.baseTimeScale !== undefined) state.setBaseTimeScale(data.settings.baseTimeScale);
-            if (data.settings.comebackStrength !== undefined) state.setComebackStrength(data.settings.comebackStrength);
-            if (data.settings.playTime !== undefined) state.setPlayTime(data.settings.playTime);
-            if (data.settings.isScreenShakeEnabled !== undefined) state.setScreenShakeEnabled(data.settings.isScreenShakeEnabled);
-            if (data.settings.calmMode !== undefined) state.setCalmMode(data.settings.calmMode);
-            if (data.settings.theme !== undefined) state.setTheme(data.settings.theme);
-            if (data.settings.fontFamily !== undefined) state.setFontFamily(data.settings.fontFamily);
-            if (data.settings.bgmVolume !== undefined) state.setBgmVolume(data.settings.bgmVolume);
-            if (data.settings.sfxVolume !== undefined) state.setSfxVolume(data.settings.sfxVolume);
+            if (settings.gimmickDensity !== undefined) state.setGimmickDensity(settings.gimmickDensity);
+            if (settings.baseTimeScale !== undefined) state.setBaseTimeScale(settings.baseTimeScale);
+            if (settings.comebackStrength !== undefined) state.setComebackStrength(settings.comebackStrength);
+            if (settings.playTime !== undefined) state.setPlayTime(settings.playTime);
+            if (settings.isScreenShakeEnabled !== undefined) state.setScreenShakeEnabled(settings.isScreenShakeEnabled);
+            if (settings.calmMode !== undefined) state.setCalmMode(settings.calmMode);
+            if (settings.theme !== undefined) state.setTheme(settings.theme);
+            if (settings.fontFamily !== undefined) state.setFontFamily(settings.fontFamily);
+            if (settings.bgmVolume !== undefined) state.setBgmVolume(settings.bgmVolume);
+            if (settings.sfxVolume !== undefined) state.setSfxVolume(settings.sfxVolume);
           }
-        }
-        
-        const invData = await fetchInventoryAction();
-        if (invData?.success && invData.inventory && invData.equipped) {
-          useInventoryStore.getState().hydrateFromServer(session.user.id, invData.inventory, invData.equipped);
+
+          useInventoryStore.getState().hydrateFromServer(session.user.id, data.inventory, data.equipped);
         }
       } else {
         setIsLoggedIn(false);
         setUserProfile(null);
+        useUIStore.getState().setIsAdmin(false);
+        useChipStore.getState().setChips(0);
         useInventoryStore.getState().reset();
-        
+
         if (useGameStore.getState().userId !== null) {
           useGameStore.getState().resetSession();
         }
@@ -117,6 +117,8 @@ export default function GlobalPlayerHUD() {
       if (event === 'SIGNED_OUT') {
         setIsLoggedIn(false);
         setUserProfile(null);
+        useUIStore.getState().setIsAdmin(false);
+        useChipStore.getState().setChips(0);
         useInventoryStore.getState().reset();
         useGameStore.getState().resetSession();
       }

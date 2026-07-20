@@ -117,7 +117,13 @@ export const useUIStore = create<UIState>()(
         isAnonymized: state.isAnonymized,
         customMapData: state.customMapData,
         customMapMeta: state.customMapMeta,
-        customMapTitle: state.customMapTitle
+        customMapTitle: state.customMapTitle,
+        // 캐시퍼스트 페인트: 새 창에서 서버 응답 전에도 프로필/로그인/관리자 UI를 즉시 표시.
+        // 서버 부트스트랩(getLobbyBootstrapAction)이 도착하면 덮어쓰고,
+        // 로그아웃·계정 전환 시 GlobalPlayerHUD가 셋 다 초기화한다(표시 전용 — 권한은 서버가 검증).
+        userProfile: state.userProfile,
+        isLoggedIn: state.isLoggedIn,
+        isAdmin: state.isAdmin,
       }),
       merge: (persistedState, currentState) => ({
         ...currentState,

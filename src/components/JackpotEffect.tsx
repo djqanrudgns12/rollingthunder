@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import confetti from 'canvas-confetti';
 import { useChipStore } from '@/store/chipStore';
 
 export default function JackpotEffect() {
@@ -21,7 +20,9 @@ export default function JackpotEffect() {
     }
   }, [isJackpotActive, setJackpotActive]);
 
-  const fireJackpot = () => {
+  const fireJackpot = async () => {
+    // canvas-confetti는 잭팟 발동 시에만 필요 — 초기 번들에서 제외(lazy)
+    const confetti = (await import('canvas-confetti')).default;
     const duration = 3000;
     const end = Date.now() + duration;
 

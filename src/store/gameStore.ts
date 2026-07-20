@@ -214,6 +214,9 @@ export const useGameStore = create<GameState>()(
         isSkillEnabled: state.isSkillEnabled,
         bgmVolume: state.bgmVolume,
         sfxVolume: state.sfxVolume,
+        // 맵 카탈로그 캐시퍼스트(stale-while-revalidate): 새 창에서 즉시 페인트하고
+        // GameManager가 매 마운트마다 getMapsAction으로 백그라운드 갱신한다.
+        mapDataCache: state.mapDataCache,
       }),
       merge: (persistedState, currentState: GameState) => {
         const persisted = (persistedState ?? {}) as Partial<GameState>

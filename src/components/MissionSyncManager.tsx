@@ -14,7 +14,7 @@ export default function MissionSyncManager() {
 
   useEffect(() => {
     if (!userId || isSynced.current) return;
-    
+
     const syncMissions = async () => {
       isSynced.current = true;
       try {
@@ -63,7 +63,24 @@ export default function MissionSyncManager() {
       }
     };
 
-    syncMissions();
+    // 대기실 첫 페인트 경로에서 비켜서도록 유휴 시점에 실행(최대 2.5초 내 보장).
+    // 일일 로그인 보상·미션 할당 로직 자체는 변경 없음 — 실행 시점만 지연.
+    let idleId: number | undefined;
+    let timerId: ReturnType<typeof setTimeout> | undefined;
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (typeof w.requestIdleCallback === 'function') {
+      idleId = w.requestIdleCallback(() => { syncMissions(); }, { timeout: 2500 });
+    } else {
+      timerId = setTimeout(() => { syncMissions(); }, 1200);
+    }
+
+    return () => {
+      if (idleId !== undefined) w.cancelIdleCallback?.(idleId);
+      if (timerId !== undefined) clearTimeout(timerId);
+    };
   }, [userId, setHasClaimableMissions, addChipsLocally]);
 
   return null;
